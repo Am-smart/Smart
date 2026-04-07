@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from '@/lib/supabase';
 import { User } from '@/lib/types';
+import { useIndexedDB } from '@/hooks/useIndexedDB';
 
 interface AuthState {
   user: User | null;
@@ -13,35 +14,43 @@ interface AuthState {
 interface AuthContextType extends AuthState {
   login: (email: string, pass: string) => Promise<void>;
   logout: () => Promise<void>;
+  updateProfile: (updates: Partial<User>) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [state, setState] = useState<AuthState>({ user: null, role: null, isLoading: true });
+  const { setCache, getCache, addToQueue, isOnline } = useIndexedDB();
 
   useEffect(() => {
-    let user: User | null = null;
-    let role: string | null = null;
+    const initAuth = async () => {
+        let user: User | null = null;
+        let role: string | null = null;
 
-    if (typeof window !== 'undefined') {
-        const raw = sessionStorage.getItem('currentUser');
-        if (raw) {
-            try {
-                user = JSON.parse(raw) as User;
-                role = user.role;
-            } catch (e) {
-                console.error('Failed to parse user from session storage:', e);
+        // Try Cache first
+        const cachedUser = await getCache<User>('current_user');
+        if (cachedUser) {
+            user = cachedUser;
+            role = cachedUser.role;
+        } else if (typeof window !== 'undefined') {
+            const raw = sessionStorage.getItem('currentUser');
+            if (raw) {
+                try {
+                    user = JSON.parse(raw) as User;
+                    role = user.role;
+                    await setCache('current_user', user);
+                } catch (e) {
+                    console.error('Failed to parse user from session storage:', e);
+                }
             }
         }
-    }
 
-    // Using a microtask to avoid synchronous setState warning in effect
-    // This complies with the lint rule while ensuring the state is initialized as soon as possible.
-    queueMicrotask(() => {
         setState({ user, role, isLoading: false });
-    });
-  }, []);
+    };
+
+    initAuth();
+  }, [getCache, setCache]);
 
   const login = useCallback(async (email: string, pass: string) => {
     const { data, error } = await supabase
@@ -55,28 +64,47 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (data) {
       const u = data as User;
       sessionStorage.setItem('currentUser', JSON.stringify(u));
+      await setCache('current_user', u);
       setState({
           user: u,
           role: u.role,
           isLoading: false
       });
     }
-  }, []);
+  }, [setCache]);
 
   const logout = useCallback(async () => {
     sessionStorage.removeItem('currentUser');
+    await setCache('current_user', null);
     setState({
         user: null,
         role: null,
         isLoading: false
     });
-  }, []);
+  }, [setCache]);
+
+  const updateProfile = useCallback(async (updates: Partial<User>) => {
+    if (!state.user) return;
+    const updatedUser = { ...state.user, ...updates };
+
+    // Optimistic Update
+    await setCache('current_user', updatedUser);
+    setState(prev => ({ ...prev, user: updatedUser }));
+
+    if (isOnline) {
+        const { error } = await supabase.from('users').update(updates).eq('email', state.user.email);
+        if (error) throw error;
+    } else {
+        await addToQueue('PROFILE_UPDATE', { email: state.user.email, ...updates });
+    }
+  }, [state.user, isOnline, setCache, addToQueue]);
 
   const contextValue = useMemo(() => ({
     ...state,
     login,
-    logout
-  }), [state, login, logout]);
+    logout,
+    updateProfile
+  }), [state, login, logout, updateProfile]);
 
   return (
     <AuthContext.Provider value={contextValue}>
