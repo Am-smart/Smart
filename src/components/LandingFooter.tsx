@@ -1,5 +1,10 @@
 import React from 'react';
 
+interface FooterProps {
+  onRoleSelect: (role: string) => void;
+}
+
+export const LandingFooter: React.FC<FooterProps> = ({ onRoleSelect }) => {
 export const LandingFooter = () => {
   return (
     <footer className="bg-[#0f172a] text-white py-16 px-[5%]">
@@ -17,6 +22,9 @@ export const LandingFooter = () => {
         <div>
           <h5 className="font-bold text-lg mb-6">Platform</h5>
           <ul className="space-y-4">
+            <li><button onClick={() => onRoleSelect('student')} className="text-[#94a3b8] hover:text-white transition-colors">Students</button></li>
+            <li><button onClick={() => onRoleSelect('teacher')} className="text-[#94a3b8] hover:text-white transition-colors">Teachers</button></li>
+            <li><button onClick={() => onRoleSelect('admin')} className="text-[#94a3b8] hover:text-white transition-colors">Admins</button></li>
             <li><a href="#" className="text-[#94a3b8] hover:text-white transition-colors">Students</a></li>
             <li><a href="#" className="text-[#94a3b8] hover:text-white transition-colors">Teachers</a></li>
             <li><a href="#" className="text-[#94a3b8] hover:text-white transition-colors">Admins</a></li>
