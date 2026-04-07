@@ -9,6 +9,7 @@ import { UserManagement } from "@/components/admin/UserManagement";
 import { UserEditor } from "@/components/admin/UserEditor";
 import { PasswordReset } from "@/components/admin/PasswordReset";
 import { MaintenancePanel } from "@/components/admin/MaintenancePanel";
+import { BroadcastManager } from "@/components/admin/BroadcastManager";
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { User, Maintenance } from '@/lib/types';
@@ -87,7 +88,12 @@ export default function AdminDashboard() {
             />
         );
       case 'maintenance':
-        return <MaintenancePanel maintenance={maintenance} onToggle={handleToggleMaintenance} />;
+        return (
+            <div className="space-y-8">
+                <MaintenancePanel maintenance={maintenance} onToggle={handleToggleMaintenance} />
+                <BroadcastManager />
+            </div>
+        );
       case 'resets':
         return <PasswordReset users={users} />;
       case 'dashboard':

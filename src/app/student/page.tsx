@@ -17,8 +17,13 @@ import { CalendarView } from "@/components/ui/CalendarView";
 import { LiveClassesList } from "@/components/student/LiveClassesList";
 import { DiscussionBoard } from "@/components/student/DiscussionBoard";
 import { AntiCheatRecord } from "@/components/student/AntiCheatRecord";
+import { AchievementsList } from "@/components/student/AchievementsList";
+import { MaterialsList } from "@/components/student/MaterialsList";
+import { PlannerView } from "@/components/student/PlannerView";
+import { CertificatesList } from "@/components/student/CertificatesList";
+import { StudyTimer } from "@/components/student/StudyTimer";
 import { useRouter } from 'next/navigation';
-import { Enrollment, Assignment, Notification, User, Course, Submission, Quiz, QuizSubmission, LiveClass, Discussion } from '@/lib/types';
+import { Enrollment, Assignment, Notification, User, Course, Submission, Quiz, QuizSubmission, LiveClass, Discussion, Badge, Material } from '@/lib/types';
 import { supabase } from '@/lib/supabase';
 
 export default function StudentDashboard() {
@@ -38,6 +43,8 @@ export default function StudentDashboard() {
   const [quizSubmissions, setQuizSubmissions] = useState<QuizSubmission[]>([]);
   const [liveClasses, setLiveClasses] = useState<LiveClass[]>([]);
   const [discussions, setDiscussions] = useState<Discussion[]>([]);
+  const [badges, setBadges] = useState<Badge[]>([]);
+  const [materials, setMaterials] = useState<Material[]>([]);
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
   const [activeQuiz, setActiveQuiz] = useState<Quiz | null>(null);
   const [activeAssignment, setActiveAssignment] = useState<Assignment | null>(null);
@@ -69,7 +76,9 @@ export default function StudentDashboard() {
             allNotifications,
             allQuizzes,
             myQuizSubs,
-            allLiveClasses
+            allLiveClasses,
+            myBadges,
+            allMaterials
           ] = await Promise.all([
             getCourses() as Promise<Course[]>,
             getEnrollments(u.email) as Promise<Enrollment[]>,
@@ -78,7 +87,9 @@ export default function StudentDashboard() {
             getNotifications(u.email) as Promise<Notification[]>,
             getQuizzes() as Promise<Quiz[]>,
             supabase.from('quiz_submissions').select('*, quizzes(*)').eq('student_email', u.email).then(r => r.data || []) as Promise<QuizSubmission[]>,
-            supabase.from('live_classes').select('*').then(r => r.data || []) as Promise<LiveClass[]>
+            supabase.from('live_classes').select('*').then(r => r.data || []) as Promise<LiveClass[]>,
+            supabase.from('user_badges').select('*, badges(*)').eq('user_email', u.email).then(r => (r.data || []).map((b: any) => b.badges) as Badge[]),
+            supabase.from('materials').select('*').then(r => r.data || []) as Promise<Material[]>
           ]);
 
           setCourses(allCourses.filter(c => c.status === 'published'));
@@ -90,11 +101,13 @@ export default function StudentDashboard() {
           setQuizzes(allQuizzes.filter(q => enrolledIds.includes(q.course_id) && q.status === 'published'));
           setQuizSubmissions(myQuizSubs);
           setLiveClasses(allLiveClasses.filter(lc => enrolledIds.includes(lc.course_id)));
+          setBadges(myBadges);
+          setMaterials(allMaterials.filter(m => enrolledIds.includes(m.course_id)));
 
           setStats({
             courses: myEnrollments.length,
             dueSoon: allAssignments.filter((a) => enrolledIds.includes(a.course_id) && a.status === 'published' && new Date(a.due_date) > new Date() && !mySubmissions.some(s => s.assignment_id === a.id)).length,
-            badges: 0,
+            badges: myBadges.length,
             unreadNotifications: allNotifications.filter((n) => !n.is_read).length
           });
       }
@@ -313,6 +326,14 @@ export default function StudentDashboard() {
                 )}
             </div>
         );
+      case 'achievements':
+        return <AchievementsList badges={badges} />;
+      case 'materials':
+        return <MaterialsList materials={materials} />;
+      case 'planner':
+        return <PlannerView userEmail={user.email} />;
+      case 'certificates':
+        return <CertificatesList studentEmail={user.email} />;
       case 'anti-cheat':
         return <AntiCheatRecord submissions={submissions} quizSubmissions={quizSubmissions} />;
       default:
@@ -343,7 +364,10 @@ export default function StudentDashboard() {
         <main className="main ml-0 md:ml-[240px]">
           <StudentHeader user={user} stats={stats} onLogout={handleLogout} onMenuClick={() => setIsSidebarOpen(true)} />
           <div className="content-area p-4 md:p-8 bg-[#f8fafc] min-h-[calc(100vh-70px)]">
-            <div id="pageContent">
+            <div id="pageContent" className="space-y-8">
+              {activePage === 'dashboard' && enrollments.length > 0 && (
+                <StudyTimer userEmail={user.email} courses={enrollments.map(e => e.courses).filter(Boolean) as Course[]} />
+              )}
               {renderContent()}
             </div>
           </div>
