@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Course, User } from '@/lib/types';
 
@@ -19,7 +19,7 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ teacherEma
     const [enrollments, setEnrollments] = useState<EnrollmentWithStudent[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
-    const fetchEnrollments = async () => {
+    const fetchEnrollments = useCallback(async () => {
         setIsLoading(true);
         try {
             // Get teacher's courses first
@@ -43,11 +43,11 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ teacherEma
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [teacherEmail]);
 
     useEffect(() => {
         fetchEnrollments();
-    }, [teacherEmail]);
+    }, [fetchEnrollments]);
 
     const handleUnenroll = async (id: string) => {
         if (!confirm('Are you sure you want to unenroll this student?')) return;

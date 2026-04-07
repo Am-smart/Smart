@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { PlannerItem } from '@/lib/types';
 
@@ -12,11 +12,7 @@ export const PlannerView: React.FC<PlannerViewProps> = ({ userEmail }) => {
   const [dueDate, setDueDate] = useState('');
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    fetchPlanner();
-  }, []);
-
-  const fetchPlanner = async () => {
+  const fetchPlanner = useCallback(async () => {
     setIsLoading(true);
     const { data } = await supabase
       .from('planner')
@@ -25,7 +21,11 @@ export const PlannerView: React.FC<PlannerViewProps> = ({ userEmail }) => {
       .order('due_date', { ascending: true });
     setItems((data as PlannerItem[]) || []);
     setIsLoading(false);
-  };
+  }, [userEmail]);
+
+  useEffect(() => {
+    fetchPlanner();
+  }, [fetchPlanner]);
 
   const addItem = async (e: React.FormEvent) => {
     e.preventDefault();

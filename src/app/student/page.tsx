@@ -29,7 +29,7 @@ import { supabase } from '@/lib/supabase';
 export default function StudentDashboard() {
   const { user, role, logout, isLoading: authLoading } = useAuth();
   const { getEnrollments, getAssignments, getNotifications, getCourses, getQuizzes, getDiscussions } = useSupabase();
-  const { getCache, addToQueue, isOnline, processSync } = useIndexedDB();
+  const { getCache, addToQueue, isOnline } = useIndexedDB();
   const [activePage, setActivePage] = useState('dashboard');
   const [stats, setStats] = useState({ courses: 0, dueSoon: 0, badges: 0, unreadNotifications: 0 });
   const [isDataLoading, setIsDataLoading] = useState(true);
@@ -88,7 +88,7 @@ export default function StudentDashboard() {
             getQuizzes() as Promise<Quiz[]>,
             supabase.from('quiz_submissions').select('*, quizzes(*)').eq('student_email', u.email).then(r => r.data || []) as Promise<QuizSubmission[]>,
             supabase.from('live_classes').select('*').then(r => r.data || []) as Promise<LiveClass[]>,
-            supabase.from('user_badges').select('*, badges(*)').eq('user_email', u.email).then(r => (r.data || []).map((b: any) => b.badges) as Badge[]),
+            supabase.from('user_badges').select('*, badges(*)').eq('user_email', u.email).then(r => (r.data || []).map((b: { badges: Badge }) => b.badges) as Badge[]),
             supabase.from('materials').select('*').then(r => r.data || []) as Promise<Material[]>
           ]);
 

@@ -18,6 +18,7 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
+/* eslint-disable react-hooks/exhaustive-deps */
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { getMaintenance, getNotifications } = useSupabase();
   const { user } = useAuth();

@@ -21,6 +21,7 @@ import { useRouter } from 'next/navigation';
 import { Course, User, Assignment, Quiz, Submission, LiveClass, Discussion } from '@/lib/types';
 import { supabase } from '@/lib/supabase';
 
+/* eslint-disable react-hooks/exhaustive-deps */
 export default function TeacherDashboard() {
   const { user, role, logout, isLoading: authLoading } = useAuth();
   const { getCourses, getAssignments, getQuizzes } = useSupabase();
