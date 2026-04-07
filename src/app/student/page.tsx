@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
 import { useSupabase } from '@/hooks/useSupabase';
+import { useIndexedDB } from '@/hooks/useIndexedDB';
 import { StudentSidebar } from "@/components/StudentSidebar";
 import { StudentHeader } from "@/components/StudentHeader";
 import { CourseCatalog } from "@/components/student/CourseCatalog";
@@ -23,6 +24,7 @@ import { supabase } from '@/lib/supabase';
 export default function StudentDashboard() {
   const { user, role, logout, isLoading: authLoading } = useAuth();
   const { getEnrollments, getAssignments, getNotifications, getCourses, getQuizzes, getDiscussions } = useSupabase();
+  const { getCache, addToQueue, isOnline, processSync } = useIndexedDB();
   const [activePage, setActivePage] = useState('dashboard');
   const [stats, setStats] = useState({ courses: 0, dueSoon: 0, badges: 0, unreadNotifications: 0 });
   const [isDataLoading, setIsDataLoading] = useState(true);
@@ -45,48 +47,63 @@ export default function StudentDashboard() {
 
   const fetchData = useCallback(async (u: User) => {
     try {
-      const [
-        allCourses,
-        myEnrollments,
-        allAssignments,
-        mySubmissions,
-        allNotifications,
-        allQuizzes,
-        myQuizSubs,
-        allLiveClasses
-      ] = await Promise.all([
-        getCourses() as Promise<Course[]>,
-        getEnrollments(u.email) as Promise<Enrollment[]>,
-        getAssignments() as Promise<Assignment[]>,
-        supabase.from('submissions').select('*, assignments(*)').eq('student_email', u.email).then(r => r.data || []) as Promise<Submission[]>,
-        getNotifications(u.email) as Promise<Notification[]>,
-        getQuizzes() as Promise<Quiz[]>,
-        supabase.from('quiz_submissions').select('*, quizzes(*)').eq('student_email', u.email).then(r => r.data || []) as Promise<QuizSubmission[]>,
-        supabase.from('live_classes').select('*').then(r => r.data || []) as Promise<LiveClass[]>
-      ]);
+      setIsDataLoading(true);
 
-      setCourses(allCourses.filter(c => c.status === 'published'));
-      setEnrollments(myEnrollments);
+      // Try local cache first
+      const cachedCourses = await getCache<Course[]>('all_courses');
+      const cachedEnrollments = await getCache<Enrollment[]>('my_enrollments');
+      const cachedAssignments = await getCache<Assignment[]>('all_assignments');
+      const cachedQuizzes = await getCache<Quiz[]>('all_quizzes');
 
-      const enrolledIds = myEnrollments.map(e => e.course_id);
-      setAssignments(allAssignments.filter(a => enrolledIds.includes(a.course_id) && a.status === 'published'));
-      setSubmissions(mySubmissions);
-      setQuizzes(allQuizzes.filter(q => enrolledIds.includes(q.course_id) && q.status === 'published'));
-      setQuizSubmissions(myQuizSubs);
-      setLiveClasses(allLiveClasses.filter(lc => enrolledIds.includes(lc.course_id)));
+      if (cachedCourses) setCourses(cachedCourses);
+      if (cachedEnrollments) setEnrollments(cachedEnrollments);
+      if (cachedAssignments) setAssignments(cachedAssignments);
+      if (cachedQuizzes) setQuizzes(cachedQuizzes);
 
-      setStats({
-        courses: myEnrollments.length,
-        dueSoon: allAssignments.filter((a) => enrolledIds.includes(a.course_id) && a.status === 'published' && new Date(a.due_date) > new Date() && !mySubmissions.some(s => s.assignment_id === a.id)).length,
-        badges: 0,
-        unreadNotifications: allNotifications.filter((n) => !n.is_read).length
-      });
+      if (isOnline) {
+          const [
+            allCourses,
+            myEnrollments,
+            allAssignments,
+            mySubmissions,
+            allNotifications,
+            allQuizzes,
+            myQuizSubs,
+            allLiveClasses
+          ] = await Promise.all([
+            getCourses() as Promise<Course[]>,
+            getEnrollments(u.email) as Promise<Enrollment[]>,
+            getAssignments() as Promise<Assignment[]>,
+            supabase.from('submissions').select('*, assignments(*)').eq('student_email', u.email).then(r => r.data || []) as Promise<Submission[]>,
+            getNotifications(u.email) as Promise<Notification[]>,
+            getQuizzes() as Promise<Quiz[]>,
+            supabase.from('quiz_submissions').select('*, quizzes(*)').eq('student_email', u.email).then(r => r.data || []) as Promise<QuizSubmission[]>,
+            supabase.from('live_classes').select('*').then(r => r.data || []) as Promise<LiveClass[]>
+          ]);
+
+          setCourses(allCourses.filter(c => c.status === 'published'));
+          setEnrollments(myEnrollments);
+
+          const enrolledIds = myEnrollments.map(e => e.course_id);
+          setAssignments(allAssignments.filter(a => enrolledIds.includes(a.course_id) && a.status === 'published'));
+          setSubmissions(mySubmissions);
+          setQuizzes(allQuizzes.filter(q => enrolledIds.includes(q.course_id) && q.status === 'published'));
+          setQuizSubmissions(myQuizSubs);
+          setLiveClasses(allLiveClasses.filter(lc => enrolledIds.includes(lc.course_id)));
+
+          setStats({
+            courses: myEnrollments.length,
+            dueSoon: allAssignments.filter((a) => enrolledIds.includes(a.course_id) && a.status === 'published' && new Date(a.due_date) > new Date() && !mySubmissions.some(s => s.assignment_id === a.id)).length,
+            badges: 0,
+            unreadNotifications: allNotifications.filter((n) => !n.is_read).length
+          });
+      }
     } catch (err) {
       console.error('Failed to fetch stats:', err);
     } finally {
       setIsDataLoading(false);
     }
-  }, [getCourses, getEnrollments, getAssignments, getNotifications, getQuizzes]);
+  }, [getCourses, getEnrollments, getAssignments, getNotifications, getQuizzes, getCache, isOnline]);
 
   useEffect(() => {
     if (!authLoading) {
@@ -114,10 +131,16 @@ export default function StudentDashboard() {
   const handleEnroll = async (courseId: string) => {
     if (!user) return;
     try {
-        const { error } = await supabase
-            .from('enrollments')
-            .upsert({ course_id: courseId, student_email: user.email }, { onConflict: 'course_id,student_email' });
-        if (error) throw error;
+        const payload = { course_id: courseId, student_email: user.email };
+
+        if (isOnline) {
+            const { error } = await supabase.from('enrollments').upsert(payload, { onConflict: 'course_id,student_email' });
+            if (error) throw error;
+        } else {
+            await addToQueue('ENROLL', payload);
+            alert('Offline: Enrollment queued for sync.');
+        }
+
         fetchData(user);
         setActivePage('my-courses');
     } catch (err) {
@@ -285,6 +308,7 @@ export default function StudentDashboard() {
                         userEmail={user.email}
                         onPost={handlePostDiscussion}
                         onDelete={async (id) => { await supabase.from('discussions').delete().eq('id', id); getDiscussions(selectedCourseId).then(setDiscussions); }}
+                        isOnline={isOnline}
                     />
                 )}
             </div>

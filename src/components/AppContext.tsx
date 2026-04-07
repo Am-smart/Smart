@@ -5,6 +5,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { useSupabase } from '@/hooks/useSupabase';
 import { Maintenance, Notification } from '@/lib/types';
 import { useAuth } from './auth/AuthContext';
+import { useIndexedDB } from '@/hooks/useIndexedDB';
 
 interface AppContextType {
   maintenance: Maintenance;
@@ -12,6 +13,7 @@ interface AppContextType {
   isSidebarOpen: boolean;
   toggleSidebar: () => void;
   fetchNotifications: (email: string) => Promise<void>;
+  isOnline: boolean;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -19,37 +21,54 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { getMaintenance, getNotifications } = useSupabase();
   const { user } = useAuth();
+  const { setCache, getCache, isOnline, pullData } = useIndexedDB();
   const [maintenance, setMaintenance] = useState<Maintenance>({ enabled: false, schedules: [] });
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   const init = useCallback(async () => {
     try {
-      const m = await getMaintenance();
-      setMaintenance(m);
+      // Try Cache
+      const cachedMaint = await getCache<Maintenance>('maintenance');
+      if (cachedMaint) setMaintenance(cachedMaint);
+
+      if (isOnline) {
+        const m = await getMaintenance();
+        setMaintenance(m);
+        await setCache('maintenance', m);
+      }
     } catch (err) {
       console.error('Failed to init app context:', err);
     }
-  }, [getMaintenance]);
+  }, [getMaintenance, getCache, setCache, isOnline]);
 
   const fetchNotifications = useCallback(async (email: string) => {
     try {
-      const n = await getNotifications(email);
-      setNotifications(n);
+      const cachedNotes = await getCache<Notification[]>('notifications');
+      if (cachedNotes) setNotifications(cachedNotes);
+
+      if (isOnline) {
+        const n = await getNotifications(email);
+        setNotifications(n);
+        await setCache('notifications', n);
+      }
     } catch (err) {
       console.error('Failed to fetch notifications:', err);
     }
-  }, [getNotifications]);
+  }, [getNotifications, getCache, setCache, isOnline]);
 
   useEffect(() => {
     init();
-  }, []);
+  }, [init]);
 
   useEffect(() => {
     if (user) {
         fetchNotifications(user.email);
+        if (isOnline) {
+            pullData(user.email, user.role);
+        }
     }
-  }, [user]);
+  }, [user, isOnline, pullData, fetchNotifications]);
 
   const toggleSidebar = useCallback(() => setIsSidebarOpen(prev => !prev), []);
 
@@ -58,8 +77,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     notifications,
     isSidebarOpen,
     toggleSidebar,
-    fetchNotifications
-  }), [maintenance, notifications, isSidebarOpen, toggleSidebar, fetchNotifications]);
+    fetchNotifications,
+    isOnline
+  }), [maintenance, notifications, isSidebarOpen, toggleSidebar, fetchNotifications, isOnline]);
 
   return (
     <AppContext.Provider value={value}>

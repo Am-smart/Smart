@@ -4,6 +4,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
 import { useSupabase } from '@/hooks/useSupabase';
+import { useIndexedDB } from '@/hooks/useIndexedDB';
 import { TeacherSidebar } from "@/components/TeacherSidebar";
 import { TeacherHeader } from "@/components/TeacherHeader";
 import { CourseManager } from "@/components/teacher/CourseManager";
@@ -23,6 +24,7 @@ import { supabase } from '@/lib/supabase';
 export default function TeacherDashboard() {
   const { user, role, logout, isLoading: authLoading } = useAuth();
   const { getCourses, getAssignments, getQuizzes } = useSupabase();
+  const { getCache, isOnline } = useIndexedDB();
   const [activePage, setActivePage] = useState('dashboard');
   const [isDataLoading, setIsDataLoading] = useState(true);
 
@@ -48,36 +50,49 @@ export default function TeacherDashboard() {
 
   const fetchData = useCallback(async (u: User) => {
     try {
-      const [allCourses, allAssignments, allQuizzes, allSubs, allLiveClasses] = await Promise.all([
-        getCourses(u.email) as Promise<Course[]>,
-        getAssignments(u.email) as Promise<Assignment[]>,
-        getQuizzes(undefined, u.email) as Promise<Quiz[]>,
-        supabase.from('submissions').select('*, assignments(*)').then(r => r.data || []) as Promise<Submission[]>,
-        supabase.from('live_classes').select('*').eq('teacher_email', u.email).then(r => r.data || []) as Promise<LiveClass[]>
-      ]);
+      setIsDataLoading(true);
 
-      setCourses(allCourses);
-      setAssignments(allAssignments);
-      setQuizzes(allQuizzes);
-      setLiveClasses(allLiveClasses);
+      // Try Cache
+      const cachedCourses = await getCache<Course[]>('teacher_courses');
+      const cachedAssignments = await getCache<Assignment[]>('teacher_assignments');
+      const cachedQuizzes = await getCache<Quiz[]>('teacher_quizzes');
 
-      const teacherAssignments = allAssignments.map(a => a.id);
-      setSubmissions(allSubs.filter(s => teacherAssignments.includes(s.assignment_id)));
+      if (cachedCourses) setCourses(cachedCourses);
+      if (cachedAssignments) setAssignments(cachedAssignments);
+      if (cachedQuizzes) setQuizzes(cachedQuizzes);
 
-      // Calculate total students across all courses
-      const { data: enrollments } = await supabase
-        .from('enrollments')
-        .select('student_email')
-        .in('course_id', allCourses.map(c => c.id));
+      if (isOnline) {
+          const [allCourses, allAssignments, allQuizzes, allSubs, allLiveClasses] = await Promise.all([
+            getCourses(u.email) as Promise<Course[]>,
+            getAssignments(u.email) as Promise<Assignment[]>,
+            getQuizzes(undefined, u.email) as Promise<Quiz[]>,
+            supabase.from('submissions').select('*, assignments(*)').then(r => r.data || []) as Promise<Submission[]>,
+            supabase.from('live_classes').select('*').eq('teacher_email', u.email).then(r => r.data || []) as Promise<LiveClass[]>
+          ]);
 
-      const uniqueStudents = new Set(enrollments?.map(e => e.student_email));
-      setStudentsCount(uniqueStudents.size);
+          setCourses(allCourses);
+          setAssignments(allAssignments);
+          setQuizzes(allQuizzes);
+          setLiveClasses(allLiveClasses);
+
+          const teacherAssignments = allAssignments.map(a => a.id);
+          setSubmissions(allSubs.filter(s => teacherAssignments.includes(s.assignment_id)));
+
+          // Calculate total students across all courses
+          const { data: enrollments } = await supabase
+            .from('enrollments')
+            .select('student_email')
+            .in('course_id', allCourses.map(c => c.id));
+
+          const uniqueStudents = new Set(enrollments?.map(e => e.student_email));
+          setStudentsCount(uniqueStudents.size);
+      }
     } catch (err) {
       console.error('Failed to fetch teacher data:', err);
     } finally {
       setIsDataLoading(false);
     }
-  }, []);
+  }, [getCourses, getAssignments, getQuizzes, getCache, isOnline]);
 
   useEffect(() => {
     if (!authLoading) {
@@ -87,7 +102,7 @@ export default function TeacherDashboard() {
         fetchData(user);
       }
     }
-  }, [authLoading, user, role]);
+  }, [authLoading, user, role, fetchData, router]);
 
   const handleLogout = async () => {
     await logout();
@@ -160,6 +175,7 @@ export default function TeacherDashboard() {
                             const { data } = await supabase.from('discussions').select('*').eq('course_id', selectedCourseId);
                             setDiscussions((data as Discussion[]) || []);
                         }}
+                        isOnline={isOnline}
                     />
                 )}
             </div>
