@@ -42,6 +42,7 @@ export default function TeacherDashboard() {
   const [activeQuiz, setActiveQuiz] = useState<Quiz | null>(null);
   const [isCreatingQuiz, setIsCreatingQuiz] = useState(false);
   const [activeSubmission, setActiveSubmission] = useState<Submission | null>(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const router = useRouter();
 
@@ -299,10 +300,10 @@ export default function TeacherDashboard() {
         />
       )}
       <div className="app">
-        <TeacherSidebar activePage={activePage} onNavigate={setActivePage} />
+        <TeacherSidebar activePage={activePage} onNavigate={setActivePage} isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
         <main className="main ml-0 md:ml-[240px]">
-          <TeacherHeader onLogout={handleLogout} />
-          <div className="content-area p-8 bg-[#f8fafc] min-h-[calc(100vh-70px)]">
+          <TeacherHeader onLogout={handleLogout} onMenuClick={() => setIsSidebarOpen(true)} />
+          <div className="content-area p-4 md:p-8 bg-[#f8fafc] min-h-[calc(100vh-70px)]">
             <div id="pageContent">
               {renderContent()}
             </div>

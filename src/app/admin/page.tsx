@@ -24,6 +24,7 @@ export default function AdminDashboard() {
   const [maintenance, setMaintenance] = useState<Maintenance | null>(null);
   const [activeUser, setActiveUser] = useState<User | null>(null);
   const [isAddingUser, setIsAddingUser] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const router = useRouter();
 
@@ -163,10 +164,10 @@ export default function AdminDashboard() {
         />
       )}
       <div className="app">
-        <AdminSidebar activePage={activePage} onNavigate={setActivePage} />
+        <AdminSidebar activePage={activePage} onNavigate={setActivePage} isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
         <main className="main ml-0 md:ml-[240px]">
-          <AdminHeader onLogout={handleLogout} />
-          <div className="content-area p-8 bg-[#f8fafc] min-h-[calc(100vh-70px)]">
+          <AdminHeader onLogout={handleLogout} onMenuClick={() => setIsSidebarOpen(true)} />
+          <div className="content-area p-4 md:p-8 bg-[#f8fafc] min-h-[calc(100vh-70px)]">
             <div id="pageContent">
               {renderContent()}
             </div>

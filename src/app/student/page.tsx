@@ -39,6 +39,7 @@ export default function StudentDashboard() {
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
   const [activeQuiz, setActiveQuiz] = useState<Quiz | null>(null);
   const [activeAssignment, setActiveAssignment] = useState<Assignment | null>(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const router = useRouter();
 
@@ -159,6 +160,73 @@ export default function StudentDashboard() {
 
   const renderContent = () => {
     switch (activePage) {
+      case 'dashboard':
+        return (
+          <>
+            <h2 className="text-2xl font-bold mb-6">Welcome Back, {user.full_name}!</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+              <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                <h4 className="text-slate-500 text-sm font-bold uppercase mb-2">Enrolled Courses</h4>
+                <div className="text-3xl font-bold text-slate-900">{stats.courses}</div>
+              </div>
+              <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                <h4 className="text-slate-500 text-sm font-bold uppercase mb-2">Upcoming Assignments</h4>
+                <div className="text-3xl font-bold text-slate-900">{stats.dueSoon}</div>
+              </div>
+              <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                <h4 className="text-slate-500 text-sm font-bold uppercase mb-2">XP Points</h4>
+                <div className="text-3xl font-bold text-slate-900">{user.xp || 0}</div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
+                    <h3 className="text-lg font-bold mb-6">Continue Learning</h3>
+                    {enrollments.length > 0 ? (
+                        <div className="space-y-4">
+                            {enrollments.slice(0, 3).map(e => (
+                                <div key={e.id} className="flex items-center gap-4 p-4 bg-slate-50 rounded-xl">
+                                    <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center text-xl">📖</div>
+                                    <div className="flex-1">
+                                        <div className="font-bold text-slate-900">{e.courses?.title}</div>
+                                        <div className="w-full bg-slate-200 h-1.5 rounded-full mt-2 overflow-hidden">
+                                            <div className="bg-blue-500 h-full" style={{ width: `${e.progress}%` }}></div>
+                                        </div>
+                                    </div>
+                                    <button onClick={() => setActivePage('my-courses')} className="text-blue-600 font-bold text-xs uppercase">Open</button>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <p className="text-slate-500 text-sm italic">No courses enrolled yet.</p>
+                    )}
+                </div>
+
+                <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
+                    <h3 className="text-lg font-bold mb-6">Upcoming Deadlines</h3>
+                    {assignments.filter(a => !submissions.some(s => s.assignment_id === a.id)).length > 0 ? (
+                        <div className="space-y-4">
+                            {assignments
+                                .filter(a => !submissions.some(s => s.assignment_id === a.id))
+                                .slice(0, 3)
+                                .map(a => (
+                                    <div key={a.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
+                                        <div>
+                                            <div className="font-bold text-slate-900">{a.title}</div>
+                                            <div className="text-xs text-slate-500 mt-1">Due: {new Date(a.due_date).toLocaleDateString()}</div>
+                                        </div>
+                                        <button onClick={() => setActivePage('assignments')} className="btn-primary py-1.5 px-4 text-[10px]">Submit</button>
+                                    </div>
+                                ))
+                            }
+                        </div>
+                    ) : (
+                        <p className="text-slate-500 text-sm italic">All caught up! No pending assignments.</p>
+                    )}
+                </div>
+            </div>
+          </>
+        );
       case 'analytics':
         return <StudentAnalytics submissions={submissions} quizSubmissions={quizSubmissions} enrollments={enrollments} />;
       case 'calendar':
@@ -223,74 +291,8 @@ export default function StudentDashboard() {
         );
       case 'anti-cheat':
         return <AntiCheatRecord submissions={submissions} quizSubmissions={quizSubmissions} />;
-      case 'dashboard':
       default:
-        return (
-          <>
-            <h2 className="text-2xl font-bold mb-6">Welcome Back, {user.full_name}!</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-              <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-                <h4 className="text-slate-500 text-sm font-bold uppercase mb-2">Enrolled Courses</h4>
-                <div className="text-3xl font-bold text-slate-900">{stats.courses}</div>
-              </div>
-              <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-                <h4 className="text-slate-500 text-sm font-bold uppercase mb-2">Upcoming Assignments</h4>
-                <div className="text-3xl font-bold text-slate-900">{stats.dueSoon}</div>
-              </div>
-              <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-                <h4 className="text-slate-500 text-sm font-bold uppercase mb-2">XP Points</h4>
-                <div className="text-3xl font-bold text-slate-900">{user.xp || 0}</div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
-                    <h3 className="text-lg font-bold mb-6">Continue Learning</h3>
-                    {enrollments.length > 0 ? (
-                        <div className="space-y-4">
-                            {enrollments.slice(0, 3).map(e => (
-                                <div key={e.id} className="flex items-center gap-4 p-4 bg-slate-50 rounded-xl">
-                                    <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center text-xl">📖</div>
-                                    <div className="flex-1">
-                                        <div className="font-bold text-slate-900">{e.courses?.title}</div>
-                                        <div className="w-full bg-slate-200 h-1.5 rounded-full mt-2 overflow-hidden">
-                                            <div className="bg-blue-500 h-full" style={{ width: `${e.progress}%` }}></div>
-                                        </div>
-                                    </div>
-                                    <button onClick={() => setActivePage('my-courses')} className="text-blue-600 font-bold text-xs uppercase">Open</button>
-                                </div>
-                            ))}
-                        </div>
-                    ) : (
-                        <p className="text-slate-500 text-sm italic">No courses enrolled yet.</p>
-                    )}
-                </div>
-
-                <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
-                    <h3 className="text-lg font-bold mb-6">Upcoming Deadlines</h3>
-                    {assignments.filter(a => !submissions.some(s => s.assignment_id === a.id)).length > 0 ? (
-                        <div className="space-y-4">
-                            {assignments
-                                .filter(a => !submissions.some(s => s.assignment_id === a.id))
-                                .slice(0, 3)
-                                .map(a => (
-                                    <div key={a.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
-                                        <div>
-                                            <div className="font-bold text-slate-900">{a.title}</div>
-                                            <div className="text-xs text-slate-500 mt-1">Due: {new Date(a.due_date).toLocaleDateString()}</div>
-                                        </div>
-                                        <button onClick={() => setActivePage('assignments')} className="btn-primary py-1.5 px-4 text-[10px]">Submit</button>
-                                    </div>
-                                ))
-                            }
-                        </div>
-                    ) : (
-                        <p className="text-slate-500 text-sm italic">All caught up! No pending assignments.</p>
-                    )}
-                </div>
-            </div>
-          </>
-        );
+        return null;
     }
   };
 
@@ -313,10 +315,10 @@ export default function StudentDashboard() {
         />
       )}
       <div className="app">
-        <StudentSidebar activePage={activePage} onNavigate={setActivePage} />
+        <StudentSidebar activePage={activePage} onNavigate={setActivePage} isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
         <main className="main ml-0 md:ml-[240px]">
-          <StudentHeader user={user} stats={stats} onLogout={handleLogout} />
-          <div className="content-area p-8 bg-[#f8fafc] min-h-[calc(100vh-70px)]">
+          <StudentHeader user={user} stats={stats} onLogout={handleLogout} onMenuClick={() => setIsSidebarOpen(true)} />
+          <div className="content-area p-4 md:p-8 bg-[#f8fafc] min-h-[calc(100vh-70px)]">
             <div id="pageContent">
               {renderContent()}
             </div>
