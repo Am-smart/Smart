@@ -5,7 +5,6 @@ interface FooterProps {
 }
 
 export const LandingFooter: React.FC<FooterProps> = ({ onRoleSelect }) => {
-export const LandingFooter = () => {
   return (
     <footer className="bg-[#0f172a] text-white py-16 px-[5%]">
       <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr_1fr] gap-12 border-b border-[#1e293b] pb-12">
@@ -25,9 +24,6 @@ export const LandingFooter = () => {
             <li><button onClick={() => onRoleSelect('student')} className="text-[#94a3b8] hover:text-white transition-colors">Students</button></li>
             <li><button onClick={() => onRoleSelect('teacher')} className="text-[#94a3b8] hover:text-white transition-colors">Teachers</button></li>
             <li><button onClick={() => onRoleSelect('admin')} className="text-[#94a3b8] hover:text-white transition-colors">Admins</button></li>
-            <li><a href="#" className="text-[#94a3b8] hover:text-white transition-colors">Students</a></li>
-            <li><a href="#" className="text-[#94a3b8] hover:text-white transition-colors">Teachers</a></li>
-            <li><a href="#" className="text-[#94a3b8] hover:text-white transition-colors">Admins</a></li>
           </ul>
         </div>
         <div>
