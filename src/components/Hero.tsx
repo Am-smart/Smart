@@ -5,7 +5,6 @@ interface HeroProps {
 }
 
 export const Hero: React.FC<HeroProps> = ({ onRoleSelect }) => {
-export const Hero = () => {
   return (
     <section className="pt-32 pb-20 px-[5%] text-center bg-gradient-to-b from-[#f8fafc] to-white overflow-hidden">
       <div id="maintBanner" className="hidden bg-[#fff7ed] text-[#9a3412] border border-[#ffedd5] rounded-full px-6 py-3 mb-8 mx-auto text-sm max-w-2xl"></div>
@@ -22,15 +21,6 @@ export const Hero = () => {
           <span className="font-bold text-[#334155] text-lg">Teacher</span>
         </div>
         <div onClick={() => onRoleSelect('admin')} className="bg-white p-8 rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-[#f1f5f9] transition-all hover:-translate-y-1 hover:shadow-[0_10px_30px_rgba(0,0,0,0.08)] cursor-pointer">
-        <div className="bg-white p-8 rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-[#f1f5f9] transition-all hover:-translate-y-1 hover:shadow-[0_10px_30px_rgba(0,0,0,0.08)] cursor-pointer" id="heroStudent">
-          <div className="text-4xl mb-4">🧑‍🎓</div>
-          <span className="font-bold text-[#334155] text-lg">Student</span>
-        </div>
-        <div className="bg-white p-8 rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-[#f1f5f9] transition-all hover:-translate-y-1 hover:shadow-[0_10px_30px_rgba(0,0,0,0.08)] cursor-pointer" id="heroTeacher">
-          <div className="text-4xl mb-4">🧑‍🏫</div>
-          <span className="font-bold text-[#334155] text-lg">Teacher</span>
-        </div>
-        <div className="bg-white p-8 rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-[#f1f5f9] transition-all hover:-translate-y-1 hover:shadow-[0_10px_30px_rgba(0,0,0,0.08)] cursor-pointer" id="heroAdmin">
           <div className="text-4xl mb-4">⚙️</div>
           <span className="font-bold text-[#334155] text-lg">Admin</span>
         </div>

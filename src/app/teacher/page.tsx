@@ -8,10 +8,16 @@ import { TeacherSidebar } from "@/components/TeacherSidebar";
 import { TeacherHeader } from "@/components/TeacherHeader";
 import { CourseManager } from "@/components/teacher/CourseManager";
 import { CourseEditor } from "@/components/teacher/CourseEditor";
+import { AssignmentEditor } from "@/components/teacher/AssignmentEditor";
+import { QuizEditor } from "@/components/teacher/QuizEditor";
+import { StudentManagement } from "@/components/teacher/StudentManagement";
+import { MaterialManager } from "@/components/teacher/MaterialManager";
 import { GradingQueue } from "@/components/teacher/GradingQueue";
 import { GradingModal } from "@/components/teacher/GradingModal";
+import { CalendarView } from "@/components/ui/CalendarView";
+import { DiscussionBoard } from "@/components/student/DiscussionBoard";
 import { useRouter } from 'next/navigation';
-import { Course, User, Assignment, Quiz, Submission } from '@/lib/types';
+import { Course, User, Assignment, Quiz, Submission, LiveClass, Discussion } from '@/lib/types';
 import { supabase } from '@/lib/supabase';
 
 export default function TeacherDashboard() {
@@ -25,25 +31,34 @@ export default function TeacherDashboard() {
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [studentsCount, setStudentsCount] = useState(0);
+  const [liveClasses, setLiveClasses] = useState<LiveClass[]>([]);
+  const [discussions, setDiscussions] = useState<Discussion[]>([]);
+  const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
 
   const [activeCourse, setActiveCourse] = useState<Course | null>(null);
   const [isCreatingCourse, setIsCreatingCourse] = useState(false);
+  const [activeAssignment, setActiveAssignment] = useState<Assignment | null>(null);
+  const [isCreatingAssignment, setIsCreatingAssignment] = useState(false);
+  const [activeQuiz, setActiveQuiz] = useState<Quiz | null>(null);
+  const [isCreatingQuiz, setIsCreatingQuiz] = useState(false);
   const [activeSubmission, setActiveSubmission] = useState<Submission | null>(null);
 
   const router = useRouter();
 
   const fetchData = useCallback(async (u: User) => {
     try {
-      const [allCourses, allAssignments, allQuizzes, allSubs] = await Promise.all([
+      const [allCourses, allAssignments, allQuizzes, allSubs, allLiveClasses] = await Promise.all([
         getCourses(u.email) as Promise<Course[]>,
         getAssignments(u.email) as Promise<Assignment[]>,
         getQuizzes(undefined, u.email) as Promise<Quiz[]>,
-        supabase.from('submissions').select('*, assignments(*)').then(r => r.data || []) as Promise<Submission[]>
+        supabase.from('submissions').select('*, assignments(*)').then(r => r.data || []) as Promise<Submission[]>,
+        supabase.from('live_classes').select('*').eq('teacher_email', u.email).then(r => r.data || []) as Promise<LiveClass[]>
       ]);
 
       setCourses(allCourses);
       setAssignments(allAssignments);
       setQuizzes(allQuizzes);
+      setLiveClasses(allLiveClasses);
 
       const teacherAssignments = allAssignments.map(a => a.id);
       setSubmissions(allSubs.filter(s => teacherAssignments.includes(s.assignment_id)));
@@ -80,6 +95,17 @@ export default function TeacherDashboard() {
 
   const showLoader = useMemo(() => authLoading || (isDataLoading && !user), [authLoading, isDataLoading, user]);
 
+  const calendarEvents = useMemo(() => {
+    const events: { id: string; title: string; date: string; type: 'assignment' | 'quiz' | 'live'; color: string }[] = [];
+    assignments.forEach(a => events.push({ id: a.id, title: `Due: ${a.title}`, date: (a.due_date as string).split('T')[0], type: 'assignment', color: 'bg-purple-100 border-purple-500 text-purple-700' }));
+    quizzes.forEach(q => {
+        if (q.start_at) events.push({ id: q.id, title: `Starts: ${q.title}`, date: (q.start_at as string).split('T')[0], type: 'quiz', color: 'bg-amber-100 border-amber-500 text-amber-700' });
+        if (q.end_at) events.push({ id: q.id, title: `Closes: ${q.title}`, date: (q.end_at as string).split('T')[0], type: 'quiz', color: 'bg-red-100 border-red-500 text-red-700' });
+    });
+    liveClasses.forEach(lc => events.push({ id: lc.id, title: `Live: ${lc.title}`, date: (lc.start_at as string).split('T')[0], type: 'live', color: 'bg-blue-100 border-blue-500 text-blue-700' }));
+    return events;
+  }, [assignments, quizzes, liveClasses]);
+
   if (showLoader || !user || role !== 'teacher') return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
 
   const renderContent = () => {
@@ -95,6 +121,96 @@ export default function TeacherDashboard() {
         );
       case 'grading':
         return <GradingQueue submissions={submissions} onGrade={(s) => setActiveSubmission(s)} />;
+      case 'students':
+        return <StudentManagement teacherEmail={user.email} />;
+      case 'materials':
+        return <MaterialManager teacherEmail={user.email} />;
+      case 'calendar':
+        return <CalendarView events={calendarEvents} />;
+      case 'discussions':
+        return (
+            <div>
+                <div className="flex gap-4 mb-8 overflow-x-auto pb-2">
+                    {courses.map(c => (
+                        <button
+                            key={c.id}
+                            onClick={async () => {
+                                setSelectedCourseId(c.id);
+                                const { data } = await supabase.from('discussions').select('*').eq('course_id', c.id);
+                                setDiscussions((data as Discussion[]) || []);
+                            }}
+                            className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-colors ${selectedCourseId === c.id ? 'bg-blue-600 text-white' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'}`}
+                        >
+                            {c.title}
+                        </button>
+                    ))}
+                </div>
+                {selectedCourseId && (
+                    <DiscussionBoard
+                        discussions={discussions}
+                        userEmail={user.email}
+                        onPost={async (content) => {
+                            await supabase.from('discussions').insert([{ course_id: selectedCourseId, user_email: user.email, content, created_at: new Date().toISOString() }]);
+                            const { data } = await supabase.from('discussions').select('*').eq('course_id', selectedCourseId);
+                            setDiscussions((data as Discussion[]) || []);
+                        }}
+                        onDelete={async (id) => {
+                            await supabase.from('discussions').delete().eq('id', id);
+                            const { data } = await supabase.from('discussions').select('*').eq('course_id', selectedCourseId);
+                            setDiscussions((data as Discussion[]) || []);
+                        }}
+                    />
+                )}
+            </div>
+        );
+      case 'assignments':
+        return (
+            <div className="space-y-6">
+                <div className="flex justify-between items-center mb-8">
+                    <h2 className="text-2xl font-bold">Assignments</h2>
+                    <button onClick={() => setIsCreatingAssignment(true)} className="btn-primary py-2 px-6">New Assignment</button>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {assignments.map(a => (
+                        <div key={a.id} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col gap-4">
+                            <h3 className="text-lg font-bold text-slate-900">{a.title}</h3>
+                            <div className="flex justify-between text-xs text-slate-500 font-medium">
+                                <span>Due: {new Date(a.due_date).toLocaleDateString()}</span>
+                                <span className={`uppercase font-bold tracking-widest ${a.status === 'published' ? 'text-green-600' : 'text-slate-400'}`}>{a.status}</span>
+                            </div>
+                            <div className="mt-auto flex gap-2">
+                                <button onClick={() => setActiveAssignment(a)} className="btn-secondary py-2 flex-1 text-[10px] uppercase font-bold tracking-widest">Edit</button>
+                                <button onClick={async () => { await supabase.from('assignments').delete().eq('id', a.id); fetchData(user); }} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors">🗑️</button>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        );
+      case 'quizzes':
+        return (
+            <div className="space-y-6">
+                <div className="flex justify-between items-center mb-8">
+                    <h2 className="text-2xl font-bold">Quizzes</h2>
+                    <button onClick={() => setIsCreatingQuiz(true)} className="btn-primary py-2 px-6">New Quiz</button>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {quizzes.map(q => (
+                        <div key={q.id} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col gap-4">
+                            <h3 className="text-lg font-bold text-slate-900">{q.title}</h3>
+                            <div className="flex justify-between text-xs text-slate-500 font-medium">
+                                <span>{q.time_limit} mins</span>
+                                <span className={`uppercase font-bold tracking-widest ${q.status === 'published' ? 'text-green-600' : 'text-slate-400'}`}>{q.status}</span>
+                            </div>
+                            <div className="mt-auto flex gap-2">
+                                <button onClick={() => setActiveQuiz(q)} className="btn-secondary py-2 flex-1 text-[10px] uppercase font-bold tracking-widest">Edit</button>
+                                <button onClick={async () => { await supabase.from('quizzes').delete().eq('id', q.id); fetchData(user); }} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors">🗑️</button>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        );
       case 'dashboard':
       default:
         return (
@@ -159,6 +275,22 @@ export default function TeacherDashboard() {
             onCancel={() => { setIsCreatingCourse(false); setActiveCourse(null); }}
         />
       )}
+      {(isCreatingAssignment || activeAssignment) && (
+        <AssignmentEditor
+            assignment={activeAssignment || undefined}
+            courses={courses}
+            onSave={() => { setIsCreatingAssignment(false); setActiveAssignment(null); fetchData(user); }}
+            onCancel={() => { setIsCreatingAssignment(false); setActiveAssignment(null); }}
+        />
+      )}
+      {(isCreatingQuiz || activeQuiz) && (
+        <QuizEditor
+            quiz={activeQuiz || undefined}
+            courses={courses}
+            onSave={() => { setIsCreatingQuiz(false); setActiveQuiz(null); fetchData(user); }}
+            onCancel={() => { setIsCreatingQuiz(false); setActiveQuiz(null); }}
+        />
+      )}
       {activeSubmission && (
         <GradingModal
             submission={activeSubmission}
@@ -173,30 +305,6 @@ export default function TeacherDashboard() {
           <div className="content-area p-8 bg-[#f8fafc] min-h-[calc(100vh-70px)]">
             <div id="pageContent">
               {renderContent()}
-import { TeacherSidebar } from "@/components/TeacherSidebar";
-import { TeacherHeader } from "@/components/TeacherHeader";
-import Script from "next/script";
-
-export default function TeacherDashboard() {
-  return (
-    <div className="teacher-dashboard">
-      <Script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" strategy="beforeInteractive" />
-      <Script src="/js/supabase-config.js" strategy="afterInteractive" />
-      <Script src="/js/core.js" strategy="afterInteractive" />
-      <Script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" strategy="afterInteractive" />
-      <Script src="https://meet.jit.si/external_api.js" strategy="afterInteractive" />
-      <Script src="/calendar_logic.js" strategy="afterInteractive" />
-      <Script src="/js/anti-cheat.js" strategy="afterInteractive" />
-      <Script src="/js/teacher.js" strategy="afterInteractive" />
-
-      <div className="app">
-        <TeacherSidebar />
-        <main className="main ml-0 md:ml-[240px]">
-          <TeacherHeader />
-          <div className="content-area p-8 bg-[#f8fafc] min-h-[calc(100vh-70px)]">
-            <div id="maintBanner" className="hidden bg-amber-50 text-amber-700 border border-amber-100 rounded-lg p-3 mb-4 text-center text-sm"></div>
-            <div id="pageContent">
-              {/* Content will be injected by teacher.js */}
             </div>
           </div>
         </main>
