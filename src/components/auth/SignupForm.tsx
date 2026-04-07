@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { UserRole } from '@/lib/types';
+import { hashPassword } from '@/lib/crypto';
 
 interface SignupFormProps {
   onClose: () => void;
@@ -27,13 +28,14 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onClose, onShowLogin }) 
       return;
     }
     try {
+      const hashedPassword = await hashPassword(formData.password, formData.email);
       const { error: signupError } = await supabase
         .from('users')
         .insert([{
           full_name: formData.fullName,
           email: formData.email,
           phone: formData.phone,
-          password: formData.password,
+          password: hashedPassword,
           role: formData.role
         }]);
       if (signupError) throw signupError;

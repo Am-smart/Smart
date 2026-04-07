@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { User } from '@/lib/types';
 import { supabase } from '@/lib/supabase';
+import { hashPassword } from '@/lib/crypto';
 
 interface UserEditorProps {
     user?: User;
@@ -27,7 +28,11 @@ export const UserEditor: React.FC<UserEditorProps> = ({ user, onSave, onCancel }
                 updated_at: new Date().toISOString()
             };
 
-            if (!formData.password) delete userData.password;
+            if (!formData.password) {
+                delete userData.password;
+            } else {
+                userData.password = await hashPassword(formData.password, formData.email);
+            }
 
             const { error } = user?.email
                 ? await supabase.from('users').update(userData).eq('email', user.email)

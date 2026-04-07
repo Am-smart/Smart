@@ -4,6 +4,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { supabase } from '@/lib/supabase';
 import { User } from '@/lib/types';
 import { useIndexedDB } from '@/hooks/useIndexedDB';
+import { hashPassword } from '@/lib/crypto';
 
 interface AuthState {
   user: User | null;
@@ -53,14 +54,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [getCache, setCache]);
 
   const login = useCallback(async (email: string, pass: string) => {
+    const hashedPass = await hashPassword(pass, email);
     const { data, error } = await supabase
       .from('users')
       .select('*')
       .eq('email', email)
-      .eq('password', pass)
+      .eq('password', hashedPass)
       .single();
 
-    if (error) throw error;
+    if (error) {
+        if (error.code === 'PGRST116') {
+            throw new Error('Invalid email or password');
+        }
+        throw error;
+    }
     if (data) {
       const u = data as User;
       sessionStorage.setItem('currentUser', JSON.stringify(u));
