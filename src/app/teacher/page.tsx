@@ -1,4 +1,3 @@
-/* eslint-disable react-hooks/exhaustive-deps */
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
@@ -19,12 +18,10 @@ import { CalendarView } from "@/components/ui/CalendarView";
 import { DiscussionBoard } from "@/components/student/DiscussionBoard";
 import { useRouter } from 'next/navigation';
 import { Course, User, Assignment, Quiz, Submission, LiveClass, Discussion } from '@/lib/types';
-import { supabase } from '@/lib/supabase';
 
-/* eslint-disable react-hooks/exhaustive-deps */
 export default function TeacherDashboard() {
   const { user, role, logout, isLoading: authLoading } = useAuth();
-  const { getCourses, getAssignments, getQuizzes } = useSupabase();
+  const { client, getCourses, getAssignments, getQuizzes } = useSupabase();
   const { getCache, isOnline } = useIndexedDB();
   const [activePage, setActivePage] = useState('dashboard');
   const [isDataLoading, setIsDataLoading] = useState(true);
@@ -67,8 +64,8 @@ export default function TeacherDashboard() {
             getCourses(u.email) as Promise<Course[]>,
             getAssignments(u.email) as Promise<Assignment[]>,
             getQuizzes(undefined, u.email) as Promise<Quiz[]>,
-            supabase.from('submissions').select('*, assignments(*)').then(r => r.data || []) as Promise<Submission[]>,
-            supabase.from('live_classes').select('*').eq('teacher_email', u.email).then(r => r.data || []) as Promise<LiveClass[]>
+            client.from('submissions').select('*, assignments(*)').then(r => r.data || []) as Promise<Submission[]>,
+            client.from('live_classes').select('*').eq('teacher_email', u.email).then(r => r.data || []) as Promise<LiveClass[]>
           ]);
 
           setCourses(allCourses);
@@ -80,7 +77,7 @@ export default function TeacherDashboard() {
           setSubmissions(allSubs.filter(s => teacherAssignments.includes(s.assignment_id)));
 
           // Calculate total students across all courses
-          const { data: enrollments } = await supabase
+          const { data: enrollments } = await client
             .from('enrollments')
             .select('student_email')
             .in('course_id', allCourses.map(c => c.id));
@@ -93,7 +90,7 @@ export default function TeacherDashboard() {
     } finally {
       setIsDataLoading(false);
     }
-  }, [getCourses, getAssignments, getQuizzes, getCache, isOnline]);
+  }, [client, getCourses, getAssignments, getQuizzes, getCache, isOnline]);
 
   useEffect(() => {
     if (!authLoading) {
@@ -133,7 +130,7 @@ export default function TeacherDashboard() {
                 courses={courses}
                 onCreate={() => setIsCreatingCourse(true)}
                 onEdit={(c) => setActiveCourse(c)}
-                onDelete={async (id) => { await supabase.from('courses').delete().eq('id', id); fetchData(user); }}
+                onDelete={async (id) => { await client.from('courses').delete().eq('id', id); fetchData(user); }}
             />
         );
       case 'grading':
@@ -153,7 +150,7 @@ export default function TeacherDashboard() {
                             key={c.id}
                             onClick={async () => {
                                 setSelectedCourseId(c.id);
-                                const { data } = await supabase.from('discussions').select('*').eq('course_id', c.id);
+                                const { data } = await client.from('discussions').select('*').eq('course_id', c.id);
                                 setDiscussions((data as Discussion[]) || []);
                             }}
                             className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-colors ${selectedCourseId === c.id ? 'bg-blue-600 text-white' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'}`}
@@ -167,13 +164,13 @@ export default function TeacherDashboard() {
                         discussions={discussions}
                         userEmail={user.email}
                         onPost={async (content) => {
-                            await supabase.from('discussions').insert([{ course_id: selectedCourseId, user_email: user.email, content, created_at: new Date().toISOString() }]);
-                            const { data } = await supabase.from('discussions').select('*').eq('course_id', selectedCourseId);
+                            await client.from('discussions').insert([{ course_id: selectedCourseId, user_email: user.email, content, created_at: new Date().toISOString() }]);
+                            const { data } = await client.from('discussions').select('*').eq('course_id', selectedCourseId);
                             setDiscussions((data as Discussion[]) || []);
                         }}
                         onDelete={async (id) => {
-                            await supabase.from('discussions').delete().eq('id', id);
-                            const { data } = await supabase.from('discussions').select('*').eq('course_id', selectedCourseId);
+                            await client.from('discussions').delete().eq('id', id);
+                            const { data } = await client.from('discussions').select('*').eq('course_id', selectedCourseId);
                             setDiscussions((data as Discussion[]) || []);
                         }}
                         isOnline={isOnline}
@@ -198,7 +195,7 @@ export default function TeacherDashboard() {
                             </div>
                             <div className="mt-auto flex gap-2">
                                 <button onClick={() => setActiveAssignment(a)} className="btn-secondary py-2 flex-1 text-[10px] uppercase font-bold tracking-widest">Edit</button>
-                                <button onClick={async () => { await supabase.from('assignments').delete().eq('id', a.id); fetchData(user); }} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors">🗑️</button>
+                                <button onClick={async () => { await client.from('assignments').delete().eq('id', a.id); fetchData(user); }} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors">🗑️</button>
                             </div>
                         </div>
                     ))}
@@ -222,7 +219,7 @@ export default function TeacherDashboard() {
                             </div>
                             <div className="mt-auto flex gap-2">
                                 <button onClick={() => setActiveQuiz(q)} className="btn-secondary py-2 flex-1 text-[10px] uppercase font-bold tracking-widest">Edit</button>
-                                <button onClick={async () => { await supabase.from('quizzes').delete().eq('id', q.id); fetchData(user); }} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors">🗑️</button>
+                                <button onClick={async () => { await client.from('quizzes').delete().eq('id', q.id); fetchData(user); }} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors">🗑️</button>
                             </div>
                         </div>
                     ))}

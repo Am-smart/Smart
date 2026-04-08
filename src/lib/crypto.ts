@@ -1,12 +1,14 @@
 /**
- * Hashes a password using SHA-256 with the email as salt.
- * Matches the hashing logic used in the legacy SmartLMS system.
+ * Hashes a password using SHA-256 with a system salt and the email as a secondary salt.
+ * Matches the hashing logic used in the legacy SmartLMS system (core.js).
  */
 export async function hashPassword(password: string, email: string): Promise<string> {
   const encoder = new TextEncoder();
-  // Standardize salt to lowercase and trimmed email as used in original core.js
+  const systemSalt = 'smart-lms-v1-';
   const salt = email.toLowerCase().trim();
-  const data = encoder.encode(password + salt);
+
+  // Logic from legacy core.js: systemSalt + salt + password
+  const data = encoder.encode(systemSalt + salt + password);
 
   const hashBuffer = await crypto.subtle.digest('SHA-256', data);
   const hashArray = Array.from(new Uint8Array(hashBuffer));

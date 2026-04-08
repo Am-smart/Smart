@@ -1,6 +1,22 @@
 import React from 'react';
-
-import { Sidebar } from './ui/Sidebar';
+import { Sidebar, SidebarItem } from './ui/Sidebar';
+import {
+  LayoutDashboard,
+  BookOpen,
+  Library,
+  FileText,
+  HelpCircle,
+  BarChart3,
+  Trophy,
+  MessageSquare,
+  Calendar,
+  FileCode,
+  GraduationCap,
+  Video,
+  ShieldCheck,
+  Settings,
+  CircleHelp
+} from 'lucide-react';
 
 interface SidebarProps {
   activePage: string;
@@ -10,23 +26,23 @@ interface SidebarProps {
 }
 
 export const StudentSidebar: React.FC<SidebarProps> = ({ activePage, onNavigate, isOpen, onClose }) => {
-  const menuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: '🏠' },
-    { id: 'courses', label: 'Course Catalog', icon: '🛒' },
-    { id: 'my-courses', label: 'My Courses', icon: '📚' },
-    { id: 'assignments', label: 'Assignments', icon: '📝' },
-    { id: 'quizzes', label: 'Quizzes', icon: '❓' },
-    { id: 'analytics', label: 'Analytics', icon: '📊' },
-    { id: 'achievements', label: 'Achievements', icon: '🏆' },
-    { id: 'discussions', label: 'Discussions', icon: '💬' },
-    { id: 'calendar', label: 'Calendar', icon: '📅' },
-    { id: 'materials', label: 'Materials', icon: '📚' },
-    { id: 'planner', label: 'Planner', icon: '📅' },
-    { id: 'certificates', label: 'Certificates', icon: '📜' },
-    { id: 'live', label: 'Live Classes', icon: '📹' },
-    { id: 'anti-cheat', label: 'Anti-Cheat', icon: '🛡️' },
-    { id: 'settings', label: 'Settings', icon: '⚙️' },
-    { id: 'help', label: 'Help', icon: '❓' },
+  const menuItems: SidebarItem[] = [
+    { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={20} /> },
+    { id: 'courses', label: 'Course Catalog', icon: <BookOpen size={20} /> },
+    { id: 'my-courses', label: 'My Courses', icon: <Library size={20} /> },
+    { id: 'assignments', label: 'Assignments', icon: <FileText size={20} /> },
+    { id: 'quizzes', label: 'Quizzes', icon: <HelpCircle size={20} /> },
+    { id: 'analytics', label: 'Analytics', icon: <BarChart3 size={20} /> },
+    { id: 'achievements', label: 'Achievements', icon: <Trophy size={20} /> },
+    { id: 'discussions', label: 'Discussions', icon: <MessageSquare size={20} /> },
+    { id: 'calendar', label: 'Calendar', icon: <Calendar size={20} /> },
+    { id: 'materials', label: 'Materials', icon: <FileCode size={20} /> },
+    { id: 'planner', label: 'Planner', icon: <Calendar size={20} /> },
+    { id: 'certificates', label: 'Certificates', icon: <GraduationCap size={20} /> },
+    { id: 'live', label: 'Live Classes', icon: <Video size={20} /> },
+    { id: 'anti-cheat', label: 'Anti-Cheat', icon: <ShieldCheck size={20} /> },
+    { id: 'settings', label: 'Settings', icon: <Settings size={20} /> },
+    { id: 'help', label: 'Help', icon: <CircleHelp size={20} /> },
   ];
 
   return (

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Course } from '@/lib/types';
-import { supabase } from '@/lib/supabase';
+import { useSupabase } from '@/hooks/useSupabase';
 import { useIndexedDB } from '@/hooks/useIndexedDB';
 
 interface CourseEditorProps {
@@ -11,6 +11,7 @@ interface CourseEditorProps {
 }
 
 export const CourseEditor: React.FC<CourseEditorProps> = ({ course, teacherEmail, onSave, onCancel }) => {
+    const { client } = useSupabase();
     const [formData, setFormData] = useState({
         title: course?.title || '',
         description: course?.description || '',
@@ -33,8 +34,8 @@ export const CourseEditor: React.FC<CourseEditorProps> = ({ course, teacherEmail
 
             if (isOnline) {
                 const { error } = course?.id
-                    ? await supabase.from('courses').update(courseData).eq('id', course.id)
-                    : await supabase.from('courses').insert([courseData]);
+                    ? await client.from('courses').update(courseData).eq('id', course.id)
+                    : await client.from('courses').insert([courseData]);
 
                 if (error) throw error;
             } else {

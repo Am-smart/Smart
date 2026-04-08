@@ -2,6 +2,7 @@ import { AuthProvider } from "@/components/auth/AuthContext";
 import { AppProvider } from "@/components/AppContext";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 
 const inter = Inter({
@@ -21,6 +22,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={inter.className}>
       <body>
+        <Script src="https://meet.jit.si/external_api.js" strategy="lazyOnload" />
         <AuthProvider>
           <AppProvider>
             {children}

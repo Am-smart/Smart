@@ -1,5 +1,7 @@
 import React from 'react';
 import { User } from '@/lib/types';
+import { Bell } from 'lucide-react';
+import { Header } from './ui/Header';
 
 interface HeaderStats {
   courses: number;
@@ -7,8 +9,6 @@ interface HeaderStats {
   badges: number;
   unreadNotifications: number;
 }
-
-import { Header } from './ui/Header';
 
 interface HeaderProps {
   user: User;
@@ -43,7 +43,7 @@ export const StudentHeader: React.FC<HeaderProps> = ({ user, stats, onLogout, on
     <div className="flex items-center gap-4">
         <div className="relative group">
           <div className="text-2xl cursor-pointer p-2 rounded-lg transition-colors hover:bg-[#f1f5f9] relative">
-            🔔
+            <Bell size={24} className="text-slate-600" />
             {stats.unreadNotifications > 0 && (
               <div className="absolute top-1 right-1 bg-[#ef4444] text-white text-[10px] font-bold min-w-[18px] h-[18px] rounded-full flex items-center justify-center border-2 border-white">
                 {stats.unreadNotifications}

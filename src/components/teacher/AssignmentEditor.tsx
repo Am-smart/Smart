@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Assignment, Course } from '@/lib/types';
-import { supabase } from '@/lib/supabase';
+import { useSupabase } from '@/hooks/useSupabase';
 
 interface AssignmentEditorProps {
     assignment?: Assignment;
@@ -10,6 +10,7 @@ interface AssignmentEditorProps {
 }
 
 export const AssignmentEditor: React.FC<AssignmentEditorProps> = ({ assignment, courses, onSave, onCancel }) => {
+    const { client } = useSupabase();
     const [formData, setFormData] = useState({
         title: assignment?.title || '',
         description: assignment?.description || '',
@@ -26,8 +27,8 @@ export const AssignmentEditor: React.FC<AssignmentEditorProps> = ({ assignment, 
         setIsSaving(true);
         try {
             const { error } = assignment?.id
-                ? await supabase.from('assignments').update(formData).eq('id', assignment.id)
-                : await supabase.from('assignments').insert([formData]);
+                ? await client.from('assignments').update(formData).eq('id', assignment.id)
+                : await client.from('assignments').insert([formData]);
             if (error) throw error;
             onSave();
         } catch (err) {

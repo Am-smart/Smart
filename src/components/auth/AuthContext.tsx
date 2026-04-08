@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
-import { supabase } from '@/lib/supabase';
+import { createSupabaseClient } from '@/lib/supabase';
 import { User } from '@/lib/types';
 import { useIndexedDB } from '@/hooks/useIndexedDB';
 import { hashPassword } from '@/lib/crypto';
@@ -55,7 +55,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = useCallback(async (email: string, pass: string) => {
     const hashedPass = await hashPassword(pass, email);
-    const { data, error } = await supabase
+    // Use an unauthenticated client for login check
+    const client = createSupabaseClient();
+    const { data, error } = await client
       .from('users')
       .select('*')
       .eq('email', email)
@@ -99,10 +101,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setState(prev => ({ ...prev, user: updatedUser }));
 
     if (isOnline) {
-        const { error } = await supabase.from('users').update(updates).eq('email', state.user.email);
+        const client = createSupabaseClient(state.user.email);
+        const { error } = await client.from('users').update(updates).eq('email', state.user.email);
         if (error) throw error;
     } else {
-        await addToQueue('PROFILE_UPDATE', { email: state.user.email, ...updates });
+        await addToQueue('PROFILE_UPDATE', { email: state.user.email, ...updates }, state.user.email);
     }
   }, [state.user, isOnline, setCache, addToQueue]);
 

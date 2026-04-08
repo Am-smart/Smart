@@ -24,11 +24,10 @@ import { CertificatesList } from "@/components/student/CertificatesList";
 import { StudyTimer } from "@/components/student/StudyTimer";
 import { useRouter } from 'next/navigation';
 import { Enrollment, Assignment, Notification, User, Course, Submission, Quiz, QuizSubmission, LiveClass, Discussion, Badge, Material } from '@/lib/types';
-import { supabase } from '@/lib/supabase';
 
 export default function StudentDashboard() {
   const { user, role, logout, isLoading: authLoading } = useAuth();
-  const { getEnrollments, getAssignments, getNotifications, getCourses, getQuizzes, getDiscussions } = useSupabase();
+  const { client, getEnrollments, getAssignments, getNotifications, getCourses, getQuizzes, getDiscussions } = useSupabase();
   const { getCache, addToQueue, isOnline } = useIndexedDB();
   const [activePage, setActivePage] = useState('dashboard');
   const [stats, setStats] = useState({ courses: 0, dueSoon: 0, badges: 0, unreadNotifications: 0 });
@@ -83,13 +82,13 @@ export default function StudentDashboard() {
             getCourses() as Promise<Course[]>,
             getEnrollments(u.email) as Promise<Enrollment[]>,
             getAssignments() as Promise<Assignment[]>,
-            supabase.from('submissions').select('*, assignments(*)').eq('student_email', u.email).then(r => r.data || []) as Promise<Submission[]>,
+            client.from('submissions').select('*, assignments(*)').eq('student_email', u.email).then(r => r.data || []) as Promise<Submission[]>,
             getNotifications(u.email) as Promise<Notification[]>,
             getQuizzes() as Promise<Quiz[]>,
-            supabase.from('quiz_submissions').select('*, quizzes(*)').eq('student_email', u.email).then(r => r.data || []) as Promise<QuizSubmission[]>,
-            supabase.from('live_classes').select('*').then(r => r.data || []) as Promise<LiveClass[]>,
-            supabase.from('user_badges').select('*, badges(*)').eq('user_email', u.email).then(r => (r.data || []).map((b: { badges: Badge }) => b.badges) as Badge[]),
-            supabase.from('materials').select('*').then(r => r.data || []) as Promise<Material[]>
+            client.from('quiz_submissions').select('*, quizzes(*)').eq('student_email', u.email).then(r => r.data || []) as Promise<QuizSubmission[]>,
+            client.from('live_classes').select('*').then(r => r.data || []) as Promise<LiveClass[]>,
+            client.from('user_badges').select('*, badges(*)').eq('user_email', u.email).then(r => (r.data || []).map((b: { badges: Badge }) => b.badges) as Badge[]),
+            client.from('materials').select('*').then(r => r.data || []) as Promise<Material[]>
           ]);
 
           setCourses(allCourses.filter(c => c.status === 'published'));
@@ -116,7 +115,7 @@ export default function StudentDashboard() {
     } finally {
       setIsDataLoading(false);
     }
-  }, [getCourses, getEnrollments, getAssignments, getNotifications, getQuizzes, getCache, isOnline]);
+  }, [client, getCourses, getEnrollments, getAssignments, getNotifications, getQuizzes, getCache, isOnline]);
 
   useEffect(() => {
     if (!authLoading) {
@@ -147,7 +146,7 @@ export default function StudentDashboard() {
         const payload = { course_id: courseId, student_email: user.email };
 
         if (isOnline) {
-            const { error } = await supabase.from('enrollments').upsert(payload, { onConflict: 'course_id,student_email' });
+            const { error } = await client.from('enrollments').upsert(payload, { onConflict: 'course_id,student_email' });
             if (error) throw error;
         } else {
             await addToQueue('ENROLL', payload);
@@ -164,7 +163,7 @@ export default function StudentDashboard() {
   const handlePostDiscussion = async (content: string) => {
     if (!user || !selectedCourseId) return;
     try {
-        const { error } = await supabase.from('discussions').insert([{
+        const { error } = await client.from('discussions').insert([{
             course_id: selectedCourseId,
             user_email: user.email,
             content,
@@ -320,7 +319,7 @@ export default function StudentDashboard() {
                         discussions={discussions}
                         userEmail={user.email}
                         onPost={handlePostDiscussion}
-                        onDelete={async (id) => { await supabase.from('discussions').delete().eq('id', id); getDiscussions(selectedCourseId).then(setDiscussions); }}
+                        onDelete={async (id) => { await client.from('discussions').delete().eq('id', id); getDiscussions(selectedCourseId).then(setDiscussions); }}
                         isOnline={isOnline}
                     />
                 )}

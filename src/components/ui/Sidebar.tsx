@@ -1,9 +1,9 @@
 import React from 'react';
 
-interface SidebarItem {
+export interface SidebarItem {
   id: string;
   label: string;
-  icon: string;
+  icon: React.ReactNode;
 }
 
 interface SidebarProps {
@@ -37,7 +37,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activePage, onNavigate, isOpen
               onClick={() => { onNavigate(item.id); onClose(); }}
               className={`w-full text-left p-3 rounded-lg flex items-center gap-3 transition-colors ${activePage === item.id ? 'bg-[#3b82f6] text-white' : 'text-[#94a3b8] hover:bg-[#334155] hover:text-white'}`}
             >
-              <span className="text-xl">{item.icon}</span>
+              <span className="w-5 h-5 flex items-center justify-center">{item.icon}</span>
               <span className="font-medium">{item.label}</span>
             </button>
           ))}

@@ -1,10 +1,16 @@
-import { supabase } from '@/lib/supabase';
+import { useAuth } from '@/components/auth/AuthContext';
+import { useMemo } from 'react';
+import { createSupabaseClient } from '@/lib/supabase';
 import { User, Course, Enrollment, Assignment, Quiz, Discussion, Notification, Maintenance } from '@/lib/types';
 
 export const useSupabase = () => {
+  const { user } = useAuth();
+
+  const client = useMemo(() => createSupabaseClient(user?.email), [user?.email]);
+
   // User operations
   const getUser = async (email: string): Promise<User | null> => {
-    const { data, error } = await supabase
+    const { data, error } = await client
       .from('users')
       .select('*')
       .eq('email', email)
@@ -13,10 +19,10 @@ export const useSupabase = () => {
     return data;
   };
 
-  const saveUser = async (user: Partial<User>): Promise<User> => {
-    const { data, error } = await supabase
+  const saveUser = async (u: Partial<User>): Promise<User> => {
+    const { data, error } = await client
       .from('users')
-      .upsert(user, { onConflict: 'email' })
+      .upsert(u, { onConflict: 'email' })
       .select()
       .single();
     if (error) throw error;
@@ -25,7 +31,7 @@ export const useSupabase = () => {
 
   // Course operations
   const getCourses = async (teacherEmail?: string): Promise<Course[]> => {
-    let query = supabase.from('courses').select('*');
+    let query = client.from('courses').select('*');
     if (teacherEmail) {
       query = query.eq('teacher_email', teacherEmail);
     }
@@ -36,7 +42,7 @@ export const useSupabase = () => {
 
   // Enrollment operations
   const getEnrollments = async (studentEmail: string): Promise<Enrollment[]> => {
-    const { data, error } = await supabase
+    const { data, error } = await client
       .from('enrollments')
       .select('*, courses(*)')
       .eq('student_email', studentEmail);
@@ -45,7 +51,7 @@ export const useSupabase = () => {
   };
 
   const enrollInCourse = async (courseId: string, studentEmail: string): Promise<Enrollment> => {
-    const { data, error } = await supabase
+    const { data, error } = await client
       .from('enrollments')
       .upsert({ course_id: courseId, student_email: studentEmail }, { onConflict: 'course_id,student_email' })
       .select()
@@ -56,7 +62,7 @@ export const useSupabase = () => {
 
   // Assignment operations
   const getAssignments = async (teacherEmail?: string, courseId?: string): Promise<Assignment[]> => {
-    let query = supabase.from('assignments').select('*, courses(*)');
+    let query = client.from('assignments').select('*, courses(*)');
     if (teacherEmail) query = query.eq('teacher_email', teacherEmail);
     if (courseId) query = query.eq('course_id', courseId);
     const { data, error } = await query;
@@ -66,7 +72,7 @@ export const useSupabase = () => {
 
   // Quiz operations
   const getQuizzes = async (courseId?: string, teacherEmail?: string): Promise<Quiz[]> => {
-    let query = supabase.from('quizzes').select('*, courses(*)');
+    let query = client.from('quizzes').select('*, courses(*)');
     if (courseId) query = query.eq('course_id', courseId);
     if (teacherEmail) query = query.eq('teacher_email', teacherEmail);
     const { data, error } = await query;
@@ -76,7 +82,7 @@ export const useSupabase = () => {
 
   // Discussion operations
   const getDiscussions = async (courseId: string): Promise<Discussion[]> => {
-    const { data, error } = await supabase
+    const { data, error } = await client
       .from('discussions')
       .select('*')
       .eq('course_id', courseId)
@@ -87,7 +93,7 @@ export const useSupabase = () => {
 
   // Notification operations
   const getNotifications = async (userEmail: string): Promise<Notification[]> => {
-    const { data, error } = await supabase
+    const { data, error } = await client
       .from('notifications')
       .select('*')
       .eq('user_email', userEmail)
@@ -98,7 +104,7 @@ export const useSupabase = () => {
 
   // Maintenance operations
   const getMaintenance = async (): Promise<Maintenance> => {
-    const { data, error } = await supabase
+    const { data, error } = await client
       .from('maintenance')
       .select('*')
       .maybeSingle();
@@ -107,6 +113,7 @@ export const useSupabase = () => {
   };
 
   return {
+    client,
     getUser,
     saveUser,
     getCourses,

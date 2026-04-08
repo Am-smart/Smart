@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
+import { useSupabase } from '@/hooks/useSupabase';
 import { Course } from '@/lib/types';
 
 export const BroadcastManager: React.FC = () => {
+    const { client } = useSupabase();
     const [courses, setCourses] = useState<Course[]>([]);
     const [title, setTitle] = useState('');
     const [message, setMessage] = useState('');
@@ -11,8 +12,10 @@ export const BroadcastManager: React.FC = () => {
     const [isSending, setIsSending] = useState(false);
 
     useEffect(() => {
-        supabase.from('courses').select('id, title').then(({ data }) => setCourses(data || []));
-    }, []);
+        client.from('courses').select('id, title').then(({ data }) => {
+            if (data) setCourses(data as Course[]);
+        });
+    }, [client]);
 
     const handleSend = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -20,7 +23,7 @@ export const BroadcastManager: React.FC = () => {
 
         setIsSending(true);
         try {
-            const { error } = await supabase.from('broadcasts').insert([{
+            const { error } = await client.from('broadcasts').insert([{
                 course_id: selectedCourseId === 'all' ? null : selectedCourseId,
                 target_role: targetRole === 'all' ? null : targetRole,
                 title,
@@ -33,7 +36,7 @@ export const BroadcastManager: React.FC = () => {
             setTitle('');
             setMessage('');
             alert('Broadcast sent successfully!');
-        } catch (err: any) {
+        } catch (err: unknown) {
             console.error('Broadcast failed:', err);
             alert('Failed to send broadcast.');
         } finally {
@@ -61,7 +64,7 @@ export const BroadcastManager: React.FC = () => {
                         <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">Target Role</label>
                         <select
                             value={targetRole}
-                            onChange={(e) => setTargetRole(e.target.value as any)}
+                            onChange={(e) => setTargetRole(e.target.value as 'all' | 'student' | 'teacher')}
                             className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all bg-slate-50"
                         >
                             <option value="all">Everyone</option>

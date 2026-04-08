@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Quiz, User } from '@/lib/types';
-import { supabase } from '@/lib/supabase';
+import { useSupabase } from '@/hooks/useSupabase';
 import { useAntiCheat } from '@/hooks/useAntiCheat';
 import { useIndexedDB } from '@/hooks/useIndexedDB';
 
@@ -12,6 +12,7 @@ interface QuizViewProps {
 }
 
 export const QuizView: React.FC<QuizViewProps> = ({ quiz, user, onComplete, onCancel }) => {
+  const { client } = useSupabase();
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [timeLeft, setTimeLeft] = useState<number | null>(quiz.time_limit ? quiz.time_limit * 60 : null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -62,7 +63,7 @@ export const QuizView: React.FC<QuizViewProps> = ({ quiz, user, onComplete, onCa
         };
 
         if (isOnline) {
-            const { error } = await supabase.from('quiz_submissions').insert([payload]);
+            const { error } = await client.from('quiz_submissions').insert([payload]);
             if (error) throw error;
         } else {
             await addToQueue('QUIZ_SUBMISSION', payload);
@@ -77,7 +78,7 @@ export const QuizView: React.FC<QuizViewProps> = ({ quiz, user, onComplete, onCa
         alert('Failed to submit quiz. Please try again.');
         setIsSubmitting(false);
     }
-  }, [quiz, user, answers, isSubmitting, onComplete, isOnline, addToQueue, setCache]);
+  }, [quiz, user, answers, isSubmitting, onComplete, isOnline, addToQueue, setCache, client]);
 
   useEffect(() => {
     if (timeLeft === null) return;

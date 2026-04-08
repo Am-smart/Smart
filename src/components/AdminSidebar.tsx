@@ -1,6 +1,15 @@
 import React from 'react';
-
-import { Sidebar } from './ui/Sidebar';
+import { Sidebar, SidebarItem } from './ui/Sidebar';
+import {
+  BarChart3,
+  RefreshCw,
+  Users,
+  LineChart,
+  ShieldCheck,
+  Activity,
+  Settings,
+  Info
+} from 'lucide-react';
 
 interface SidebarProps {
   activePage: string;
@@ -10,16 +19,16 @@ interface SidebarProps {
 }
 
 export const AdminSidebar: React.FC<SidebarProps> = ({ activePage, onNavigate, isOpen, onClose }) => {
-  const menuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: '📊' },
-    { id: 'resets', label: 'Password Resets', icon: '🔄' },
-    { id: 'users', label: 'Users', icon: '👥' },
-    { id: 'analytics', label: 'Analytics', icon: '📈' },
-    { id: 'maintenance', label: 'System & Admin Control', icon: '🛡️' },
-    { id: 'health', label: 'System Health', icon: '🏥' },
-    { id: 'management', label: 'System Management', icon: '⚙️' },
-    { id: 'settings', label: 'Admin Settings', icon: '⚙️' },
-    { id: 'system', label: 'System Info', icon: 'ℹ️' },
+  const menuItems: SidebarItem[] = [
+    { id: 'dashboard', label: 'Dashboard', icon: <BarChart3 size={20} /> },
+    { id: 'resets', label: 'Password Resets', icon: <RefreshCw size={20} /> },
+    { id: 'users', label: 'Users', icon: <Users size={20} /> },
+    { id: 'analytics', label: 'Analytics', icon: <LineChart size={20} /> },
+    { id: 'maintenance', label: 'System & Admin Control', icon: <ShieldCheck size={20} /> },
+    { id: 'health', label: 'System Health', icon: <Activity size={20} /> },
+    { id: 'management', label: 'System Management', icon: <Settings size={20} /> },
+    { id: 'settings', label: 'Admin Settings', icon: <Settings size={20} /> },
+    { id: 'system', label: 'System Info', icon: <Info size={20} /> },
   ];
 
   return (

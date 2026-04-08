@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Quiz, Course, QuizQuestion } from '@/lib/types';
-import { supabase } from '@/lib/supabase';
+import { useSupabase } from '@/hooks/useSupabase';
 
 interface QuizEditorProps {
     quiz?: Quiz;
@@ -10,6 +10,7 @@ interface QuizEditorProps {
 }
 
 export const QuizEditor: React.FC<QuizEditorProps> = ({ quiz, courses, onSave, onCancel }) => {
+    const { client } = useSupabase();
     const [formData, setFormData] = useState({
         title: quiz?.title || '',
         description: quiz?.description || '',
@@ -51,8 +52,8 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({ quiz, courses, onSave, o
         setIsSaving(true);
         try {
             const { error } = quiz?.id
-                ? await supabase.from('quizzes').update(formData).eq('id', quiz.id)
-                : await supabase.from('quizzes').insert([formData]);
+                ? await client.from('quizzes').update(formData).eq('id', quiz.id)
+                : await client.from('quizzes').insert([formData]);
             if (error) throw error;
             onSave();
         } catch (err) {

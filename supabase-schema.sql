@@ -458,6 +458,160 @@ EXCEPTION WHEN OTHERS THEN NULL;
 END $$;
 
 -- 10. RLS & Permissions
+-- Enable RLS on all data tables
+ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE courses ENABLE ROW LEVEL SECURITY;
+ALTER TABLE lessons ENABLE ROW LEVEL SECURITY;
+ALTER TABLE enrollments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE assignments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE submissions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE live_classes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE attendance ENABLE ROW LEVEL SECURITY;
+ALTER TABLE quizzes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE quiz_submissions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE materials ENABLE ROW LEVEL SECURITY;
+ALTER TABLE discussions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE broadcasts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE maintenance ENABLE ROW LEVEL SECURITY;
+ALTER TABLE planner ENABLE ROW LEVEL SECURITY;
+ALTER TABLE certificates ENABLE ROW LEVEL SECURITY;
+ALTER TABLE badges ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_badges ENABLE ROW LEVEL SECURITY;
+ALTER TABLE study_sessions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE lesson_completions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE system_logs ENABLE ROW LEVEL SECURITY;
+
+-- Utility function to get current user's email from session/header
+-- Since we use custom auth, we will set a configuration parameter 'app.user_email'
+-- or expect it to be passed via a custom header which PostgREST maps to settings.
+CREATE OR REPLACE FUNCTION current_app_user() RETURNS TEXT AS $$
+  SELECT current_setting('request.headers', true)::json->>'x-user-email';
+$$ LANGUAGE sql STABLE;
+
+CREATE OR REPLACE FUNCTION current_app_role() RETURNS TEXT AS $$
+  SELECT role FROM users WHERE email = current_app_user();
+$$ LANGUAGE sql STABLE;
+
+-- Users policies
+CREATE POLICY "Users can view own profile" ON users FOR SELECT USING (email = current_app_user() OR current_app_role() = 'admin');
+CREATE POLICY "Users can update own profile" ON users FOR UPDATE USING (email = current_app_user() OR current_app_role() = 'admin');
+CREATE POLICY "Public can view active users" ON users FOR SELECT USING (active = true); -- For login/existence check
+CREATE POLICY "Admins can manage all users" ON users FOR ALL USING (current_app_role() = 'admin');
+
+-- Courses policies
+CREATE POLICY "Anyone can view published courses" ON courses FOR SELECT USING (status = 'published');
+CREATE POLICY "Teachers can manage own courses" ON courses FOR ALL USING (teacher_email = current_app_user() OR current_app_role() = 'admin');
+CREATE POLICY "Students can view courses they are enrolled in" ON courses FOR SELECT USING (
+  EXISTS (SELECT 1 FROM enrollments WHERE course_id = courses.id AND student_email = current_app_user())
+);
+
+-- Lessons policies
+CREATE POLICY "Enrolled students can view lessons" ON lessons FOR SELECT USING (
+  EXISTS (SELECT 1 FROM enrollments WHERE course_id = lessons.course_id AND student_email = current_app_user()) OR
+  EXISTS (SELECT 1 FROM courses WHERE id = lessons.course_id AND (teacher_email = current_app_user() OR status = 'published'))
+);
+CREATE POLICY "Teachers manage own course lessons" ON lessons FOR ALL USING (
+  EXISTS (SELECT 1 FROM courses WHERE id = lessons.course_id AND teacher_email = current_app_user()) OR
+  current_app_role() = 'admin'
+);
+
+-- Enrollments policies
+CREATE POLICY "Users view own enrollments" ON enrollments FOR SELECT USING (student_email = current_app_user());
+CREATE POLICY "Teachers view course enrollments" ON enrollments FOR SELECT USING (
+  EXISTS (SELECT 1 FROM courses WHERE id = enrollments.course_id AND teacher_email = current_app_user())
+);
+CREATE POLICY "Students can enroll themselves" ON enrollments FOR INSERT WITH CHECK (student_email = current_app_user());
+CREATE POLICY "Admins manage enrollments" ON enrollments FOR ALL USING (current_app_role() = 'admin');
+
+-- Assignments policies
+CREATE POLICY "Students view published assignments for enrolled courses" ON assignments FOR SELECT USING (
+  status = 'published' AND EXISTS (SELECT 1 FROM enrollments WHERE course_id = assignments.course_id AND student_email = current_app_user())
+);
+CREATE POLICY "Teachers manage own assignments" ON assignments FOR ALL USING (teacher_email = current_app_user() OR current_app_role() = 'admin');
+
+-- Submissions policies
+CREATE POLICY "Students manage own submissions" ON submissions FOR ALL USING (student_email = current_app_user());
+CREATE POLICY "Teachers view and grade submissions for own courses" ON submissions FOR ALL USING (
+  EXISTS (SELECT 1 FROM courses WHERE id = (SELECT course_id FROM assignments WHERE id = submissions.assignment_id) AND teacher_email = current_app_user())
+);
+
+-- Live Classes policies
+CREATE POLICY "Enrolled students view live classes" ON live_classes FOR SELECT USING (
+  EXISTS (SELECT 1 FROM enrollments WHERE course_id = live_classes.course_id AND student_email = current_app_user())
+);
+CREATE POLICY "Teachers manage own live classes" ON live_classes FOR ALL USING (teacher_email = current_app_user() OR current_app_role() = 'admin');
+
+-- Attendance policies
+CREATE POLICY "Students mark own attendance" ON attendance FOR ALL USING (student_email = current_app_user());
+CREATE POLICY "Teachers view attendance for own classes" ON attendance FOR SELECT USING (
+  EXISTS (SELECT 1 FROM live_classes WHERE id = attendance.live_class_id AND teacher_email = current_app_user())
+);
+
+-- Quizzes policies
+CREATE POLICY "Students view published quizzes for enrolled courses" ON quizzes FOR SELECT USING (
+  status = 'published' AND EXISTS (SELECT 1 FROM enrollments WHERE course_id = quizzes.course_id AND student_email = current_app_user())
+);
+CREATE POLICY "Teachers manage own quizzes" ON quizzes FOR ALL USING (teacher_email = current_app_user() OR current_app_role() = 'admin');
+
+-- Quiz Submissions policies
+CREATE POLICY "Students manage own quiz submissions" ON quiz_submissions FOR ALL USING (student_email = current_app_user());
+CREATE POLICY "Teachers view quiz submissions for own courses" ON quiz_submissions FOR SELECT USING (
+  EXISTS (SELECT 1 FROM quizzes WHERE id = quiz_submissions.quiz_id AND teacher_email = current_app_user())
+);
+
+-- Materials policies
+CREATE POLICY "Enrolled students view materials" ON materials FOR SELECT USING (
+  EXISTS (SELECT 1 FROM enrollments WHERE course_id = materials.course_id AND student_email = current_app_user())
+);
+CREATE POLICY "Teachers manage own materials" ON materials FOR ALL USING (teacher_email = current_app_user() OR current_app_role() = 'admin');
+
+-- Discussions policies
+CREATE POLICY "Enrolled students and teachers view/post discussions" ON discussions FOR ALL USING (
+  EXISTS (SELECT 1 FROM enrollments WHERE course_id = discussions.course_id AND student_email = current_app_user()) OR
+  EXISTS (SELECT 1 FROM courses WHERE id = discussions.course_id AND teacher_email = current_app_user()) OR
+  current_app_role() = 'admin'
+);
+
+-- Notifications policies
+CREATE POLICY "Users manage own notifications" ON notifications FOR ALL USING (user_email = current_app_user());
+
+-- Broadcasts policies
+CREATE POLICY "Anyone can view relevant broadcasts" ON broadcasts FOR SELECT USING (
+  target_role IS NULL OR target_role = current_app_role() OR current_app_role() = 'admin'
+);
+CREATE POLICY "Admins manage broadcasts" ON broadcasts FOR ALL USING (current_app_role() = 'admin');
+
+-- Maintenance policies
+CREATE POLICY "Anyone can view maintenance status" ON maintenance FOR SELECT USING (true);
+CREATE POLICY "Admins manage maintenance" ON maintenance FOR ALL USING (current_app_role() = 'admin');
+
+-- Planner policies
+CREATE POLICY "Users manage own planner" ON planner FOR ALL USING (user_email = current_app_user());
+
+-- Certificates policies
+CREATE POLICY "Users view own certificates" ON certificates FOR SELECT USING (student_email = current_app_user());
+CREATE POLICY "Teachers/Admins manage certificates" ON certificates FOR ALL USING (current_app_role() IN ('teacher', 'admin'));
+
+-- Badges policies
+CREATE POLICY "Anyone can view badges" ON badges FOR SELECT USING (true);
+CREATE POLICY "Admins manage badges" ON badges FOR ALL USING (current_app_role() = 'admin');
+
+-- User Badges policies
+CREATE POLICY "Anyone can view user badges" ON user_badges FOR SELECT USING (true);
+CREATE POLICY "System/Admins manage user badges" ON user_badges FOR ALL USING (current_app_role() = 'admin');
+
+-- Study Sessions policies
+CREATE POLICY "Users manage own study sessions" ON study_sessions FOR ALL USING (user_email = current_app_user());
+
+-- Lesson Completions policies
+CREATE POLICY "Users manage own lesson completions" ON lesson_completions FOR ALL USING (student_email = current_app_user());
+
+-- System Logs policies
+CREATE POLICY "Users can create logs" ON system_logs FOR INSERT WITH CHECK (true);
+CREATE POLICY "Admins can view all logs" ON system_logs FOR SELECT USING (current_app_role() = 'admin');
+
+-- General permissions
 GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated, postgres, service_role;
 GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated, postgres, service_role;
 GRANT ALL ON ALL FUNCTIONS IN SCHEMA public TO anon, authenticated, postgres, service_role;

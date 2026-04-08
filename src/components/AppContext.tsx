@@ -1,4 +1,3 @@
-/* eslint-disable react-hooks/exhaustive-deps */
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
@@ -18,7 +17,6 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-/* eslint-disable react-hooks/exhaustive-deps */
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { getMaintenance, getNotifications } = useSupabase();
   const { user } = useAuth();
