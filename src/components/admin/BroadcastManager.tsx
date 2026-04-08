@@ -1,21 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useSupabase } from '@/hooks/useSupabase';
 import { Course } from '@/lib/types';
 
-export const BroadcastManager: React.FC = () => {
+interface BroadcastManagerProps {
+    initialCourses: Course[];
+}
+
+export const BroadcastManager: React.FC<BroadcastManagerProps> = ({ initialCourses }) => {
     const { client } = useSupabase();
-    const [courses, setCourses] = useState<Course[]>([]);
     const [title, setTitle] = useState('');
     const [message, setMessage] = useState('');
     const [selectedCourseId, setSelectedCourseId] = useState('all');
     const [targetRole, setTargetRole] = useState<'all' | 'student' | 'teacher'>('all');
     const [isSending, setIsSending] = useState(false);
-
-    useEffect(() => {
-        client.from('courses').select('id, title').then(({ data }) => {
-            if (data) setCourses(data as Course[]);
-        });
-    }, [client]);
 
     const handleSend = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -57,7 +54,7 @@ export const BroadcastManager: React.FC = () => {
                             className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all bg-slate-50"
                         >
                             <option value="all">All Courses (System-wide)</option>
-                            {courses.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
+                            {initialCourses.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
                         </select>
                     </div>
                     <div>

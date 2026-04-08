@@ -1,23 +1,26 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import dynamic from 'next/dynamic';
 import { useAuth } from '@/components/auth/AuthContext';
 import { useSupabase } from '@/hooks/useSupabase';
 import { useIndexedDB } from '@/hooks/useIndexedDB';
 import { TeacherSidebar } from "@/components/TeacherSidebar";
 import { TeacherHeader } from "@/components/TeacherHeader";
 import { CourseManager } from "@/components/teacher/CourseManager";
-import { CourseEditor } from "@/components/teacher/CourseEditor";
-import { AssignmentEditor } from "@/components/teacher/AssignmentEditor";
-import { QuizEditor } from "@/components/teacher/QuizEditor";
-import { StudentManagement } from "@/components/teacher/StudentManagement";
-import { MaterialManager } from "@/components/teacher/MaterialManager";
 import { GradingQueue } from "@/components/teacher/GradingQueue";
-import { GradingModal } from "@/components/teacher/GradingModal";
-import { CalendarView } from "@/components/ui/CalendarView";
-import { DiscussionBoard } from "@/components/student/DiscussionBoard";
 import { useRouter } from 'next/navigation';
-import { Course, User, Assignment, Quiz, Submission, LiveClass, Discussion } from '@/lib/types';
+import { Course, User, Assignment, Quiz, Submission, LiveClass, Discussion, Material, Enrollment } from '@/lib/types';
+
+// Lazy Loaded Components
+const CourseEditor = dynamic(() => import("@/components/teacher/CourseEditor").then(m => m.CourseEditor), { ssr: false });
+const AssignmentEditor = dynamic(() => import("@/components/teacher/AssignmentEditor").then(m => m.AssignmentEditor), { ssr: false });
+const QuizEditor = dynamic(() => import("@/components/teacher/QuizEditor").then(m => m.QuizEditor), { ssr: false });
+const StudentManagement = dynamic(() => import("@/components/teacher/StudentManagement").then(m => m.StudentManagement), { ssr: false });
+const MaterialManager = dynamic(() => import("@/components/teacher/MaterialManager").then(m => m.MaterialManager), { ssr: false });
+const GradingModal = dynamic(() => import("@/components/teacher/GradingModal").then(m => m.GradingModal), { ssr: false });
+const CalendarView = dynamic(() => import("@/components/ui/CalendarView").then(m => m.CalendarView), { ssr: false });
+const DiscussionBoard = dynamic(() => import("@/components/student/DiscussionBoard").then(m => m.DiscussionBoard), { ssr: false });
 
 export default function TeacherDashboard() {
   const { user, role, logout, isLoading: authLoading } = useAuth();
@@ -33,6 +36,8 @@ export default function TeacherDashboard() {
   const [studentsCount, setStudentsCount] = useState(0);
   const [liveClasses, setLiveClasses] = useState<LiveClass[]>([]);
   const [discussions, setDiscussions] = useState<Discussion[]>([]);
+  const [materials, setMaterials] = useState<Material[]>([]);
+  const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
 
   const [activeCourse, setActiveCourse] = useState<Course | null>(null);
@@ -76,13 +81,17 @@ export default function TeacherDashboard() {
           const teacherAssignments = allAssignments.map(a => a.id);
           setSubmissions(allSubs.filter(s => teacherAssignments.includes(s.assignment_id)));
 
-          // Calculate total students across all courses
-          const { data: enrollments } = await client
-            .from('enrollments')
-            .select('student_email')
-            .in('course_id', allCourses.map(c => c.id));
+          const courseIds = allCourses.map(c => c.id);
+          // Fetch Enrollments and Materials centrally
+          const [matsRes, enrRes] = await Promise.all([
+            client.from('materials').select('*').in('course_id', courseIds).then(r => r.data || []) as Promise<Material[]>,
+            client.from('enrollments').select('*, courses(*), student:users!student_email(*)').in('course_id', courseIds).then(r => r.data || []) as Promise<Enrollment[]>
+          ]);
 
-          const uniqueStudents = new Set(enrollments?.map(e => e.student_email));
+          setMaterials(matsRes);
+          setEnrollments(enrRes);
+
+          const uniqueStudents = new Set(enrRes.map(e => e.student_email));
           setStudentsCount(uniqueStudents.size);
       }
     } catch (err) {
@@ -136,9 +145,9 @@ export default function TeacherDashboard() {
       case 'grading':
         return <GradingQueue submissions={submissions} onGrade={(s) => setActiveSubmission(s)} />;
       case 'students':
-        return <StudentManagement teacherEmail={user.email} />;
+        return <StudentManagement initialEnrollments={enrollments} onRefresh={() => fetchData(user)} />;
       case 'materials':
-        return <MaterialManager teacherEmail={user.email} />;
+        return <MaterialManager initialMaterials={materials} courses={courses} onRefresh={() => fetchData(user)} />;
       case 'calendar':
         return <CalendarView events={calendarEvents} />;
       case 'discussions':

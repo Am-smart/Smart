@@ -1,40 +1,17 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState } from 'react';
 import { useSupabase } from '@/hooks/useSupabase';
 import { Course, Material } from '@/lib/types';
 
 interface MaterialManagerProps {
-    teacherEmail: string;
+    initialMaterials: Material[];
+    courses: Course[];
+    onRefresh: () => void;
 }
 
-export const MaterialManager: React.FC<MaterialManagerProps> = ({ teacherEmail }) => {
+export const MaterialManager: React.FC<MaterialManagerProps> = ({ initialMaterials, courses, onRefresh }) => {
     const { client } = useSupabase();
-    const [materials, setMaterials] = useState<Material[]>([]);
-    const [courses, setCourses] = useState<Course[]>([]);
     const [selectedCourseId, setSelectedCourseId] = useState('');
-    const [isLoading, setIsLoading] = useState(true);
     const [isUploading, setIsUploading] = useState(false);
-
-    const fetchInitialData = useCallback(async () => {
-        setIsLoading(true);
-        try {
-            const { data: coursesRes } = await client.from('courses').select('*').eq('teacher_email', teacherEmail);
-            setCourses(coursesRes || []);
-
-            const courseIds = coursesRes?.map(c => c.id) || [];
-            if (courseIds.length > 0) {
-                const { data: mats } = await client.from('materials').select('*').in('course_id', courseIds);
-                setMaterials(mats || []);
-            }
-        } catch (err) {
-            console.error('Failed to fetch materials:', err);
-        } finally {
-            setIsLoading(false);
-        }
-    }, [teacherEmail, client]);
-
-    useEffect(() => {
-        fetchInitialData();
-    }, [fetchInitialData]);
 
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -64,7 +41,7 @@ export const MaterialManager: React.FC<MaterialManagerProps> = ({ teacherEmail }
             }]);
 
             if (dbError) throw dbError;
-            fetchInitialData();
+            onRefresh();
         } catch (err) {
             console.error('Upload failed:', err);
             alert('File upload failed.');
@@ -72,8 +49,6 @@ export const MaterialManager: React.FC<MaterialManagerProps> = ({ teacherEmail }
             setIsUploading(false);
         }
     };
-
-    if (isLoading) return <div className="text-center py-10 text-slate-500 italic">Loading materials...</div>;
 
     return (
         <div className="space-y-12">
@@ -92,18 +67,18 @@ export const MaterialManager: React.FC<MaterialManagerProps> = ({ teacherEmail }
             </header>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {materials.length === 0 ? (
+                {initialMaterials.length === 0 ? (
                     <div className="col-span-full py-20 bg-white rounded-3xl border-2 border-dashed border-slate-100 flex flex-col items-center justify-center text-center">
                         <div className="text-6xl mb-6 grayscale opacity-20">📂</div>
                         <h3 className="text-xl font-bold text-slate-900">No Materials Yet</h3>
                         <p className="text-slate-500 mt-2 font-medium">Upload lecture notes, PDFs, and guides for your students.</p>
                     </div>
                 ) : (
-                    materials.map(mat => (
+                    initialMaterials.map(mat => (
                         <div key={mat.id} className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 flex flex-col gap-4">
                             <div className="flex justify-between items-start">
                                 <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center text-2xl font-bold">📄</div>
-                                <button onClick={async () => { await client.from('materials').delete().eq('id', mat.id); fetchInitialData(); }} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors">🗑️</button>
+                                <button onClick={async () => { await client.from('materials').delete().eq('id', mat.id); onRefresh(); }} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors">🗑️</button>
                             </div>
                             <div>
                                 <h4 className="font-bold text-slate-900 line-clamp-1">{mat.title}</h4>

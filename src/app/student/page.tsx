@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import dynamic from 'next/dynamic';
 import { useAuth } from '@/components/auth/AuthContext';
 import { useSupabase } from '@/hooks/useSupabase';
 import { useIndexedDB } from '@/hooks/useIndexedDB';
@@ -10,20 +11,22 @@ import { CourseCatalog } from "@/components/student/CourseCatalog";
 import { MyCourses } from "@/components/student/MyCourses";
 import { AssignmentsList } from "@/components/student/AssignmentsList";
 import { QuizzesList } from "@/components/student/QuizzesList";
-import { QuizView } from "@/components/student/QuizView";
-import { AssignmentForm } from "@/components/student/AssignmentForm";
-import { StudentAnalytics } from "@/components/student/StudentAnalytics";
-import { CalendarView } from "@/components/ui/CalendarView";
-import { LiveClassesList } from "@/components/student/LiveClassesList";
-import { DiscussionBoard } from "@/components/student/DiscussionBoard";
-import { AntiCheatRecord } from "@/components/student/AntiCheatRecord";
-import { AchievementsList } from "@/components/student/AchievementsList";
-import { MaterialsList } from "@/components/student/MaterialsList";
-import { PlannerView } from "@/components/student/PlannerView";
-import { CertificatesList } from "@/components/student/CertificatesList";
-import { StudyTimer } from "@/components/student/StudyTimer";
 import { useRouter } from 'next/navigation';
-import { Enrollment, Assignment, Notification, User, Course, Submission, Quiz, QuizSubmission, LiveClass, Discussion, Badge, Material } from '@/lib/types';
+import { Enrollment, Assignment, Notification, User, Course, Submission, Quiz, QuizSubmission, LiveClass, Discussion, Badge, Material, Certificate } from '@/lib/types';
+
+// Lazy Loaded Components
+const QuizView = dynamic(() => import("@/components/student/QuizView").then(m => m.QuizView), { ssr: false });
+const AssignmentForm = dynamic(() => import("@/components/student/AssignmentForm").then(m => m.AssignmentForm), { ssr: false });
+const StudentAnalytics = dynamic(() => import("@/components/student/StudentAnalytics").then(m => m.StudentAnalytics), { ssr: false });
+const CalendarView = dynamic(() => import("@/components/ui/CalendarView").then(m => m.CalendarView), { ssr: false });
+const LiveClassesList = dynamic(() => import("@/components/student/LiveClassesList").then(m => m.LiveClassesList), { ssr: false });
+const DiscussionBoard = dynamic(() => import("@/components/student/DiscussionBoard").then(m => m.DiscussionBoard), { ssr: false });
+const AntiCheatRecord = dynamic(() => import("@/components/student/AntiCheatRecord").then(m => m.AntiCheatRecord), { ssr: false });
+const AchievementsList = dynamic(() => import("@/components/student/AchievementsList").then(m => m.AchievementsList), { ssr: false });
+const MaterialsList = dynamic(() => import("@/components/student/MaterialsList").then(m => m.MaterialsList), { ssr: false });
+const PlannerView = dynamic(() => import("@/components/student/PlannerView").then(m => m.PlannerView), { ssr: false });
+const CertificatesList = dynamic(() => import("@/components/student/CertificatesList").then(m => m.CertificatesList), { ssr: false });
+const StudyTimer = dynamic(() => import("@/components/student/StudyTimer").then(m => m.StudyTimer), { ssr: false });
 
 export default function StudentDashboard() {
   const { user, role, logout, isLoading: authLoading } = useAuth();
@@ -44,6 +47,7 @@ export default function StudentDashboard() {
   const [discussions, setDiscussions] = useState<Discussion[]>([]);
   const [badges, setBadges] = useState<Badge[]>([]);
   const [materials, setMaterials] = useState<Material[]>([]);
+  const [certificates, setCertificates] = useState<Certificate[]>([]);
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
   const [activeQuiz, setActiveQuiz] = useState<Quiz | null>(null);
   const [activeAssignment, setActiveAssignment] = useState<Assignment | null>(null);
@@ -77,7 +81,8 @@ export default function StudentDashboard() {
             myQuizSubs,
             allLiveClasses,
             myBadges,
-            allMaterials
+            allMaterials,
+            myCertificates
           ] = await Promise.all([
             getCourses() as Promise<Course[]>,
             getEnrollments(u.email) as Promise<Enrollment[]>,
@@ -88,7 +93,8 @@ export default function StudentDashboard() {
             client.from('quiz_submissions').select('*, quizzes(*)').eq('student_email', u.email).then(r => r.data || []) as Promise<QuizSubmission[]>,
             client.from('live_classes').select('*').then(r => r.data || []) as Promise<LiveClass[]>,
             client.from('user_badges').select('*, badges(*)').eq('user_email', u.email).then(r => (r.data || []).map((b: { badges: Badge }) => b.badges) as Badge[]),
-            client.from('materials').select('*').then(r => r.data || []) as Promise<Material[]>
+            client.from('materials').select('*').then(r => r.data || []) as Promise<Material[]>,
+            client.from('certificates').select('*, courses(title)').eq('student_email', u.email).then(r => r.data || []) as Promise<Certificate[]>
           ]);
 
           setCourses(allCourses.filter(c => c.status === 'published'));
@@ -102,6 +108,7 @@ export default function StudentDashboard() {
           setLiveClasses(allLiveClasses.filter(lc => enrolledIds.includes(lc.course_id)));
           setBadges(myBadges);
           setMaterials(allMaterials.filter(m => enrolledIds.includes(m.course_id)));
+          setCertificates(myCertificates);
 
           setStats({
             courses: myEnrollments.length,
@@ -332,7 +339,7 @@ export default function StudentDashboard() {
       case 'planner':
         return <PlannerView userEmail={user.email} />;
       case 'certificates':
-        return <CertificatesList studentEmail={user.email} />;
+        return <CertificatesList studentEmail={user.email} certificates={certificates} />;
       case 'anti-cheat':
         return <AntiCheatRecord submissions={submissions} quizSubmissions={quizSubmissions} />;
       default:

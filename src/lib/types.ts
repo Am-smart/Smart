@@ -29,6 +29,7 @@ export interface Enrollment {
   progress: number;
   completed: boolean;
   courses?: Course;
+  student?: User;
 }
 
 export interface Assignment {
