@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/lib/supabase';
+import { useSupabase } from '@/hooks/useSupabase';
 import { PlannerItem } from '@/lib/types';
 
 interface PlannerViewProps {
@@ -7,6 +7,7 @@ interface PlannerViewProps {
 }
 
 export const PlannerView: React.FC<PlannerViewProps> = ({ userEmail }) => {
+  const { client } = useSupabase();
   const [items, setItems] = useState<PlannerItem[]>([]);
   const [newItem, setNewItem] = useState('');
   const [dueDate, setDueDate] = useState('');
@@ -14,14 +15,14 @@ export const PlannerView: React.FC<PlannerViewProps> = ({ userEmail }) => {
 
   const fetchPlanner = useCallback(async () => {
     setIsLoading(true);
-    const { data } = await supabase
+    const { data } = await client
       .from('planner')
       .select('*')
       .eq('user_email', userEmail)
       .order('due_date', { ascending: true });
     setItems((data as PlannerItem[]) || []);
     setIsLoading(false);
-  }, [userEmail]);
+  }, [userEmail, client]);
 
   useEffect(() => {
     fetchPlanner();
@@ -31,7 +32,7 @@ export const PlannerView: React.FC<PlannerViewProps> = ({ userEmail }) => {
     e.preventDefault();
     if (!newItem) return;
 
-    const { error } = await supabase.from('planner').insert([{
+    const { error } = await client.from('planner').insert([{
       user_email: userEmail,
       title: newItem,
       due_date: dueDate || null,
@@ -46,7 +47,7 @@ export const PlannerView: React.FC<PlannerViewProps> = ({ userEmail }) => {
   };
 
   const toggleComplete = async (item: PlannerItem) => {
-    const { error } = await supabase
+    const { error } = await client
       .from('planner')
       .update({ completed: !item.completed })
       .eq('id', item.id);
@@ -54,7 +55,7 @@ export const PlannerView: React.FC<PlannerViewProps> = ({ userEmail }) => {
   };
 
   const deleteItem = async (id: string) => {
-    const { error } = await supabase.from('planner').delete().eq('id', id);
+    const { error } = await client.from('planner').delete().eq('id', id);
     if (!error) fetchPlanner();
   };
 

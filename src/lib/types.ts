@@ -204,3 +204,13 @@ export interface Discussion {
   parent_id?: string;
   created_at: string;
 }
+
+export interface Certificate {
+  id: string;
+  course_id: string;
+  student_email: string;
+  issued_at: string;
+  certificate_url: string;
+  metadata?: Record<string, unknown>;
+  courses?: { title: string };
+}

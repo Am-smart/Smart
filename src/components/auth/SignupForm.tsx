@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { createSupabaseClient } from '@/lib/supabase';
 import { UserRole } from '@/lib/types';
 import { hashPassword } from '@/lib/crypto';
 
@@ -29,7 +29,8 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onClose, onShowLogin }) 
     }
     try {
       const hashedPassword = await hashPassword(formData.password, formData.email);
-      const { error: signupError } = await supabase
+      const client = createSupabaseClient();
+      const { error: signupError } = await client
         .from('users')
         .insert([{
           full_name: formData.fullName,

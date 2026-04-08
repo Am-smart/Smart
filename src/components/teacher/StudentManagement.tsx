@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/lib/supabase';
+import { useSupabase } from '@/hooks/useSupabase';
 import { Course, User } from '@/lib/types';
 
 interface StudentManagementProps {
@@ -16,6 +16,7 @@ interface EnrollmentWithStudent {
 }
 
 export const StudentManagement: React.FC<StudentManagementProps> = ({ teacherEmail }) => {
+    const { client } = useSupabase();
     const [enrollments, setEnrollments] = useState<EnrollmentWithStudent[]>([]);
     const [isLoading, setIsLoading] = useState(true);
 
@@ -23,7 +24,7 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ teacherEma
         setIsLoading(true);
         try {
             // Get teacher's courses first
-            const { data: courses } = await supabase.from('courses').select('id').eq('teacher_email', teacherEmail);
+            const { data: courses } = await client.from('courses').select('id').eq('teacher_email', teacherEmail);
             const courseIds = courses?.map(c => c.id) || [];
 
             if (courseIds.length === 0) {
@@ -31,7 +32,7 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ teacherEma
                 return;
             }
 
-            const { data, error } = await supabase
+            const { data, error } = await client
                 .from('enrollments')
                 .select('*, courses(*), student:users!student_email(*)')
                 .in('course_id', courseIds);
@@ -43,7 +44,7 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ teacherEma
         } finally {
             setIsLoading(false);
         }
-    }, [teacherEmail]);
+    }, [teacherEmail, client]);
 
     useEffect(() => {
         fetchEnrollments();
@@ -52,7 +53,7 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ teacherEma
     const handleUnenroll = async (id: string) => {
         if (!confirm('Are you sure you want to unenroll this student?')) return;
         try {
-            const { error } = await supabase.from('enrollments').delete().eq('id', id);
+            const { error } = await client.from('enrollments').delete().eq('id', id);
             if (error) throw error;
             fetchEnrollments();
         } catch (err) {

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/lib/supabase';
-import { User } from '@/lib/types';
+import { useSupabase } from '@/hooks/useSupabase';
+import { User, Certificate } from '@/lib/types';
 import jsPDF from 'jspdf';
 
 interface CertificatesListProps {
@@ -8,31 +8,32 @@ interface CertificatesListProps {
 }
 
 export const CertificatesList: React.FC<CertificatesListProps> = ({ studentEmail }) => {
-  const [certificates, setCertificates] = useState<{ id: string; issued_at: string; certificate_url: string; courses?: { title: string } }[]>([]);
+  const { client } = useSupabase();
+  const [certificates, setCertificates] = useState<Certificate[]>([]);
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchCertificates = useCallback(async () => {
     setIsLoading(true);
-    const { data } = await supabase
+    const { data } = await client
       .from('certificates')
       .select('*, courses(title)')
       .eq('student_email', studentEmail);
-    setCertificates((data as any[]) || []);
+    setCertificates((data as Certificate[]) || []);
     setIsLoading(false);
-  }, [studentEmail]);
+  }, [studentEmail, client]);
 
   const fetchUser = useCallback(async () => {
-    const { data } = await supabase.from('users').select('*').eq('email', studentEmail).single();
+    const { data } = await client.from('users').select('*').eq('email', studentEmail).single();
     if (data) setUser(data as User);
-  }, [studentEmail]);
+  }, [studentEmail, client]);
 
   useEffect(() => {
     fetchCertificates();
     fetchUser();
   }, [fetchCertificates, fetchUser]);
 
-  const downloadPDF = (cert: { id: string; issued_at: string; courses?: { title: string } }) => {
+  const downloadPDF = (cert: Certificate) => {
     const doc = new jsPDF({
       orientation: 'landscape',
       unit: 'mm',

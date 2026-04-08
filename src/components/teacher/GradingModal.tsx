@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Submission } from '@/lib/types';
-import { supabase } from '@/lib/supabase';
+import { useSupabase } from '@/hooks/useSupabase';
 
 interface GradingModalProps {
     submission: Submission;
@@ -9,6 +9,7 @@ interface GradingModalProps {
 }
 
 export const GradingModal: React.FC<GradingModalProps> = ({ submission, onSave, onCancel }) => {
+    const { client } = useSupabase();
     const [formData, setFormData] = useState({
         grade: submission.grade?.toString() || '',
         feedback: submission.feedback || '',
@@ -21,7 +22,7 @@ export const GradingModal: React.FC<GradingModalProps> = ({ submission, onSave, 
         setIsSaving(true);
         try {
             const final_grade = Math.round((Number(formData.grade) / formData.points_possible) * 100);
-            const { error } = await supabase.from('submissions').update({
+            const { error } = await client.from('submissions').update({
                 grade: Number(formData.grade),
                 final_grade,
                 feedback: formData.feedback,

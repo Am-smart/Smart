@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { User } from '@/lib/types';
-import { supabase } from '@/lib/supabase';
+import { useSupabase } from '@/hooks/useSupabase';
 import { hashPassword } from '@/lib/crypto';
 
 interface UserEditorProps {
@@ -10,6 +10,7 @@ interface UserEditorProps {
 }
 
 export const UserEditor: React.FC<UserEditorProps> = ({ user, onSave, onCancel }) => {
+    const { client } = useSupabase();
     const [formData, setFormData] = useState({
         email: user?.email || '',
         full_name: user?.full_name || '',
@@ -35,8 +36,8 @@ export const UserEditor: React.FC<UserEditorProps> = ({ user, onSave, onCancel }
             }
 
             const { error } = user?.email
-                ? await supabase.from('users').update(userData).eq('email', user.email)
-                : await supabase.from('users').insert([userData]);
+                ? await client.from('users').update(userData).eq('email', user.email)
+                : await client.from('users').insert([userData]);
 
             if (error) throw error;
             onSave();

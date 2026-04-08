@@ -11,13 +11,12 @@ import { PasswordReset } from "@/components/admin/PasswordReset";
 import { MaintenancePanel } from "@/components/admin/MaintenancePanel";
 import { BroadcastManager } from "@/components/admin/BroadcastManager";
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
 import { User, Maintenance } from '@/lib/types';
 import { useSupabase } from '@/hooks/useSupabase';
 
 export default function AdminDashboard() {
   const { user, role, logout, isLoading: authLoading } = useAuth();
-  const { getMaintenance } = useSupabase();
+  const { client, getMaintenance } = useSupabase();
   const [activePage, setActivePage] = useState('dashboard');
   const [isDataLoading, setIsDataLoading] = useState(true);
 
@@ -32,7 +31,7 @@ export default function AdminDashboard() {
   const fetchData = useCallback(async () => {
     try {
       const [usersRes, maintRes] = await Promise.all([
-        supabase.from('users').select('*').then(r => r.data || []),
+        client.from('users').select('*').then(r => r.data || []),
         getMaintenance()
       ]);
 
@@ -43,7 +42,7 @@ export default function AdminDashboard() {
     } finally {
       setIsDataLoading(false);
     }
-  }, []);
+  }, [client, getMaintenance]);
 
   useEffect(() => {
     if (!authLoading) {
@@ -53,7 +52,7 @@ export default function AdminDashboard() {
         fetchData();
       }
     }
-  }, [authLoading, user, role]);
+  }, [authLoading, user, role, fetchData]);
 
   const handleLogout = async () => {
     await logout();
@@ -62,7 +61,7 @@ export default function AdminDashboard() {
 
   const handleToggleMaintenance = async (enabled: boolean) => {
     try {
-        const { error } = await supabase
+        const { error } = await client
             .from('maintenance')
             .upsert({ id: maintenance?.enabled !== undefined ? 1 : undefined, enabled }, { onConflict: 'id' });
         if (error) throw error;
@@ -84,7 +83,7 @@ export default function AdminDashboard() {
                 users={users}
                 onAdd={() => setIsAddingUser(true)}
                 onEdit={(u) => setActiveUser(u)}
-                onDelete={async (email) => { await supabase.from('users').delete().eq('email', email); fetchData(); }}
+                onDelete={async (email) => { await client.from('users').delete().eq('email', email); fetchData(); }}
             />
         );
       case 'maintenance':

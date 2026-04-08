@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { useSupabase } from '@/hooks/useSupabase';
 import { User } from '@/lib/types';
+import { hashPassword } from '@/lib/crypto';
 
 interface PasswordResetProps {
     users: User[];
 }
 
 export const PasswordReset: React.FC<PasswordResetProps> = ({ users }) => {
+    const { client } = useSupabase();
     const [selectedEmail, setSelectedEmail] = useState('');
     const [newPassword, setNewPassword] = useState('');
     const [isResetting, setIsResetting] = useState(false);
@@ -16,7 +18,8 @@ export const PasswordReset: React.FC<PasswordResetProps> = ({ users }) => {
         if (!selectedEmail || !newPassword) return;
         setIsResetting(true);
         try {
-            const { error } = await supabase.from('users').update({ password: newPassword }).eq('email', selectedEmail);
+            const hashed = await hashPassword(newPassword, selectedEmail);
+            const { error } = await client.from('users').update({ password: hashed }).eq('email', selectedEmail);
             if (error) throw error;
             alert(`Password for ${selectedEmail} has been reset successfully.`);
             setNewPassword('');

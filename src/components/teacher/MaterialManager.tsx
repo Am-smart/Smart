@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/lib/supabase';
+import { useSupabase } from '@/hooks/useSupabase';
 import { Course, Material } from '@/lib/types';
 
 interface MaterialManagerProps {
@@ -7,6 +7,7 @@ interface MaterialManagerProps {
 }
 
 export const MaterialManager: React.FC<MaterialManagerProps> = ({ teacherEmail }) => {
+    const { client } = useSupabase();
     const [materials, setMaterials] = useState<Material[]>([]);
     const [courses, setCourses] = useState<Course[]>([]);
     const [selectedCourseId, setSelectedCourseId] = useState('');
@@ -16,12 +17,12 @@ export const MaterialManager: React.FC<MaterialManagerProps> = ({ teacherEmail }
     const fetchInitialData = useCallback(async () => {
         setIsLoading(true);
         try {
-            const { data: coursesRes } = await supabase.from('courses').select('*').eq('teacher_email', teacherEmail);
+            const { data: coursesRes } = await client.from('courses').select('*').eq('teacher_email', teacherEmail);
             setCourses(coursesRes || []);
 
             const courseIds = coursesRes?.map(c => c.id) || [];
             if (courseIds.length > 0) {
-                const { data: mats } = await supabase.from('materials').select('*').in('course_id', courseIds);
+                const { data: mats } = await client.from('materials').select('*').in('course_id', courseIds);
                 setMaterials(mats || []);
             }
         } catch (err) {
@@ -29,7 +30,7 @@ export const MaterialManager: React.FC<MaterialManagerProps> = ({ teacherEmail }
         } finally {
             setIsLoading(false);
         }
-    }, [teacherEmail]);
+    }, [teacherEmail, client]);
 
     useEffect(() => {
         fetchInitialData();
@@ -45,17 +46,17 @@ export const MaterialManager: React.FC<MaterialManagerProps> = ({ teacherEmail }
             const fileName = `${Math.random()}.${fileExt}`;
             const filePath = `materials/${selectedCourseId}/${fileName}`;
 
-            const { error: uploadError } = await supabase.storage
+            const { error: uploadError } = await client.storage
                 .from('lms-files')
                 .upload(filePath, file);
 
             if (uploadError) throw uploadError;
 
-            const { data: publicUrl } = supabase.storage
+            const { data: publicUrl } = client.storage
                 .from('lms-files')
                 .getPublicUrl(filePath);
 
-            const { error: dbError } = await supabase.from('materials').insert([{
+            const { error: dbError } = await client.from('materials').insert([{
                 course_id: selectedCourseId,
                 title: file.name,
                 file_url: publicUrl.publicUrl,
@@ -102,7 +103,7 @@ export const MaterialManager: React.FC<MaterialManagerProps> = ({ teacherEmail }
                         <div key={mat.id} className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 flex flex-col gap-4">
                             <div className="flex justify-between items-start">
                                 <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center text-2xl font-bold">📄</div>
-                                <button onClick={async () => { await supabase.from('materials').delete().eq('id', mat.id); fetchInitialData(); }} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors">🗑️</button>
+                                <button onClick={async () => { await client.from('materials').delete().eq('id', mat.id); fetchInitialData(); }} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors">🗑️</button>
                             </div>
                             <div>
                                 <h4 className="font-bold text-slate-900 line-clamp-1">{mat.title}</h4>

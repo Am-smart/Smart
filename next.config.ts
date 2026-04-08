@@ -3,10 +3,12 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   /* config options here */
   eslint: {
-    ignoreDuringBuilds: true,
+    // Re-enabled for production readiness verification
+    ignoreDuringBuilds: false,
   },
   typescript: {
-    ignoreBuildErrors: true,
+    // Re-enabled for production readiness verification
+    ignoreBuildErrors: false,
   }
 };
 

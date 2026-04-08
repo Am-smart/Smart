@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Assignment, User } from '@/lib/types';
-import { supabase } from '@/lib/supabase';
+import { useSupabase } from '@/hooks/useSupabase';
 import { useAntiCheat } from '@/hooks/useAntiCheat';
 import { useIndexedDB } from '@/hooks/useIndexedDB';
 
@@ -12,6 +12,7 @@ interface AssignmentFormProps {
 }
 
 export const AssignmentForm: React.FC<AssignmentFormProps> = ({ assignment, user, onComplete, onCancel }) => {
+  const { client } = useSupabase();
   const [submissionText, setSubmissionText] = useState('');
   const [fileUrl, setFileUrl] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -35,13 +36,13 @@ export const AssignmentForm: React.FC<AssignmentFormProps> = ({ assignment, user
         const fileName = `${Math.random()}.${fileExt}`;
         const filePath = `submissions/${user.email}/${fileName}`;
 
-        const { error: uploadError } = await supabase.storage
+        const { error: uploadError } = await client.storage
             .from('lms-files')
             .upload(filePath, file);
 
         if (uploadError) throw uploadError;
 
-        const { data } = supabase.storage
+        const { data } = client.storage
             .from('lms-files')
             .getPublicUrl(filePath);
 
@@ -69,7 +70,7 @@ export const AssignmentForm: React.FC<AssignmentFormProps> = ({ assignment, user
         };
 
         if (isOnline) {
-            const { data, error } = await supabase.from('submissions').insert([payload]).select().single();
+            const { data, error } = await client.from('submissions').insert([payload]).select().single();
             if (error) throw error;
             onComplete(data.id);
         } else {
