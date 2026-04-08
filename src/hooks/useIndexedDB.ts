@@ -52,17 +52,6 @@ export const useIndexedDB = () => {
     };
   }, []);
 
-  const addToQueue = useCallback(async (type: QueueItem['type'], payload: unknown, userEmail?: string) => {
-    if (!db) return;
-    return new Promise<void>((resolve, reject) => {
-        const tx = db.transaction(STORE_SYNC, 'readwrite');
-        const store = tx.objectStore(STORE_SYNC);
-        const request = store.add({ type, payload, userEmail, timestamp: Date.now() });
-        request.onsuccess = () => resolve();
-        request.onerror = () => reject(request.error);
-    });
-  }, [db]);
-
   const getQueue = useCallback(async (): Promise<QueueItem[]> => {
     if (!db) return [];
     return new Promise<QueueItem[]>((resolve, reject) => {
@@ -80,6 +69,17 @@ export const useIndexedDB = () => {
         const tx = db.transaction(STORE_SYNC, 'readwrite');
         const store = tx.objectStore(STORE_SYNC);
         const request = store.delete(id);
+        request.onsuccess = () => resolve();
+        request.onerror = () => reject(request.error);
+    });
+  }, [db]);
+
+  const addToQueue = useCallback(async (type: QueueItem['type'], payload: unknown, userEmail?: string) => {
+    if (!db) return;
+    return new Promise<void>((resolve, reject) => {
+        const tx = db.transaction(STORE_SYNC, 'readwrite');
+        const store = tx.objectStore(STORE_SYNC);
+        const request = store.add({ type, payload, userEmail, timestamp: Date.now() });
         request.onsuccess = () => resolve();
         request.onerror = () => reject(request.error);
     });
