@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useSupabase } from '@/hooks/useSupabase';
 import { Maintenance, Notification } from '@/lib/types';
 import { useAuth } from './auth/AuthContext';
@@ -25,7 +25,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
+  // Guard to prevent multiple initializations
+  const initialized = useRef(false);
+
   const init = useCallback(async () => {
+    if (initialized.current) return;
+    initialized.current = true;
+
     try {
       // Try Cache
       const cachedMaint = await getCache<Maintenance>('maintenance');
