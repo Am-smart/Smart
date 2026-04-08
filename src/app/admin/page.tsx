@@ -2,17 +2,20 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import dynamic from 'next/dynamic';
 import { useAuth } from '@/components/auth/AuthContext';
 import { AdminSidebar } from "@/components/AdminSidebar";
 import { AdminHeader } from "@/components/AdminHeader";
 import { UserManagement } from "@/components/admin/UserManagement";
-import { UserEditor } from "@/components/admin/UserEditor";
-import { PasswordReset } from "@/components/admin/PasswordReset";
-import { MaintenancePanel } from "@/components/admin/MaintenancePanel";
-import { BroadcastManager } from "@/components/admin/BroadcastManager";
 import { useRouter } from 'next/navigation';
-import { User, Maintenance } from '@/lib/types';
+import { User, Maintenance, Course } from '@/lib/types';
 import { useSupabase } from '@/hooks/useSupabase';
+
+// Lazy Loaded Components
+const UserEditor = dynamic(() => import("@/components/admin/UserEditor").then(m => m.UserEditor), { ssr: false });
+const PasswordReset = dynamic(() => import("@/components/admin/PasswordReset").then(m => m.PasswordReset), { ssr: false });
+const MaintenancePanel = dynamic(() => import("@/components/admin/MaintenancePanel").then(m => m.MaintenancePanel), { ssr: false });
+const BroadcastManager = dynamic(() => import("@/components/admin/BroadcastManager").then(m => m.BroadcastManager), { ssr: false });
 
 export default function AdminDashboard() {
   const { user, role, logout, isLoading: authLoading } = useAuth();
@@ -21,6 +24,7 @@ export default function AdminDashboard() {
   const [isDataLoading, setIsDataLoading] = useState(true);
 
   const [users, setUsers] = useState<User[]>([]);
+  const [courses, setCourses] = useState<Course[]>([]);
   const [maintenance, setMaintenance] = useState<Maintenance | null>(null);
   const [activeUser, setActiveUser] = useState<User | null>(null);
   const [isAddingUser, setIsAddingUser] = useState(false);
@@ -30,13 +34,15 @@ export default function AdminDashboard() {
 
   const fetchData = useCallback(async () => {
     try {
-      const [usersRes, maintRes] = await Promise.all([
-        client.from('users').select('*').then(r => r.data || []),
-        getMaintenance()
+      const [usersRes, maintRes, coursesRes] = await Promise.all([
+        client.from('users').select('*').limit(100).then(r => r.data || []),
+        getMaintenance(),
+        client.from('courses').select('id, title').then(r => r.data || [])
       ]);
 
       setUsers(usersRes);
       setMaintenance(maintRes);
+      setCourses(coursesRes as Course[]);
     } catch (err) {
       console.error('Failed to fetch admin data:', err);
     } finally {
@@ -90,7 +96,7 @@ export default function AdminDashboard() {
         return (
             <div className="space-y-8">
                 <MaintenancePanel maintenance={maintenance} onToggle={handleToggleMaintenance} />
-                <BroadcastManager />
+                <BroadcastManager initialCourses={courses} />
             </div>
         );
       case 'resets':

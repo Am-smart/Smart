@@ -1,67 +1,25 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React from 'react';
 import { useSupabase } from '@/hooks/useSupabase';
-import { Course, User } from '@/lib/types';
+import { Enrollment } from '@/lib/types';
 
 interface StudentManagementProps {
-    teacherEmail: string;
+    initialEnrollments: Enrollment[];
+    onRefresh: () => void;
 }
 
-interface EnrollmentWithStudent {
-    id: string;
-    student_email: string;
-    course_id: string;
-    progress: number;
-    courses: Course;
-    student: User;
-}
-
-export const StudentManagement: React.FC<StudentManagementProps> = ({ teacherEmail }) => {
+export const StudentManagement: React.FC<StudentManagementProps> = ({ initialEnrollments, onRefresh }) => {
     const { client } = useSupabase();
-    const [enrollments, setEnrollments] = useState<EnrollmentWithStudent[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-
-    const fetchEnrollments = useCallback(async () => {
-        setIsLoading(true);
-        try {
-            // Get teacher's courses first
-            const { data: courses } = await client.from('courses').select('id').eq('teacher_email', teacherEmail);
-            const courseIds = courses?.map(c => c.id) || [];
-
-            if (courseIds.length === 0) {
-                setEnrollments([]);
-                return;
-            }
-
-            const { data, error } = await client
-                .from('enrollments')
-                .select('*, courses(*), student:users!student_email(*)')
-                .in('course_id', courseIds);
-
-            if (error) throw error;
-            setEnrollments((data as unknown as EnrollmentWithStudent[]) || []);
-        } catch (err) {
-            console.error('Failed to fetch enrollments:', err);
-        } finally {
-            setIsLoading(false);
-        }
-    }, [teacherEmail, client]);
-
-    useEffect(() => {
-        fetchEnrollments();
-    }, [fetchEnrollments]);
 
     const handleUnenroll = async (id: string) => {
         if (!confirm('Are you sure you want to unenroll this student?')) return;
         try {
             const { error } = await client.from('enrollments').delete().eq('id', id);
             if (error) throw error;
-            fetchEnrollments();
+            onRefresh();
         } catch (err) {
             console.error('Unenroll failed:', err);
         }
     };
-
-    if (isLoading) return <div className="text-center py-10 text-slate-500">Loading students...</div>;
 
     return (
         <div>
@@ -77,31 +35,34 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ teacherEma
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                        {enrollments.length === 0 ? (
+                        {initialEnrollments.length === 0 ? (
                             <tr>
                                 <td colSpan={4} className="px-6 py-8 text-center text-slate-500 italic">No students enrolled in your courses yet.</td>
                             </tr>
                         ) : (
-                            enrollments.map(e => (
-                                <tr key={e.id} className="hover:bg-slate-50 transition-colors">
-                                    <td className="px-6 py-4">
-                                        <div className="font-bold text-slate-900">{e.student?.full_name || e.student_email}</div>
-                                        <div className="text-xs text-slate-500">{e.student_email}</div>
-                                    </td>
-                                    <td className="px-6 py-4 text-sm text-slate-600">{e.courses?.title}</td>
-                                    <td className="px-6 py-4">
-                                        <div className="flex items-center gap-3">
-                                            <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden min-w-[100px]">
-                                                <div className="h-full bg-blue-500" style={{ width: `${e.progress}%` }} />
+                            initialEnrollments.map(e => {
+                                const student = e.student;
+                                return (
+                                    <tr key={e.id} className="hover:bg-slate-50 transition-colors">
+                                        <td className="px-6 py-4">
+                                            <div className="font-bold text-slate-900">{student?.full_name || e.student_email}</div>
+                                            <div className="text-xs text-slate-500">{e.student_email}</div>
+                                        </td>
+                                        <td className="px-6 py-4 text-sm text-slate-600">{e.courses?.title}</td>
+                                        <td className="px-6 py-4">
+                                            <div className="flex items-center gap-3">
+                                                <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden min-w-[100px]">
+                                                    <div className="h-full bg-blue-500" style={{ width: `${e.progress}%` }} />
+                                                </div>
+                                                <span className="text-xs font-bold text-slate-900">{e.progress}%</span>
                                             </div>
-                                            <span className="text-xs font-bold text-slate-900">{e.progress}%</span>
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-4 text-right">
-                                        <button onClick={() => handleUnenroll(e.id)} className="text-red-500 font-bold text-xs uppercase hover:text-red-700 transition-colors">Unenroll</button>
-                                    </td>
-                                </tr>
-                            ))
+                                        </td>
+                                        <td className="px-6 py-4 text-right">
+                                            <button onClick={() => handleUnenroll(e.id)} className="text-red-500 font-bold text-xs uppercase hover:text-red-700 transition-colors">Unenroll</button>
+                                        </td>
+                                    </tr>
+                                );
+                            })
                         )}
                     </tbody>
                 </table>

@@ -29,21 +29,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         let user: User | null = null;
         let role: string | null = null;
 
-        // Try Cache first
-        const cachedUser = await getCache<User>('current_user');
-        if (cachedUser) {
-            user = cachedUser;
-            role = cachedUser.role;
-        } else if (typeof window !== 'undefined') {
+        // 1. Try local storage (fastest for persistence)
+        const saved = typeof window !== 'undefined' ? localStorage.getItem('currentUser') : null;
+        if (saved) {
+            try {
+                user = JSON.parse(saved) as User;
+                role = user.role;
+            } catch (e) {
+                console.error('Failed to parse user from local storage:', e);
+            }
+        }
+
+        // 2. Try IndexedDB Cache if local storage failed or to sync data
+        if (!user) {
+            const cachedUser = await getCache<User>('current_user');
+            if (cachedUser) {
+                user = cachedUser;
+                role = cachedUser.role;
+            }
+        }
+
+        // 3. Fallback to session storage (Legacy compatibility)
+        if (!user && typeof window !== 'undefined') {
             const raw = sessionStorage.getItem('currentUser');
             if (raw) {
                 try {
                     user = JSON.parse(raw) as User;
                     role = user.role;
-                    await setCache('current_user', user);
                 } catch (e) {
                     console.error('Failed to parse user from session storage:', e);
                 }
+            }
+        }
+
+        // Sync state and cache
+        if (user) {
+            await setCache('current_user', user);
+            if (typeof window !== 'undefined') {
+                localStorage.setItem('currentUser', JSON.stringify(user));
             }
         }
 
@@ -55,7 +78,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = useCallback(async (email: string, pass: string) => {
     const hashedPass = await hashPassword(pass, email);
-    // Use an unauthenticated client for login check
     const client = createSupabaseClient();
     const { data, error } = await client
       .from('users')
@@ -72,7 +94,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     if (data) {
       const u = data as User;
-      sessionStorage.setItem('currentUser', JSON.stringify(u));
+      if (typeof window !== 'undefined') {
+          sessionStorage.setItem('currentUser', JSON.stringify(u));
+          localStorage.setItem('currentUser', JSON.stringify(u));
+      }
       await setCache('current_user', u);
       setState({
           user: u,
@@ -83,7 +108,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [setCache]);
 
   const logout = useCallback(async () => {
-    sessionStorage.removeItem('currentUser');
+    if (typeof window !== 'undefined') {
+        sessionStorage.removeItem('currentUser');
+        localStorage.removeItem('currentUser');
+    }
     await setCache('current_user', null);
     setState({
         user: null,
@@ -98,6 +126,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Optimistic Update
     await setCache('current_user', updatedUser);
+    if (typeof window !== 'undefined') {
+        localStorage.setItem('currentUser', JSON.stringify(updatedUser));
+    }
     setState(prev => ({ ...prev, user: updatedUser }));
 
     if (isOnline) {

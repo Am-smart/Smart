@@ -1,12 +1,12 @@
 import { useAuth } from '@/components/auth/AuthContext';
 import { useMemo, useCallback } from 'react';
-import { createSupabaseClient } from '@/lib/supabase';
+import { getClient } from '@/lib/supabase';
 import { User, Course, Enrollment, Assignment, Quiz, Discussion, Notification, Maintenance } from '@/lib/types';
 
 export const useSupabase = () => {
   const { user } = useAuth();
 
-  const client = useMemo(() => createSupabaseClient(user?.email), [user?.email]);
+  const client = useMemo(() => getClient(user?.email), [user?.email]);
 
   // User operations
   const getUser = useCallback(async (email: string): Promise<User | null> => {

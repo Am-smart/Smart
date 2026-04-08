@@ -1,38 +1,13 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { useSupabase } from '@/hooks/useSupabase';
-import { User, Certificate } from '@/lib/types';
+import React from 'react';
+import { Certificate } from '@/lib/types';
 import jsPDF from 'jspdf';
 
 interface CertificatesListProps {
   studentEmail: string;
+  certificates: Certificate[];
 }
 
-export const CertificatesList: React.FC<CertificatesListProps> = ({ studentEmail }) => {
-  const { client } = useSupabase();
-  const [certificates, setCertificates] = useState<Certificate[]>([]);
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  const fetchCertificates = useCallback(async () => {
-    setIsLoading(true);
-    const { data } = await client
-      .from('certificates')
-      .select('*, courses(title)')
-      .eq('student_email', studentEmail);
-    setCertificates((data as Certificate[]) || []);
-    setIsLoading(false);
-  }, [studentEmail, client]);
-
-  const fetchUser = useCallback(async () => {
-    const { data } = await client.from('users').select('*').eq('email', studentEmail).single();
-    if (data) setUser(data as User);
-  }, [studentEmail, client]);
-
-  useEffect(() => {
-    fetchCertificates();
-    fetchUser();
-  }, [fetchCertificates, fetchUser]);
-
+export const CertificatesList: React.FC<CertificatesListProps> = ({ studentEmail, certificates }) => {
   const downloadPDF = (cert: Certificate) => {
     const doc = new jsPDF({
       orientation: 'landscape',
@@ -61,7 +36,7 @@ export const CertificatesList: React.FC<CertificatesListProps> = ({ studentEmail
     doc.setTextColor(30, 41, 59);
     doc.setFontSize(32);
     doc.setFont('helvetica', 'bold');
-    doc.text(user?.full_name || studentEmail, 148.5, 95, { align: 'center' });
+    doc.text(studentEmail, 148.5, 95, { align: 'center' });
 
     // Course
     doc.setTextColor(100);
@@ -93,9 +68,7 @@ export const CertificatesList: React.FC<CertificatesListProps> = ({ studentEmail
       <h2 className="text-2xl font-bold text-slate-900 mb-8">Your Certificates</h2>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-        {isLoading ? (
-          <div className="col-span-full p-12 text-center text-slate-500">Loading certificates...</div>
-        ) : certificates.length > 0 ? (
+        {certificates.length > 0 ? (
           certificates.map(cert => (
             <div key={cert.id} className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 flex flex-col items-center text-center group hover:shadow-xl transition-shadow border-t-4 border-t-blue-500">
               <div className="text-5xl mb-6">📜</div>
