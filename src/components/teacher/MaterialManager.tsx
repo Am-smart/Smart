@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Course, Material } from '@/lib/types';
 
@@ -13,7 +13,7 @@ export const MaterialManager: React.FC<MaterialManagerProps> = ({ teacherEmail }
     const [isLoading, setIsLoading] = useState(true);
     const [isUploading, setIsUploading] = useState(false);
 
-    const fetchInitialData = async () => {
+    const fetchInitialData = useCallback(async () => {
         setIsLoading(true);
         try {
             const { data: coursesRes } = await supabase.from('courses').select('*').eq('teacher_email', teacherEmail);
@@ -29,11 +29,11 @@ export const MaterialManager: React.FC<MaterialManagerProps> = ({ teacherEmail }
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [teacherEmail]);
 
     useEffect(() => {
         fetchInitialData();
-    }, [teacherEmail]);
+    }, [fetchInitialData]);
 
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];

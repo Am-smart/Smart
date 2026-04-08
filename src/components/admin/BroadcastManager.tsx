@@ -33,7 +33,7 @@ export const BroadcastManager: React.FC = () => {
             setTitle('');
             setMessage('');
             alert('Broadcast sent successfully!');
-        } catch (err) {
+        } catch (err: any) {
             console.error('Broadcast failed:', err);
             alert('Failed to send broadcast.');
         } finally {
