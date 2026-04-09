@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 "use client";
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
@@ -21,9 +22,13 @@ const MaterialManager = dynamic(() => import("@/components/teacher/MaterialManag
 const GradingModal = dynamic(() => import("@/components/teacher/GradingModal").then(m => m.GradingModal), { ssr: false });
 const CalendarView = dynamic(() => import("@/components/ui/CalendarView").then(m => m.CalendarView), { ssr: false });
 const DiscussionBoard = dynamic(() => import("@/components/student/DiscussionBoard").then(m => m.DiscussionBoard), { ssr: false });
+const LiveClassManager = dynamic(() => import("@/components/teacher/LiveClassManager").then(m => m.LiveClassManager), { ssr: false });
+const BadgeManager = dynamic(() => import("@/components/teacher/BadgeManager").then(m => m.BadgeManager), { ssr: false });
+const LessonEditor = dynamic(() => import("@/components/teacher/LessonEditor").then(m => m.LessonEditor), { ssr: false });
+const TeacherSettings = dynamic(() => import("@/components/teacher/TeacherSettings").then(m => m.TeacherSettings), { ssr: false });
 
 export default function TeacherDashboard() {
-  const { user, role, logout, isLoading: authLoading } = useAuth();
+  const { user, role, logout, updateProfile, isLoading: authLoading } = useAuth();
   const { client, getCourses, getAssignments, getQuizzes } = useSupabase();
   const { getCache, isOnline } = useIndexedDB();
   const [activePage, setActivePage] = useState('dashboard');
@@ -47,6 +52,7 @@ export default function TeacherDashboard() {
   const [activeQuiz, setActiveQuiz] = useState<Quiz | null>(null);
   const [isCreatingQuiz, setIsCreatingQuiz] = useState(false);
   const [activeSubmission, setActiveSubmission] = useState<Submission | null>(null);
+  const [activeLessonCourse, setActiveLessonCourse] = useState<Course | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const router = useRouter();
@@ -139,17 +145,24 @@ export default function TeacherDashboard() {
                 courses={courses}
                 onCreate={() => setIsCreatingCourse(true)}
                 onEdit={(c) => setActiveCourse(c)}
+                onManageLessons={(c) => setActiveLessonCourse(c)}
                 onDelete={async (id) => { await client.from('courses').delete().eq('id', id); fetchData(user); }}
             />
         );
       case 'grading':
         return <GradingQueue submissions={submissions} onGrade={(s) => setActiveSubmission(s)} />;
       case 'students':
-        return <StudentManagement initialEnrollments={enrollments} onRefresh={() => fetchData(user)} />;
+        return <StudentManagement initialEnrollments={enrollments} courses={courses} onRefresh={() => fetchData(user)} />;
       case 'materials':
         return <MaterialManager initialMaterials={materials} courses={courses} onRefresh={() => fetchData(user)} />;
       case 'calendar':
         return <CalendarView events={calendarEvents} />;
+      case 'live':
+        return <LiveClassManager teacherEmail={user.email} liveClasses={liveClasses} courses={courses} onRefresh={() => fetchData(user)} />;
+      case 'badges':
+        return <BadgeManager />;
+      case 'settings':
+        return <TeacherSettings user={user} onUpdate={updateProfile} />;
       case 'discussions':
         return (
             <div>
@@ -277,7 +290,7 @@ export default function TeacherDashboard() {
                             </span>
                         )}
                     </button>
-                    <button className="p-6 bg-amber-50 text-amber-700 rounded-2xl text-left hover:bg-amber-100 transition-colors">
+                    <button onClick={() => setActivePage('quizzes')} className="p-6 bg-amber-50 text-amber-700 rounded-2xl text-left hover:bg-amber-100 transition-colors">
                         <div className="text-2xl mb-2">❓</div>
                         <div className="font-bold">New Quiz</div>
                         <div className="text-xs opacity-75">Assess student knowledge</div>
@@ -321,6 +334,9 @@ export default function TeacherDashboard() {
             onSave={() => { setActiveSubmission(null); fetchData(user); }}
             onCancel={() => setActiveSubmission(null)}
         />
+      )}
+      {activeLessonCourse && (
+          <LessonEditor course={activeLessonCourse} onClose={() => setActiveLessonCourse(null)} />
       )}
       <div className="app">
         <TeacherSidebar activePage={activePage} onNavigate={setActivePage} isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
