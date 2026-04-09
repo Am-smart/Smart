@@ -39,6 +39,8 @@ CREATE TABLE IF NOT EXISTS courses (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   title VARCHAR(255) NOT NULL,
   description TEXT,
+  category VARCHAR(100),
+  thumbnail_url TEXT,
   teacher_email VARCHAR(255) REFERENCES users(email) ON UPDATE CASCADE ON DELETE SET NULL,
   status VARCHAR(50) DEFAULT 'draft' CHECK (status IN ('draft', 'published', 'archived')),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -91,6 +93,8 @@ CREATE TABLE IF NOT EXISTS submissions (
   student_email VARCHAR(255) REFERENCES users(email) ON UPDATE CASCADE ON DELETE CASCADE,
   submitted_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  submission_text TEXT,
+  file_url TEXT,
   answers JSONB DEFAULT '{}'::jsonb,
   question_scores JSONB DEFAULT '{}'::jsonb,
   late_penalty_applied INTEGER DEFAULT 0,
@@ -305,6 +309,22 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'quiz_submissions' AND column_name = 'violation_count') THEN
         ALTER TABLE quiz_submissions ADD COLUMN violation_count INTEGER DEFAULT 0;
     END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'courses' AND column_name = 'category') THEN
+        ALTER TABLE courses ADD COLUMN category VARCHAR(100);
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'courses' AND column_name = 'thumbnail_url') THEN
+        ALTER TABLE courses ADD COLUMN thumbnail_url TEXT;
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'submissions' AND column_name = 'submission_text') THEN
+        ALTER TABLE submissions ADD COLUMN submission_text TEXT;
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'submissions' AND column_name = 'file_url') THEN
+        ALTER TABLE submissions ADD COLUMN file_url TEXT;
+    END IF;
 END $$;
 
 -- 5. Indexes (idempotent)
@@ -490,8 +510,27 @@ CREATE OR REPLACE FUNCTION current_app_user() RETURNS TEXT AS $$
 $$ LANGUAGE sql STABLE;
 
 CREATE OR REPLACE FUNCTION current_app_role() RETURNS TEXT AS $$
-  SELECT role FROM users WHERE email = current_app_user();
-$$ LANGUAGE sql STABLE;
+DECLARE
+  v_role TEXT;
+BEGIN
+  -- Use SECURITY DEFINER to bypass RLS when checking role
+  SELECT role INTO v_role FROM users WHERE email = current_app_user();
+  RETURN v_role;
+END;
+$$ LANGUAGE plpgsql STABLE SECURITY DEFINER;
+
+-- Security Definer Functions to break RLS recursion
+CREATE OR REPLACE FUNCTION check_is_course_teacher(p_course_id UUID) RETURNS BOOLEAN AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM courses WHERE id = p_course_id AND teacher_email = current_app_user()
+  );
+$$ LANGUAGE sql STABLE SECURITY DEFINER;
+
+CREATE OR REPLACE FUNCTION check_is_enrolled(p_course_id UUID) RETURNS BOOLEAN AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM enrollments WHERE course_id = p_course_id AND student_email = current_app_user()
+  );
+$$ LANGUAGE sql STABLE SECURITY DEFINER;
 
 -- Users policies
 CREATE POLICY "Users can view own profile" ON users FOR SELECT USING (email = current_app_user() OR current_app_role() = 'admin');
@@ -502,25 +541,20 @@ CREATE POLICY "Admins can manage all users" ON users FOR ALL USING (current_app_
 -- Courses policies
 CREATE POLICY "Anyone can view published courses" ON courses FOR SELECT USING (status = 'published');
 CREATE POLICY "Teachers can manage own courses" ON courses FOR ALL USING (teacher_email = current_app_user() OR current_app_role() = 'admin');
-CREATE POLICY "Students can view courses they are enrolled in" ON courses FOR SELECT USING (
-  EXISTS (SELECT 1 FROM enrollments WHERE course_id = courses.id AND student_email = current_app_user())
-);
+CREATE POLICY "Students can view courses they are enrolled in" ON courses FOR SELECT USING (check_is_enrolled(id));
 
 -- Lessons policies
 CREATE POLICY "Enrolled students can view lessons" ON lessons FOR SELECT USING (
-  EXISTS (SELECT 1 FROM enrollments WHERE course_id = lessons.course_id AND student_email = current_app_user()) OR
-  EXISTS (SELECT 1 FROM courses WHERE id = lessons.course_id AND (teacher_email = current_app_user() OR status = 'published'))
+  check_is_enrolled(course_id) OR check_is_course_teacher(course_id) OR
+  EXISTS (SELECT 1 FROM courses WHERE id = lessons.course_id AND status = 'published')
 );
 CREATE POLICY "Teachers manage own course lessons" ON lessons FOR ALL USING (
-  EXISTS (SELECT 1 FROM courses WHERE id = lessons.course_id AND teacher_email = current_app_user()) OR
-  current_app_role() = 'admin'
+  check_is_course_teacher(course_id) OR current_app_role() = 'admin'
 );
 
 -- Enrollments policies
 CREATE POLICY "Users view own enrollments" ON enrollments FOR SELECT USING (student_email = current_app_user());
-CREATE POLICY "Teachers view course enrollments" ON enrollments FOR SELECT USING (
-  EXISTS (SELECT 1 FROM courses WHERE id = enrollments.course_id AND teacher_email = current_app_user())
-);
+CREATE POLICY "Teachers view course enrollments" ON enrollments FOR SELECT USING (check_is_course_teacher(course_id));
 CREATE POLICY "Students can enroll themselves" ON enrollments FOR INSERT WITH CHECK (student_email = current_app_user());
 CREATE POLICY "Admins manage enrollments" ON enrollments FOR ALL USING (current_app_role() = 'admin');
 
@@ -530,10 +564,19 @@ CREATE POLICY "Students view published assignments for enrolled courses" ON assi
 );
 CREATE POLICY "Teachers manage own assignments" ON assignments FOR ALL USING (teacher_email = current_app_user() OR current_app_role() = 'admin');
 
+-- Security Definer helper for assignment course check
+CREATE OR REPLACE FUNCTION check_assignment_course_teacher(p_assignment_id UUID) RETURNS BOOLEAN AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM assignments a
+    JOIN courses c ON a.course_id = c.id
+    WHERE a.id = p_assignment_id AND c.teacher_email = current_app_user()
+  );
+$$ LANGUAGE sql STABLE SECURITY DEFINER;
+
 -- Submissions policies
 CREATE POLICY "Students manage own submissions" ON submissions FOR ALL USING (student_email = current_app_user());
 CREATE POLICY "Teachers view and grade submissions for own courses" ON submissions FOR ALL USING (
-  EXISTS (SELECT 1 FROM courses WHERE id = (SELECT course_id FROM assignments WHERE id = submissions.assignment_id) AND teacher_email = current_app_user())
+  check_assignment_course_teacher(assignment_id) OR current_app_role() = 'admin'
 );
 
 -- Live Classes policies
