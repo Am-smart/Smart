@@ -35,14 +35,16 @@ export interface Enrollment {
 export interface Assignment {
   id: string;
   course_id: string;
+  teacher_email?: string;
   title: string;
   description?: string;
   due_date: string;
-  status: 'draft' | 'published';
+  status: 'draft' | 'published' | 'archived';
   points_possible: number;
   allow_late_submissions: boolean;
   anti_cheat_enabled: boolean;
   questions: AssignmentQuestion[];
+  attachments?: string[];
   courses?: Course;
 }
 
@@ -56,9 +58,10 @@ export interface AssignmentQuestion {
 export interface Quiz {
   id: string;
   course_id: string;
+  teacher_email?: string;
   title: string;
   description?: string;
-  status: 'draft' | 'published';
+  status: 'draft' | 'published' | 'archived';
   attempts_allowed: number;
   time_limit: number;
   anti_cheat_enabled: boolean;
@@ -192,6 +195,7 @@ export interface UserBadge {
 export interface Material {
   id: string;
   course_id: string;
+  teacher_email?: string;
   title: string;
   file_url: string;
   created_at: string;

@@ -366,13 +366,13 @@ $$ LANGUAGE plpgsql;
 CREATE OR REPLACE FUNCTION tr_notify_live_class() RETURNS TRIGGER AS $$
 BEGIN
   IF (NEW.status = 'live' AND (OLD.status IS NULL OR OLD.status != 'live')) THEN
-    PERFORM broadcast_data(NEW.course_id, 'student', 'Live Class Started', 'The class "' || NEW.title || '" has started! Join now.', 'student.html?page=live', 'live_class', INTERVAL '1 day');
+    PERFORM broadcast_data(NEW.course_id, 'student', 'Live Class Started', 'The class "' || NEW.title || '" has started! Join now.', '/student?page=live', 'live_class', INTERVAL '1 day');
   ELSIF (NEW.status = 'scheduled' AND OLD.status IS NULL) THEN
-    PERFORM broadcast_data(NEW.course_id, 'student', 'Live Class Scheduled', 'A new live class "' || NEW.title || '" has been scheduled for ' || NEW.start_at, 'student.html?page=live', 'live_class', INTERVAL '7 days');
+    PERFORM broadcast_data(NEW.course_id, 'student', 'Live Class Scheduled', 'A new live class "' || NEW.title || '" has been scheduled for ' || NEW.start_at, '/student?page=live', 'live_class', INTERVAL '7 days');
   ELSIF (NEW.status = 'scheduled' AND OLD.status = 'live') THEN
-    PERFORM broadcast_data(NEW.course_id, 'student', 'Teacher Left Room', 'The teacher has left the session for "' || NEW.title || '". Please wait for them to rejoin.', 'student.html?page=live', 'teacher_left', INTERVAL '1 hour');
+    PERFORM broadcast_data(NEW.course_id, 'student', 'Teacher Left Room', 'The teacher has left the session for "' || NEW.title || '". Please wait for them to rejoin.', '/student?page=live', 'teacher_left', INTERVAL '1 hour');
   ELSIF (NEW.status = 'completed' AND OLD.status = 'live') THEN
-    PERFORM broadcast_data(NEW.course_id, 'student', 'Class Ended', 'The live class "' || NEW.title || '" has ended.', 'student.html?page=live', 'class_ended', INTERVAL '1 day');
+    PERFORM broadcast_data(NEW.course_id, 'student', 'Class Ended', 'The live class "' || NEW.title || '" has ended.', '/student?page=live', 'class_ended', INTERVAL '1 day');
   END IF;
   RETURN NEW;
 END;
@@ -387,7 +387,7 @@ END $$;
 CREATE OR REPLACE FUNCTION tr_notify_assignment() RETURNS TRIGGER AS $$
 BEGIN
   IF (NEW.status = 'published' AND (OLD.status IS NULL OR OLD.status != 'published')) THEN
-    PERFORM broadcast_data(NEW.course_id, 'student', 'New Assignment', 'A new assignment "' || NEW.title || '" has been published.', 'student.html?page=assignments', 'assignment_published', INTERVAL '14 days');
+    PERFORM broadcast_data(NEW.course_id, 'student', 'New Assignment', 'A new assignment "' || NEW.title || '" has been published.', '/student?page=assignments', 'assignment_published', INTERVAL '14 days');
   END IF;
   RETURN NEW;
 END;
@@ -402,7 +402,7 @@ END $$;
 CREATE OR REPLACE FUNCTION tr_notify_quiz() RETURNS TRIGGER AS $$
 BEGIN
   IF (NEW.status = 'published' AND (OLD.status IS NULL OR OLD.status != 'published')) THEN
-    PERFORM broadcast_data(NEW.course_id, 'student', 'New Quiz Available', 'A new quiz "' || NEW.title || '" has been published.', 'student.html?page=quizzes', 'quiz_published', INTERVAL '14 days');
+    PERFORM broadcast_data(NEW.course_id, 'student', 'New Quiz Available', 'A new quiz "' || NEW.title || '" has been published.', '/student?page=quizzes', 'quiz_published', INTERVAL '14 days');
   END IF;
   RETURN NEW;
 END;
@@ -421,7 +421,7 @@ BEGIN
   SELECT c.teacher_email INTO v_teacher_email FROM courses c JOIN assignments a ON c.id = a.course_id WHERE a.id = NEW.assignment_id;
   IF (NEW.status = 'submitted' AND (OLD.status IS NULL OR OLD.status != 'submitted')) THEN
     IF v_teacher_email IS NOT NULL THEN
-      PERFORM notify_user(v_teacher_email, 'New Submission', 'A student has submitted an assignment.', 'teacher.html?page=grading', 'submission_received');
+      PERFORM notify_user(v_teacher_email, 'New Submission', 'A student has submitted an assignment.', '/teacher?page=grading', 'submission_received');
     END IF;
   END IF;
   RETURN NEW;
@@ -437,7 +437,7 @@ END $$;
 CREATE OR REPLACE FUNCTION tr_notify_grade() RETURNS TRIGGER AS $$
 BEGIN
   IF (NEW.status = 'graded' AND (OLD.status IS NULL OR OLD.status != 'graded')) THEN
-    PERFORM notify_user(NEW.student_email, 'Assignment Graded', 'Your assignment has been graded. Score: ' || NEW.final_grade || '%', 'student.html?page=assignments', 'grade_posted');
+    PERFORM notify_user(NEW.student_email, 'Assignment Graded', 'Your assignment has been graded. Score: ' || NEW.final_grade || '%', '/student?page=assignments', 'grade_posted');
   END IF;
   RETURN NEW;
 END;
