@@ -16,6 +16,9 @@ const UserEditor = dynamic(() => import("@/components/admin/UserEditor").then(m 
 const PasswordReset = dynamic(() => import("@/components/admin/PasswordReset").then(m => m.PasswordReset), { ssr: false });
 const MaintenancePanel = dynamic(() => import("@/components/admin/MaintenancePanel").then(m => m.MaintenancePanel), { ssr: false });
 const BroadcastManager = dynamic(() => import("@/components/admin/BroadcastManager").then(m => m.BroadcastManager), { ssr: false });
+const AdminAnalytics = dynamic(() => import("@/components/admin/SystemMisc").then(m => m.AdminAnalytics), { ssr: false });
+const SystemHealth = dynamic(() => import("@/components/admin/SystemMisc").then(m => m.SystemHealth), { ssr: false });
+const SystemInfo = dynamic(() => import("@/components/admin/SystemMisc").then(m => m.SystemInfo), { ssr: false });
 
 export default function AdminDashboard() {
   const { user, role, logout, isLoading: authLoading } = useAuth();
@@ -101,6 +104,21 @@ export default function AdminDashboard() {
         );
       case 'resets':
         return <PasswordReset users={users} />;
+      case 'analytics':
+        return <AdminAnalytics />;
+      case 'health':
+        return <SystemHealth />;
+      case 'system':
+        return <SystemInfo />;
+      case 'management':
+      case 'settings':
+        return (
+            <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-sm text-center py-20">
+                <h2 className="text-2xl font-bold mb-4">Admin Settings</h2>
+                <p className="text-slate-500 mb-8">Personalize your admin dashboard experience.</p>
+                <button className="btn-primary">Edit Settings</button>
+            </div>
+        );
       case 'dashboard':
       default:
         return (
