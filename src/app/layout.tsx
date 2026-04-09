@@ -12,6 +12,7 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "SmartLMS - Modern Learning Platform",
   description: "Empower your education with our all-in-one learning management system.",
+  manifest: "/manifest.json",
 };
 
 export default function RootLayout({
@@ -23,6 +24,15 @@ export default function RootLayout({
     <html lang="en" className={inter.className}>
       <body>
         <Script src="https://meet.jit.si/external_api.js" strategy="lazyOnload" />
+        <Script id="register-sw" strategy="afterInteractive">
+          {`
+            if ('serviceWorker' in navigator) {
+              window.addEventListener('load', function() {
+                navigator.serviceWorker.register('/sw.js');
+              });
+            }
+          `}
+        </Script>
         <AuthProvider>
           <AppProvider>
             {children}
