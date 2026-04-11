@@ -22,7 +22,7 @@ export const useSupabase = () => {
   const saveUser = useCallback(async (u: Partial<User>): Promise<User> => {
     const { data, error } = await client
       .from('users')
-      .upsert(u)
+      .upsert(u, { onConflict: 'id' })
       .select()
       .single();
     if (error) throw error;
