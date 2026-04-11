@@ -41,7 +41,7 @@ CREATE TABLE IF NOT EXISTS courses (
   description TEXT,
   category VARCHAR(100),
   thumbnail_url TEXT,
-  teacher_email VARCHAR(255) REFERENCES users(email) ON UPDATE CASCADE ON DELETE SET NULL,
+  teacher_id UUID REFERENCES users(id) ON UPDATE CASCADE ON DELETE SET NULL,
   status VARCHAR(50) DEFAULT 'draft' CHECK (status IN ('draft', 'published', 'archived')),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -61,11 +61,11 @@ CREATE TABLE IF NOT EXISTS lessons (
 
 CREATE TABLE IF NOT EXISTS enrollments (
   course_id UUID REFERENCES courses(id) ON DELETE CASCADE,
-  student_email VARCHAR(255) REFERENCES users(email) ON UPDATE CASCADE ON DELETE CASCADE,
+  student_id UUID REFERENCES users(id) ON UPDATE CASCADE ON DELETE CASCADE,
   enrolled_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   progress INTEGER DEFAULT 0,
   completed BOOLEAN DEFAULT FALSE,
-  PRIMARY KEY (course_id, student_email)
+  PRIMARY KEY (course_id, student_id)
 );
 
 CREATE TABLE IF NOT EXISTS assignments (
@@ -73,7 +73,7 @@ CREATE TABLE IF NOT EXISTS assignments (
   course_id UUID REFERENCES courses(id) ON DELETE CASCADE,
   title VARCHAR(255) NOT NULL,
   description TEXT,
-  teacher_email VARCHAR(255) REFERENCES users(email) ON UPDATE CASCADE ON DELETE SET NULL,
+  teacher_id UUID REFERENCES users(id) ON UPDATE CASCADE ON DELETE SET NULL,
   due_date TIMESTAMP WITH TIME ZONE,
   points_possible INTEGER DEFAULT 100,
   allow_late_submissions BOOLEAN DEFAULT TRUE,
@@ -90,7 +90,7 @@ CREATE TABLE IF NOT EXISTS assignments (
 CREATE TABLE IF NOT EXISTS submissions (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   assignment_id UUID REFERENCES assignments(id) ON DELETE CASCADE,
-  student_email VARCHAR(255) REFERENCES users(email) ON UPDATE CASCADE ON DELETE CASCADE,
+  student_id UUID REFERENCES users(id) ON UPDATE CASCADE ON DELETE CASCADE,
   submitted_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   submission_text TEXT,
@@ -106,13 +106,13 @@ CREATE TABLE IF NOT EXISTS submissions (
   graded_at TIMESTAMP WITH TIME ZONE,
   status VARCHAR(50) DEFAULT 'submitted' CHECK (status IN ('draft', 'submitted', 'graded', 'returned')),
   violation_count INTEGER DEFAULT 0,
-  UNIQUE(assignment_id, student_email)
+  UNIQUE(assignment_id, student_id)
 );
 
 CREATE TABLE IF NOT EXISTS live_classes (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   course_id UUID REFERENCES courses(id) ON DELETE CASCADE,
-  teacher_email VARCHAR(255) REFERENCES users(email) ON UPDATE CASCADE ON DELETE SET NULL,
+  teacher_id UUID REFERENCES users(id) ON UPDATE CASCADE ON DELETE SET NULL,
   title VARCHAR(255) NOT NULL,
   description TEXT,
   start_at TIMESTAMP WITH TIME ZONE NOT NULL,
@@ -130,19 +130,19 @@ CREATE TABLE IF NOT EXISTS live_classes (
 CREATE TABLE IF NOT EXISTS attendance (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   live_class_id UUID REFERENCES live_classes(id) ON DELETE CASCADE,
-  student_email VARCHAR(255) REFERENCES users(email) ON UPDATE CASCADE ON DELETE CASCADE,
+  student_id UUID REFERENCES users(id) ON UPDATE CASCADE ON DELETE CASCADE,
   join_time TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   leave_time TIMESTAMP WITH TIME ZONE,
   duration INTEGER DEFAULT 0,
   is_present BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  UNIQUE(live_class_id, student_email)
+  UNIQUE(live_class_id, student_id)
 );
 
 CREATE TABLE IF NOT EXISTS quizzes (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   course_id UUID REFERENCES courses(id) ON DELETE CASCADE,
-  teacher_email VARCHAR(255) REFERENCES users(email) ON UPDATE CASCADE ON DELETE SET NULL,
+  teacher_id UUID REFERENCES users(id) ON UPDATE CASCADE ON DELETE SET NULL,
   title VARCHAR(255) NOT NULL,
   description TEXT,
   time_limit INTEGER DEFAULT 0,
@@ -161,7 +161,7 @@ CREATE TABLE IF NOT EXISTS quizzes (
 CREATE TABLE IF NOT EXISTS quiz_submissions (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   quiz_id UUID REFERENCES quizzes(id) ON DELETE CASCADE,
-  student_email VARCHAR(255) REFERENCES users(email) ON UPDATE CASCADE ON DELETE CASCADE,
+  student_id UUID REFERENCES users(id) ON UPDATE CASCADE ON DELETE CASCADE,
   score INTEGER,
   total_points INTEGER,
   answers JSONB DEFAULT '{}'::jsonb,
@@ -176,7 +176,7 @@ CREATE TABLE IF NOT EXISTS quiz_submissions (
 CREATE TABLE IF NOT EXISTS materials (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   course_id UUID REFERENCES courses(id) ON DELETE CASCADE,
-  teacher_email VARCHAR(255) REFERENCES users(email) ON UPDATE CASCADE ON DELETE SET NULL,
+  teacher_id UUID REFERENCES users(id) ON UPDATE CASCADE ON DELETE SET NULL,
   title VARCHAR(255) NOT NULL,
   description TEXT,
   file_url TEXT,
@@ -187,7 +187,7 @@ CREATE TABLE IF NOT EXISTS materials (
 CREATE TABLE IF NOT EXISTS discussions (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   course_id UUID REFERENCES courses(id) ON DELETE CASCADE,
-  user_email VARCHAR(255) REFERENCES users(email) ON UPDATE CASCADE ON DELETE CASCADE,
+  user_id UUID REFERENCES users(id) ON UPDATE CASCADE ON DELETE CASCADE,
   parent_id UUID REFERENCES discussions(id) ON DELETE CASCADE,
   title VARCHAR(255),
   content TEXT NOT NULL,
@@ -197,7 +197,7 @@ CREATE TABLE IF NOT EXISTS discussions (
 
 CREATE TABLE IF NOT EXISTS notifications (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_email VARCHAR(255) REFERENCES users(email) ON UPDATE CASCADE ON DELETE CASCADE,
+  user_id UUID REFERENCES users(id) ON UPDATE CASCADE ON DELETE CASCADE,
   title VARCHAR(255) NOT NULL,
   message TEXT NOT NULL,
   link TEXT,
@@ -230,7 +230,7 @@ CREATE TABLE IF NOT EXISTS maintenance (
 
 CREATE TABLE IF NOT EXISTS planner (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_email VARCHAR(255) REFERENCES users(email) ON UPDATE CASCADE ON DELETE CASCADE,
+  user_id UUID REFERENCES users(id) ON UPDATE CASCADE ON DELETE CASCADE,
   title VARCHAR(255) NOT NULL,
   description TEXT,
   due_date TIMESTAMP WITH TIME ZONE,
@@ -242,7 +242,7 @@ CREATE TABLE IF NOT EXISTS planner (
 CREATE TABLE IF NOT EXISTS certificates (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   course_id UUID REFERENCES courses(id) ON DELETE CASCADE,
-  student_email VARCHAR(255) REFERENCES users(email) ON UPDATE CASCADE ON DELETE CASCADE,
+  student_id UUID REFERENCES users(id) ON UPDATE CASCADE ON DELETE CASCADE,
   issued_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   certificate_url TEXT,
   metadata JSONB DEFAULT '{}'::jsonb
@@ -258,15 +258,15 @@ CREATE TABLE IF NOT EXISTS badges (
 );
 
 CREATE TABLE IF NOT EXISTS user_badges (
-  user_email VARCHAR(255) REFERENCES users(email) ON UPDATE CASCADE ON DELETE CASCADE,
+  user_id UUID REFERENCES users(id) ON UPDATE CASCADE ON DELETE CASCADE,
   badge_id UUID REFERENCES badges(id) ON DELETE CASCADE,
   awarded_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  PRIMARY KEY (user_email, badge_id)
+  PRIMARY KEY (user_id, badge_id)
 );
 
 CREATE TABLE IF NOT EXISTS study_sessions (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_email VARCHAR(255) REFERENCES users(email) ON UPDATE CASCADE ON DELETE CASCADE,
+  user_id UUID REFERENCES users(id) ON UPDATE CASCADE ON DELETE CASCADE,
   course_id UUID REFERENCES courses(id) ON DELETE CASCADE,
   duration INTEGER NOT NULL,
   started_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -275,10 +275,10 @@ CREATE TABLE IF NOT EXISTS study_sessions (
 
 CREATE TABLE IF NOT EXISTS lesson_completions (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  student_email VARCHAR(255) REFERENCES users(email) ON UPDATE CASCADE ON DELETE CASCADE,
+  student_id UUID REFERENCES users(id) ON UPDATE CASCADE ON DELETE CASCADE,
   lesson_id UUID REFERENCES lessons(id) ON DELETE CASCADE,
   completed_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  UNIQUE(student_email, lesson_id)
+  UNIQUE(student_id, lesson_id)
 );
 
 CREATE TABLE IF NOT EXISTS system_logs (
@@ -287,7 +287,7 @@ CREATE TABLE IF NOT EXISTS system_logs (
   category VARCHAR(50),
   message TEXT,
   metadata JSONB DEFAULT '{}'::jsonb,
-  user_email VARCHAR(255),
+  user_id UUID,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -330,26 +330,26 @@ END $$;
 -- 5. Indexes (idempotent)
 CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
 CREATE INDEX IF NOT EXISTS idx_users_active ON users(active);
-CREATE INDEX IF NOT EXISTS idx_courses_teacher ON courses(teacher_email);
+CREATE INDEX IF NOT EXISTS idx_courses_teacher ON courses(teacher_id);
 CREATE INDEX IF NOT EXISTS idx_lessons_course ON lessons(course_id);
-CREATE INDEX IF NOT EXISTS idx_enrollments_student ON enrollments(student_email);
+CREATE INDEX IF NOT EXISTS idx_enrollments_student ON enrollments(student_id);
 CREATE INDEX IF NOT EXISTS idx_assignments_course ON assignments(course_id);
-CREATE INDEX IF NOT EXISTS idx_submissions_student ON submissions(student_email);
-CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_email, is_read);
-CREATE INDEX IF NOT EXISTS idx_study_sessions_user ON study_sessions(user_email);
+CREATE INDEX IF NOT EXISTS idx_submissions_student ON submissions(student_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id, is_read);
+CREATE INDEX IF NOT EXISTS idx_study_sessions_user ON study_sessions(user_id);
 CREATE INDEX IF NOT EXISTS idx_attendance_class ON attendance(live_class_id);
 CREATE INDEX IF NOT EXISTS idx_discussions_parent ON discussions(parent_id);
 CREATE INDEX IF NOT EXISTS idx_quiz_submissions_quiz ON quiz_submissions(quiz_id);
-CREATE INDEX IF NOT EXISTS idx_quiz_submissions_student ON quiz_submissions(student_email);
+CREATE INDEX IF NOT EXISTS idx_quiz_submissions_student ON quiz_submissions(student_id);
 CREATE INDEX IF NOT EXISTS idx_submissions_assignment ON submissions(assignment_id);
 CREATE INDEX IF NOT EXISTS idx_materials_course ON materials(course_id);
-CREATE INDEX IF NOT EXISTS idx_planner_user_date ON planner(user_email, due_date);
+CREATE INDEX IF NOT EXISTS idx_planner_user_date ON planner(user_id, due_date);
 
 -- 6. Helper Functions
 CREATE OR REPLACE FUNCTION notify_user(target_email VARCHAR, n_title TEXT, n_msg TEXT, n_link TEXT DEFAULT NULL, n_type TEXT DEFAULT 'system')
 RETURNS VOID AS $$
 BEGIN
-  INSERT INTO notifications (user_email, title, message, link, type)
+  INSERT INTO notifications (user_id, title, message, link, type)
   VALUES (target_email, n_title, n_msg, n_link, n_type);
 END;
 $$ LANGUAGE plpgsql;
@@ -416,12 +416,12 @@ END $$;
 
 CREATE OR REPLACE FUNCTION tr_notify_submission() RETURNS TRIGGER AS $$
 DECLARE
-  v_teacher_email VARCHAR(255);
+  v_teacher_id UUID;
 BEGIN
-  SELECT c.teacher_email INTO v_teacher_email FROM courses c JOIN assignments a ON c.id = a.course_id WHERE a.id = NEW.assignment_id;
+  SELECT c.teacher_id INTO v_teacher_id FROM courses c JOIN assignments a ON c.id = a.course_id WHERE a.id = NEW.assignment_id;
   IF (NEW.status = 'submitted' AND (OLD.status IS NULL OR OLD.status != 'submitted')) THEN
-    IF v_teacher_email IS NOT NULL THEN
-      PERFORM notify_user(v_teacher_email, 'New Submission', 'A student has submitted an assignment.', '/teacher?page=grading', 'submission_received');
+    IF v_teacher_id IS NOT NULL THEN
+      PERFORM notify_user(v_teacher_id, 'New Submission', 'A student has submitted an assignment.', '/teacher?page=grading', 'submission_received');
     END IF;
   END IF;
   RETURN NEW;
@@ -437,7 +437,7 @@ END $$;
 CREATE OR REPLACE FUNCTION tr_notify_grade() RETURNS TRIGGER AS $$
 BEGIN
   IF (NEW.status = 'graded' AND (OLD.status IS NULL OR OLD.status != 'graded')) THEN
-    PERFORM notify_user(NEW.student_email, 'Assignment Graded', 'Your assignment has been graded. Score: ' || NEW.final_grade || '%', '/student?page=assignments', 'grade_posted');
+    PERFORM notify_user(NEW.student_id, 'Assignment Graded', 'Your assignment has been graded. Score: ' || NEW.final_grade || '%', '/student?page=assignments', 'grade_posted');
   END IF;
   RETURN NEW;
 END;
@@ -503,10 +503,10 @@ ALTER TABLE lesson_completions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE system_logs ENABLE ROW LEVEL SECURITY;
 
 -- Utility function to get current user's email from session/header
--- Since we use custom auth, we will set a configuration parameter 'app.user_email'
+-- Since we use custom auth, we will set a configuration parameter 'app.user_id'
 -- or expect it to be passed via a custom header which PostgREST maps to settings.
-CREATE OR REPLACE FUNCTION current_app_user() RETURNS TEXT AS $$
-  SELECT current_setting('request.headers', true)::json->>'x-user-email';
+CREATE OR REPLACE FUNCTION current_app_user() RETURNS UUID AS $$
+  SELECT id FROM users WHERE email = current_setting('request.headers', true)::json->>'x-user-email';
 $$ LANGUAGE sql STABLE;
 
 CREATE OR REPLACE FUNCTION current_app_role() RETURNS TEXT AS $$
@@ -522,25 +522,25 @@ $$ LANGUAGE plpgsql STABLE SECURITY DEFINER;
 -- Security Definer Functions to break RLS recursion
 CREATE OR REPLACE FUNCTION check_is_course_teacher(p_course_id UUID) RETURNS BOOLEAN AS $$
   SELECT EXISTS (
-    SELECT 1 FROM courses WHERE id = p_course_id AND teacher_email = current_app_user()
+    SELECT 1 FROM courses WHERE id = p_course_id AND teacher_id = current_app_user()
   );
 $$ LANGUAGE sql STABLE SECURITY DEFINER;
 
 CREATE OR REPLACE FUNCTION check_is_enrolled(p_course_id UUID) RETURNS BOOLEAN AS $$
   SELECT EXISTS (
-    SELECT 1 FROM enrollments WHERE course_id = p_course_id AND student_email = current_app_user()
+    SELECT 1 FROM enrollments WHERE course_id = p_course_id AND student_id = current_app_user()
   );
 $$ LANGUAGE sql STABLE SECURITY DEFINER;
 
 -- Users policies
-CREATE POLICY "Users can view own profile" ON users FOR SELECT USING (email = current_app_user() OR current_app_role() = 'admin');
-CREATE POLICY "Users can update own profile" ON users FOR UPDATE USING (email = current_app_user() OR current_app_role() = 'admin');
-CREATE POLICY "Public can view active users" ON users FOR SELECT USING (active = true); -- For login/existence check
+CREATE POLICY "Users can view own profile" ON users FOR SELECT USING (id = current_app_user() OR current_app_role() = 'admin');
+CREATE POLICY "Users can update own profile" ON users FOR UPDATE USING (id = current_app_user() OR current_app_role() = 'admin');
+-- Policy removed for security -- For login/existence check
 CREATE POLICY "Admins can manage all users" ON users FOR ALL USING (current_app_role() = 'admin');
 
 -- Courses policies
 CREATE POLICY "Anyone can view published courses" ON courses FOR SELECT USING (status = 'published');
-CREATE POLICY "Teachers can manage own courses" ON courses FOR ALL USING (teacher_email = current_app_user() OR current_app_role() = 'admin');
+CREATE POLICY "Teachers can manage own courses" ON courses FOR ALL USING (teacher_id = current_app_user() OR current_app_role() = 'admin');
 CREATE POLICY "Students can view courses they are enrolled in" ON courses FOR SELECT USING (check_is_enrolled(id));
 
 -- Lessons policies
@@ -553,71 +553,71 @@ CREATE POLICY "Teachers manage own course lessons" ON lessons FOR ALL USING (
 );
 
 -- Enrollments policies
-CREATE POLICY "Users view own enrollments" ON enrollments FOR SELECT USING (student_email = current_app_user());
+CREATE POLICY "Users view own enrollments" ON enrollments FOR SELECT USING (student_id = current_app_user());
 CREATE POLICY "Teachers view course enrollments" ON enrollments FOR SELECT USING (check_is_course_teacher(course_id));
-CREATE POLICY "Students can enroll themselves" ON enrollments FOR INSERT WITH CHECK (student_email = current_app_user());
+CREATE POLICY "Students can enroll themselves" ON enrollments FOR INSERT WITH CHECK (student_id = current_app_user());
 CREATE POLICY "Admins manage enrollments" ON enrollments FOR ALL USING (current_app_role() = 'admin');
 
 -- Assignments policies
 CREATE POLICY "Students view published assignments for enrolled courses" ON assignments FOR SELECT USING (
-  status = 'published' AND EXISTS (SELECT 1 FROM enrollments WHERE course_id = assignments.course_id AND student_email = current_app_user())
+  status = 'published' AND EXISTS (SELECT 1 FROM enrollments WHERE course_id = assignments.course_id AND student_id = current_app_user())
 );
-CREATE POLICY "Teachers manage own assignments" ON assignments FOR ALL USING (teacher_email = current_app_user() OR current_app_role() = 'admin');
+CREATE POLICY "Teachers manage own assignments" ON assignments FOR ALL USING (teacher_id = current_app_user() OR current_app_role() = 'admin');
 
 -- Security Definer helper for assignment course check
 CREATE OR REPLACE FUNCTION check_assignment_course_teacher(p_assignment_id UUID) RETURNS BOOLEAN AS $$
   SELECT EXISTS (
     SELECT 1 FROM assignments a
     JOIN courses c ON a.course_id = c.id
-    WHERE a.id = p_assignment_id AND c.teacher_email = current_app_user()
+    WHERE a.id = p_assignment_id AND c.teacher_id = current_app_user()
   );
 $$ LANGUAGE sql STABLE SECURITY DEFINER;
 
 -- Submissions policies
-CREATE POLICY "Students manage own submissions" ON submissions FOR ALL USING (student_email = current_app_user());
+CREATE POLICY "Students manage own submissions" ON submissions FOR ALL USING (student_id = current_app_user());
 CREATE POLICY "Teachers view and grade submissions for own courses" ON submissions FOR ALL USING (
   check_assignment_course_teacher(assignment_id) OR current_app_role() = 'admin'
 );
 
 -- Live Classes policies
 CREATE POLICY "Enrolled students view live classes" ON live_classes FOR SELECT USING (
-  EXISTS (SELECT 1 FROM enrollments WHERE course_id = live_classes.course_id AND student_email = current_app_user())
+  EXISTS (SELECT 1 FROM enrollments WHERE course_id = live_classes.course_id AND student_id = current_app_user())
 );
-CREATE POLICY "Teachers manage own live classes" ON live_classes FOR ALL USING (teacher_email = current_app_user() OR current_app_role() = 'admin');
+CREATE POLICY "Teachers manage own live classes" ON live_classes FOR ALL USING (teacher_id = current_app_user() OR current_app_role() = 'admin');
 
 -- Attendance policies
-CREATE POLICY "Students mark own attendance" ON attendance FOR ALL USING (student_email = current_app_user());
+CREATE POLICY "Students mark own attendance" ON attendance FOR ALL USING (student_id = current_app_user());
 CREATE POLICY "Teachers view attendance for own classes" ON attendance FOR SELECT USING (
-  EXISTS (SELECT 1 FROM live_classes WHERE id = attendance.live_class_id AND teacher_email = current_app_user())
+  EXISTS (SELECT 1 FROM live_classes WHERE id = attendance.live_class_id AND teacher_id = current_app_user())
 );
 
 -- Quizzes policies
 CREATE POLICY "Students view published quizzes for enrolled courses" ON quizzes FOR SELECT USING (
-  status = 'published' AND EXISTS (SELECT 1 FROM enrollments WHERE course_id = quizzes.course_id AND student_email = current_app_user())
+  status = 'published' AND EXISTS (SELECT 1 FROM enrollments WHERE course_id = quizzes.course_id AND student_id = current_app_user())
 );
-CREATE POLICY "Teachers manage own quizzes" ON quizzes FOR ALL USING (teacher_email = current_app_user() OR current_app_role() = 'admin');
+CREATE POLICY "Teachers manage own quizzes" ON quizzes FOR ALL USING (teacher_id = current_app_user() OR current_app_role() = 'admin');
 
 -- Quiz Submissions policies
-CREATE POLICY "Students manage own quiz submissions" ON quiz_submissions FOR ALL USING (student_email = current_app_user());
+CREATE POLICY "Students manage own quiz submissions" ON quiz_submissions FOR ALL USING (student_id = current_app_user());
 CREATE POLICY "Teachers view quiz submissions for own courses" ON quiz_submissions FOR SELECT USING (
-  EXISTS (SELECT 1 FROM quizzes WHERE id = quiz_submissions.quiz_id AND teacher_email = current_app_user())
+  EXISTS (SELECT 1 FROM quizzes WHERE id = quiz_submissions.quiz_id AND teacher_id = current_app_user())
 );
 
 -- Materials policies
 CREATE POLICY "Enrolled students view materials" ON materials FOR SELECT USING (
-  EXISTS (SELECT 1 FROM enrollments WHERE course_id = materials.course_id AND student_email = current_app_user())
+  EXISTS (SELECT 1 FROM enrollments WHERE course_id = materials.course_id AND student_id = current_app_user())
 );
-CREATE POLICY "Teachers manage own materials" ON materials FOR ALL USING (teacher_email = current_app_user() OR current_app_role() = 'admin');
+CREATE POLICY "Teachers manage own materials" ON materials FOR ALL USING (teacher_id = current_app_user() OR current_app_role() = 'admin');
 
 -- Discussions policies
 CREATE POLICY "Enrolled students and teachers view/post discussions" ON discussions FOR ALL USING (
-  EXISTS (SELECT 1 FROM enrollments WHERE course_id = discussions.course_id AND student_email = current_app_user()) OR
-  EXISTS (SELECT 1 FROM courses WHERE id = discussions.course_id AND teacher_email = current_app_user()) OR
+  EXISTS (SELECT 1 FROM enrollments WHERE course_id = discussions.course_id AND student_id = current_app_user()) OR
+  EXISTS (SELECT 1 FROM courses WHERE id = discussions.course_id AND teacher_id = current_app_user()) OR
   current_app_role() = 'admin'
 );
 
 -- Notifications policies
-CREATE POLICY "Users manage own notifications" ON notifications FOR ALL USING (user_email = current_app_user());
+CREATE POLICY "Users manage own notifications" ON notifications FOR ALL USING (user_id = current_app_user());
 
 -- Broadcasts policies
 CREATE POLICY "Anyone can view relevant broadcasts" ON broadcasts FOR SELECT USING (
@@ -630,10 +630,10 @@ CREATE POLICY "Anyone can view maintenance status" ON maintenance FOR SELECT USI
 CREATE POLICY "Admins manage maintenance" ON maintenance FOR ALL USING (current_app_role() = 'admin');
 
 -- Planner policies
-CREATE POLICY "Users manage own planner" ON planner FOR ALL USING (user_email = current_app_user());
+CREATE POLICY "Users manage own planner" ON planner FOR ALL USING (user_id = current_app_user());
 
 -- Certificates policies
-CREATE POLICY "Users view own certificates" ON certificates FOR SELECT USING (student_email = current_app_user());
+CREATE POLICY "Users view own certificates" ON certificates FOR SELECT USING (student_id = current_app_user());
 CREATE POLICY "Teachers/Admins manage certificates" ON certificates FOR ALL USING (current_app_role() IN ('teacher', 'admin'));
 
 -- Badges policies
@@ -645,10 +645,10 @@ CREATE POLICY "Anyone can view user badges" ON user_badges FOR SELECT USING (tru
 CREATE POLICY "System/Admins manage user badges" ON user_badges FOR ALL USING (current_app_role() = 'admin');
 
 -- Study Sessions policies
-CREATE POLICY "Users manage own study sessions" ON study_sessions FOR ALL USING (user_email = current_app_user());
+CREATE POLICY "Users manage own study sessions" ON study_sessions FOR ALL USING (user_id = current_app_user());
 
 -- Lesson Completions policies
-CREATE POLICY "Users manage own lesson completions" ON lesson_completions FOR ALL USING (student_email = current_app_user());
+CREATE POLICY "Users manage own lesson completions" ON lesson_completions FOR ALL USING (student_id = current_app_user());
 
 -- System Logs policies
 CREATE POLICY "Users can create logs" ON system_logs FOR INSERT WITH CHECK (true);

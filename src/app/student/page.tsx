@@ -1,383 +1,111 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import dynamic from 'next/dynamic';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
 import { useSupabase } from '@/hooks/useSupabase';
-import { useIndexedDB } from '@/hooks/useIndexedDB';
-import { StudentSidebar } from "@/components/StudentSidebar";
-import { StudentHeader } from "@/components/StudentHeader";
-import { CourseCatalog } from "@/components/student/CourseCatalog";
-import { MyCourses } from "@/components/student/MyCourses";
-import { AssignmentsList } from "@/components/student/AssignmentsList";
-import { QuizzesList } from "@/components/student/QuizzesList";
-import { useRouter } from 'next/navigation';
-import { Enrollment, Assignment, Notification, User, Course, Submission, Quiz, QuizSubmission, LiveClass, Discussion, Badge, Material, Certificate } from '@/lib/types';
+import { Enrollment, Course, Assignment, Submission, Notification } from '@/lib/types';
+import dynamic from 'next/dynamic';
 
-// Lazy Loaded Components
-const QuizView = dynamic(() => import("@/components/student/QuizView").then(m => m.QuizView), { ssr: false });
-const AssignmentForm = dynamic(() => import("@/components/student/AssignmentForm").then(m => m.AssignmentForm), { ssr: false });
-const StudentAnalytics = dynamic(() => import("@/components/student/StudentAnalytics").then(m => m.StudentAnalytics), { ssr: false });
-const CalendarView = dynamic(() => import("@/components/ui/CalendarView").then(m => m.CalendarView), { ssr: false });
-const LiveClassesList = dynamic(() => import("@/components/student/LiveClassesList").then(m => m.LiveClassesList), { ssr: false });
-const DiscussionBoard = dynamic(() => import("@/components/student/DiscussionBoard").then(m => m.DiscussionBoard), { ssr: false });
-const AntiCheatRecord = dynamic(() => import("@/components/student/AntiCheatRecord").then(m => m.AntiCheatRecord), { ssr: false });
-const AchievementsList = dynamic(() => import("@/components/student/AchievementsList").then(m => m.AchievementsList), { ssr: false });
-const MaterialsList = dynamic(() => import("@/components/student/MaterialsList").then(m => m.MaterialsList), { ssr: false });
-const PlannerView = dynamic(() => import("@/components/student/PlannerView").then(m => m.PlannerView), { ssr: false });
-const CertificatesList = dynamic(() => import("@/components/student/CertificatesList").then(m => m.CertificatesList), { ssr: false });
 const StudyTimer = dynamic(() => import("@/components/student/StudyTimer").then(m => m.StudyTimer), { ssr: false });
 
 export default function StudentDashboard() {
-  const { user, role, logout, isLoading: authLoading } = useAuth();
-  const { client, getEnrollments, getAssignments, getNotifications, getCourses, getQuizzes, getDiscussions } = useSupabase();
-  const { getCache, addToQueue, isOnline } = useIndexedDB();
-  const [activePage, setActivePage] = useState('dashboard');
-  const [stats, setStats] = useState({ courses: 0, dueSoon: 0, badges: 0, unreadNotifications: 0 });
-  const [isDataLoading, setIsDataLoading] = useState(true);
-
-  // Page Data
-  const [courses, setCourses] = useState<Course[]>([]);
+  const { user } = useAuth();
+  const { client, getNotifications } = useSupabase();
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
-  const [quizzes, setQuizzes] = useState<Quiz[]>([]);
-  const [quizSubmissions, setQuizSubmissions] = useState<QuizSubmission[]>([]);
-  const [liveClasses, setLiveClasses] = useState<LiveClass[]>([]);
-  const [discussions, setDiscussions] = useState<Discussion[]>([]);
-  const [badges, setBadges] = useState<Badge[]>([]);
-  const [materials, setMaterials] = useState<Material[]>([]);
-  const [certificates, setCertificates] = useState<Certificate[]>([]);
-  const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
-  const [activeQuiz, setActiveQuiz] = useState<Quiz | null>(null);
-  const [activeAssignment, setActiveAssignment] = useState<Assignment | null>(null);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [stats, setStats] = useState({ courses: 0, dueSoon: 0, xp: 0 });
 
-  const router = useRouter();
-
-  const fetchData = useCallback(async (u: User) => {
-    try {
-      setIsDataLoading(true);
-
-      // Try local cache first
-      const cachedCourses = await getCache<Course[]>('all_courses');
-      const cachedEnrollments = await getCache<Enrollment[]>('my_enrollments');
-      const cachedAssignments = await getCache<Assignment[]>('all_assignments');
-      const cachedQuizzes = await getCache<Quiz[]>('all_quizzes');
-
-      if (cachedCourses) setCourses(cachedCourses);
-      if (cachedEnrollments) setEnrollments(cachedEnrollments);
-      if (cachedAssignments) setAssignments(cachedAssignments);
-      if (cachedQuizzes) setQuizzes(cachedQuizzes);
-
-      if (isOnline) {
-          const [
-            allCourses,
-            myEnrollments,
-            allAssignments,
-            mySubmissions,
-            allNotifications,
-            allQuizzes,
-            myQuizSubs,
-            allLiveClasses,
-            myBadges,
-            allMaterials,
-            myCertificates
-          ] = await Promise.all([
-            getCourses() as Promise<Course[]>,
-            getEnrollments(u.email) as Promise<Enrollment[]>,
-            getAssignments() as Promise<Assignment[]>,
-            client.from('submissions').select('*, assignments(*)').eq('student_email', u.email).then(r => r.data || []) as Promise<Submission[]>,
-            getNotifications(u.email) as Promise<Notification[]>,
-            getQuizzes() as Promise<Quiz[]>,
-            client.from('quiz_submissions').select('*, quizzes(*)').eq('student_email', u.email).then(r => r.data || []) as Promise<QuizSubmission[]>,
-            client.from('live_classes').select('*').then(r => r.data || []) as Promise<LiveClass[]>,
-            client.from('user_badges').select('*, badges(*)').eq('user_email', u.email).then(r => (r.data || []).map((b: { badges: Badge }) => b.badges) as Badge[]),
-            client.from('materials').select('*').then(r => r.data || []) as Promise<Material[]>,
-            client.from('certificates').select('*, courses(title)').eq('student_email', u.email).then(r => r.data || []) as Promise<Certificate[]>
-          ]);
-
-          setCourses(allCourses.filter(c => c.status === 'published'));
-          setEnrollments(myEnrollments);
-
-          const enrolledIds = myEnrollments.map(e => e.course_id);
-          setAssignments(allAssignments.filter(a => enrolledIds.includes(a.course_id) && a.status === 'published'));
-          setSubmissions(mySubmissions);
-          setQuizzes(allQuizzes.filter(q => enrolledIds.includes(q.course_id) && q.status === 'published'));
-          setQuizSubmissions(myQuizSubs);
-          setLiveClasses(allLiveClasses.filter(lc => enrolledIds.includes(lc.course_id)));
-          setBadges(myBadges);
-          setMaterials(allMaterials.filter(m => enrolledIds.includes(m.course_id)));
-          setCertificates(myCertificates);
-
-          setStats({
-            courses: myEnrollments.length,
-            dueSoon: allAssignments.filter((a) => enrolledIds.includes(a.course_id) && a.status === 'published' && new Date(a.due_date) > new Date() && !mySubmissions.some(s => s.assignment_id === a.id)).length,
-            badges: myBadges.length,
-            unreadNotifications: allNotifications.filter((n) => !n.is_read).length
-          });
-      }
-    } catch (err) {
-      console.error('Failed to fetch stats:', err);
-    } finally {
-      setIsDataLoading(false);
-    }
-  }, [client, getCourses, getEnrollments, getAssignments, getNotifications, getQuizzes, getCache, isOnline]);
-
-  useEffect(() => {
-    if (!authLoading) {
-      if (!user || role !== 'student') {
-        router.push('/');
-      } else {
-        fetchData(user);
-      }
-    }
-  }, [authLoading, user, role, router, fetchData]);
-
-  useEffect(() => {
-    if (activePage === 'discussions' && enrollments.length > 0) {
-        const firstCourseId = enrollments[0].course_id;
-        setSelectedCourseId(firstCourseId);
-        getDiscussions(firstCourseId).then(setDiscussions);
-    }
-  }, [activePage, enrollments, getDiscussions]);
-
-  const handleLogout = async () => {
-    await logout();
-    router.push('/');
-  };
-
-  const handleEnroll = async (courseId: string) => {
+  const fetchData = useCallback(async () => {
     if (!user) return;
-    try {
-        const payload = { course_id: courseId, student_email: user.email };
+    const [myEnrollments, allAssignments, mySubmissions] = await Promise.all([
+      client.from('enrollments').select('*, courses(*)').eq('student_email', user.email).then(r => r.data || []),
+      client.from('assignments').select('*').eq('status', 'published').then(r => r.data || []),
+      client.from('submissions').select('*').eq('student_email', user.email).then(r => r.data || [])
+    ]);
 
-        if (isOnline) {
-            const { error } = await client.from('enrollments').upsert(payload, { onConflict: 'course_id,student_email' });
-            if (error) throw error;
-        } else {
-            await addToQueue('ENROLL', payload);
-            alert('Offline: Enrollment queued for sync.');
-        }
+    const enrolledIds = myEnrollments.map((e: Enrollment) => e.course_id);
+    const pendingAssignments = allAssignments.filter((a: Assignment) => enrolledIds.includes(a.course_id) && new Date(a.due_date as string) > new Date() && !mySubmissions.some((s: Submission) => s.assignment_id === a.id));
 
-        fetchData(user);
-        setActivePage('my-courses');
-    } catch (err) {
-        console.error('Enrollment failed:', err);
-    }
-  };
-
-  const handlePostDiscussion = async (content: string) => {
-    if (!user || !selectedCourseId) return;
-    try {
-        const { error } = await client.from('discussions').insert([{
-            course_id: selectedCourseId,
-            user_email: user.email,
-            content,
-            created_at: new Date().toISOString()
-        }]);
-        if (error) throw error;
-        getDiscussions(selectedCourseId).then(setDiscussions);
-    } catch (err) {
-        console.error('Post failed:', err);
-    }
-  };
-
-  const showLoader = useMemo(() => authLoading || (isDataLoading && !user), [authLoading, isDataLoading, user]);
-
-  const calendarEvents = useMemo(() => {
-    const events: { id: string; title: string; date: string; type: 'assignment' | 'quiz' | 'live'; color: string }[] = [];
-    assignments.forEach(a => events.push({ id: a.id, title: `Due: ${a.title}`, date: (a.due_date as string).split('T')[0], type: 'assignment', color: 'bg-purple-100 border-purple-500 text-purple-700' }));
-    quizzes.forEach(q => {
-        if (q.start_at) events.push({ id: q.id, title: `Starts: ${q.title}`, date: (q.start_at as string).split('T')[0], type: 'quiz', color: 'bg-amber-100 border-amber-500 text-amber-700' });
-        if (q.end_at) events.push({ id: q.id, title: `Closes: ${q.title}`, date: (q.end_at as string).split('T')[0], type: 'quiz', color: 'bg-red-100 border-red-500 text-red-700' });
+    setEnrollments(myEnrollments);
+    setAssignments(pendingAssignments);
+    setSubmissions(mySubmissions);
+    setStats({
+      courses: myEnrollments.length,
+      dueSoon: pendingAssignments.length,
+      xp: user.xp || 0
     });
-    liveClasses.forEach(lc => events.push({ id: lc.id, title: `Live: ${lc.title}`, date: (lc.start_at as string).split('T')[0], type: 'live', color: 'bg-blue-100 border-blue-500 text-blue-700' }));
-    return events;
-  }, [assignments, quizzes, liveClasses]);
+  }, [user, client]);
 
-  if (showLoader || !user || role !== 'student') {
-      return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
-  }
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
-  const renderContent = () => {
-    switch (activePage) {
-      case 'dashboard':
-        return (
-          <>
-            <h2 className="text-2xl font-bold mb-6">Welcome Back, {user.full_name}!</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-              <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-                <h4 className="text-slate-500 text-sm font-bold uppercase mb-2">Enrolled Courses</h4>
-                <div className="text-3xl font-bold text-slate-900">{stats.courses}</div>
-              </div>
-              <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-                <h4 className="text-slate-500 text-sm font-bold uppercase mb-2">Upcoming Assignments</h4>
-                <div className="text-3xl font-bold text-slate-900">{stats.dueSoon}</div>
-              </div>
-              <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-                <h4 className="text-slate-500 text-sm font-bold uppercase mb-2">XP Points</h4>
-                <div className="text-3xl font-bold text-slate-900">{user.xp || 0}</div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
-                    <h3 className="text-lg font-bold mb-6">Continue Learning</h3>
-                    {enrollments.length > 0 ? (
-                        <div className="space-y-4">
-                            {enrollments.slice(0, 3).map(e => (
-                                <div key={e.id} className="flex items-center gap-4 p-4 bg-slate-50 rounded-xl">
-                                    <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center text-xl">📖</div>
-                                    <div className="flex-1">
-                                        <div className="font-bold text-slate-900">{e.courses?.title}</div>
-                                        <div className="w-full bg-slate-200 h-1.5 rounded-full mt-2 overflow-hidden">
-                                            <div className="bg-blue-500 h-full" style={{ width: `${e.progress}%` }}></div>
-                                        </div>
-                                    </div>
-                                    <button onClick={() => setActivePage('my-courses')} className="text-blue-600 font-bold text-xs uppercase">Open</button>
-                                </div>
-                            ))}
-                        </div>
-                    ) : (
-                        <p className="text-slate-500 text-sm italic">No courses enrolled yet.</p>
-                    )}
-                </div>
-
-                <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
-                    <h3 className="text-lg font-bold mb-6">Upcoming Deadlines</h3>
-                    {assignments.filter(a => !submissions.some(s => s.assignment_id === a.id)).length > 0 ? (
-                        <div className="space-y-4">
-                            {assignments
-                                .filter(a => !submissions.some(s => s.assignment_id === a.id))
-                                .slice(0, 3)
-                                .map(a => (
-                                    <div key={a.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
-                                        <div>
-                                            <div className="font-bold text-slate-900">{a.title}</div>
-                                            <div className="text-xs text-slate-500 mt-1">Due: {new Date(a.due_date).toLocaleDateString()}</div>
-                                        </div>
-                                        <button onClick={() => setActivePage('assignments')} className="btn-primary py-1.5 px-4 text-[10px]">Submit</button>
-                                    </div>
-                                ))
-                            }
-                        </div>
-                    ) : (
-                        <p className="text-slate-500 text-sm italic">All caught up! No pending assignments.</p>
-                    )}
-                </div>
-            </div>
-          </>
-        );
-      case 'analytics':
-        return <StudentAnalytics submissions={submissions} quizSubmissions={quizSubmissions} enrollments={enrollments} />;
-      case 'calendar':
-        return <CalendarView events={calendarEvents} />;
-      case 'courses':
-        return (
-            <CourseCatalog
-                courses={courses}
-                enrolledCourseIds={enrollments.map(e => e.course_id)}
-                onEnroll={handleEnroll}
-                onViewDetails={() => setActivePage('my-courses')}
-            />
-        );
-      case 'my-courses':
-        return <MyCourses enrollments={enrollments} onOpenCourse={() => setActivePage('dashboard')} />;
-      case 'assignments':
-        return (
-            <AssignmentsList
-                assignments={assignments}
-                submissions={submissions}
-                onSubmit={(a) => setActiveAssignment(a)}
-                onViewFeedback={() => {}}
-            />
-        );
-      case 'quizzes':
-        return (
-            <QuizzesList
-                quizzes={quizzes}
-                submissions={quizSubmissions}
-                onStart={(quizId) => {
-                    const q = quizzes.find(item => item.id === quizId);
-                    if (q) setActiveQuiz(q);
-                }}
-                onViewResults={() => {}}
-            />
-        );
-      case 'live':
-        return <LiveClassesList liveClasses={liveClasses} onJoin={(lc) => { if(lc.meeting_url) window.open(lc.meeting_url, '_blank'); }} />;
-      case 'discussions':
-        return (
-            <div>
-                <div className="flex gap-4 mb-8 overflow-x-auto pb-2">
-                    {enrollments.map(e => (
-                        <button
-                            key={e.course_id}
-                            onClick={() => { setSelectedCourseId(e.course_id); getDiscussions(e.course_id).then(setDiscussions); }}
-                            className={`px-4 py-2 rounded-full text-xs font-bold whitespace-nowrap transition-colors ${selectedCourseId === e.course_id ? 'bg-blue-600 text-white' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'}`}
-                        >
-                            {e.courses?.title}
-                        </button>
-                    ))}
-                </div>
-                {selectedCourseId && (
-                    <DiscussionBoard
-                        discussions={discussions}
-                        userEmail={user.email}
-                        onPost={handlePostDiscussion}
-                        onDelete={async (id) => { await client.from('discussions').delete().eq('id', id); getDiscussions(selectedCourseId).then(setDiscussions); }}
-                        isOnline={isOnline}
-                    />
-                )}
-            </div>
-        );
-      case 'achievements':
-        return <AchievementsList badges={badges} />;
-      case 'materials':
-        return <MaterialsList materials={materials} />;
-      case 'planner':
-        return <PlannerView userEmail={user.email} />;
-      case 'certificates':
-        return <CertificatesList studentEmail={user.email} certificates={certificates} />;
-      case 'anti-cheat':
-        return <AntiCheatRecord submissions={submissions} quizSubmissions={quizSubmissions} />;
-      default:
-        return null;
-    }
-  };
+  if (!user) return null;
 
   return (
-    <div className="student-dashboard">
-      {activeQuiz && (
-        <QuizView
-            quiz={activeQuiz}
-            user={user}
-            onComplete={() => { setActiveQuiz(null); fetchData(user); }}
-            onCancel={() => setActiveQuiz(null)}
-        />
+    <div className="space-y-8">
+      {enrollments.length > 0 && (
+        <StudyTimer userEmail={user.email} courses={enrollments.map(e => e.courses).filter(Boolean) as Course[]} />
       )}
-      {activeAssignment && (
-        <AssignmentForm
-            assignment={activeAssignment}
-            user={user}
-            onComplete={() => { setActiveAssignment(null); fetchData(user); }}
-            onCancel={() => setActiveAssignment(null)}
-        />
-      )}
-      <div className="app">
-        <StudentSidebar activePage={activePage} onNavigate={setActivePage} isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
-        <main className="main ml-0 md:ml-[240px]">
-          <StudentHeader user={user} stats={stats} onLogout={handleLogout} onMenuClick={() => setIsSidebarOpen(true)} />
-          <div className="content-area p-4 md:p-8 bg-[#f8fafc] min-h-[calc(100vh-70px)]">
-            <div id="pageContent" className="space-y-8">
-              {activePage === 'dashboard' && enrollments.length > 0 && (
-                <StudyTimer userEmail={user.email} courses={enrollments.map(e => e.courses).filter(Boolean) as Course[]} />
+
+      <h2 className="text-2xl font-bold mb-6">Welcome Back, {user.full_name}!</h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+          <h4 className="text-slate-500 text-sm font-bold uppercase mb-2">Enrolled Courses</h4>
+          <div className="text-3xl font-bold text-slate-900">{stats.courses}</div>
+        </div>
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+          <h4 className="text-slate-500 text-sm font-bold uppercase mb-2">Upcoming Assignments</h4>
+          <div className="text-3xl font-bold text-slate-900">{stats.dueSoon}</div>
+        </div>
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+          <h4 className="text-slate-500 text-sm font-bold uppercase mb-2">XP Points</h4>
+          <div className="text-3xl font-bold text-slate-900">{stats.xp}</div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
+              <h3 className="text-lg font-bold mb-6">Continue Learning</h3>
+              {enrollments.length > 0 ? (
+                  <div className="space-y-4">
+                      {enrollments.slice(0, 3).map(e => (
+                          <div key={e.id} className="flex items-center gap-4 p-4 bg-slate-50 rounded-xl">
+                              <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center text-xl">📖</div>
+                              <div className="flex-1">
+                                  <div className="font-bold text-slate-900">{e.courses?.title}</div>
+                                  <div className="w-full bg-slate-200 h-1.5 rounded-full mt-2 overflow-hidden">
+                                      <div className="bg-blue-500 h-full" style={{ width: `${e.progress}%` }}></div>
+                                  </div>
+                              </div>
+                              <button className="text-blue-600 font-bold text-xs uppercase">Open</button>
+                          </div>
+                      ))}
+                  </div>
+              ) : (
+                  <p className="text-slate-500 text-sm italic">No courses enrolled yet.</p>
               )}
-              {renderContent()}
-            </div>
           </div>
-        </main>
+
+          <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
+              <h3 className="text-lg font-bold mb-6">Upcoming Deadlines</h3>
+              {assignments.length > 0 ? (
+                  <div className="space-y-4">
+                      {assignments.slice(0, 3).map(a => (
+                          <div key={a.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
+                              <div>
+                                  <div className="font-bold text-slate-900">{a.title}</div>
+                                  <div className="text-xs text-slate-500 mt-1">Due: {new Date(a.due_date).toLocaleDateString()}</div>
+                              </div>
+                              <button className="btn-primary py-1.5 px-4 text-[10px]">Submit</button>
+                          </div>
+                      ))}
+                  </div>
+              ) : (
+                  <p className="text-slate-500 text-sm italic">All caught up! No pending assignments.</p>
+              )}
+          </div>
       </div>
     </div>
   );
