@@ -13,9 +13,9 @@ export default function CertificatesPage() {
 
   useEffect(() => {
     if (user) {
-        client.from('certificates').select('*, courses(title)').eq('student_email', user.email).then(r => setCertificates(r.data || []));
+        client.from('certificates').select('*, courses(title)').eq('student_id', user.id).then(r => setCertificates(r.data || []));
     }
   }, [user, client]);
 
-  return <CertificatesList studentEmail={user?.email || ''} certificates={certificates} />;
+  return <CertificatesList studentName={user?.full_name || user?.email || ''} certificates={certificates} />;
 }

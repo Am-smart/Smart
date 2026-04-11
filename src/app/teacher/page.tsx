@@ -3,7 +3,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
 import { useSupabase } from '@/hooks/useSupabase';
-import { Course } from '@/lib/types';
 
 export default function TeacherDashboard() {
   const { user } = useAuth();

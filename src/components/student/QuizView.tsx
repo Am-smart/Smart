@@ -18,7 +18,7 @@ export const QuizView: React.FC<QuizViewProps> = ({ quiz, user, onComplete, onCa
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { addToQueue, setCache, getCache, isOnline } = useIndexedDB();
 
-  useAntiCheat(quiz.anti_cheat_enabled);
+  useAntiCheat(quiz.anti_cheat_enabled, quiz.title);
 
   // Load saved progress from IndexedDB
   useEffect(() => {
@@ -55,7 +55,7 @@ export const QuizView: React.FC<QuizViewProps> = ({ quiz, user, onComplete, onCa
 
         const payload = {
             quiz_id: quiz.id,
-            student_email: user.email,
+            student_id: user.id,
             answers,
             score,
             status: 'submitted',

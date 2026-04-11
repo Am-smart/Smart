@@ -1,4 +1,5 @@
 "use client";
+import { Notification as AppNotification } from "@/lib/types";
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
@@ -6,7 +7,7 @@ import { useSupabase } from '@/hooks/useSupabase';
 import { StudentSidebar } from "@/components/StudentSidebar";
 import { StudentHeader } from "@/components/StudentHeader";
 import { useRouter, usePathname } from 'next/navigation';
-import { User, Notification, Enrollment, Assignment, Submission } from '@/lib/types';
+import { User, Enrollment, Assignment, Submission } from '@/lib/types';
 
 export default function StudentLayout({
   children,
@@ -23,11 +24,11 @@ export default function StudentLayout({
   const fetchStats = useCallback(async (u: User) => {
     try {
       const [myEnrollments, allAssignments, mySubmissions, allNotifications, myBadges] = await Promise.all([
-        client.from('enrollments').select('*').eq('student_email', u.email).then(r => r.data || []),
+        client.from('enrollments').select('*').eq('student_id', u.id).then(r => r.data || []),
         client.from('assignments').select('*').eq('status', 'published').then(r => r.data || []),
-        client.from('submissions').select('*').eq('student_email', u.email).then(r => r.data || []),
-        getNotifications(u.email) as Promise<Notification[]>,
-        client.from('user_badges').select('*').eq('user_email', u.email).then(r => r.data || [])
+        client.from('submissions').select('*').eq('student_id', u.id).then(r => r.data || []),
+        getNotifications(u.id!),
+        client.from('user_badges').select('*').eq('user_id', u.id).then(r => r.data || [])
       ]);
 
       const enrolledIds = myEnrollments.map((e: Enrollment) => e.course_id);
@@ -35,7 +36,7 @@ export default function StudentLayout({
         courses: myEnrollments.length,
         dueSoon: allAssignments.filter((a: Assignment) => enrolledIds.includes(a.course_id) && new Date(a.due_date as string) > new Date() && !mySubmissions.some((s: Submission) => s.assignment_id === a.id)).length,
         badges: myBadges.length,
-        unreadNotifications: allNotifications.filter((n) => !n.is_read).length
+        unreadNotifications: allNotifications.filter((n: AppNotification) => !n.is_read).length
       });
     } catch (err) {
       console.error('Failed to fetch stats:', err);
