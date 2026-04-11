@@ -4,13 +4,14 @@ import { LiveClass, Course } from '@/lib/types';
 import { Video, Calendar, Clock, Trash2, Users, Play } from 'lucide-react';
 
 interface LiveClassManagerProps {
-    teacherEmail: string;
+    teacherId: string;
+
     liveClasses: LiveClass[];
     courses: Course[];
     onRefresh: () => void;
 }
 
-export const LiveClassManager: React.FC<LiveClassManagerProps> = ({ teacherEmail, liveClasses, courses, onRefresh }) => {
+export const LiveClassManager: React.FC<LiveClassManagerProps> = ({ teacherId, liveClasses, courses, onRefresh }) => {
     const { client } = useSupabase();
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [formData, setFormData] = useState({
@@ -26,7 +27,7 @@ export const LiveClassManager: React.FC<LiveClassManagerProps> = ({ teacherEmail
         try {
             const { error } = await client.from('live_classes').insert([{
                 ...formData,
-                teacher_email: teacherEmail,
+                teacher_id: teacherId,
                 status: 'scheduled',
                 room_name: formData.room_name || `room_${Math.random().toString(36).substr(2, 9)}`,
                 meeting_url: `https://meet.jit.si/${formData.room_name || Math.random().toString(36).substr(2, 9)}`

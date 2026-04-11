@@ -15,9 +15,9 @@ export default function AnalyticsPage() {
 
   useEffect(() => {
     if (user) {
-        getEnrollments(user.email).then(setEnrollments);
-        client.from('submissions').select('*, assignments(*)').eq('student_email', user.email).then(r => setSubmissions(r.data || []));
-        client.from('quiz_submissions').select('*, quizzes(*)').eq('student_email', user.email).then(r => setQuizSubmissions(r.data || []));
+        getEnrollments(user.id).then(setEnrollments);
+        client.from('submissions').select('*, assignments(*)').eq('student_id', user.id).then(r => setSubmissions(r.data || []));
+        client.from('quiz_submissions').select('*, quizzes(*)').eq('student_id', user.id).then(r => setQuizSubmissions(r.data || []));
     }
   }, [user, client, getEnrollments]);
 

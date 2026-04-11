@@ -30,7 +30,7 @@ export const GradingQueue: React.FC<GradingQueueProps> = ({ submissions, onGrade
             ) : (
               pending.map(sub => (
                 <tr key={sub.id} className="hover:bg-slate-50 transition-colors">
-                  <td className="px-6 py-4 font-semibold text-slate-900">{sub.student_email}</td>
+                  <td className="px-6 py-4 font-semibold text-slate-900">{sub.users?.full_name || sub.student_id}</td>
                   <td className="px-6 py-4 text-sm text-slate-600">{sub.assignments?.title || 'Unknown'}</td>
                   <td className="px-6 py-4 text-xs text-slate-500">{new Date(sub.submitted_at).toLocaleString()}</td>
                   <td className="px-6 py-4 text-right">

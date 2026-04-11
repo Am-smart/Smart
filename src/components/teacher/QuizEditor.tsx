@@ -3,13 +3,14 @@ import { Quiz, Course, QuizQuestion } from '@/lib/types';
 import { useSupabase } from '@/hooks/useSupabase';
 
 interface QuizEditorProps {
+    teacherId: string;
     quiz?: Quiz;
     courses: Course[];
     onSave: () => void;
     onCancel: () => void;
 }
 
-export const QuizEditor: React.FC<QuizEditorProps> = ({ quiz, courses, onSave, onCancel }) => {
+export const QuizEditor: React.FC<QuizEditorProps> = ({ teacherId, quiz, courses, onSave, onCancel }) => {
     const { client } = useSupabase();
     const [formData, setFormData] = useState({
         title: quiz?.title || '',
@@ -30,7 +31,9 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({ quiz, courses, onSave, o
             type: 'mcq',
             points: 10,
             options: ['', '', '', ''],
-            correct_answer: ''
+            correct_answer: '',
+            hint: '',
+            explanation: ''
         };
         setFormData({ ...formData, questions: [...formData.questions, newQ] });
     };
@@ -51,9 +54,10 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({ quiz, courses, onSave, o
         e.preventDefault();
         setIsSaving(true);
         try {
+            const payload = { ...formData, teacher_id: teacherId };
             const { error } = quiz?.id
-                ? await client.from('quizzes').update(formData).eq('id', quiz.id)
-                : await client.from('quizzes').insert([formData]);
+                ? await client.from('quizzes').update(payload).eq('id', quiz.id)
+                : await client.from('quizzes').insert([payload]);
             if (error) throw error;
             onSave();
         } catch (err) {
@@ -113,7 +117,23 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({ quiz, courses, onSave, o
                                     <div className="font-bold text-slate-400 uppercase tracking-widest text-xs">Question {index+1}</div>
                                     <button type="button" onClick={() => handleRemoveQuestion(index)} className="text-red-500 font-bold text-xs uppercase">Remove</button>
                                 </div>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="col-span-2 md:col-span-1">
+                                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2">Question Type</label>
+                                        <select value={q.type} onChange={e => handleQuestionChange(index, { type: e.target.value as QuizQuestion["type"] })} className="w-full p-3 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all bg-white">
+                                            <option value="mcq">Multiple Choice</option>
+                                            <option value="tf">True / False</option>
+                                            <option value="short">Short Answer</option>
+                                        </select>
+                                    </div>
+                                    <div className="col-span-2 md:col-span-1">
+                                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2">Points</label>
+                                        <input type="number" value={q.points} onChange={e => handleQuestionChange(index, { points: Number(e.target.value) })} className="w-full p-3 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all bg-white" />
+                                    </div>
+                                </div>
                                 <input type="text" required value={q.question_text} onChange={e => handleQuestionChange(index, { question_text: e.target.value })} className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all bg-white" placeholder="Question text..." />
+
+                                {q.type === 'mcq' && (
                                 <div className="grid grid-cols-2 gap-4">
                                     {q.options?.map((opt, optIndex) => (
                                         <div key={optIndex} className="flex gap-2">
@@ -125,6 +145,30 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({ quiz, courses, onSave, o
                                             <button type="button" onClick={() => handleQuestionChange(index, { correct_answer: opt })} className={`px-4 rounded-xl font-bold text-[10px] uppercase tracking-widest ${q.correct_answer === opt ? 'bg-green-600 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}>Correct</button>
                                         </div>
                                     ))}
+                                </div>
+                                )}
+
+                                {q.type === 'tf' && (
+                                    <div className="flex gap-4">
+                                        {['True', 'False'].map(opt => (
+                                            <button key={opt} type="button" onClick={() => handleQuestionChange(index, { correct_answer: opt })} className={`flex-1 py-4 rounded-xl font-bold transition-all ${q.correct_answer === opt ? 'bg-blue-600 text-white shadow-lg' : 'bg-white border-2 border-slate-100 text-slate-400'}`}>{opt}</button>
+                                        ))}
+                                    </div>
+                                )}
+
+                                {q.type === 'short' && (
+                                    <input type="text" value={q.correct_answer} onChange={e => handleQuestionChange(index, { correct_answer: e.target.value })} className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none bg-white" placeholder="Correct answer for auto-grading..." />
+                                )}
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2">Hint (Optional)</label>
+                                        <input type="text" value={q.hint || ''} onChange={e => handleQuestionChange(index, { hint: e.target.value })} className="w-full p-3 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none bg-white" placeholder="Small hint for students..." />
+                                    </div>
+                                    <div>
+                                        <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2">Explanation (Post-quiz)</label>
+                                        <input type="text" value={q.explanation || ''} onChange={e => handleQuestionChange(index, { explanation: e.target.value })} className="w-full p-3 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none bg-white" placeholder="Explain the correct answer..." />
+                                    </div>
                                 </div>
                             </div>
                         ))}

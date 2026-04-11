@@ -19,7 +19,7 @@ export const AssignmentForm: React.FC<AssignmentFormProps> = ({ assignment, user
   const [isUploading, setIsUploading] = useState(false);
   const { addToQueue, isOnline } = useIndexedDB();
 
-  useAntiCheat(assignment.anti_cheat_enabled);
+  useAntiCheat(assignment.anti_cheat_enabled, assignment.title);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -62,7 +62,7 @@ export const AssignmentForm: React.FC<AssignmentFormProps> = ({ assignment, user
     try {
         const payload = {
             assignment_id: assignment.id,
-            student_email: user.email,
+            student_id: user.id,
             submission_text: submissionText,
             file_url: fileUrl,
             status: 'submitted',

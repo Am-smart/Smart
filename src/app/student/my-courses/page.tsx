@@ -15,7 +15,7 @@ export default function MyCoursesPage() {
 
   useEffect(() => {
     if (user) {
-        getEnrollments(user.email).then(setEnrollments);
+        getEnrollments(user.id).then(setEnrollments);
     }
   }, [user, getEnrollments]);
 

@@ -20,7 +20,7 @@ export const MyCourses: React.FC<MyCoursesProps> = ({ enrollments, onOpenCourse 
             const course = enrollment.courses;
             if (!course) return null;
             return (
-              <div key={enrollment.id} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col gap-4">
+              <div key={enrollment.course_id} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col gap-4">
                 <div className="w-full h-32 bg-gradient-to-br from-indigo-500 to-purple-500 rounded-xl flex items-center justify-center text-4xl text-white">📖</div>
                 <h3 className="text-lg font-bold">{course.title}</h3>
                 <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
