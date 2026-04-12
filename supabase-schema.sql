@@ -370,10 +370,36 @@ CREATE OR REPLACE FUNCTION register_user(p_full_name VARCHAR, p_email VARCHAR, p
 RETURNS users AS $$
 DECLARE
   v_user users;
+  v_count INTEGER;
+  v_caller_role TEXT;
 BEGIN
-  INSERT INTO users (full_name, email, password, phone, role, active)
-  VALUES (p_full_name, p_email, p_password, p_phone, p_role, TRUE)
-  RETURNING * INTO v_user;
+  v_caller_role := current_app_role();
+
+  -- Admins can create unlimited users of any role
+  IF v_caller_role = 'admin' THEN
+    INSERT INTO users (full_name, email, password, phone, role, active)
+    VALUES (p_full_name, p_email, p_password, p_phone, p_role, TRUE)
+    RETURNING * INTO v_user;
+    RETURN v_user;
+  END IF;
+
+  -- Public signup logic
+  IF p_role = 'student' THEN
+    INSERT INTO users (full_name, email, password, phone, role, active)
+    VALUES (p_full_name, p_email, p_password, p_phone, p_role, TRUE)
+    RETURNING * INTO v_user;
+  ELSE
+    -- Restrict Teacher/Admin creation to max 3 total
+    SELECT COUNT(*) INTO v_count FROM users WHERE role IN ('teacher', 'admin');
+    IF v_count >= 3 THEN
+      RAISE EXCEPTION 'Public creation of teachers and admins is restricted. Please contact support.';
+    END IF;
+
+    INSERT INTO users (full_name, email, password, phone, role, active)
+    VALUES (p_full_name, p_email, p_password, p_phone, p_role, TRUE)
+    RETURNING * INTO v_user;
+  END IF;
+
   RETURN v_user;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -563,6 +589,38 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql STABLE SECURITY DEFINER;
 
+-- Trigger to enforce user creation limits
+CREATE OR REPLACE FUNCTION enforce_user_creation_limits() RETURNS TRIGGER AS $$
+DECLARE
+  v_count INTEGER;
+  v_caller_role TEXT;
+BEGIN
+  -- If caller is admin, allow anything
+  v_caller_role := current_app_role();
+  IF v_caller_role = 'admin' THEN
+    RETURN NEW;
+  END IF;
+
+  -- Unlimited students
+  IF NEW.role = 'student' THEN
+    RETURN NEW;
+  END IF;
+
+  -- Restrict Teacher/Admin to 3 total
+  SELECT COUNT(*) INTO v_count FROM users WHERE role IN ('teacher', 'admin');
+  IF v_count >= 3 THEN
+    RAISE EXCEPTION 'Public creation of teachers and admins is restricted. Please contact support.';
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS tr_user_creation_limit ON users;
+CREATE TRIGGER tr_user_creation_limit
+  BEFORE INSERT ON users
+  FOR EACH ROW EXECUTE PROCEDURE enforce_user_creation_limits();
+
 -- Security Definer Functions to break RLS recursion
 CREATE OR REPLACE FUNCTION check_is_course_teacher(p_course_id UUID) RETURNS BOOLEAN AS $$
   SELECT EXISTS (
@@ -579,7 +637,7 @@ $$ LANGUAGE sql STABLE SECURITY DEFINER;
 -- Users policies
 CREATE POLICY "Users can view own profile" ON users FOR SELECT USING (id = current_app_user() OR current_app_role() = 'admin');
 CREATE POLICY "Users can update own profile" ON users FOR UPDATE USING (id = current_app_user() OR current_app_role() = 'admin');
--- Policy removed for security -- For login/existence check
+CREATE POLICY "Anyone can sign up" ON users FOR INSERT WITH CHECK (true);
 CREATE POLICY "Admins can manage all users" ON users FOR ALL USING (current_app_role() = 'admin');
 
 -- Courses policies
