@@ -22,7 +22,7 @@ export const AssignmentForm: React.FC<AssignmentFormProps> = ({ assignment, user
 
   useAntiCheat(assignment.anti_cheat_enabled, assignment.title);
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, idx?: number) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -47,7 +47,11 @@ export const AssignmentForm: React.FC<AssignmentFormProps> = ({ assignment, user
             .from('lms-files')
             .getPublicUrl(filePath);
 
-        setFileUrl(data.publicUrl);
+        if (idx !== undefined) {
+            setAnswers({ ...answers, [idx]: data.publicUrl });
+        } else {
+            setFileUrl(data.publicUrl);
+        }
     } catch (err) {
         console.error('Upload failed:', err);
         alert('File upload failed. Please try again.');
@@ -128,11 +132,14 @@ export const AssignmentForm: React.FC<AssignmentFormProps> = ({ assignment, user
                   {q.type === 'file' && (
                     <div className="flex flex-col gap-2">
                         <label className={`w-full border-2 border-dashed border-slate-200 rounded-xl p-4 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-all ${!isOnline ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                            <input type="file" onChange={handleFileUpload} className="hidden" disabled={!isOnline || isUploading} />
+                            <input type="file" onChange={(e) => handleFileUpload(e, idx)} className="hidden" disabled={!isOnline || isUploading} />
                             <div className="text-xs font-bold text-slate-500 uppercase">
-                                {isUploading ? 'Uploading...' : fileUrl ? 'File Uploaded ✅' : 'Click to Upload File'}
+                                {isUploading ? 'Uploading...' : answers[idx] ? 'File Uploaded ✅' : 'Click to Upload File'}
                             </div>
                         </label>
+                        {answers[idx] && (
+                            <a href={answers[idx]} target="_blank" rel="noopener noreferrer" className="text-[10px] text-blue-600 font-bold uppercase hover:underline">View Uploaded File</a>
+                        )}
                     </div>
                   )}
 

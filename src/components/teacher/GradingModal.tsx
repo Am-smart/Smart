@@ -50,12 +50,31 @@ export const GradingModal: React.FC<GradingModalProps> = ({ submission, onSave, 
                     </div>
                     <button onClick={onCancel} className="p-2 hover:bg-slate-200 rounded-full transition-colors">✕</button>
                 </header>
-                <form onSubmit={handleSubmit} className="p-8 space-y-6">
-                    <div className="bg-blue-50 p-6 rounded-2xl border border-blue-100">
+                <form onSubmit={handleSubmit} className="p-8 space-y-6 overflow-y-auto max-h-[70vh]">
+                    <div className="bg-blue-50 p-6 rounded-2xl border border-blue-100 space-y-4">
                         <h4 className="text-sm font-bold text-blue-700 uppercase mb-2">Student Submission</h4>
-                        <div className="text-sm text-blue-900 leading-relaxed whitespace-pre-line">{submission.submission_text || 'No text provided.'}</div>
+
+                        {submission.answers && Object.keys(submission.answers).length > 0 ? (
+                            <div className="space-y-4">
+                                {submission.assignments?.questions.map((q, idx) => (
+                                    <div key={idx} className="bg-white/50 p-3 rounded-lg">
+                                        <div className="text-xs font-bold text-slate-500 uppercase mb-1">Step {idx + 1}: {q.text}</div>
+                                        <div className="text-sm text-slate-800">
+                                            {q.type === 'file' ? (
+                                                <a href={submission.answers?.[idx] as string} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">View Uploaded File</a>
+                                            ) : (
+                                                (submission.answers?.[idx] as string) || <span className="italic text-slate-400">No response</span>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="text-sm text-blue-900 leading-relaxed whitespace-pre-line">{submission.submission_text || 'No text provided.'}</div>
+                        )}
+
                         {submission.file_url && (
-                            <a href={submission.file_url} target="_blank" rel="noopener noreferrer" className="btn-secondary py-2 px-4 text-xs mt-4">View Attached File</a>
+                            <a href={submission.file_url} target="_blank" rel="noopener noreferrer" className="btn-secondary py-2 px-4 text-xs mt-4 block w-fit">View Main Attachment</a>
                         )}
                     </div>
                     <div className="grid grid-cols-2 gap-6 items-end">
