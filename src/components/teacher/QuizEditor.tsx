@@ -120,7 +120,22 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({ teacherId, quiz, courses
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="col-span-2 md:col-span-1">
                                         <label className="block text-[10px] font-bold text-slate-500 uppercase mb-2">Question Type</label>
-                                        <select value={q.type} onChange={e => handleQuestionChange(index, { type: e.target.value as QuizQuestion["type"] })} className="w-full p-3 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all bg-white">
+                                        <select
+                                            value={q.type}
+                                            onChange={e => {
+                                                const newType = e.target.value as QuizQuestion["type"];
+                                                const updates: Partial<QuizQuestion> = { type: newType, correct_answer: '' };
+                                                if (newType === 'tf') {
+                                                    updates.options = ['True', 'False'];
+                                                } else if (newType === 'mcq') {
+                                                    updates.options = ['', '', '', ''];
+                                                } else {
+                                                    updates.options = [];
+                                                }
+                                                handleQuestionChange(index, updates);
+                                            }}
+                                            className="w-full p-3 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all bg-white"
+                                        >
                                             <option value="mcq">Multiple Choice</option>
                                             <option value="tf">True / False</option>
                                             <option value="short">Short Answer</option>

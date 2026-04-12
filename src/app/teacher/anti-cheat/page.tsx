@@ -15,11 +15,22 @@ export default function AntiCheatPage() {
   useEffect(() => {
     if (user) {
         // Teachers see all anti-cheat logs for students in their courses
-        client.from('courses').select('id').eq('teacher_id', user.id).then(({ data: myCourses }) => {
+        client.from('courses').select('id').eq('teacher_id', user.id).then(async ({ data: myCourses }) => {
             const courseIds = (myCourses || []).map(c => c.id);
             if (courseIds.length > 0) {
-                client.from('submissions').select('*, assignments(*)').in('assignment_id', courseIds).then(r => setSubmissions(r.data || []));
-                client.from('quiz_submissions').select('*, quizzes(*)').in('quiz_id', courseIds).then(r => setQuizSubmissions(r.data || []));
+                const [asgnRes, quizRes] = await Promise.all([
+                    client.from('assignments').select('id').in('course_id', courseIds),
+                    client.from('quizzes').select('id').in('course_id', courseIds)
+                ]);
+                const asgnIds = (asgnRes.data || []).map(a => a.id);
+                const quizIds = (quizRes.data || []).map(q => q.id);
+
+                if (asgnIds.length > 0) {
+                    client.from('submissions').select('*, assignments(*)').in('assignment_id', asgnIds).then(r => setSubmissions(r.data || []));
+                }
+                if (quizIds.length > 0) {
+                    client.from('quiz_submissions').select('*, quizzes(*)').in('quiz_id', quizIds).then(r => setQuizSubmissions(r.data || []));
+                }
             }
         });
     }
