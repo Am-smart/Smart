@@ -1,12 +1,10 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
-import { useSupabase } from '@/hooks/useSupabase';
 import { TeacherSidebar } from "@/components/TeacherSidebar";
 import { TeacherHeader } from "@/components/TeacherHeader";
 import { useRouter, usePathname } from 'next/navigation';
-import { User, Notification } from '@/lib/types';
 
 export default function TeacherLayout({
   children,
@@ -14,40 +12,19 @@ export default function TeacherLayout({
   children: React.ReactNode;
 }) {
   const { user, role, logout, isLoading: authLoading } = useAuth();
-  const { getNotifications, client } = useSupabase();
-  const [stats, setStats] = useState({ courses: 0, pendingGrading: 0, students: 0, unreadNotifications: 0 });
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
 
-  const fetchStats = useCallback(async (u: User) => {
-    try {
-      const [myCourses, pendingSubmissions, myNotifications] = await Promise.all([
-        client.from('courses').select('id').eq('teacher_email', u.email).then(r => r.data || []),
-        client.from('submissions').select('id').eq('status', 'pending').then(r => r.data || []),
-        getNotifications(u.email) as Promise<Notification[]>
-      ]);
-
-      setStats({
-        courses: myCourses.length,
-        pendingGrading: pendingSubmissions.length,
-        students: 0, // Simplified for now
-        unreadNotifications: myNotifications.filter((n) => !n.is_read).length
-      });
-    } catch (err) {
-      console.error('Failed to fetch stats:', err);
-    }
-  }, [client, getNotifications]);
 
   useEffect(() => {
     if (!authLoading) {
       if (!user || role !== 'teacher') {
         router.push('/');
       } else {
-        fetchStats(user);
       }
     }
-  }, [authLoading, user, role, router, fetchStats]);
+  }, [authLoading, user, role, router]);
 
   const handleLogout = async () => {
     await logout();

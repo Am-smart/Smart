@@ -120,15 +120,15 @@ export const useIndexedDB = () => {
         let success = false;
         switch (item.type) {
           case 'ENROLL':
-            const { error: enrollError } = await client.from('enrollments').upsert(item.payload as Partial<Enrollment>, { onConflict: 'course_id,student_email' });
+            const { error: enrollError } = await client.from('enrollments').upsert(item.payload as Partial<Enrollment>, { onConflict: 'course_id,student_id' });
             if (!enrollError) success = true;
             break;
           case 'SUBMISSION':
-            const { error: subError } = await client.from('submissions').upsert(item.payload as Partial<Submission>, { onConflict: 'assignment_id,student_email' });
+            const { error: subError } = await client.from('submissions').upsert(item.payload as Partial<Submission>, { onConflict: 'assignment_id,student_id' });
             if (!subError) success = true;
             break;
           case 'QUIZ_SUBMISSION':
-            const { error: quizError } = await client.from('quiz_submissions').upsert(item.payload as Partial<QuizSubmission>, { onConflict: 'quiz_id,student_email' });
+            const { error: quizError } = await client.from('quiz_submissions').upsert(item.payload as Partial<QuizSubmission>, { onConflict: 'quiz_id,student_id' });
             if (!quizError) success = true;
             break;
           case 'PROFILE_UPDATE':
@@ -165,7 +165,7 @@ export const useIndexedDB = () => {
         if (role === 'student') {
             const [courses, enrollments, assignments, quizzes] = await Promise.all([
                 client.from('courses').select('*').eq('status', 'published'),
-                client.from('enrollments').select('*, courses(*)').eq('student_email', userEmail),
+                client.from('enrollments').select('*, courses(*)').eq('student_id', userEmail),
                 client.from('assignments').select('*, courses(*)').eq('status', 'published'),
                 client.from('quizzes').select('*, courses(*)').eq('status', 'published')
             ]);

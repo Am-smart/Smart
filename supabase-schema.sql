@@ -15,7 +15,8 @@ $$ language 'plpgsql';
 
 -- 3. Tables (idempotent creation)
 CREATE TABLE IF NOT EXISTS users (
-  email VARCHAR(255) PRIMARY KEY,
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  email VARCHAR(255) UNIQUE NOT NULL,
   full_name VARCHAR(255) NOT NULL,
   phone VARCHAR(50),
   password VARCHAR(255) NOT NULL,
@@ -84,7 +85,8 @@ CREATE TABLE IF NOT EXISTS assignments (
   questions JSONB DEFAULT '[]'::jsonb,
   attachments JSONB DEFAULT '[]'::jsonb,
   status VARCHAR(50) DEFAULT 'draft' CHECK (status IN ('draft', 'published', 'archived')),
-  anti_cheat_enabled BOOLEAN DEFAULT FALSE
+  anti_cheat_enabled BOOLEAN DEFAULT FALSE,
+  regrade_requests_enabled BOOLEAN DEFAULT TRUE
 );
 
 CREATE TABLE IF NOT EXISTS submissions (

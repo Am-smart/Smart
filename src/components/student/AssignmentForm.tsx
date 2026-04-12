@@ -14,14 +14,15 @@ interface AssignmentFormProps {
 export const AssignmentForm: React.FC<AssignmentFormProps> = ({ assignment, user, onComplete, onCancel }) => {
   const { client } = useSupabase();
   const [submissionText, setSubmissionText] = useState('');
+  const [answers, setAnswers] = useState<Record<number, string>>({});
   const [fileUrl, setFileUrl] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const { addToQueue, isOnline } = useIndexedDB();
 
-  useAntiCheat(assignment.anti_cheat_enabled);
+  useAntiCheat(assignment.anti_cheat_enabled, assignment.title);
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, idx?: number) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -46,7 +47,11 @@ export const AssignmentForm: React.FC<AssignmentFormProps> = ({ assignment, user
             .from('lms-files')
             .getPublicUrl(filePath);
 
-        setFileUrl(data.publicUrl);
+        if (idx !== undefined) {
+            setAnswers({ ...answers, [idx]: data.publicUrl });
+        } else {
+            setFileUrl(data.publicUrl);
+        }
     } catch (err) {
         console.error('Upload failed:', err);
         alert('File upload failed. Please try again.');
@@ -62,8 +67,9 @@ export const AssignmentForm: React.FC<AssignmentFormProps> = ({ assignment, user
     try {
         const payload = {
             assignment_id: assignment.id,
-            student_email: user.email,
+            student_id: user.id,
             submission_text: submissionText,
+            answers,
             file_url: fileUrl,
             status: 'submitted',
             submitted_at: new Date().toISOString()
@@ -99,37 +105,95 @@ export const AssignmentForm: React.FC<AssignmentFormProps> = ({ assignment, user
           <button onClick={onCancel} className="p-2 hover:bg-slate-200 rounded-full transition-colors">✕</button>
         </header>
 
-        <div className="p-6 md:p-8 space-y-6 overflow-y-auto flex-1">
+        <div className="p-6 md:p-8 space-y-8 overflow-y-auto flex-1">
           <div className="bg-blue-50 p-6 rounded-2xl border border-blue-100">
             <h4 className="text-xs font-bold text-blue-700 uppercase mb-2">Instructions</h4>
             <div className="text-sm text-blue-900 leading-relaxed whitespace-pre-line">{assignment.description}</div>
           </div>
 
-          <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase mb-3 tracking-wide">Write your submission</label>
-            <textarea
-                value={submissionText}
-                onChange={(e) => setSubmissionText(e.target.value)}
-                placeholder="Type your answer here..."
-                className="w-full h-40 p-4 rounded-xl md:rounded-2xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all resize-none text-sm text-slate-700"
-            />
-          </div>
+          {assignment.questions && assignment.questions.length > 0 ? (
+            <div className="space-y-8">
+              {assignment.questions.map((q, idx) => (
+                <div key={idx} className="space-y-4 p-6 bg-slate-50 rounded-2xl border border-slate-100">
+                  <div className="flex justify-between items-start">
+                    <h4 className="text-sm font-bold text-slate-800">Step {idx + 1}: {q.text}</h4>
+                    <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-md uppercase">{q.points} Points</span>
+                  </div>
 
-          <div>
-            <label className="block text-xs font-bold text-slate-700 uppercase mb-3 tracking-wide">Upload evidence / files</label>
-            <div className="flex flex-col md:flex-row items-center gap-4">
-                <label className={`flex-1 w-full border-2 border-dashed border-slate-200 rounded-2xl p-6 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-all group ${!isOnline ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                    <input type="file" onChange={handleFileUpload} className="hidden" disabled={!isOnline || isUploading} />
-                    <div className="text-2xl mb-2">📁</div>
-                    <div className="text-[10px] font-bold text-slate-600 uppercase group-hover:text-blue-600 transition-colors">
-                        {isUploading ? 'Uploading...' : fileUrl ? 'File Uploaded ✅' : isOnline ? 'Choose File' : 'Offline - Upload Disabled'}
+                  {q.type === 'essay' && (
+                    <textarea
+                      placeholder="Type your response here..."
+                      className="w-full h-32 p-4 rounded-xl border-2 border-slate-200 focus:border-blue-500 outline-none transition-all resize-none text-sm"
+                      value={answers[idx] || ''}
+                      onChange={(e) => setAnswers({ ...answers, [idx]: e.target.value })}
+                    />
+                  )}
+
+                  {q.type === 'file' && (
+                    <div className="flex flex-col gap-2">
+                        <label className={`w-full border-2 border-dashed border-slate-200 rounded-xl p-4 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-all ${!isOnline ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                            <input type="file" onChange={(e) => handleFileUpload(e, idx)} className="hidden" disabled={!isOnline || isUploading} />
+                            <div className="text-xs font-bold text-slate-500 uppercase">
+                                {isUploading ? 'Uploading...' : answers[idx] ? 'File Uploaded ✅' : 'Click to Upload File'}
+                            </div>
+                        </label>
+                        {answers[idx] && (
+                            <a href={answers[idx]} target="_blank" rel="noopener noreferrer" className="text-[10px] text-blue-600 font-bold uppercase hover:underline">View Uploaded File</a>
+                        )}
                     </div>
-                </label>
-                {fileUrl && (
-                    <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="btn-secondary w-full md:w-auto py-3 px-6 text-xs whitespace-nowrap">View File</a>
-                )}
+                  )}
+
+                  {q.type === 'link' && (
+                    <input
+                      type="url"
+                      placeholder="https://example.com"
+                      className="w-full p-4 rounded-xl border-2 border-slate-200 focus:border-blue-500 outline-none transition-all text-sm"
+                      value={answers[idx] || ''}
+                      onChange={(e) => setAnswers({ ...answers, [idx]: e.target.value })}
+                    />
+                  )}
+                </div>
+              ))}
+
+              <div className="pt-4 border-t">
+                  <label className="block text-xs font-bold text-slate-700 uppercase mb-3 tracking-wide">Final Comments / Full Submission</label>
+                  <textarea
+                    value={submissionText}
+                    onChange={(e) => setSubmissionText(e.target.value)}
+                    placeholder="Provide any final details for your submission..."
+                    className="w-full h-40 p-4 rounded-xl md:rounded-2xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all resize-none text-sm text-slate-700"
+                  />
+              </div>
             </div>
-          </div>
+          ) : (
+            <>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-3 tracking-wide">Write your submission</label>
+                <textarea
+                    value={submissionText}
+                    onChange={(e) => setSubmissionText(e.target.value)}
+                    placeholder="Type your answer here..."
+                    className="w-full h-40 p-4 rounded-xl md:rounded-2xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all resize-none text-sm text-slate-700"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-3 tracking-wide">Upload evidence / files</label>
+                <div className="flex flex-col md:flex-row items-center gap-4">
+                    <label className={`flex-1 w-full border-2 border-dashed border-slate-200 rounded-2xl p-6 text-center cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-all group ${!isOnline ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                        <input type="file" onChange={handleFileUpload} className="hidden" disabled={!isOnline || isUploading} />
+                        <div className="text-2xl mb-2">📁</div>
+                        <div className="text-[10px] font-bold text-slate-600 uppercase group-hover:text-blue-600 transition-colors">
+                            {isUploading ? 'Uploading...' : fileUrl ? 'File Uploaded ✅' : isOnline ? 'Choose File' : 'Offline - Upload Disabled'}
+                        </div>
+                    </label>
+                    {fileUrl && (
+                        <a href={fileUrl} target="_blank" rel="noopener noreferrer" className="btn-secondary w-full md:w-auto py-3 px-6 text-xs whitespace-nowrap">View File</a>
+                    )}
+                </div>
+              </div>
+            </>
+          )}
         </div>
 
         <footer className="p-6 md:p-8 bg-slate-50 border-t flex justify-between items-center shrink-0">

@@ -3,7 +3,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
 import { useSupabase } from '@/hooks/useSupabase';
-import { Course } from '@/lib/types';
 
 export default function TeacherDashboard() {
   const { user } = useAuth();
@@ -12,10 +11,22 @@ export default function TeacherDashboard() {
 
   const fetchData = useCallback(async () => {
     if (!user) return;
+
+    const { data: myCourses } = await client.from('courses').select('id').eq('teacher_id', user.id);
+    const courseIds = (myCourses || []).map(c => c.id);
+
+    let assignmentIds: string[] = [];
+    if (courseIds.length > 0) {
+        const { data: myAsgns } = await client.from('assignments').select('id').in('course_id', courseIds);
+        assignmentIds = (myAsgns || []).map(a => a.id);
+    }
+
     const [courses, pending, live] = await Promise.all([
-      client.from('courses').select('id', { count: 'exact' }).eq('teacher_email', user.email),
-      client.from('submissions').select('id', { count: 'exact' }).eq('status', 'pending'),
-      client.from('live_classes').select('id', { count: 'exact' }).eq('teacher_email', user.email)
+      client.from('courses').select('id', { count: 'exact', head: true }).eq('teacher_id', user.id),
+      assignmentIds.length > 0
+        ? client.from('submissions').select('id', { count: 'exact', head: true }).eq('status', 'submitted').in('assignment_id', assignmentIds)
+        : Promise.resolve({ count: 0, error: null }),
+      client.from('live_classes').select('id', { count: 'exact', head: true }).eq('teacher_id', user.id)
     ]);
 
     setStats({

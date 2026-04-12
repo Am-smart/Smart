@@ -35,11 +35,11 @@ export const BadgeManager: React.FC = () => {
         }
     };
 
-    const handleAward = async (badgeId: string, studentEmail: string) => {
-        if (!studentEmail) return;
+    const handleAward = async (badgeId: string, studentId: string) => {
+        if (!studentId) return;
         const { error } = await client.from('user_badges').insert([{
             badge_id: badgeId,
-            user_email: studentEmail,
+            user_id: studentId,
             awarded_at: new Date().toISOString()
         }]);
         if (error) alert('Awarding failed. Student might already have this badge.');
@@ -94,7 +94,7 @@ export const BadgeManager: React.FC = () => {
                             <div className="flex gap-2">
                                 <select id={`student-${badge.id}`} className="input-custom py-2 text-xs">
                                     <option value="">Award to student...</option>
-                                    {students.map(s => <option key={s.email} value={s.email}>{s.full_name}</option>)}
+                                    {students.map(s => <option key={s.id} value={s.id}>{s.full_name}</option>)}
                                 </select>
                                 <button
                                     onClick={() => {

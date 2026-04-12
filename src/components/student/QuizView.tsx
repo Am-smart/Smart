@@ -18,7 +18,7 @@ export const QuizView: React.FC<QuizViewProps> = ({ quiz, user, onComplete, onCa
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { addToQueue, setCache, getCache, isOnline } = useIndexedDB();
 
-  useAntiCheat(quiz.anti_cheat_enabled);
+  useAntiCheat(quiz.anti_cheat_enabled, quiz.title);
 
   // Load saved progress from IndexedDB
   useEffect(() => {
@@ -55,7 +55,7 @@ export const QuizView: React.FC<QuizViewProps> = ({ quiz, user, onComplete, onCa
 
         const payload = {
             quiz_id: quiz.id,
-            student_email: user.email,
+            student_id: user.id,
             answers,
             score,
             status: 'submitted',
@@ -129,19 +129,29 @@ export const QuizView: React.FC<QuizViewProps> = ({ quiz, user, onComplete, onCa
                 {q.question_text}
               </h3>
               <div className="grid grid-cols-1 gap-3">
-                {(q.options || []).map((opt: string) => (
-                  <label key={opt} className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${answers[q.id] === opt ? 'border-blue-600 bg-blue-50' : 'border-slate-100 hover:border-slate-200'}`}>
-                    <input
-                      type="radio"
-                      name={q.id}
-                      value={opt}
-                      checked={answers[q.id] === opt}
-                      onChange={(e) => handleAnswerChange(q.id, e.target.value)}
-                      className="w-5 h-5 text-blue-600"
-                    />
-                    <span className="font-medium text-slate-700 text-sm">{opt}</span>
-                  </label>
-                ))}
+                {q.type === 'short' ? (
+                  <input
+                    type="text"
+                    value={answers[q.id] || ''}
+                    onChange={(e) => handleAnswerChange(q.id, e.target.value)}
+                    placeholder="Type your answer here..."
+                    className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all text-sm"
+                  />
+                ) : (
+                  (q.options || []).map((opt: string) => (
+                    <label key={opt} className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${answers[q.id] === opt ? 'border-blue-600 bg-blue-50' : 'border-slate-100 hover:border-slate-200'}`}>
+                      <input
+                        type="radio"
+                        name={q.id}
+                        value={opt}
+                        checked={answers[q.id] === opt}
+                        onChange={(e) => handleAnswerChange(q.id, e.target.value)}
+                        className="w-5 h-5 text-blue-600"
+                      />
+                      <span className="font-medium text-slate-700 text-sm">{opt}</span>
+                    </label>
+                  ))
+                )}
               </div>
             </div>
           ))}
