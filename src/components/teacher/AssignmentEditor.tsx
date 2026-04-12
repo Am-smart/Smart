@@ -151,63 +151,6 @@ export const AssignmentEditor: React.FC<AssignmentEditorProps> = ({ teacherId, a
                             </div>
                         ))}
                     </div>
-
-                    <div className="space-y-6 pt-8 border-t">
-                        <div className="flex justify-between items-center">
-                            <h3 className="text-xl font-bold text-slate-900">Task Questions / Steps</h3>
-                            <button type="button" onClick={() => {
-                                setFormData({
-                                    ...formData,
-                                    questions: [...formData.questions, { text: '', type: 'essay', points: 10 }]
-                                });
-                            }} className="btn-secondary py-2 px-6">+ Add Step</button>
-                        </div>
-                        {formData.questions.map((q, index) => (
-                            <div key={index} className="p-6 bg-slate-50 rounded-2xl border-2 border-slate-100 space-y-4">
-                                <div className="grid grid-cols-2 gap-4">
-                                    <select
-                                        value={q.type}
-                                        onChange={e => {
-                                            const updated = [...formData.questions];
-                                            updated[index].type = e.target.value as AssignmentQuestion["type"];
-                                            setFormData({ ...formData, questions: updated });
-                                        }}
-                                        className="p-3 rounded-xl border border-slate-200 bg-white text-sm"
-                                    >
-                                        <option value="essay">Written Response</option>
-                                        <option value="file">File Upload</option>
-                                        <option value="link">Link Submission</option>
-                                    </select>
-                                    <input
-                                        type="number"
-                                        value={q.points}
-                                        onChange={e => {
-                                            const updated = [...formData.questions];
-                                            updated[index].points = Number(e.target.value);
-                                            setFormData({ ...formData, questions: updated });
-                                        }}
-                                        className="p-3 rounded-xl border border-slate-200 bg-white text-sm"
-                                        placeholder="Points"
-                                    />
-                                </div>
-                                <textarea
-                                    value={q.text}
-                                    onChange={e => {
-                                        const updated = [...formData.questions];
-                                        updated[index].text = e.target.value;
-                                        setFormData({ ...formData, questions: updated });
-                                    }}
-                                    className="w-full p-4 rounded-xl border border-slate-200 bg-white text-sm min-h-[100px]"
-                                    placeholder="Question text or instruction step..."
-                                />
-                                <button type="button" onClick={() => {
-                                    const updated = [...formData.questions];
-                                    updated.splice(index, 1);
-                                    setFormData({ ...formData, questions: updated });
-                                }} className="text-red-500 text-[10px] font-bold uppercase tracking-widest">Remove Step</button>
-                            </div>
-                        ))}
-                    </div>
                     <footer className="pt-8 border-t flex justify-between gap-4">
                         <button type="button" onClick={onCancel} className="btn-secondary flex-1 py-4">Discard</button>
                         <button type="submit" disabled={isSaving} className="btn-primary flex-1 py-4">{isSaving ? 'Saving...' : 'Save Assignment'}</button>

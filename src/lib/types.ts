@@ -68,6 +68,7 @@ export interface Quiz {
   status: 'draft' | 'published' | 'archived';
   attempts_allowed: number;
   time_limit: number;
+  passing_score: number;
   anti_cheat_enabled: boolean;
   shuffle_questions: boolean;
   start_at?: string;
