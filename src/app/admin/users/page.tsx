@@ -44,6 +44,9 @@ export default function UsersPage() {
             const { error } = await client.from('users').update(updates).eq('id', id);
             if (!error) fetchUsers();
         }}
+            await client.from('users').delete().eq('id', id);
+            fetchUsers();
+        }}
         onAdd={() => setIsAdding(true)}
     />
   );
