@@ -4,7 +4,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { createSupabaseClient } from '@/lib/supabase';
 import { User } from '@/lib/types';
 import { useIndexedDB } from '@/hooks/useIndexedDB';
-import { login as loginAction, logout as logoutAction, getSession } from '@/lib/auth-actions';
+import { login as loginAction, signup as signupAction, logout as logoutAction, getSession } from '@/lib/auth-actions';
 
 interface AuthState {
   user: User | null;
@@ -14,6 +14,7 @@ interface AuthState {
 
 interface AuthContextType extends AuthState {
   login: (email: string, pass: string) => Promise<void>;
+  signup: (userData: Partial<User>) => Promise<void>;
   logout: () => Promise<void>;
   updateProfile: (updates: Partial<User>) => Promise<void>;
 }
@@ -66,6 +67,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   }, [setCache]);
 
+  const signup = useCallback(async (userData: Partial<User>) => {
+    const result = await signupAction(userData);
+    if (!result.success) {
+        throw new Error(result.error);
+    }
+
+    const u = result.user as User;
+    await setCache('current_user', u);
+    setState({
+        user: u,
+        role: u.role,
+        isLoading: false
+    });
+  }, [setCache]);
+
   const logout = useCallback(async () => {
     await logoutAction();
     await setCache('current_user', null);
@@ -96,9 +112,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const contextValue = useMemo(() => ({
     ...state,
     login,
+    signup,
     logout,
     updateProfile
-  }), [state, login, logout, updateProfile]);
+  }), [state, login, signup, logout, updateProfile]);
 
   return (
     <AuthContext.Provider value={contextValue}>

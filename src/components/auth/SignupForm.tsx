@@ -2,23 +2,26 @@
 
 import React, { useState } from 'react';
 import { UserRole } from '@/lib/types';
-import { signup } from '@/lib/auth-actions';
+import { useAuth } from './AuthContext';
 
 interface SignupFormProps {
+  initialRole?: UserRole;
   onClose: () => void;
   onShowLogin: () => void;
 }
 
-export const SignupForm: React.FC<SignupFormProps> = ({ onClose, onShowLogin }) => {
+export const SignupForm: React.FC<SignupFormProps> = ({ initialRole, onClose, onShowLogin }) => {
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
     phone: '',
     password: '',
     confirmPassword: '',
-    role: 'student' as UserRole
+    role: initialRole || 'student'
   });
   const [error, setError] = useState('');
+
+  const { signup } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,19 +30,14 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onClose, onShowLogin }) 
       return;
     }
     try {
-      const result = await signup({
+      await signup({
           full_name: formData.fullName,
           email: formData.email,
           phone: formData.phone,
           password: formData.password,
           role: formData.role
       });
-
-      if (!result.success) {
-          setError(result.error || 'Signup failed');
-      } else {
-          onShowLogin();
-      }
+      onClose();
     } catch (err: unknown) {
       if (err instanceof Error) {
           setError(err.message || 'Signup failed');

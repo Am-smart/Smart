@@ -10,14 +10,16 @@ const SESSION_COOKIE = 'app-user-session';
 export async function login(email: string, password: string) {
   const hashedPassword = await hashPassword(password, email);
 
-  const { data: user, error } = await supabase.rpc('authenticate_user', {
+  const { data, error } = await supabase.rpc('authenticate_user', {
     p_email: email,
     p_password: hashedPassword
   });
 
-  if (error || !user || (Array.isArray(user) && user.length === 0)) {
+  if (error || !data || (Array.isArray(data) && data.length === 0)) {
     return { success: false, error: 'Invalid email or password' };
   }
+
+  const user = Array.isArray(data) ? data[0] : data;
 
   if (!user.active) {
     return { success: false, error: 'Account is deactivated' };
