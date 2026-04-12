@@ -29,10 +29,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // 1. Try secure session first
         const session = await getSession();
         if (session) {
-            const { data: user } = await createSupabaseClient().from('users').select('*').eq('email', session.email).single();
+            const client = createSupabaseClient(session.sessionId as string);
+            const { data: user } = await client.from('users').select('*').eq('id', session.id).single();
             if (user) {
-                await setCache('current_user', user);
-                setState({ user: user as User, role: user.role, isLoading: false });
+                const authenticatedUser = { ...user, sessionId: session.sessionId } as User;
+                await setCache('current_user', authenticatedUser);
+                setState({ user: authenticatedUser, role: user.role, isLoading: false });
                 return;
             }
         }
@@ -83,8 +85,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setState(prev => ({ ...prev, user: updatedUser }));
 
     if (isOnline) {
-        const client = createSupabaseClient(state.user.email);
-        const { error } = await client.from('users').update(updates).eq('email', state.user.email);
+        const client = createSupabaseClient(state.user.sessionId);
+        const { error } = await client.from('users').update(updates).eq('id', state.user.id);
         if (error) throw error;
     } else {
         await addToQueue('PROFILE_UPDATE', { email: state.user.email, ...updates }, state.user.email);

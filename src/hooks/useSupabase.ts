@@ -6,7 +6,7 @@ import { User, Course, Enrollment, Assignment, Quiz, Discussion, Notification, M
 export const useSupabase = () => {
   const { user } = useAuth();
 
-  const client = useMemo(() => getClient(user?.email), [user?.email]);
+  const client = useMemo(() => getClient(user?.sessionId), [user?.sessionId]);
 
   // User operations
   const getUser = useCallback(async (id: string): Promise<User | null> => {
