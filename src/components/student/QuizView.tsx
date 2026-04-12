@@ -16,9 +16,10 @@ export const QuizView: React.FC<QuizViewProps> = ({ quiz, user, onComplete, onCa
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [timeLeft, setTimeLeft] = useState<number | null>(quiz.time_limit ? quiz.time_limit * 60 : null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [result, setResult] = useState<{ score: number; passed: boolean; isTimeout?: boolean } | null>(null);
   const { addToQueue, setCache, getCache, isOnline } = useIndexedDB();
 
-  useAntiCheat(quiz.anti_cheat_enabled);
+  useAntiCheat(quiz.anti_cheat_enabled, quiz.title);
 
   // Load saved progress from IndexedDB
   useEffect(() => {
@@ -36,8 +37,8 @@ export const QuizView: React.FC<QuizViewProps> = ({ quiz, user, onComplete, onCa
     await setCache(`quiz_progress_${quiz.id}`, newAnswers);
   }, [answers, quiz.id, setCache]);
 
-  const handleSubmit = useCallback(async () => {
-    if (isSubmitting) return;
+  const handleSubmit = useCallback(async (isTimeout = false) => {
+    if (isSubmitting || result) return;
     setIsSubmitting(true);
 
     try {
@@ -53,9 +54,11 @@ export const QuizView: React.FC<QuizViewProps> = ({ quiz, user, onComplete, onCa
             score = Math.round((correct / questions.length) * 100);
         }
 
+        const passed = score >= (quiz.passing_score || 60);
+
         const payload = {
             quiz_id: quiz.id,
-            student_email: user.email,
+            student_id: user.id,
             answers,
             score,
             status: 'submitted',
@@ -67,23 +70,23 @@ export const QuizView: React.FC<QuizViewProps> = ({ quiz, user, onComplete, onCa
             if (error) throw error;
         } else {
             await addToQueue('QUIZ_SUBMISSION', payload);
-            alert('Offline: Submission queued for sync.');
         }
 
         // Clean up progress cache
         await setCache(`quiz_progress_${quiz.id}`, null);
-        onComplete(score);
+        setResult({ score, passed, isTimeout });
+        setIsSubmitting(false);
     } catch (err) {
         console.error('Failed to submit quiz:', err);
         alert('Failed to submit quiz. Please try again.');
         setIsSubmitting(false);
     }
-  }, [quiz, user, answers, isSubmitting, onComplete, isOnline, addToQueue, setCache, client]);
+  }, [quiz, user, answers, isSubmitting, result, isOnline, addToQueue, setCache, client]);
 
   useEffect(() => {
     if (timeLeft === null) return;
     if (timeLeft <= 0) {
-        handleSubmit();
+        handleSubmit(true);
         return;
     }
     const timer = setInterval(() => setTimeLeft(prev => prev! - 1), 1000);
@@ -95,6 +98,33 @@ export const QuizView: React.FC<QuizViewProps> = ({ quiz, user, onComplete, onCa
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
+
+  if (result) {
+    return (
+        <div className="fixed inset-0 bg-slate-900/90 z-[100] flex items-center justify-center p-4 backdrop-blur-md">
+            <div className="bg-white rounded-3xl p-10 max-w-md w-full text-center shadow-2xl animate-in zoom-in duration-300">
+                <div className={`text-6xl mb-6 ${result.passed ? 'animate-bounce' : ''}`}>
+                    {result.isTimeout ? '⏰' : result.passed ? '🎉' : '🍵'}
+                </div>
+                {result.isTimeout && <div className="text-red-500 font-bold uppercase tracking-widest text-xs mb-2">Time&apos;s Up!</div>}
+                <h2 className="text-3xl font-black mb-2">{result.passed ? 'PASSED!' : 'TRY AGAIN'}</h2>
+                <p className="text-slate-500 font-medium mb-8">You scored {result.score}% in this attempt.</p>
+
+                <div className="bg-slate-50 rounded-2xl p-6 mb-8 border border-slate-100">
+                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Passing Score</div>
+                    <div className="text-xl font-bold text-slate-700">{quiz.passing_score || 60}%</div>
+                </div>
+
+                <button
+                    onClick={() => onComplete(result.score)}
+                    className="btn-primary w-full py-4 rounded-xl text-lg font-bold shadow-xl shadow-blue-500/20"
+                >
+                    Back to Dashboard
+                </button>
+            </div>
+        </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 bg-white z-50 overflow-y-auto">
@@ -129,19 +159,29 @@ export const QuizView: React.FC<QuizViewProps> = ({ quiz, user, onComplete, onCa
                 {q.question_text}
               </h3>
               <div className="grid grid-cols-1 gap-3">
-                {(q.options || []).map((opt: string) => (
-                  <label key={opt} className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${answers[q.id] === opt ? 'border-blue-600 bg-blue-50' : 'border-slate-100 hover:border-slate-200'}`}>
-                    <input
-                      type="radio"
-                      name={q.id}
-                      value={opt}
-                      checked={answers[q.id] === opt}
-                      onChange={(e) => handleAnswerChange(q.id, e.target.value)}
-                      className="w-5 h-5 text-blue-600"
-                    />
-                    <span className="font-medium text-slate-700 text-sm">{opt}</span>
-                  </label>
-                ))}
+                {q.type === 'short' ? (
+                  <input
+                    type="text"
+                    value={answers[q.id] || ''}
+                    onChange={(e) => handleAnswerChange(q.id, e.target.value)}
+                    placeholder="Type your answer here..."
+                    className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all text-sm"
+                  />
+                ) : (
+                  (q.options || []).map((opt: string) => (
+                    <label key={opt} className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${answers[q.id] === opt ? 'border-blue-600 bg-blue-50' : 'border-slate-100 hover:border-slate-200'}`}>
+                      <input
+                        type="radio"
+                        name={q.id}
+                        value={opt}
+                        checked={answers[q.id] === opt}
+                        onChange={(e) => handleAnswerChange(q.id, e.target.value)}
+                        className="w-5 h-5 text-blue-600"
+                      />
+                      <span className="font-medium text-slate-700 text-sm">{opt}</span>
+                    </label>
+                  ))
+                )}
               </div>
             </div>
           ))}
@@ -152,7 +192,7 @@ export const QuizView: React.FC<QuizViewProps> = ({ quiz, user, onComplete, onCa
                 {Object.keys(answers).length} of {quiz.questions?.length || 0} answered
             </p>
             <button
-                onClick={handleSubmit}
+                onClick={() => handleSubmit(false)}
                 disabled={isSubmitting}
                 className="btn-primary w-full md:w-auto px-10 py-4"
             >

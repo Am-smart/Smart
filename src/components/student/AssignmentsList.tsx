@@ -6,9 +6,10 @@ interface AssignmentsListProps {
   submissions: Submission[];
   onSubmit: (assignment: Assignment) => void;
   onViewFeedback: (assignment: Assignment) => void;
+  onRegradeRequest: (assignment: Assignment, reason: string) => void;
 }
 
-export const AssignmentsList: React.FC<AssignmentsListProps> = ({ assignments, submissions, onSubmit, onViewFeedback }) => {
+export const AssignmentsList: React.FC<AssignmentsListProps> = ({ assignments, submissions, onSubmit, onViewFeedback, onRegradeRequest }) => {
   return (
     <div>
       <h2 className="text-2xl font-bold mb-8">Assignments</h2>
@@ -64,9 +65,22 @@ export const AssignmentsList: React.FC<AssignmentsListProps> = ({ assignments, s
                         </div>
                       ) : '-'}
                     </td>
-                    <td className="px-6 py-4 text-right">
+                    <td className="px-6 py-4 text-right flex flex-col gap-1 items-end">
                       {submission?.status === 'graded' ? (
-                        <button onClick={() => onViewFeedback(assignment)} className="text-blue-600 hover:text-blue-800 font-bold text-xs uppercase tracking-wider transition-colors">Feedback</button>
+                        <>
+                          <button onClick={() => onViewFeedback(assignment)} className="text-blue-600 hover:text-blue-800 font-bold text-xs uppercase tracking-wider transition-colors">Feedback</button>
+                          {assignment.regrade_requests_enabled !== false && !submission.regrade_request && (
+                            <button
+                              onClick={() => {
+                                const reason = prompt('Reason for regrade request:');
+                                if (reason) onRegradeRequest(assignment, reason);
+                              }}
+                              className="text-amber-600 hover:text-amber-800 font-bold text-[10px] uppercase tracking-wider"
+                            >
+                              Request Regrade
+                            </button>
+                          )}
+                        </>
                       ) : (
                         <button onClick={() => onSubmit(assignment)} className={`btn-primary text-[10px] py-1.5 px-4 ${isOverdue ? 'bg-red-500 hover:bg-red-600' : ''}`}>
                           {submission ? 'Edit Submission' : isOverdue ? 'Submit Late' : 'Submit'}

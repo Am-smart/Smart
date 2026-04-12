@@ -1,9 +1,8 @@
 "use client";
 
 import React, { useState } from 'react';
-import { createSupabaseClient } from '@/lib/supabase';
 import { UserRole } from '@/lib/types';
-import { hashPassword } from '@/lib/crypto';
+import { signup } from '@/lib/auth-actions';
 
 interface SignupFormProps {
   onClose: () => void;
@@ -28,19 +27,19 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onClose, onShowLogin }) 
       return;
     }
     try {
-      const hashedPassword = await hashPassword(formData.password, formData.email);
-      const client = createSupabaseClient();
-      const { error: signupError } = await client
-        .from('users')
-        .insert([{
+      const result = await signup({
           full_name: formData.fullName,
           email: formData.email,
           phone: formData.phone,
-          password: hashedPassword,
+          password: formData.password,
           role: formData.role
-        }]);
-      if (signupError) throw signupError;
-      onShowLogin();
+      });
+
+      if (!result.success) {
+          setError(result.error || 'Signup failed');
+      } else {
+          onShowLogin();
+      }
     } catch (err: unknown) {
       if (err instanceof Error) {
           setError(err.message || 'Signup failed');

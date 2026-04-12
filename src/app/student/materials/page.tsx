@@ -13,7 +13,7 @@ export default function MaterialsPage() {
 
   useEffect(() => {
     if (user) {
-        getEnrollments(user.email).then(e => {
+        getEnrollments(user.id).then(e => {
             const enrolledIds = e.map(item => item.course_id);
             client.from('materials').select('*').in('course_id', enrolledIds).then(r => setMaterials(r.data || []));
         });

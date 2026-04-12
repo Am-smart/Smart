@@ -1,15 +1,16 @@
 import React, { useState } from 'react';
-import { Assignment, Course } from '@/lib/types';
+import { Assignment, Course, AssignmentQuestion } from '@/lib/types';
 import { useSupabase } from '@/hooks/useSupabase';
 
 interface AssignmentEditorProps {
+    teacherId: string;
     assignment?: Assignment;
     courses: Course[];
     onSave: () => void;
     onCancel: () => void;
 }
 
-export const AssignmentEditor: React.FC<AssignmentEditorProps> = ({ assignment, courses, onSave, onCancel }) => {
+export const AssignmentEditor: React.FC<AssignmentEditorProps> = ({ teacherId, assignment, courses, onSave, onCancel }) => {
     const { client } = useSupabase();
     const [formData, setFormData] = useState({
         title: assignment?.title || '',
@@ -18,7 +19,9 @@ export const AssignmentEditor: React.FC<AssignmentEditorProps> = ({ assignment, 
         due_date: assignment?.due_date ? new Date(assignment.due_date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
         points_possible: assignment?.points_possible || 100,
         status: assignment?.status || 'draft',
-        anti_cheat_enabled: assignment?.anti_cheat_enabled || false
+        anti_cheat_enabled: assignment?.anti_cheat_enabled || false,
+        regrade_requests_enabled: assignment?.regrade_requests_enabled !== false,
+        questions: assignment?.questions || []
     });
     const [isSaving, setIsSaving] = useState(false);
 
@@ -26,9 +29,10 @@ export const AssignmentEditor: React.FC<AssignmentEditorProps> = ({ assignment, 
         e.preventDefault();
         setIsSaving(true);
         try {
+            const payload = { ...formData, teacher_id: teacherId };
             const { error } = assignment?.id
-                ? await client.from('assignments').update(formData).eq('id', assignment.id)
-                : await client.from('assignments').insert([formData]);
+                ? await client.from('assignments').update(payload).eq('id', assignment.id)
+                : await client.from('assignments').insert([payload]);
             if (error) throw error;
             onSave();
         } catch (err) {
@@ -80,9 +84,72 @@ export const AssignmentEditor: React.FC<AssignmentEditorProps> = ({ assignment, 
                             </select>
                         </div>
                     </div>
-                    <div className="flex items-center gap-3 p-4 bg-amber-50 rounded-xl border border-amber-100">
-                        <input type="checkbox" id="antiCheat" checked={formData.anti_cheat_enabled} onChange={e => setFormData({...formData, anti_cheat_enabled: e.target.checked})} className="w-5 h-5 text-blue-600" />
-                        <label htmlFor="antiCheat" className="text-sm font-bold text-amber-900 cursor-pointer">Enable Anti-Cheat Protection</label>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="flex items-center gap-3 p-4 bg-amber-50 rounded-xl border border-amber-100">
+                            <input type="checkbox" id="antiCheat" checked={formData.anti_cheat_enabled} onChange={e => setFormData({...formData, anti_cheat_enabled: e.target.checked})} className="w-5 h-5 text-blue-600" />
+                            <label htmlFor="antiCheat" className="text-sm font-bold text-amber-900 cursor-pointer">Anti-Cheat</label>
+                        </div>
+                        <div className="flex items-center gap-3 p-4 bg-blue-50 rounded-xl border border-blue-100">
+                            <input type="checkbox" id="regradeEnabled" checked={formData.regrade_requests_enabled} onChange={e => setFormData({...formData, regrade_requests_enabled: e.target.checked})} className="w-5 h-5 text-blue-600" />
+                            <label htmlFor="regradeEnabled" className="text-sm font-bold text-blue-900 cursor-pointer">Regrade Requests</label>
+                        </div>
+                    </div>
+
+                    <div className="space-y-6 pt-8 border-t">
+                        <div className="flex justify-between items-center">
+                            <h3 className="text-xl font-bold text-slate-900">Task Questions / Steps</h3>
+                            <button type="button" onClick={() => {
+                                setFormData({
+                                    ...formData,
+                                    questions: [...formData.questions, { text: '', type: 'essay', points: 10 }]
+                                });
+                            }} className="btn-secondary py-2 px-6">+ Add Step</button>
+                        </div>
+                        {formData.questions.map((q, index) => (
+                            <div key={index} className="p-6 bg-slate-50 rounded-2xl border-2 border-slate-100 space-y-4">
+                                <div className="grid grid-cols-2 gap-4">
+                                    <select
+                                        value={q.type}
+                                        onChange={e => {
+                                            const updated = [...formData.questions];
+                                            updated[index].type = e.target.value as AssignmentQuestion["type"];
+                                            setFormData({ ...formData, questions: updated });
+                                        }}
+                                        className="p-3 rounded-xl border border-slate-200 bg-white text-sm"
+                                    >
+                                        <option value="essay">Written Response</option>
+                                        <option value="file">File Upload</option>
+                                        <option value="link">Link Submission</option>
+                                    </select>
+                                    <input
+                                        type="number"
+                                        value={q.points}
+                                        onChange={e => {
+                                            const updated = [...formData.questions];
+                                            updated[index].points = Number(e.target.value);
+                                            setFormData({ ...formData, questions: updated });
+                                        }}
+                                        className="p-3 rounded-xl border border-slate-200 bg-white text-sm"
+                                        placeholder="Points"
+                                    />
+                                </div>
+                                <textarea
+                                    value={q.text}
+                                    onChange={e => {
+                                        const updated = [...formData.questions];
+                                        updated[index].text = e.target.value;
+                                        setFormData({ ...formData, questions: updated });
+                                    }}
+                                    className="w-full p-4 rounded-xl border border-slate-200 bg-white text-sm min-h-[100px]"
+                                    placeholder="Question text or instruction step..."
+                                />
+                                <button type="button" onClick={() => {
+                                    const updated = [...formData.questions];
+                                    updated.splice(index, 1);
+                                    setFormData({ ...formData, questions: updated });
+                                }} className="text-red-500 text-[10px] font-bold uppercase tracking-widest">Remove Step</button>
+                            </div>
+                        ))}
                     </div>
                     <footer className="pt-8 border-t flex justify-between gap-4">
                         <button type="button" onClick={onCancel} className="btn-secondary flex-1 py-4">Discard</button>

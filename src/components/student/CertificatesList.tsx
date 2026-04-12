@@ -3,11 +3,11 @@ import { Certificate } from '@/lib/types';
 import jsPDF from 'jspdf';
 
 interface CertificatesListProps {
-  studentEmail: string;
+  studentName: string;
   certificates: Certificate[];
 }
 
-export const CertificatesList: React.FC<CertificatesListProps> = ({ studentEmail, certificates }) => {
+export const CertificatesList: React.FC<CertificatesListProps> = ({ studentName, certificates }) => {
   const downloadPDF = (cert: Certificate) => {
     const doc = new jsPDF({
       orientation: 'landscape',
@@ -36,7 +36,7 @@ export const CertificatesList: React.FC<CertificatesListProps> = ({ studentEmail
     doc.setTextColor(30, 41, 59);
     doc.setFontSize(32);
     doc.setFont('helvetica', 'bold');
-    doc.text(studentEmail, 148.5, 95, { align: 'center' });
+    doc.text(studentName, 148.5, 95, { align: 'center' });
 
     // Course
     doc.setTextColor(100);
