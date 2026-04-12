@@ -4,13 +4,14 @@ import { useSupabase } from '@/hooks/useSupabase';
 import { useIndexedDB } from '@/hooks/useIndexedDB';
 
 interface CourseEditorProps {
+    teacherId: string;
     course?: Course;
-    teacherEmail: string;
+
     onSave: () => void;
     onCancel: () => void;
 }
 
-export const CourseEditor: React.FC<CourseEditorProps> = ({ course, teacherEmail, onSave, onCancel }) => {
+export const CourseEditor: React.FC<CourseEditorProps> = ({ course, teacherId, onSave, onCancel }) => {
     const { client } = useSupabase();
     const [formData, setFormData] = useState({
         title: course?.title || '',
@@ -28,7 +29,7 @@ export const CourseEditor: React.FC<CourseEditorProps> = ({ course, teacherEmail
         try {
             const courseData = {
                 ...formData,
-                teacher_email: teacherEmail,
+                teacher_id: teacherId,
                 updated_at: new Date().toISOString()
             };
 

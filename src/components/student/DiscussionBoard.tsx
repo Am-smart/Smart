@@ -2,14 +2,15 @@ import React from 'react';
 import { Discussion } from '@/lib/types';
 
 interface DiscussionBoardProps {
+  userId: string;
   discussions: Discussion[];
-  userEmail: string;
+
   onPost: (content: string, parentId?: string) => Promise<void>;
   onDelete: (id: string) => Promise<void>;
   isOnline: boolean;
 }
 
-export const DiscussionBoard: React.FC<DiscussionBoardProps> = ({ discussions, userEmail, onPost, onDelete, isOnline }) => {
+export const DiscussionBoard: React.FC<DiscussionBoardProps> = ({ discussions, userId, onPost, onDelete, isOnline }) => {
   const [newPost, setNewPost] = React.useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -26,9 +27,9 @@ export const DiscussionBoard: React.FC<DiscussionBoardProps> = ({ discussions, u
         <div key={d.id} className={`p-4 rounded-xl border border-slate-100 bg-slate-50 mb-4`} style={{ marginLeft: `${depth * 24}px` }}>
           <div className="flex justify-between items-start mb-2">
             <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-              {d.user_email} • {new Date(d.created_at).toLocaleString()}
+              {d.users?.full_name || d.user_id} • {new Date(d.created_at).toLocaleString()}
             </div>
-            {d.user_email === userEmail && (
+            {d.user_id === userId && (
                 <button onClick={() => onDelete(d.id)} className="text-red-500 hover:text-red-700 text-[10px] font-bold uppercase">Delete</button>
             )}
           </div>

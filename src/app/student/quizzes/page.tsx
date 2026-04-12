@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
 import { useSupabase } from '@/hooks/useSupabase';
 import { QuizzesList } from "@/components/student/QuizzesList";
@@ -16,22 +16,22 @@ export default function QuizzesPage() {
   const [submissions, setSubmissions] = useState<QuizSubmission[]>([]);
   const [activeQuiz, setActiveQuiz] = useState<Quiz | null>(null);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     if (!user) return;
     const [myEnrollments, allQuizzes, mySubmissions] = await Promise.all([
-      getEnrollments(user.email),
+      getEnrollments(user.id),
       getQuizzes(),
-      client.from('quiz_submissions').select('*, quizzes(*)').eq('student_email', user.email).then(r => r.data || [])
+      client.from('quiz_submissions').select('*, quizzes(*)').eq('student_id', user.id).then(r => r.data || [])
     ]);
 
     const enrolledIds = myEnrollments.map(e => e.course_id);
     setQuizzes(allQuizzes.filter(q => enrolledIds.includes(q.course_id) && q.status === 'published'));
     setSubmissions(mySubmissions);
-  };
+  }, [user, client, getQuizzes, getEnrollments]);
 
   useEffect(() => {
     fetchData();
-  }, [user]);
+  }, [fetchData]);
 
   return (
     <>

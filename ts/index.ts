@@ -86,7 +86,7 @@ serve(async (req) => {
         });
       }
 
-      let query = supabaseClient.from('users').select('email, notification_preferences');
+      let query = supabaseClient.from('users').select('id, notification_preferences');
       if (role && role !== 'all') {
         query = query.eq('role', role);
       }
@@ -106,7 +106,7 @@ serve(async (req) => {
         // Send notifications in parallel for better performance
         const notifications = filteredUsers.map(user =>
           supabaseClient.rpc('notify_user', {
-            target_email: user.email,
+            target_id: user.id,
             n_title: title,
             n_msg: message,
             n_link: link || null

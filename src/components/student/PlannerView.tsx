@@ -3,10 +3,10 @@ import { useSupabase } from '@/hooks/useSupabase';
 import { PlannerItem } from '@/lib/types';
 
 interface PlannerViewProps {
-  userEmail: string;
+  userId: string;
 }
 
-export const PlannerView: React.FC<PlannerViewProps> = ({ userEmail }) => {
+export const PlannerView: React.FC<PlannerViewProps> = ({ userId }) => {
   const { client } = useSupabase();
   const [items, setItems] = useState<PlannerItem[]>([]);
   const [newItem, setNewItem] = useState('');
@@ -18,11 +18,11 @@ export const PlannerView: React.FC<PlannerViewProps> = ({ userEmail }) => {
     const { data } = await client
       .from('planner')
       .select('*')
-      .eq('user_email', userEmail)
+      .eq('user_id', userId)
       .order('due_date', { ascending: true });
     setItems((data as PlannerItem[]) || []);
     setIsLoading(false);
-  }, [userEmail, client]);
+  }, [userId, client]);
 
   useEffect(() => {
     fetchPlanner();
@@ -33,7 +33,7 @@ export const PlannerView: React.FC<PlannerViewProps> = ({ userEmail }) => {
     if (!newItem) return;
 
     const { error } = await client.from('planner').insert([{
-      user_email: userEmail,
+      user_id: userId,
       title: newItem,
       due_date: dueDate || null,
       completed: false
