@@ -73,8 +73,6 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, onAdd, on
                                         {u.active ? 'Deactivate' : 'Activate'}
                                     </button>
                                 </div>
-                                <button onClick={() => onEdit(u)} className="text-blue-600 font-bold text-xs uppercase mr-4">Edit</button>
-                                <button onClick={() => onDelete(u.id)} className="text-red-600 font-bold text-xs uppercase">Delete</button>
                             </td>
                         </tr>
                     ))}

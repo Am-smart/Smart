@@ -208,6 +208,15 @@ CREATE TABLE IF NOT EXISTS notifications (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS sessions (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+  user_agent TEXT,
+  ip_address TEXT
+);
+
 CREATE TABLE IF NOT EXISTS broadcasts (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   course_id UUID REFERENCES courses(id) ON DELETE CASCADE,
@@ -348,6 +357,27 @@ CREATE INDEX IF NOT EXISTS idx_materials_course ON materials(course_id);
 CREATE INDEX IF NOT EXISTS idx_planner_user_date ON planner(user_id, due_date);
 
 -- 6. Helper Functions
+CREATE OR REPLACE FUNCTION authenticate_user(p_email VARCHAR, p_password VARCHAR)
+RETURNS SETOF users AS $$
+BEGIN
+  RETURN QUERY
+  SELECT * FROM users
+  WHERE email = p_email AND password = p_password AND active = TRUE;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE OR REPLACE FUNCTION register_user(p_full_name VARCHAR, p_email VARCHAR, p_password VARCHAR, p_phone VARCHAR, p_role VARCHAR)
+RETURNS users AS $$
+DECLARE
+  v_user users;
+BEGIN
+  INSERT INTO users (full_name, email, password, phone, role, active)
+  VALUES (p_full_name, p_email, p_password, p_phone, p_role, TRUE)
+  RETURNING * INTO v_user;
+  RETURN v_user;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
 CREATE OR REPLACE FUNCTION notify_user(target_id UUID, n_title TEXT, n_msg TEXT, n_link TEXT DEFAULT NULL, n_type TEXT DEFAULT 'system')
 RETURNS VOID AS $$
 BEGIN
@@ -502,8 +532,26 @@ ALTER TABLE system_logs ENABLE ROW LEVEL SECURITY;
 -- Since we use custom auth, we will set a configuration parameter 'app.user_id'
 -- or expect it to be passed via a custom header which PostgREST maps to settings.
 CREATE OR REPLACE FUNCTION current_app_user() RETURNS UUID AS $$
-  SELECT id FROM users WHERE email = current_setting('request.headers', true)::json->>'x-user-email';
-$$ LANGUAGE sql STABLE;
+DECLARE
+  v_session_id TEXT;
+  v_user_id UUID;
+BEGIN
+  v_session_id := current_setting('request.headers', true)::json->>'x-session-id';
+  IF v_session_id IS NULL THEN
+    RETURN NULL;
+  END IF;
+
+  SELECT user_id INTO v_user_id
+  FROM sessions
+  WHERE id = v_session_id::uuid
+  AND expires_at > NOW();
+
+  RETURN v_user_id;
+EXCEPTION
+  WHEN OTHERS THEN
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql STABLE;
 
 CREATE OR REPLACE FUNCTION current_app_role() RETURNS TEXT AS $$
 DECLARE

@@ -65,14 +65,14 @@ export async function gradeSubmission(submissionId: string, gradeData: { score: 
 }
 
 // 4. Admin Actions: User Status
-export async function toggleUserStatus(email: string, active: boolean) {
+export async function toggleUserStatus(userId: string, active: boolean) {
   const user = await getVerifiedUser();
   if (user.role !== 'admin') throw new Error('Forbidden');
 
   const { error } = await supabase
     .from('users')
     .update({ active })
-    .eq('email', email);
+    .eq('id', userId);
 
   if (error) throw new Error(error.message);
   revalidatePath('/admin/users');
