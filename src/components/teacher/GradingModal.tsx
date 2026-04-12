@@ -77,6 +77,13 @@ export const GradingModal: React.FC<GradingModalProps> = ({ submission, onSave, 
                             <a href={submission.file_url} target="_blank" rel="noopener noreferrer" className="btn-secondary py-2 px-4 text-xs mt-4 block w-fit">View Main Attachment</a>
                         )}
                     </div>
+
+                    {submission.regrade_request && (
+                        <div className="bg-amber-50 p-6 rounded-2xl border border-amber-100">
+                            <h4 className="text-sm font-bold text-amber-700 uppercase mb-2">Regrade Request</h4>
+                            <div className="text-sm text-amber-900 leading-relaxed italic">&ldquo;{submission.regrade_request}&rdquo;</div>
+                        </div>
+                    )}
                     <div className="grid grid-cols-2 gap-6 items-end">
                         <div>
                             <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">Points Earned</label>

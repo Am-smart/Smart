@@ -15,6 +15,7 @@ export default function SettingsPage() {
     <TeacherSettings
         user={user}
         onUpdate={async (u) => {
+            await client.from('users').update(u).eq('id', user.id);
             await client.from('users').update(u).eq('email', user.email);
         }}
     />

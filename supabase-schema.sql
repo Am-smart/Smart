@@ -85,7 +85,8 @@ CREATE TABLE IF NOT EXISTS assignments (
   questions JSONB DEFAULT '[]'::jsonb,
   attachments JSONB DEFAULT '[]'::jsonb,
   status VARCHAR(50) DEFAULT 'draft' CHECK (status IN ('draft', 'published', 'archived')),
-  anti_cheat_enabled BOOLEAN DEFAULT FALSE
+  anti_cheat_enabled BOOLEAN DEFAULT FALSE,
+  regrade_requests_enabled BOOLEAN DEFAULT TRUE
 );
 
 CREATE TABLE IF NOT EXISTS submissions (

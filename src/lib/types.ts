@@ -46,6 +46,7 @@ export interface Assignment {
   points_possible: number;
   allow_late_submissions: boolean;
   anti_cheat_enabled: boolean;
+  regrade_requests_enabled: boolean;
   questions: AssignmentQuestion[];
   attachments?: Record<string, unknown>[];
   courses?: Course;

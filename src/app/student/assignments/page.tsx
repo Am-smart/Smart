@@ -49,7 +49,23 @@ export default function AssignmentsPage() {
           assignments={assignments}
           submissions={submissions}
           onSubmit={(a) => setActiveAssignment(a)}
-          onViewFeedback={() => {}}
+          onViewFeedback={(a) => {
+              const sub = submissions.find(s => s.assignment_id === a.id);
+              if (sub) {
+                  alert(`FEEDBACK: ${sub.feedback || 'No feedback yet.'}\n\nGRADE: ${sub.final_grade}%`);
+              }
+          }}
+          onRegradeRequest={async (a, reason) => {
+              if (!a.regrade_requests_enabled) {
+                  alert('Regrade requests are disabled for this assignment.');
+                  return;
+              }
+              const { error } = await client.from('submissions').update({ regrade_request: reason, status: 'submitted' }).eq('assignment_id', a.id).eq('student_id', user!.id);
+              if (!error) {
+                  alert('Regrade request sent!');
+                  fetchData();
+              }
+          }}
       />
     </>
   );
