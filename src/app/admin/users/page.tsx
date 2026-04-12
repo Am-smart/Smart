@@ -35,8 +35,8 @@ export default function UsersPage() {
     <UserManagement
         users={users}
         onEdit={setEditingUser}
-        onDelete={async (email) => {
-            await client.from('users').delete().eq('email', email);
+        onDelete={async (id) => {
+            await client.from('users').delete().eq('id', id);
             fetchUsers();
         }}
         onAdd={() => setIsAdding(true)}

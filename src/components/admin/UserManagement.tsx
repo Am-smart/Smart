@@ -5,7 +5,7 @@ interface UserManagementProps {
   users: User[];
   onAdd: () => void;
   onEdit: (user: User) => void;
-  onDelete: (email: string) => Promise<void>;
+  onDelete: (id: string) => Promise<void>;
 }
 
 export const UserManagement: React.FC<UserManagementProps> = ({ users, onAdd, onEdit, onDelete }) => {
@@ -37,7 +37,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, onAdd, on
                             </td>
                             <td className="px-6 py-4 text-right">
                                 <button onClick={() => onEdit(u)} className="text-blue-600 font-bold text-xs uppercase mr-4">Edit</button>
-                                <button onClick={() => onDelete(u.email)} className="text-red-600 font-bold text-xs uppercase">Delete</button>
+                                <button onClick={() => onDelete(u.id)} className="text-red-600 font-bold text-xs uppercase">Delete</button>
                             </td>
                         </tr>
                     ))}
