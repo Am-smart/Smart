@@ -9,8 +9,13 @@ export interface User {
   level?: number;
   phone?: string;
   password?: string;
+  created_at: string;
   updated_at?: string;
   active?: boolean;
+  failed_attempts?: number;
+  lockouts?: number;
+  flagged?: boolean;
+  locked_until?: string | null;
 }
 
 export interface Course {

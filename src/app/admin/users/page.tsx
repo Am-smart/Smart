@@ -36,6 +36,14 @@ export default function UsersPage() {
         users={users}
         onEdit={setEditingUser}
         onDelete={async (id) => {
+            if (!confirm('Are you sure you want to delete this user?')) return;
+            await client.from('users').delete().eq('id', id);
+            fetchUsers();
+        }}
+        onUpdate={async (id, updates) => {
+            const { error } = await client.from('users').update(updates).eq('id', id);
+            if (!error) fetchUsers();
+        }}
             await client.from('users').delete().eq('id', id);
             fetchUsers();
         }}
