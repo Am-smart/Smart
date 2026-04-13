@@ -23,6 +23,10 @@ export const SignupForm: React.FC<SignupFormProps> = ({ initialRole, onClose, on
 
   const { signup } = useAuth();
 
+  const handleRoleChange = (role: UserRole) => {
+    setFormData(prev => ({ ...prev, role }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (formData.password !== formData.confirmPassword) {
@@ -91,6 +95,27 @@ export const SignupForm: React.FC<SignupFormProps> = ({ initialRole, onClose, on
           className="input-custom"
           required
         />
+
+        <div className="space-y-2">
+          <p className="text-sm font-semibold text-slate-700">Select your role:</p>
+          <div className="flex gap-2">
+            {(['student', 'teacher', 'admin'] as UserRole[]).map((r) => (
+              <button
+                key={r}
+                type="button"
+                onClick={() => handleRoleChange(r)}
+                className={`flex-1 py-2 rounded-xl border-2 transition-all text-sm font-bold capitalize ${
+                  formData.role === r
+                    ? 'border-primary bg-primary/5 text-primary'
+                    : 'border-slate-100 text-slate-400 hover:border-slate-200'
+                }`}
+              >
+                {r}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <button type="submit" className="btn-primary w-full py-3">Create Account</button>
         <p className="text-center text-sm text-slate-600">Already have an account? <a href="#" onClick={onShowLogin} className="text-primary font-semibold hover:underline">Sign in</a></p>
       </form>

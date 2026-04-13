@@ -358,18 +358,35 @@ CREATE INDEX IF NOT EXISTS idx_planner_user_date ON planner(user_id, due_date);
 
 -- 6. Helper Functions
 CREATE OR REPLACE FUNCTION authenticate_user(p_email VARCHAR, p_password VARCHAR)
-RETURNS SETOF users AS $$
+RETURNS JSONB AS $$
+DECLARE
+  v_user users;
+  v_session_id UUID;
 BEGIN
-  RETURN QUERY
-  SELECT * FROM users
+  SELECT * INTO v_user FROM users
   WHERE email = p_email AND password = p_password AND active = TRUE;
+
+  IF v_user.id IS NULL THEN
+    RETURN NULL;
+  END IF;
+
+  -- Create session
+  INSERT INTO sessions (user_id, expires_at)
+  VALUES (v_user.id, NOW() + INTERVAL '7 days')
+  RETURNING id INTO v_session_id;
+
+  RETURN jsonb_build_object(
+    'user', (to_jsonb(v_user) - 'password'),
+    'session_id', v_session_id
+  );
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 CREATE OR REPLACE FUNCTION register_user(p_full_name VARCHAR, p_email VARCHAR, p_password VARCHAR, p_phone VARCHAR, p_role VARCHAR)
-RETURNS users AS $$
+RETURNS JSONB AS $$
 DECLARE
   v_user users;
+  v_session_id UUID;
   v_count INTEGER;
   v_caller_role TEXT;
 BEGIN
@@ -380,19 +397,12 @@ BEGIN
     INSERT INTO users (full_name, email, password, phone, role, active)
     VALUES (p_full_name, p_email, p_password, p_phone, p_role, TRUE)
     RETURNING * INTO v_user;
-    RETURN v_user;
-  END IF;
-
-  -- Public signup logic
-  IF p_role = 'student' THEN
-    INSERT INTO users (full_name, email, password, phone, role, active)
-    VALUES (p_full_name, p_email, p_password, p_phone, p_role, TRUE)
-    RETURNING * INTO v_user;
   ELSE
-    -- Restrict Teacher/Admin creation to max 3 total
+    -- Public signup logic: Role is always enforced to student unless under limit
     SELECT COUNT(*) INTO v_count FROM users WHERE role IN ('teacher', 'admin');
-    IF v_count >= 3 THEN
-      RAISE EXCEPTION 'Public creation of teachers and admins is restricted. Please contact support.';
+
+    IF p_role IN ('teacher', 'admin') AND v_count >= 3 THEN
+      RAISE EXCEPTION 'Public creation of teachers and admins is restricted (Limit: 3). Please contact support.';
     END IF;
 
     INSERT INTO users (full_name, email, password, phone, role, active)
@@ -400,20 +410,37 @@ BEGIN
     RETURNING * INTO v_user;
   END IF;
 
-  RETURN v_user;
+  -- Create session
+  INSERT INTO sessions (user_id, expires_at)
+  VALUES (v_user.id, NOW() + INTERVAL '7 days')
+  RETURNING id INTO v_session_id;
+
+  RETURN jsonb_build_object(
+    'user', (to_jsonb(v_user) - 'password'),
+    'session_id', v_session_id
+  );
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
-CREATE OR REPLACE FUNCTION request_password_reset(p_email VARCHAR, p_reason TEXT)
+CREATE OR REPLACE FUNCTION request_password_reset(p_email VARCHAR, p_reason TEXT, p_risk_level TEXT DEFAULT 'medium')
 RETURNS BOOLEAN AS $$
 BEGIN
   UPDATE users
-  SET reset_request = jsonb_build_object(
-    'requested_at', NOW(),
-    'status', 'pending',
-    'reason', p_reason
-  )
+  SET
+    reset_request = jsonb_build_object(
+      'requested_at', NOW(),
+      'status', 'pending',
+      'reason', p_reason,
+      'risk_level', p_risk_level
+    ),
+    flagged = CASE WHEN p_risk_level = 'high' THEN TRUE ELSE flagged END
   WHERE email = p_email;
+
+  -- If high risk, notify admins via system logs
+  IF p_risk_level = 'high' THEN
+    INSERT INTO system_logs (level, category, message, metadata)
+    VALUES ('error', 'security', 'High risk password reset request for ' || p_email, jsonb_build_object('email', p_email, 'reason', p_reason));
+  END IF;
 
   RETURN FOUND;
 END;
@@ -616,15 +643,16 @@ BEGIN
     RETURN NEW;
   END IF;
 
-  -- Unlimited students
+  -- Students are always allowed
   IF NEW.role = 'student' THEN
     RETURN NEW;
   END IF;
 
-  -- Restrict Teacher/Admin to 3 total
+  -- Restrict public Teacher/Admin creation to a combined total of 3
   SELECT COUNT(*) INTO v_count FROM users WHERE role IN ('teacher', 'admin');
+
   IF v_count >= 3 THEN
-    RAISE EXCEPTION 'Public creation of teachers and admins is restricted. Please contact support.';
+    RAISE EXCEPTION 'Public creation of teachers and admins is restricted (Limit: 3). Please contact support.';
   END IF;
 
   RETURN NEW;
@@ -735,6 +763,10 @@ CREATE POLICY "Enrolled students and teachers view/post discussions" ON discussi
 
 -- Notifications policies
 CREATE POLICY "Users manage own notifications" ON notifications FOR ALL USING (user_id = current_app_user());
+
+-- Sessions policies
+CREATE POLICY "Users can manage own sessions" ON sessions FOR SELECT USING (user_id = current_app_user());
+CREATE POLICY "Users can delete own sessions" ON sessions FOR DELETE USING (user_id = current_app_user());
 
 -- Broadcasts policies
 CREATE POLICY "Anyone can view relevant broadcasts" ON broadcasts FOR SELECT USING (

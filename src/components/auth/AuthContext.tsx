@@ -60,11 +60,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const u = result.user as User;
     await setCache('current_user', u);
-    setState({
+    setState(prev => ({
+        ...prev,
         user: u,
         role: u.role,
         isLoading: false
-    });
+    }));
   }, [setCache]);
 
   const signup = useCallback(async (userData: Partial<User>) => {
@@ -75,11 +76,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const u = result.user as User;
     await setCache('current_user', u);
-    setState({
+    setState(prev => ({
+        ...prev,
         user: u,
         role: u.role,
         isLoading: false
-    });
+    }));
   }, [setCache]);
 
   const logout = useCallback(async () => {
@@ -105,7 +107,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const { error } = await client.from('users').update(updates).eq('id', state.user.id);
         if (error) throw error;
     } else {
-        await addToQueue('PROFILE_UPDATE', { email: state.user.email, ...updates }, state.user.email);
+        await addToQueue('PROFILE_UPDATE', { id: state.user.id, ...updates }, state.user.sessionId);
     }
   }, [state.user, isOnline, setCache, addToQueue]);
 
