@@ -21,6 +21,10 @@ export default function ResetsPage() {
   return (
     <PasswordReset
         users={users}
+        onUpdate={async (id, updates) => {
+            const { error } = await client.from('users').update(updates).eq('id', id);
+            if (!error) fetchUsers();
+        }}
     />
   );
 }

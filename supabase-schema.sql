@@ -404,6 +404,21 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+CREATE OR REPLACE FUNCTION request_password_reset(p_email VARCHAR, p_reason TEXT)
+RETURNS BOOLEAN AS $$
+BEGIN
+  UPDATE users
+  SET reset_request = jsonb_build_object(
+    'requested_at', NOW(),
+    'status', 'pending',
+    'reason', p_reason
+  )
+  WHERE email = p_email;
+
+  RETURN FOUND;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
 CREATE OR REPLACE FUNCTION notify_user(target_id UUID, n_title TEXT, n_msg TEXT, n_link TEXT DEFAULT NULL, n_type TEXT DEFAULT 'system')
 RETURNS VOID AS $$
 BEGIN

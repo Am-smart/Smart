@@ -17,6 +17,7 @@ export interface User {
   lockouts?: number;
   flagged?: boolean;
   locked_until?: string | null;
+  reset_request?: Record<string, unknown> | null;
 }
 
 export interface Course {
