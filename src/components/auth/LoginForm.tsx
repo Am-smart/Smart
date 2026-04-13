@@ -52,6 +52,15 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onClose, onShowSignup, onS
         />
         <button type="submit" className="btn-primary w-full py-3">Login</button>
       </form>
+
+      <div className="mt-6 p-4 bg-slate-50 rounded-xl border border-slate-100">
+        <p className="text-xs font-bold text-slate-500 uppercase mb-2 tracking-wider">Login Help</p>
+        <ul className="text-xs text-slate-600 space-y-1 list-disc list-inside">
+          <li>Check caps lock</li>
+          <li>Ensure no extra spaces in email</li>
+          <li>Try another device if issue persists</li>
+        </ul>
+      </div>
       <p className="text-center text-sm text-slate-600 mt-6"><a href="#" onClick={onShowReset} className="text-primary hover:underline">Forgot Password?</a></p>
       <p className="text-center text-sm text-slate-600 mt-2">No account? <a href="#" onClick={onShowSignup} className="text-primary font-semibold hover:underline">Create one</a></p>
       {error && <p className="text-red-500 text-sm mt-4 text-center">{error}</p>}

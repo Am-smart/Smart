@@ -60,11 +60,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const u = result.user as User;
     await setCache('current_user', u);
-    setState({
+    setState(prev => ({
+        ...prev,
         user: u,
         role: u.role,
         isLoading: false
-    });
+    }));
   }, [setCache]);
 
   const signup = useCallback(async (userData: Partial<User>) => {
@@ -75,11 +76,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const u = result.user as User;
     await setCache('current_user', u);
-    setState({
+    setState(prev => ({
+        ...prev,
         user: u,
         role: u.role,
         isLoading: false
-    });
+    }));
   }, [setCache]);
 
   const logout = useCallback(async () => {

@@ -7,57 +7,104 @@ import { User } from './types';
 
 const SESSION_COOKIE = 'app-user-session';
 
+/**
+ * Normalizes the response from authentication RPCs which may return
+ * different formats depending on the database version.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function normalizeAuthResult(data: any) {
+    if (!data) return { user: null, session_id: null };
+
+    // Case 1: Nested object { user: {...}, session_id: "..." }
+    if (data.user) {
+        return { user: data.user, session_id: data.session_id };
+    }
+
+    // Case 2: Array of user objects [{...}]
+    if (Array.isArray(data) && data.length > 0) {
+        return { user: data[0], session_id: null };
+    }
+
+    // Case 3: Direct user object {...}
+    if (data.id && data.email) {
+        return { user: data, session_id: null };
+    }
+
+    return { user: null, session_id: null };
+}
+
+/**
+ * Ensures a session exists for the user. If the RPC didn't return one,
+ * it attempts to create one manually.
+ */
+async function ensureSession(userId: string, existingSessionId?: string | null): Promise<string> {
+    if (existingSessionId) return existingSessionId;
+
+    const { data, error } = await supabase
+        .from('sessions')
+        .insert({
+            user_id: userId,
+            expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+        })
+        .select()
+        .single();
+
+    if (error) {
+        console.error('Manual session creation failed:', error);
+        throw new Error('Authentication established but session creation failed. Please contact an administrator.');
+    }
+
+    return data.id;
+}
+
 export async function login(email: string, password: string) {
   const hashedPassword = await hashPassword(password, email);
 
-  const { data, error } = await supabase.rpc('authenticate_user', {
+  const { data: rawData, error } = await supabase.rpc('authenticate_user', {
     p_email: email,
     p_password: hashedPassword
   });
 
-  if (error || !data || (Array.isArray(data) && data.length === 0)) {
+  if (error || !rawData) {
     return { success: false, error: 'Invalid email or password' };
   }
 
-  const user = Array.isArray(data) ? data[0] : data;
+  const { user, session_id } = normalizeAuthResult(rawData);
+
+  if (!user) {
+    return { success: false, error: 'Invalid response from authentication server' };
+  }
 
   if (!user.active) {
     return { success: false, error: 'Account is deactivated' };
   }
 
-  // Create a verifiable session in the database
-  const { data: sessionRecord, error: sessionError } = await supabase
-    .from('sessions')
-    .insert([{
-      user_id: user.id,
-      expires_at: new Date(Date.now() + 60 * 60 * 24 * 7 * 1000).toISOString()
-    }])
-    .select()
-    .single();
+  try {
+      const finalSessionId = await ensureSession(user.id, session_id);
 
-  if (sessionError || !sessionRecord) {
-    return { success: false, error: 'Failed to create session' };
+      const sessionData = {
+        id: user.id,
+        sessionId: finalSessionId,
+        email: user.email,
+        role: user.role,
+        full_name: user.full_name
+      };
+
+      const token = await signData(sessionData);
+
+      const cookieStore = await cookies();
+      cookieStore.set(SESSION_COOKIE, token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 60 * 60 * 24 * 7 // 1 week
+      });
+
+      return { success: true, user: { ...user, sessionId: finalSessionId } };
+  } catch (err: unknown) {
+      const error = err as Error;
+      return { success: false, error: error.message };
   }
-
-  const sessionData = {
-    id: user.id,
-    sessionId: sessionRecord.id,
-    email: user.email,
-    role: user.role,
-    full_name: user.full_name
-  };
-
-  const token = await signData(sessionData);
-
-  const cookieStore = await cookies();
-  cookieStore.set(SESSION_COOKIE, token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    maxAge: 60 * 60 * 24 * 7 // 1 week
-  });
-
-  return { success: true, user: { ...user, sessionId: sessionRecord.id } };
 }
 
 export async function signup(userData: Partial<User>) {
@@ -66,7 +113,7 @@ export async function signup(userData: Partial<User>) {
   }
   const hashedPassword = await hashPassword(userData.password, userData.email);
 
-  const { data, error } = await supabase.rpc('register_user', {
+  const { data: rawData, error } = await supabase.rpc('register_user', {
       p_full_name: userData.full_name,
       p_email: userData.email,
       p_password: hashedPassword,
@@ -74,49 +121,51 @@ export async function signup(userData: Partial<User>) {
       p_role: userData.role || 'student'
   });
 
-  if (error) {
-    return { success: false, error: error.message };
+  if (error || !rawData) {
+    return { success: false, error: error?.message || 'Signup failed' };
   }
 
-  // Create a verifiable session in the database
-  const { data: sessionRecord, error: sessionError } = await supabase
-    .from('sessions')
-    .insert([{
-      user_id: data.id,
-      expires_at: new Date(Date.now() + 60 * 60 * 24 * 7 * 1000).toISOString()
-    }])
-    .select()
-    .single();
+  const { user, session_id } = normalizeAuthResult(rawData);
 
-  if (sessionError || !sessionRecord) {
-    return { success: false, error: 'Failed to create session' };
+  if (!user) {
+    return { success: false, error: 'Signup succeeded but user data is missing' };
   }
 
-  const sessionData = {
-    id: data.id,
-    sessionId: sessionRecord.id,
-    email: data.email,
-    role: data.role,
-    full_name: data.full_name
-  };
+  try {
+      const finalSessionId = await ensureSession(user.id, session_id);
 
-  const token = await signData(sessionData);
+      const sessionData = {
+        id: user.id,
+        sessionId: finalSessionId,
+        email: user.email,
+        role: user.role,
+        full_name: user.full_name
+      };
 
-  const cookieStore = await cookies();
-  cookieStore.set(SESSION_COOKIE, token, {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    maxAge: 60 * 60 * 24 * 7
-  });
+      const token = await signData(sessionData);
 
-  return { success: true, user: { ...data, sessionId: sessionRecord.id } };
+      const cookieStore = await cookies();
+      cookieStore.set(SESSION_COOKIE, token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 60 * 60 * 24 * 7
+      });
+
+      return { success: true, user: { ...user, sessionId: finalSessionId } };
+  } catch (err: unknown) {
+      const error = err as Error;
+      return { success: false, error: error.message };
+  }
 }
 
 export async function logout() {
   const session = await getSession();
-  if (session?.sessionId) {
-    await supabase.from('sessions').delete().eq('id', session.sessionId);
+  if (session && typeof session === 'object' && 'sessionId' in session) {
+    const sessionId = session.sessionId as string;
+    const { createSupabaseClient } = await import('./supabase');
+    const client = createSupabaseClient(sessionId);
+    await client.from('sessions').delete().eq('id', sessionId);
   }
   const cookieStore = await cookies();
   cookieStore.delete(SESSION_COOKIE);

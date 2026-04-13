@@ -20,7 +20,7 @@ export default function Home() {
 
   useEffect(() => {
     if (user && role) {
-      router.push(`/${role}`);
+      router.replace(`/${role}`);
     }
   }, [user, role, router]);
 
