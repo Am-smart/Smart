@@ -14,28 +14,28 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const clientCache = new Map<string, SupabaseClient>();
 
 /**
- * Creates a Supabase client with optional user email header for RLS.
+ * Creates a Supabase client with optional session header for RLS.
  */
-export const createSupabaseClient = (userEmail?: string) => {
-  if (!userEmail) return supabase;
+export const createSupabaseClient = (sessionId?: string) => {
+  if (!sessionId) return supabase;
 
-  if (clientCache.has(userEmail)) {
-      return clientCache.get(userEmail)!;
+  if (clientCache.has(sessionId)) {
+      return clientCache.get(sessionId)!;
   }
 
   const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     global: {
-      headers: { 'x-user-email': userEmail },
+      headers: { 'x-session-id': sessionId },
     },
   });
 
-  clientCache.set(userEmail, client);
+  clientCache.set(sessionId, client);
   return client;
 };
 
 /**
  * Get a Supabase client with the correct user context.
  */
-export const getClient = (userEmail?: string) => {
-    return createSupabaseClient(userEmail);
+export const getClient = (sessionId?: string) => {
+    return createSupabaseClient(sessionId);
 };

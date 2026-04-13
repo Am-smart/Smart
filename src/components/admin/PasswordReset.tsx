@@ -1,28 +1,31 @@
 import React, { useState } from 'react';
-import { useSupabase } from '@/hooks/useSupabase';
 import { User } from '@/lib/types';
 import { hashPassword } from '@/lib/crypto';
 
 interface PasswordResetProps {
     users: User[];
+    onUpdate: (id: string, updates: Partial<User>) => Promise<void>;
 }
 
-export const PasswordReset: React.FC<PasswordResetProps> = ({ users }) => {
-    const { client } = useSupabase();
-    const [selectedEmail, setSelectedEmail] = useState('');
+export const PasswordReset: React.FC<PasswordResetProps> = ({ users, onUpdate }) => {
+    const [selectedId, setSelectedId] = useState('');
     const [newPassword, setNewPassword] = useState('');
     const [isResetting, setIsResetting] = useState(false);
 
     const handleReset = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!selectedEmail || !newPassword) return;
+        const user = users.find(u => u.id === selectedId);
+        if (!user || !newPassword) return;
         setIsResetting(true);
         try {
-            const hashed = await hashPassword(newPassword, selectedEmail);
-            const { error } = await client.from('users').update({ password: hashed }).eq('email', selectedEmail);
-            if (error) throw error;
-            alert(`Password for ${selectedEmail} has been reset successfully.`);
+            const hashed = await hashPassword(newPassword, user.email);
+            await onUpdate(user.id, {
+                password: hashed,
+                reset_request: null
+            });
+            alert(`Password for ${user.email} has been reset successfully.`);
             setNewPassword('');
+            setSelectedId('');
         } catch (err) {
             console.error('Reset failed:', err);
             alert('Failed to reset password.');
@@ -38,16 +41,23 @@ export const PasswordReset: React.FC<PasswordResetProps> = ({ users }) => {
                 <form onSubmit={handleReset} className="space-y-6">
                     <div>
                         <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">Select User</label>
-                        <select value={selectedEmail} onChange={e => setSelectedEmail(e.target.value)} className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all">
-                            <option value="">Choose a user email...</option>
-                            {users.map(u => <option key={u.email} value={u.email}>{u.email} ({u.full_name})</option>)}
+                        <select value={selectedId} onChange={e => setSelectedId(e.target.value)} className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all">
+                            <option value="">Choose a user with a pending request...</option>
+                            {users.map(u => {
+                                const request = u.reset_request as { reason?: string } | null;
+                                return (
+                                    <option key={u.id} value={u.id}>
+                                        {u.email} ({u.full_name}) - {request?.reason || 'No reason'}
+                                    </option>
+                                );
+                            })}
                         </select>
                     </div>
                     <div>
                         <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">New Password</label>
                         <input type="password" required value={newPassword} onChange={e => setNewPassword(e.target.value)} className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all" placeholder="••••••••" />
                     </div>
-                    <button type="submit" disabled={isResetting || !selectedEmail || !newPassword} className="btn-primary w-full py-4 text-center">
+                    <button type="submit" disabled={isResetting || !selectedId || !newPassword} className="btn-primary w-full py-4 text-center">
                         {isResetting ? 'Processing...' : 'Reset User Password'}
                     </button>
                 </form>

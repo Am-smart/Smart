@@ -21,8 +21,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={inter.className}>
-      <body>
+    <html lang="en" className={`${inter.className} min-w-[280px]`}>
+      <body className="min-h-screen overflow-x-hidden">
         <Script src="https://meet.jit.si/external_api.js" strategy="lazyOnload" />
         <Script id="register-sw" strategy="afterInteractive">
           {`

@@ -15,7 +15,8 @@ $$ language 'plpgsql';
 
 -- 3. Tables (idempotent creation)
 CREATE TABLE IF NOT EXISTS users (
-  email VARCHAR(255) PRIMARY KEY,
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  email VARCHAR(255) UNIQUE NOT NULL,
   full_name VARCHAR(255) NOT NULL,
   phone VARCHAR(50),
   password VARCHAR(255) NOT NULL,
@@ -84,7 +85,8 @@ CREATE TABLE IF NOT EXISTS assignments (
   questions JSONB DEFAULT '[]'::jsonb,
   attachments JSONB DEFAULT '[]'::jsonb,
   status VARCHAR(50) DEFAULT 'draft' CHECK (status IN ('draft', 'published', 'archived')),
-  anti_cheat_enabled BOOLEAN DEFAULT FALSE
+  anti_cheat_enabled BOOLEAN DEFAULT FALSE,
+  regrade_requests_enabled BOOLEAN DEFAULT TRUE
 );
 
 CREATE TABLE IF NOT EXISTS submissions (
@@ -204,6 +206,15 @@ CREATE TABLE IF NOT EXISTS notifications (
   type VARCHAR(50) DEFAULT 'system',
   is_read BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS sessions (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+  user_agent TEXT,
+  ip_address TEXT
 );
 
 CREATE TABLE IF NOT EXISTS broadcasts (
@@ -346,11 +357,73 @@ CREATE INDEX IF NOT EXISTS idx_materials_course ON materials(course_id);
 CREATE INDEX IF NOT EXISTS idx_planner_user_date ON planner(user_id, due_date);
 
 -- 6. Helper Functions
-CREATE OR REPLACE FUNCTION notify_user(target_email VARCHAR, n_title TEXT, n_msg TEXT, n_link TEXT DEFAULT NULL, n_type TEXT DEFAULT 'system')
+CREATE OR REPLACE FUNCTION authenticate_user(p_email VARCHAR, p_password VARCHAR)
+RETURNS SETOF users AS $$
+BEGIN
+  RETURN QUERY
+  SELECT * FROM users
+  WHERE email = p_email AND password = p_password AND active = TRUE;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE OR REPLACE FUNCTION register_user(p_full_name VARCHAR, p_email VARCHAR, p_password VARCHAR, p_phone VARCHAR, p_role VARCHAR)
+RETURNS users AS $$
+DECLARE
+  v_user users;
+  v_count INTEGER;
+  v_caller_role TEXT;
+BEGIN
+  v_caller_role := current_app_role();
+
+  -- Admins can create unlimited users of any role
+  IF v_caller_role = 'admin' THEN
+    INSERT INTO users (full_name, email, password, phone, role, active)
+    VALUES (p_full_name, p_email, p_password, p_phone, p_role, TRUE)
+    RETURNING * INTO v_user;
+    RETURN v_user;
+  END IF;
+
+  -- Public signup logic
+  IF p_role = 'student' THEN
+    INSERT INTO users (full_name, email, password, phone, role, active)
+    VALUES (p_full_name, p_email, p_password, p_phone, p_role, TRUE)
+    RETURNING * INTO v_user;
+  ELSE
+    -- Restrict Teacher/Admin creation to max 3 total
+    SELECT COUNT(*) INTO v_count FROM users WHERE role IN ('teacher', 'admin');
+    IF v_count >= 3 THEN
+      RAISE EXCEPTION 'Public creation of teachers and admins is restricted. Please contact support.';
+    END IF;
+
+    INSERT INTO users (full_name, email, password, phone, role, active)
+    VALUES (p_full_name, p_email, p_password, p_phone, p_role, TRUE)
+    RETURNING * INTO v_user;
+  END IF;
+
+  RETURN v_user;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE OR REPLACE FUNCTION request_password_reset(p_email VARCHAR, p_reason TEXT)
+RETURNS BOOLEAN AS $$
+BEGIN
+  UPDATE users
+  SET reset_request = jsonb_build_object(
+    'requested_at', NOW(),
+    'status', 'pending',
+    'reason', p_reason
+  )
+  WHERE email = p_email;
+
+  RETURN FOUND;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE OR REPLACE FUNCTION notify_user(target_id UUID, n_title TEXT, n_msg TEXT, n_link TEXT DEFAULT NULL, n_type TEXT DEFAULT 'system')
 RETURNS VOID AS $$
 BEGIN
   INSERT INTO notifications (user_id, title, message, link, type)
-  VALUES (target_email, n_title, n_msg, n_link, n_type);
+  VALUES (target_id, n_title, n_msg, n_link, n_type);
 END;
 $$ LANGUAGE plpgsql;
 
@@ -451,26 +524,20 @@ END $$;
 
 -- 8. Storage Buckets
 INSERT INTO storage.buckets (id, name, public)
-VALUES ('materials', 'materials', true), ('assignments', 'assignments', true), ('certificates', 'certificates', true)
+VALUES ('lms-files', 'lms-files', true)
 ON CONFLICT (id) DO NOTHING;
 
 -- 9. Storage Policies
 DO $$
 BEGIN
-    DROP POLICY IF EXISTS "Public view materials" ON storage.objects;
-    CREATE POLICY "Public view materials" ON storage.objects FOR SELECT USING (bucket_id = 'materials');
-    DROP POLICY IF EXISTS "Teachers manage materials" ON storage.objects;
-    CREATE POLICY "Teachers manage materials" ON storage.objects FOR ALL USING (bucket_id = 'materials');
+    DROP POLICY IF EXISTS "Public view files" ON storage.objects;
+    CREATE POLICY "Public view files" ON storage.objects FOR SELECT USING (bucket_id = 'lms-files');
 
-    DROP POLICY IF EXISTS "Students manage own submissions" ON storage.objects;
-    CREATE POLICY "Students manage own submissions" ON storage.objects FOR ALL USING (bucket_id = 'assignments');
-    DROP POLICY IF EXISTS "Teachers view submissions" ON storage.objects;
-    CREATE POLICY "Teachers view submissions" ON storage.objects FOR SELECT USING (bucket_id = 'assignments');
+    DROP POLICY IF EXISTS "Anyone can upload files" ON storage.objects;
+    CREATE POLICY "Anyone can upload files" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'lms-files');
 
-    DROP POLICY IF EXISTS "Users view own certificates" ON storage.objects;
-    CREATE POLICY "Users view own certificates" ON storage.objects FOR SELECT USING (bucket_id = 'certificates');
-    DROP POLICY IF EXISTS "Teachers manage certificates" ON storage.objects;
-    CREATE POLICY "Teachers manage certificates" ON storage.objects FOR ALL USING (bucket_id = 'certificates');
+    DROP POLICY IF EXISTS "Users can manage own files" ON storage.objects;
+    CREATE POLICY "Users can manage own files" ON storage.objects FOR ALL USING (bucket_id = 'lms-files');
 
     DROP POLICY IF EXISTS "Admins full storage access" ON storage.objects;
     CREATE POLICY "Admins full storage access" ON storage.objects FOR ALL USING (true);
@@ -506,18 +573,68 @@ ALTER TABLE system_logs ENABLE ROW LEVEL SECURITY;
 -- Since we use custom auth, we will set a configuration parameter 'app.user_id'
 -- or expect it to be passed via a custom header which PostgREST maps to settings.
 CREATE OR REPLACE FUNCTION current_app_user() RETURNS UUID AS $$
-  SELECT id FROM users WHERE email = current_setting('request.headers', true)::json->>'x-user-email';
-$$ LANGUAGE sql STABLE;
+DECLARE
+  v_session_id TEXT;
+  v_user_id UUID;
+BEGIN
+  v_session_id := current_setting('request.headers', true)::json->>'x-session-id';
+  IF v_session_id IS NULL THEN
+    RETURN NULL;
+  END IF;
+
+  SELECT user_id INTO v_user_id
+  FROM sessions
+  WHERE id = v_session_id::uuid
+  AND expires_at > NOW();
+
+  RETURN v_user_id;
+EXCEPTION
+  WHEN OTHERS THEN
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql STABLE;
 
 CREATE OR REPLACE FUNCTION current_app_role() RETURNS TEXT AS $$
 DECLARE
   v_role TEXT;
 BEGIN
   -- Use SECURITY DEFINER to bypass RLS when checking role
-  SELECT role INTO v_role FROM users WHERE email = current_app_user();
+  SELECT role INTO v_role FROM users WHERE id = current_app_user();
   RETURN v_role;
 END;
 $$ LANGUAGE plpgsql STABLE SECURITY DEFINER;
+
+-- Trigger to enforce user creation limits
+CREATE OR REPLACE FUNCTION enforce_user_creation_limits() RETURNS TRIGGER AS $$
+DECLARE
+  v_count INTEGER;
+  v_caller_role TEXT;
+BEGIN
+  -- If caller is admin, allow anything
+  v_caller_role := current_app_role();
+  IF v_caller_role = 'admin' THEN
+    RETURN NEW;
+  END IF;
+
+  -- Unlimited students
+  IF NEW.role = 'student' THEN
+    RETURN NEW;
+  END IF;
+
+  -- Restrict Teacher/Admin to 3 total
+  SELECT COUNT(*) INTO v_count FROM users WHERE role IN ('teacher', 'admin');
+  IF v_count >= 3 THEN
+    RAISE EXCEPTION 'Public creation of teachers and admins is restricted. Please contact support.';
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS tr_user_creation_limit ON users;
+CREATE TRIGGER tr_user_creation_limit
+  BEFORE INSERT ON users
+  FOR EACH ROW EXECUTE PROCEDURE enforce_user_creation_limits();
 
 -- Security Definer Functions to break RLS recursion
 CREATE OR REPLACE FUNCTION check_is_course_teacher(p_course_id UUID) RETURNS BOOLEAN AS $$
@@ -535,7 +652,7 @@ $$ LANGUAGE sql STABLE SECURITY DEFINER;
 -- Users policies
 CREATE POLICY "Users can view own profile" ON users FOR SELECT USING (id = current_app_user() OR current_app_role() = 'admin');
 CREATE POLICY "Users can update own profile" ON users FOR UPDATE USING (id = current_app_user() OR current_app_role() = 'admin');
--- Policy removed for security -- For login/existence check
+CREATE POLICY "Anyone can sign up" ON users FOR INSERT WITH CHECK (true);
 CREATE POLICY "Admins can manage all users" ON users FOR ALL USING (current_app_role() = 'admin');
 
 -- Courses policies

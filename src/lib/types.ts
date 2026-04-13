@@ -1,14 +1,23 @@
 export type UserRole = 'student' | 'teacher' | 'admin';
 
 export interface User {
+  id: string;
+  sessionId?: string;
   email: string;
-  full_name?: string;
+  full_name: string;
   role: UserRole;
   xp?: number;
   level?: number;
   phone?: string;
   password?: string;
+  created_at: string;
   updated_at?: string;
+  active?: boolean;
+  failed_attempts?: number;
+  lockouts?: number;
+  flagged?: boolean;
+  locked_until?: string | null;
+  reset_request?: Record<string, unknown> | null;
 }
 
 export interface Course {
@@ -17,25 +26,26 @@ export interface Course {
   description?: string;
   category?: string;
   status: 'draft' | 'published' | 'archived';
-  teacher_email: string;
+  teacher_id: string;
   thumbnail_url?: string;
   updated_at?: string;
+  metadata?: Record<string, unknown>;
 }
 
 export interface Enrollment {
-  id: string;
   course_id: string;
-  student_email: string;
+  student_id: string;
+  enrolled_at?: string;
   progress: number;
   completed: boolean;
   courses?: Course;
-  student?: User;
+  users?: User;
 }
 
 export interface Assignment {
   id: string;
   course_id: string;
-  teacher_email?: string;
+  teacher_id: string;
   title: string;
   description?: string;
   due_date: string;
@@ -43,8 +53,9 @@ export interface Assignment {
   points_possible: number;
   allow_late_submissions: boolean;
   anti_cheat_enabled: boolean;
+  regrade_requests_enabled: boolean;
   questions: AssignmentQuestion[];
-  attachments?: string[];
+  attachments?: Record<string, unknown>[];
   courses?: Course;
 }
 
@@ -58,12 +69,13 @@ export interface AssignmentQuestion {
 export interface Quiz {
   id: string;
   course_id: string;
-  teacher_email?: string;
+  teacher_id: string;
   title: string;
   description?: string;
   status: 'draft' | 'published' | 'archived';
   attempts_allowed: number;
   time_limit: number;
+  passing_score: number;
   anti_cheat_enabled: boolean;
   shuffle_questions: boolean;
   start_at?: string;
@@ -86,12 +98,12 @@ export interface QuizQuestion {
 export interface Submission {
   id: string;
   assignment_id: string;
-  student_email: string;
+  student_id: string;
   submitted_at: string;
   submission_text?: string;
   file_url?: string;
-  answers?: Record<number, string>;
-  status: 'draft' | 'submitted' | 'graded';
+  answers?: Record<string, unknown>;
+  status: 'draft' | 'submitted' | 'graded' | 'returned';
   grade?: number;
   final_grade?: number;
   feedback?: string;
@@ -99,15 +111,19 @@ export interface Submission {
   regrade_request?: string;
   assignments?: Assignment;
   graded_at?: string;
+  users?: {
+    full_name: string;
+    email: string;
+  };
 }
 
 export interface QuizSubmission {
   id: string;
   quiz_id: string;
-  student_email: string;
+  student_id: string;
   submitted_at: string;
   started_at: string;
-  answers: Record<number, string | number>;
+  answers: Record<string, unknown>;
   score: number;
   total_points: number;
   status: 'draft' | 'submitted';
@@ -118,7 +134,7 @@ export interface QuizSubmission {
 
 export interface Notification {
   id: string;
-  user_email: string;
+  user_id: string;
   title: string;
   message: string;
   link?: string;
@@ -128,6 +144,7 @@ export interface Notification {
 }
 
 export interface Maintenance {
+  id: string;
   enabled: boolean;
   schedules: MaintenanceSchedule[];
 }
@@ -140,7 +157,7 @@ export interface MaintenanceSchedule {
 
 export interface StudySession {
   id: string;
-  user_email: string;
+  user_id: string;
   course_id: string;
   duration: number;
   started_at: string;
@@ -150,7 +167,7 @@ export interface StudySession {
 export interface LiveClass {
   id: string;
   course_id: string;
-  teacher_email: string;
+  teacher_id: string;
   title: string;
   room_name: string;
   meeting_url?: string;
@@ -162,7 +179,7 @@ export interface LiveClass {
 export interface Attendance {
   id: string;
   live_class_id: string;
-  student_email: string;
+  student_id: string;
   join_time: string;
   leave_time?: string;
   duration?: number;
@@ -171,9 +188,11 @@ export interface Attendance {
 
 export interface PlannerItem {
   id: string;
-  user_email: string;
+  user_id: string;
   title: string;
+  description?: string;
   due_date: string;
+  priority: 'low' | 'medium' | 'high';
   completed: boolean;
   created_at: string;
 }
@@ -186,7 +205,7 @@ export interface Badge {
 }
 
 export interface UserBadge {
-  user_email: string;
+  user_id: string;
   badge_id: string;
   awarded_at: string;
   badges: Badge;
@@ -195,8 +214,9 @@ export interface UserBadge {
 export interface Material {
   id: string;
   course_id: string;
-  teacher_email?: string;
+  teacher_id: string;
   title: string;
+  description?: string;
   file_url: string;
   created_at: string;
 }
@@ -204,16 +224,20 @@ export interface Material {
 export interface Discussion {
   id: string;
   course_id: string;
-  user_email: string;
+  user_id: string;
   content: string;
   parent_id?: string;
   created_at: string;
+  users?: {
+    full_name: string;
+    email: string;
+  };
 }
 
 export interface Certificate {
   id: string;
   course_id: string;
-  student_email: string;
+  student_id: string;
   issued_at: string;
   certificate_url: string;
   metadata?: Record<string, unknown>;

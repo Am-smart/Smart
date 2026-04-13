@@ -4,7 +4,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { createSupabaseClient } from '@/lib/supabase';
 import { User } from '@/lib/types';
 import { useIndexedDB } from '@/hooks/useIndexedDB';
-import { login as loginAction, logout as logoutAction, getSession } from '@/lib/auth-actions';
+import { login as loginAction, signup as signupAction, logout as logoutAction, getSession } from '@/lib/auth-actions';
 
 interface AuthState {
   user: User | null;
@@ -14,6 +14,7 @@ interface AuthState {
 
 interface AuthContextType extends AuthState {
   login: (email: string, pass: string) => Promise<void>;
+  signup: (userData: Partial<User>) => Promise<void>;
   logout: () => Promise<void>;
   updateProfile: (updates: Partial<User>) => Promise<void>;
 }
@@ -29,10 +30,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // 1. Try secure session first
         const session = await getSession();
         if (session) {
-            const { data: user } = await createSupabaseClient().from('users').select('*').eq('email', session.email).single();
+            const client = createSupabaseClient(session.sessionId as string);
+            const { data: user } = await client.from('users').select('*').eq('id', session.id).single();
             if (user) {
-                await setCache('current_user', user);
-                setState({ user: user as User, role: user.role, isLoading: false });
+                const authenticatedUser = { ...user, sessionId: session.sessionId } as User;
+                await setCache('current_user', authenticatedUser);
+                setState({ user: authenticatedUser, role: user.role, isLoading: false });
                 return;
             }
         }
@@ -51,6 +54,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = useCallback(async (email: string, pass: string) => {
     const result = await loginAction(email, pass);
+    if (!result.success) {
+        throw new Error(result.error);
+    }
+
+    const u = result.user as User;
+    await setCache('current_user', u);
+    setState({
+        user: u,
+        role: u.role,
+        isLoading: false
+    });
+  }, [setCache]);
+
+  const signup = useCallback(async (userData: Partial<User>) => {
+    const result = await signupAction(userData);
     if (!result.success) {
         throw new Error(result.error);
     }
@@ -83,8 +101,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setState(prev => ({ ...prev, user: updatedUser }));
 
     if (isOnline) {
-        const client = createSupabaseClient(state.user.email);
-        const { error } = await client.from('users').update(updates).eq('email', state.user.email);
+        const client = createSupabaseClient(state.user.sessionId);
+        const { error } = await client.from('users').update(updates).eq('id', state.user.id);
         if (error) throw error;
     } else {
         await addToQueue('PROFILE_UPDATE', { email: state.user.email, ...updates }, state.user.email);
@@ -94,9 +112,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const contextValue = useMemo(() => ({
     ...state,
     login,
+    signup,
     logout,
     updateProfile
-  }), [state, login, logout, updateProfile]);
+  }), [state, login, signup, logout, updateProfile]);
 
   return (
     <AuthContext.Provider value={contextValue}>

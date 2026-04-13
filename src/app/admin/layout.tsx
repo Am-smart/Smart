@@ -1,12 +1,10 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
-import { useSupabase } from '@/hooks/useSupabase';
 import { AdminSidebar } from "@/components/AdminSidebar";
 import { AdminHeader } from "@/components/AdminHeader";
 import { useRouter, usePathname } from 'next/navigation';
-import { User, Notification } from '@/lib/types';
 
 export default function AdminLayout({
   children,
@@ -14,39 +12,19 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   const { user, role, logout, isLoading: authLoading } = useAuth();
-  const { getNotifications, client } = useSupabase();
-  const [stats, setStats] = useState({ users: 0, reports: 0, health: 100, unreadNotifications: 0 });
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
 
-  const fetchStats = useCallback(async (u: User) => {
-    try {
-      const [allUsers, myNotifications] = await Promise.all([
-        client.from('users').select('id', { count: 'exact' }),
-        getNotifications(u.email) as Promise<Notification[]>
-      ]);
-
-      setStats({
-        users: allUsers.count || 0,
-        reports: 0,
-        health: 100,
-        unreadNotifications: myNotifications.filter((n) => !n.is_read).length
-      });
-    } catch (err) {
-      console.error('Failed to fetch stats:', err);
-    }
-  }, [client, getNotifications]);
 
   useEffect(() => {
     if (!authLoading) {
       if (!user || role !== 'admin') {
         router.push('/');
       } else {
-        fetchStats(user);
       }
     }
-  }, [authLoading, user, role, router, fetchStats]);
+  }, [authLoading, user, role, router]);
 
   const handleLogout = async () => {
     await logout();

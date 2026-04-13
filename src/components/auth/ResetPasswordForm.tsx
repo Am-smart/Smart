@@ -10,32 +10,43 @@ interface ResetPasswordFormProps {
 
 export const ResetPasswordForm: React.FC<ResetPasswordFormProps> = ({ onClose, onShowLogin }) => {
   const [email, setEmail] = useState('');
+  const [reason, setReason] = useState('');
+  const [customReason, setCustomReason] = useState('');
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [error, setError] = useState('');
 
+  const reasons = [
+    "Forgot my password",
+    "Account compromised",
+    "Login issues",
+    "Other"
+  ];
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!reason) {
+        setError('Please select a reason.');
+        return;
+    }
+    const finalReason = reason === 'Other' ? customReason : reason;
+    if (!finalReason) {
+        setError('Please provide a reason.');
+        return;
+    }
+
     try {
       const client = createSupabaseClient();
-      const { data: user, error: fetchError } = await client.from('users').select('email').eq('email', email).maybeSingle();
+      const { data: success, error: rpcError } = await client.rpc('request_password_reset', {
+          p_email: email,
+          p_reason: finalReason
+      });
 
-      if (fetchError) throw fetchError;
-      if (!user) {
+      if (rpcError) throw rpcError;
+      if (!success) {
           setError('No account found with this email.');
           return;
       }
 
-      const { error: updateError } = await client
-        .from('users')
-        .update({
-            reset_request: {
-                requested_at: new Date().toISOString(),
-                status: 'pending'
-            }
-        })
-        .eq('email', email);
-
-      if (updateError) throw updateError;
       setIsSubmitted(true);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Request failed');
@@ -55,16 +66,38 @@ export const ResetPasswordForm: React.FC<ResetPasswordFormProps> = ({ onClose, o
         </div>
       ) : (
         <>
-            <p className="text-sm text-slate-500 mb-6">Enter your email address and we&apos;ll send your request to our administrators for a secure reset.</p>
+            <p className="text-sm text-slate-500 mb-6">Enter your email and the reason for the reset. Our administrators will review your request.</p>
             <form onSubmit={handleSubmit} noValidate className="space-y-4">
                 <input
-                type="email"
-                placeholder="Email Address"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="input-custom"
-                required
+                    type="email"
+                    placeholder="Email Address"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    className="input-custom"
+                    required
                 />
+
+                <select
+                    value={reason}
+                    onChange={e => setReason(e.target.value)}
+                    className="input-custom text-sm"
+                    required
+                >
+                    <option value="">Select Reason...</option>
+                    {reasons.map(r => <option key={r} value={r}>{r}</option>)}
+                </select>
+
+                {reason === 'Other' && (
+                    <input
+                        type="text"
+                        placeholder="Please specify..."
+                        value={customReason}
+                        onChange={e => setCustomReason(e.target.value)}
+                        className="input-custom text-sm"
+                        required
+                    />
+                )}
+
                 <button type="submit" className="btn-primary w-full py-3">Submit Request</button>
                 <p className="text-center text-sm text-slate-600">Remembered your password? <a href="#" onClick={onShowLogin} className="text-primary font-semibold hover:underline">Sign in</a></p>
             </form>

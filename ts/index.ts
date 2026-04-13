@@ -23,47 +23,28 @@ serve(async (req) => {
 
     const supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Verify Authorization: Only allow authenticated admins to trigger broadcasts
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: 'Missing Authorization header' }), {
+    // Verify Session: Only allow authenticated admins to trigger broadcasts
+    const sessionId = req.headers.get('x-session-id');
+    if (!sessionId) {
+      return new Response(JSON.stringify({ error: 'Missing Session ID' }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 401,
       });
     }
 
-    // Since we use a custom session-based approach, we expect the Admin to provide their email and a valid session check.
-    // In a real production environment with Supabase Auth, we would use supabaseClient.auth.getUser(token).
-    // For this implementation, we will verify the user's role from the database.
-    const { data: { user }, error: authError } = await supabaseClient.auth.getUser(authHeader.replace('Bearer ', ''));
+    // Verify session in database
+    const { data: session, error: sessionError } = await supabaseClient
+      .from('sessions')
+      .select('user_id, users(role)')
+      .eq('id', sessionId)
+      .gt('expires_at', new Date().toISOString())
+      .single();
 
-    if (authError || !user) {
-        // Fallback for custom session if Supabase Auth isn't fully utilized for the admin user
-        // We'll check the 'X-Admin-Email' header for now as a secondary verification
-        const adminEmail = req.headers.get('X-Admin-Email');
-        if (adminEmail) {
-            const { data: dbUser } = await supabaseClient.from('users').select('role').eq('email', adminEmail).single();
-            if (!dbUser || dbUser.role !== 'admin') {
-                return new Response(JSON.stringify({ error: 'Unauthorized: Admin privileges required' }), {
-                    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-                    status: 403,
-                });
-            }
-        } else {
-            return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-                status: 401,
-            });
-        }
-    } else {
-        // Verify role from metadata or database
-        const { data: dbUser } = await supabaseClient.from('users').select('role').eq('email', user.email).single();
-        if (!dbUser || dbUser.role !== 'admin') {
-            return new Response(JSON.stringify({ error: 'Unauthorized: Admin privileges required' }), {
-                headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-                status: 403,
-            });
-        }
+    if (sessionError || !session || (session.users as any).role !== 'admin') {
+        return new Response(JSON.stringify({ error: 'Unauthorized: Admin privileges required' }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 403,
+        });
     }
 
     const { type, payload } = await req.json();
@@ -86,7 +67,7 @@ serve(async (req) => {
         });
       }
 
-      let query = supabaseClient.from('users').select('email, notification_preferences');
+      let query = supabaseClient.from('users').select('id, notification_preferences');
       if (role && role !== 'all') {
         query = query.eq('role', role);
       }
@@ -106,7 +87,7 @@ serve(async (req) => {
         // Send notifications in parallel for better performance
         const notifications = filteredUsers.map(user =>
           supabaseClient.rpc('notify_user', {
-            target_email: user.email,
+            target_id: user.id,
             n_title: title,
             n_msg: message,
             n_link: link || null

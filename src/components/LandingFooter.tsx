@@ -1,7 +1,7 @@
 import React from 'react';
 
 interface FooterProps {
-  onRoleSelect: (role: string) => void;
+  onRoleSelect: (role: 'student' | 'teacher' | 'admin') => void;
 }
 
 export const LandingFooter: React.FC<FooterProps> = ({ onRoleSelect }) => {

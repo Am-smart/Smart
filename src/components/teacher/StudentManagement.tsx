@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useSupabase } from '@/hooks/useSupabase';
-import { Enrollment, Course, User } from '@/lib/types';
+import { Enrollment, Course } from '@/lib/types';
 import { Award, Trash2, FileBadge } from 'lucide-react';
 
 interface StudentManagementProps {
@@ -12,12 +12,12 @@ interface StudentManagementProps {
 export const StudentManagement: React.FC<StudentManagementProps> = ({ initialEnrollments, courses, onRefresh }) => {
     const { client } = useSupabase();
     const [isCertModalOpen, setIsCertModalOpen] = useState(false);
-    const [certData, setCertData] = useState({ course_id: '', student_email: '' });
+    const [certData, setCertData] = useState({ course_id: '', student_id: '' });
 
-    const handleUnenroll = async (id: string) => {
+    const handleUnenroll = async (courseId: string, studentId: string) => {
         if (!confirm('Are you sure you want to unenroll this student?')) return;
         try {
-            const { error } = await client.from('enrollments').delete().eq('id', id);
+            const { error } = await client.from('enrollments').delete().eq('course_id', courseId).eq('student_id', studentId);
             if (error) throw error;
             onRefresh();
         } catch (err) {
@@ -55,7 +55,7 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ initialEnr
                         <form onSubmit={handleIssueCert} className="space-y-6">
                             <div>
                                 <label className="block text-xs font-bold uppercase text-slate-500 mb-2">Student</label>
-                                <input type="text" readOnly value={certData.student_email} className="input-custom bg-slate-50" />
+                                <input type="text" readOnly value={certData.student_id} className="input-custom bg-slate-50" />
                             </div>
                             <div>
                                 <label className="block text-xs font-bold uppercase text-slate-500 mb-2">For Course</label>
@@ -90,12 +90,12 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ initialEnr
                             </tr>
                         ) : (
                             initialEnrollments.map(e => {
-                                const student = e.student as User;
+                                const student = e.users;
                                 return (
-                                    <tr key={e.id} className="hover:bg-slate-50/50 transition-colors">
+                                    <tr key={`${e.course_id}-${e.student_id}`} className="hover:bg-slate-50/50 transition-colors">
                                         <td className="px-6 py-4">
-                                            <div className="font-bold text-slate-900">{student?.full_name || e.student_email}</div>
-                                            <div className="text-[10px] text-slate-400 font-medium">{e.student_email}</div>
+                                            <div className="font-bold text-slate-900">{student?.full_name || e.student_id}</div>
+                                            <div className="text-[10px] text-slate-400 font-medium">{e.student_id}</div>
                                         </td>
                                         <td className="px-6 py-4 text-sm text-slate-600">{e.courses?.title}</td>
                                         <td className="px-6 py-4">
@@ -110,7 +110,7 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ initialEnr
                                             <div className="flex justify-end gap-2">
                                                 <button
                                                     onClick={() => {
-                                                        setCertData({ course_id: e.course_id, student_email: e.student_email });
+                                                        setCertData({ course_id: e.course_id, student_id: e.student_id });
                                                         setIsCertModalOpen(true);
                                                     }}
                                                     className="p-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100 transition-colors"
@@ -119,7 +119,7 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ initialEnr
                                                     <Award size={16} />
                                                 </button>
                                                 <button
-                                                    onClick={() => handleUnenroll(e.id)}
+                                                    onClick={() => handleUnenroll(e.course_id, e.student_id)}
                                                     className="p-2 bg-red-50 text-red-500 rounded-xl hover:bg-red-100 transition-colors"
                                                     title="Unenroll Student"
                                                 >

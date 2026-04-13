@@ -25,7 +25,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activePage, onNavigate, isOpen
       />
 
       {/* Sidebar */}
-      <aside className={`fixed left-0 top-0 bottom-0 w-[240px] bg-[#1e293b] text-white p-6 z-[1001] overflow-y-auto transition-transform duration-300 md:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+      <aside className={`fixed left-0 top-0 bottom-0 w-[240px] max-w-[80vw] bg-[#1e293b] text-white p-6 z-[1001] overflow-y-auto transition-transform duration-300 md:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="flex justify-between items-center mb-8">
           <div className="text-xl font-[800] text-[#3b82f6] tracking-tight">{title}</div>
           <button onClick={onClose} className="md:hidden text-2xl text-slate-400">✕</button>

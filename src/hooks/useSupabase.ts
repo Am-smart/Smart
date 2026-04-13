@@ -6,14 +6,14 @@ import { User, Course, Enrollment, Assignment, Quiz, Discussion, Notification, M
 export const useSupabase = () => {
   const { user } = useAuth();
 
-  const client = useMemo(() => getClient(user?.email), [user?.email]);
+  const client = useMemo(() => getClient(user?.sessionId), [user?.sessionId]);
 
   // User operations
-  const getUser = useCallback(async (email: string): Promise<User | null> => {
+  const getUser = useCallback(async (id: string): Promise<User | null> => {
     const { data, error } = await client
       .from('users')
       .select('*')
-      .eq('email', email)
+      .eq('id', id)
       .maybeSingle();
     if (error) throw error;
     return data;
@@ -22,7 +22,7 @@ export const useSupabase = () => {
   const saveUser = useCallback(async (u: Partial<User>): Promise<User> => {
     const { data, error } = await client
       .from('users')
-      .upsert(u, { onConflict: 'email' })
+      .upsert(u, { onConflict: 'id' })
       .select()
       .single();
     if (error) throw error;
@@ -30,10 +30,10 @@ export const useSupabase = () => {
   }, [client]);
 
   // Course operations
-  const getCourses = useCallback(async (teacherEmail?: string): Promise<Course[]> => {
+  const getCourses = useCallback(async (teacherId?: string): Promise<Course[]> => {
     let query = client.from('courses').select('*');
-    if (teacherEmail) {
-      query = query.eq('teacher_email', teacherEmail);
+    if (teacherId) {
+      query = query.eq('teacher_id', teacherId);
     }
     const { data, error } = await query;
     if (error) throw error;
@@ -41,19 +41,19 @@ export const useSupabase = () => {
   }, [client]);
 
   // Enrollment operations
-  const getEnrollments = useCallback(async (studentEmail: string): Promise<Enrollment[]> => {
+  const getEnrollments = useCallback(async (studentId: string): Promise<Enrollment[]> => {
     const { data, error } = await client
       .from('enrollments')
       .select('*, courses(*)')
-      .eq('student_email', studentEmail);
+      .eq('student_id', studentId);
     if (error) throw error;
     return data || [];
   }, [client]);
 
-  const enrollInCourse = useCallback(async (courseId: string, studentEmail: string): Promise<Enrollment> => {
+  const enrollInCourse = useCallback(async (courseId: string, studentId: string): Promise<Enrollment> => {
     const { data, error } = await client
       .from('enrollments')
-      .upsert({ course_id: courseId, student_email: studentEmail }, { onConflict: 'course_id,student_email' })
+      .upsert({ course_id: courseId, student_id: studentId }, { onConflict: 'course_id,student_id' })
       .select()
       .single();
     if (error) throw error;
@@ -61,9 +61,9 @@ export const useSupabase = () => {
   }, [client]);
 
   // Assignment operations
-  const getAssignments = useCallback(async (teacherEmail?: string, courseId?: string): Promise<Assignment[]> => {
+  const getAssignments = useCallback(async (teacherId?: string, courseId?: string): Promise<Assignment[]> => {
     let query = client.from('assignments').select('*, courses(*)');
-    if (teacherEmail) query = query.eq('teacher_email', teacherEmail);
+    if (teacherId) query = query.eq('teacher_id', teacherId);
     if (courseId) query = query.eq('course_id', courseId);
     const { data, error } = await query;
     if (error) throw error;
@@ -71,10 +71,10 @@ export const useSupabase = () => {
   }, [client]);
 
   // Quiz operations
-  const getQuizzes = useCallback(async (courseId?: string, teacherEmail?: string): Promise<Quiz[]> => {
+  const getQuizzes = useCallback(async (courseId?: string, teacherId?: string): Promise<Quiz[]> => {
     let query = client.from('quizzes').select('*, courses(*)');
     if (courseId) query = query.eq('course_id', courseId);
-    if (teacherEmail) query = query.eq('teacher_email', teacherEmail);
+    if (teacherId) query = query.eq('teacher_id', teacherId);
     const { data, error } = await query;
     if (error) throw error;
     return data || [];
@@ -84,7 +84,7 @@ export const useSupabase = () => {
   const getDiscussions = useCallback(async (courseId: string): Promise<Discussion[]> => {
     const { data, error } = await client
       .from('discussions')
-      .select('*')
+      .select('*, users(full_name, email)')
       .eq('course_id', courseId)
       .order('created_at', { ascending: true });
     if (error) throw error;
@@ -92,11 +92,11 @@ export const useSupabase = () => {
   }, [client]);
 
   // Notification operations
-  const getNotifications = useCallback(async (userEmail: string): Promise<Notification[]> => {
+  const getNotifications = useCallback(async (userId: string): Promise<Notification[]> => {
     const { data, error } = await client
       .from('notifications')
       .select('*')
-      .eq('user_email', userEmail)
+      .eq('user_id', userId)
       .order('created_at', { ascending: false });
     if (error) throw error;
     return data || [];

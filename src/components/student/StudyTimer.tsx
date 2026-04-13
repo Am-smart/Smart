@@ -3,11 +3,11 @@ import { useSupabase } from '@/hooks/useSupabase';
 import { Course } from '@/lib/types';
 
 interface StudyTimerProps {
-  userEmail: string;
+  userId: string;
   courses: Course[];
 }
 
-export const StudyTimer: React.FC<StudyTimerProps> = ({ userEmail, courses }) => {
+export const StudyTimer: React.FC<StudyTimerProps> = ({ userId, courses }) => {
   const { client } = useSupabase();
   const [isActive, setIsActive] = useState(false);
   const [seconds, setSeconds] = useState(0);
@@ -51,7 +51,7 @@ export const StudyTimer: React.FC<StudyTimerProps> = ({ userEmail, courses }) =>
     if (duration < 60) return; // Don't save sessions shorter than a minute
 
     const { error } = await client.from('study_sessions').insert([{
-      user_email: userEmail,
+      user_id: userId,
       course_id: selectedCourseId,
       duration,
       started_at: startTime.toISOString(),
@@ -62,8 +62,8 @@ export const StudyTimer: React.FC<StudyTimerProps> = ({ userEmail, courses }) =>
         // Award XP?
         const xpEarned = Math.floor(duration / 60) * 2;
         if (xpEarned > 0) {
-            const { data: user } = await client.from('users').select('xp').eq('email', userEmail).single();
-            await client.from('users').update({ xp: (user?.xp || 0) + xpEarned }).eq('email', userEmail);
+            const { data: user } = await client.from('users').select('xp').eq('id', userId).single();
+            await client.from('users').update({ xp: (user?.xp || 0) + xpEarned }).eq('id', userId);
         }
     }
   };

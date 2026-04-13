@@ -1,25 +1,27 @@
 "use client";
 
 import React, { useState } from 'react';
-import { createSupabaseClient } from '@/lib/supabase';
 import { UserRole } from '@/lib/types';
-import { hashPassword } from '@/lib/crypto';
+import { useAuth } from './AuthContext';
 
 interface SignupFormProps {
+  initialRole?: UserRole;
   onClose: () => void;
   onShowLogin: () => void;
 }
 
-export const SignupForm: React.FC<SignupFormProps> = ({ onClose, onShowLogin }) => {
+export const SignupForm: React.FC<SignupFormProps> = ({ initialRole, onClose, onShowLogin }) => {
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
     phone: '',
     password: '',
     confirmPassword: '',
-    role: 'student' as UserRole
+    role: initialRole || 'student'
   });
   const [error, setError] = useState('');
+
+  const { signup } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,19 +30,14 @@ export const SignupForm: React.FC<SignupFormProps> = ({ onClose, onShowLogin }) 
       return;
     }
     try {
-      const hashedPassword = await hashPassword(formData.password, formData.email);
-      const client = createSupabaseClient();
-      const { error: signupError } = await client
-        .from('users')
-        .insert([{
+      await signup({
           full_name: formData.fullName,
           email: formData.email,
           phone: formData.phone,
-          password: hashedPassword,
+          password: formData.password,
           role: formData.role
-        }]);
-      if (signupError) throw signupError;
-      onShowLogin();
+      });
+      onClose();
     } catch (err: unknown) {
       if (err instanceof Error) {
           setError(err.message || 'Signup failed');

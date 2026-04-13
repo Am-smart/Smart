@@ -5,10 +5,16 @@ interface UserManagementProps {
   users: User[];
   onAdd: () => void;
   onEdit: (user: User) => void;
-  onDelete: (email: string) => Promise<void>;
+  onDelete: (id: string) => Promise<void>;
+  onUpdate: (id: string, updates: Partial<User>) => Promise<void>;
 }
 
-export const UserManagement: React.FC<UserManagementProps> = ({ users, onAdd, onEdit, onDelete }) => {
+export const UserManagement: React.FC<UserManagementProps> = ({ users, onAdd, onEdit, onDelete, onUpdate }) => {
+  const handleLock = async (id: string, minutes: number) => {
+    const lockedUntil = new Date(Date.now() + minutes * 60000).toISOString();
+    await onUpdate(id, { locked_until: lockedUntil, lockouts: (users.find(u => u.id === id)?.lockouts || 0) + 1 });
+  };
+
   return (
     <div>
         <div className="flex justify-between items-center mb-8">
@@ -27,17 +33,46 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, onAdd, on
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                     {users.map(u => (
-                        <tr key={u.email} className="hover:bg-slate-50 transition-colors">
-                            <td className="px-6 py-4 font-medium text-slate-900">{u.full_name}</td>
-                            <td className="px-6 py-4 text-slate-600 text-sm">{u.email}</td>
+                        <tr key={u.id} className="hover:bg-slate-50 transition-colors">
                             <td className="px-6 py-4">
-                                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${u.role === 'admin' ? 'bg-red-100 text-red-700' : u.role === 'teacher' ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-700'}`}>
-                                    {u.role}
-                                </span>
+                                <div className="font-bold text-slate-900">{u.full_name}</div>
+                                <div className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">{u.id}</div>
+                                <div className="flex gap-2 mt-2">
+                                    <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-tighter ${u.role === 'admin' ? 'bg-red-500 text-white' : u.role === 'teacher' ? 'bg-blue-600 text-white' : 'bg-slate-800 text-white'}`}>
+                                        {u.role}
+                                    </span>
+                                    {u.flagged && <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-amber-500 text-white animate-pulse">Flagged</span>}
+                                    {!u.active && <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-slate-400 text-white">Deactivated</span>}
+                                </div>
+                            </td>
+                            <td className="px-6 py-4">
+                                <div className="text-sm font-bold text-slate-600">{u.email}</div>
+                                <div className="text-[10px] text-slate-400 mt-1">Phone: {u.phone || 'N/A'}</div>
+                                <div className="text-[10px] font-mono text-slate-400 mt-0.5">Password: [ENCRYPTED]</div>
+                            </td>
+                            <td className="px-6 py-4">
+                                <div className="space-y-1">
+                                    <div className="text-[10px] text-slate-500 font-bold uppercase">Attempts: <span className="text-slate-900">{u.failed_attempts || 0}</span></div>
+                                    <div className="text-[10px] text-slate-500 font-bold uppercase">Lockouts: <span className="text-slate-900">{u.lockouts || 0}</span></div>
+                                    <div className="text-[10px] text-slate-500 font-bold uppercase">Joined: <span className="text-slate-900">{new Date(u.created_at).toLocaleDateString()}</span></div>
+                                </div>
                             </td>
                             <td className="px-6 py-4 text-right">
-                                <button onClick={() => onEdit(u)} className="text-blue-600 font-bold text-xs uppercase mr-4">Edit</button>
-                                <button onClick={() => onDelete(u.email)} className="text-red-600 font-bold text-xs uppercase">Delete</button>
+                                <div className="flex flex-wrap justify-end gap-2">
+                                    <button onClick={() => onEdit(u)} className="btn-secondary text-[9px] py-1 px-3">Edit</button>
+                                    <button onClick={() => onDelete(u.id)} className="btn-secondary text-[9px] py-1 px-3 text-red-600">Delete</button>
+                                </div>
+                                <div className="flex flex-wrap justify-end gap-1 mt-2">
+                                    <button onClick={() => handleLock(u.id, 30)} className="text-[8px] font-bold uppercase tracking-wider text-slate-400 hover:text-blue-600">Lock 30m</button>
+                                    <button onClick={() => handleLock(u.id, 1440)} className="text-[8px] font-bold uppercase tracking-wider text-slate-400 hover:text-blue-600">Lock 24h</button>
+                                    <button onClick={() => onUpdate(u.id, { locked_until: null, failed_attempts: 0 })} className="text-[8px] font-bold uppercase tracking-wider text-slate-400 hover:text-green-600">Unlock</button>
+                                    <button onClick={() => onUpdate(u.id, { flagged: !u.flagged })} className={`text-[8px] font-bold uppercase tracking-wider ${u.flagged ? 'text-amber-600' : 'text-slate-400 hover:text-amber-600'}`}>
+                                        {u.flagged ? 'Unflag' : 'Flag'}
+                                    </button>
+                                    <button onClick={() => onUpdate(u.id, { active: !u.active })} className={`text-[8px] font-bold uppercase tracking-wider ${u.active ? 'text-slate-400 hover:text-red-600' : 'text-green-600'}`}>
+                                        {u.active ? 'Deactivate' : 'Activate'}
+                                    </button>
+                                </div>
                             </td>
                         </tr>
                     ))}

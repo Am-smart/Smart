@@ -21,7 +21,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const { getMaintenance, getNotifications } = useSupabase();
   const { user } = useAuth();
   const { setCache, getCache, isOnline, pullData } = useIndexedDB();
-  const [maintenance, setMaintenance] = useState<Maintenance>({ enabled: false, schedules: [] });
+  const [maintenance, setMaintenance] = useState<Maintenance>({ id: "system-config", enabled: false, schedules: [] });
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 

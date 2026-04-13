@@ -1,7 +1,7 @@
 import React from 'react';
 
 interface HeroProps {
-  onRoleSelect: (role: string) => void;
+  onRoleSelect: (role: 'student' | 'teacher' | 'admin') => void;
 }
 
 export const Hero: React.FC<HeroProps> = ({ onRoleSelect }) => {
