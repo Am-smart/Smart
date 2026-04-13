@@ -404,16 +404,25 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
-CREATE OR REPLACE FUNCTION request_password_reset(p_email VARCHAR, p_reason TEXT)
+CREATE OR REPLACE FUNCTION request_password_reset(p_email VARCHAR, p_reason TEXT, p_risk_level TEXT DEFAULT 'medium')
 RETURNS BOOLEAN AS $$
 BEGIN
   UPDATE users
-  SET reset_request = jsonb_build_object(
-    'requested_at', NOW(),
-    'status', 'pending',
-    'reason', p_reason
-  )
+  SET
+    reset_request = jsonb_build_object(
+      'requested_at', NOW(),
+      'status', 'pending',
+      'reason', p_reason,
+      'risk_level', p_risk_level
+    ),
+    flagged = CASE WHEN p_risk_level = 'high' THEN TRUE ELSE flagged END
   WHERE email = p_email;
+
+  -- If high risk, notify admins via system logs
+  IF p_risk_level = 'high' THEN
+    INSERT INTO system_logs (level, category, message, metadata)
+    VALUES ('error', 'security', 'High risk password reset request for ' || p_email, jsonb_build_object('email', p_email, 'reason', p_reason));
+  END IF;
 
   RETURN FOUND;
 END;
