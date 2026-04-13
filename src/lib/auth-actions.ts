@@ -58,11 +58,11 @@ async function ensureSession(userId: string, existingSessionId?: string | null):
 }
 
 export async function login(email: string, password: string) {
-  const hashedPassword = await hashPassword(password, email);
-
+  // NOTE: We pass the RAW password to the RPC.
+  // The RPC will verify it using crypt() on the server side.
   const { data: rawData, error } = await supabase.rpc('authenticate_user', {
     p_email: email,
-    p_password: hashedPassword
+    p_password: password
   });
 
   if (error || !rawData) {
@@ -111,7 +111,9 @@ export async function signup(userData: Partial<User>) {
   if (!userData.password || !userData.email) {
       return { success: false, error: 'Email and password are required' };
   }
-  const hashedPassword = await hashPassword(userData.password, userData.email);
+
+  // Hash the password using bcrypt BEFORE storage
+  const hashedPassword = await hashPassword(userData.password);
 
   const { data: rawData, error } = await supabase.rpc('register_user', {
       p_full_name: userData.full_name,

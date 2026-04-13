@@ -1,20 +1,18 @@
+import bcrypt from 'bcryptjs';
+
 /**
- * Hashes a password using SHA-256 with a system salt and the email as a secondary salt.
- * Matches the hashing logic used in the legacy SmartLMS system (core.js).
+ * Hashes a password using bcrypt.
  */
-export async function hashPassword(password: string, email: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const systemSalt = 'smart-lms-v1-';
-  const salt = email.toLowerCase().trim();
+export async function hashPassword(password: string): Promise<string> {
+  const salt = await bcrypt.genSalt(10);
+  return bcrypt.hash(password, salt);
+}
 
-  // Logic from legacy core.js: systemSalt + salt + password
-  const data = encoder.encode(systemSalt + salt + password);
-
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-
-  return hashHex;
+/**
+ * Compares a plain text password with a bcrypt hash.
+ */
+export async function comparePassword(password: string, hash: string): Promise<boolean> {
+  return bcrypt.compare(password, hash);
 }
 
 const SESSION_SECRET = 'smart-lms-v1-session-secret-key-high-entropy';

@@ -33,7 +33,8 @@ export const UserEditor: React.FC<UserEditorProps> = ({ user, onSave, onCancel }
             if (!formData.password) {
                 delete userData.password;
             } else {
-                userData.password = await hashPassword(formData.password, formData.email);
+                // Use bcrypt hashing
+                userData.password = await hashPassword(formData.password);
             }
 
             const { error } = user?.id

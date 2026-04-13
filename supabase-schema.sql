@@ -3,6 +3,7 @@
 
 -- 1. Extensions
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 -- 2. Utility Functions
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -363,10 +364,12 @@ DECLARE
   v_user users;
   v_session_id UUID;
 BEGIN
+  -- Find user by email first
   SELECT * INTO v_user FROM users
-  WHERE email = p_email AND password = p_password AND active = TRUE;
+  WHERE email = p_email AND active = TRUE;
 
-  IF v_user.id IS NULL THEN
+  -- Verify password using bcrypt (crypt from pgcrypto)
+  IF v_user.id IS NULL OR crypt(p_password, v_user.password) != v_user.password THEN
     RETURN NULL;
   END IF;
 
