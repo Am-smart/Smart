@@ -18,7 +18,8 @@ export const PasswordReset: React.FC<PasswordResetProps> = ({ users, onUpdate })
         if (!user || !newPassword) return;
         setIsResetting(true);
         try {
-            const hashed = await hashPassword(newPassword, user.email);
+            // Use bcrypt hashing
+            const hashed = await hashPassword(newPassword);
             await onUpdate(user.id, {
                 password: hashed,
                 reset_request: null
