@@ -90,7 +90,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onClose, onShowSignup, onS
         <button type="submit" className="btn-primary w-full py-2 sm:py-3 text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed" disabled={isLoading}>
           {isLoading ? 'Logging in...' : 'Login'}
         </button>
-        <p className="text-center text-xs sm:text-sm text-slate-600">Don't have an account? <button onClick={(e) => { e.preventDefault(); onShowSignup(); }} className="text-primary font-semibold hover:underline">Sign up</button></p>
+        <p className="text-center text-xs sm:text-sm text-slate-600">Don&apos;t have an account? <button onClick={(e) => { e.preventDefault(); onShowSignup(); }} className="text-primary font-semibold hover:underline">Sign up</button></p>
         <p className="text-center text-xs sm:text-sm text-slate-600"><button onClick={(e) => { e.preventDefault(); onShowReset(); }} className="text-primary font-semibold hover:underline">Forgot your password?</button></p>
       </form>
       {error && <p className="text-red-500 text-xs sm:text-sm mt-4 text-center">{error}</p>}
