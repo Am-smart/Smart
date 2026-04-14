@@ -191,7 +191,7 @@ export async function signup(userData: Partial<User>) {
 
   // Normalize inputs
   const normalizedName = normalizeInput(userData.full_name);
-  const normalizedPhone = userData.phone ? normalizeInput(userData.phone) : null;
+  const normalizedPhone = userData.phone ? normalizeInput(userData.phone) : undefined;
 
   // Hash the password using bcrypt BEFORE storage
   const hashedPassword = await hashPassword(userData.password);

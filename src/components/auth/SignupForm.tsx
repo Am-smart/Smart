@@ -61,7 +61,7 @@ export const SignupForm: React.FC<SignupFormProps> = ({ initialRole, onClose, on
       await signup({
           full_name: normalizedName,
           email: normalizedEmail,
-          phone: formData.phone ? normalizeInput(formData.phone) : null,
+          phone: formData.phone ? normalizeInput(formData.phone) : undefined,
           password: formData.password,
           role: formData.role
       });
