@@ -401,11 +401,15 @@ BEGIN
     VALUES (p_full_name, p_email, p_password, p_phone, p_role, TRUE)
     RETURNING * INTO v_user;
   ELSE
-    -- Public signup logic: Role is always enforced to student unless under limit
-    SELECT COUNT(*) INTO v_count FROM users WHERE role IN ('teacher', 'admin');
-
-    IF p_role IN ('teacher', 'admin') AND v_count >= 3 THEN
-      RAISE EXCEPTION 'Public creation of teachers and admins is restricted (Limit: 3). Please contact support.';
+    -- Public signup logic: Limit public creation of teachers and admins to 3 total
+    -- Only enforce this limit when user is trying to create a teacher or admin account
+    IF p_role IN ('teacher', 'admin') THEN
+      SELECT COUNT(*) INTO v_count FROM users WHERE role IN ('teacher', 'admin');
+      
+      -- Only restrict if limit is reached (>= 3 means 3 or more already exist)
+      IF v_count >= 3 THEN
+        RAISE EXCEPTION 'Public creation of teachers and admins is restricted (Limit: 3). Please contact support.';
+      END IF;
     END IF;
 
     INSERT INTO users (full_name, email, password, phone, role, active)

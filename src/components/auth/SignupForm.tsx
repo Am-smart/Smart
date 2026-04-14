@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { UserRole } from '@/lib/types';
 import { useAuth } from './AuthContext';
 import { validateSignupForm, normalizeEmail, normalizeInput } from '@/lib/validation';
+import { getRoleCount } from '@/lib/data-actions';
 
 interface SignupFormProps {
   initialRole?: UserRole;
@@ -23,8 +24,23 @@ export const SignupForm: React.FC<SignupFormProps> = ({ initialRole, onClose, on
   const [error, setError] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
+  const [roleCounts, setRoleCounts] = useState({ teachers: 0, admins: 0, total: 0 });
 
   const { signup } = useAuth();
+
+  // Fetch role counts on mount
+  useEffect(() => {
+    const fetchRoleCounts = async () => {
+      try {
+        const counts = await getRoleCount();
+        setRoleCounts(counts);
+      } catch (err) {
+        console.error('Failed to fetch role counts:', err);
+      }
+    };
+
+    fetchRoleCounts();
+  }, []);
 
   const handleRoleChange = (role: UserRole) => {
     setFormData(prev => ({ ...prev, role }));
@@ -165,22 +181,37 @@ export const SignupForm: React.FC<SignupFormProps> = ({ initialRole, onClose, on
         <div className="space-y-2">
           <p className="text-xs sm:text-sm font-semibold text-slate-700">Select your role:</p>
           <div className="flex gap-1 sm:gap-2">
-            {(['student', 'teacher', 'admin'] as UserRole[]).map((r) => (
-              <button
-                key={r}
-                type="button"
-                onClick={() => handleRoleChange(r)}
-                disabled={isLoading}
-                className={`flex-1 py-1.5 sm:py-2 rounded-lg sm:rounded-xl border-2 transition-all text-xs sm:text-sm font-bold capitalize disabled:opacity-50 disabled:cursor-not-allowed ${
-                  formData.role === r
-                    ? 'border-primary bg-primary/5 text-primary'
-                    : 'border-slate-100 text-slate-400 hover:border-slate-200'
-                }`}
-              >
-                {r}
-              </button>
-            ))}
+            {(['student', 'teacher', 'admin'] as UserRole[]).map((r) => {
+              const isLimitReached = roleCounts.total >= 3 && (r === 'teacher' || r === 'admin');
+              const isDisabled = isLoading || isLimitReached;
+
+              return (
+                <div key={r} className="flex-1 relative">
+                  <button
+                    type="button"
+                    onClick={() => handleRoleChange(r)}
+                    disabled={isDisabled}
+                    title={isLimitReached ? 'Teacher and admin creation limit reached (3)' : ''}
+                    className={`w-full py-1.5 sm:py-2 rounded-lg sm:rounded-xl border-2 transition-all text-xs sm:text-sm font-bold capitalize disabled:opacity-50 disabled:cursor-not-allowed ${
+                      formData.role === r
+                        ? 'border-primary bg-primary/5 text-primary'
+                        : 'border-slate-100 text-slate-400 hover:border-slate-200'
+                    }`}
+                  >
+                    {r}
+                  </button>
+                  {isLimitReached && (
+                    <span className="absolute -top-5 left-0 right-0 text-center text-red-500 text-xs whitespace-nowrap">Limit reached</span>
+                  )}
+                </div>
+              );
+            })}
           </div>
+          {roleCounts.total >= 3 && (
+            <p className="text-xs text-amber-600 bg-amber-50 p-2 rounded border border-amber-200">
+              Note: Public creation of teachers and admins is limited to 3. Please contact support to create more.
+            </p>
+          )}
         </div>
 
         <button type="submit" className="btn-primary w-full py-2 sm:py-3 text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed" disabled={isLoading}>

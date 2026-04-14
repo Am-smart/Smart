@@ -4,6 +4,7 @@ import { createSupabaseClient } from './supabase';
 import { getSession } from './auth-actions';
 import { revalidatePath } from 'next/cache';
 import { Submission, QuizSubmission } from './types';
+import { supabase } from './supabase';
 
 async function getVerifiedUser() {
   const session = await getSession();
@@ -99,4 +100,35 @@ export async function submitQuiz(quizId: string, submissionData: Partial<QuizSub
     if (error) throw new Error(error.message);
     revalidatePath('/student/quizzes');
     return { success: true };
+}
+
+// Public function to check the count of teachers and admins (for signup form)
+export async function getRoleCount(): Promise<{ teachers: number; admins: number; total: number }> {
+  try {
+    const { data: teachersData, error: teachersError } = await supabase
+      .from('users')
+      .select('id', { count: 'exact' })
+      .eq('role', 'teacher');
+
+    const { data: adminsData, error: adminsError } = await supabase
+      .from('users')
+      .select('id', { count: 'exact' })
+      .eq('role', 'admin');
+
+    if (teachersError || adminsError) {
+      throw new Error('Failed to fetch role counts');
+    }
+
+    const teacherCount = teachersData?.length || 0;
+    const adminCount = adminsData?.length || 0;
+
+    return {
+      teachers: teacherCount,
+      admins: adminCount,
+      total: teacherCount + adminCount
+    };
+  } catch (error) {
+    console.error('Error fetching role count:', error);
+    return { teachers: 0, admins: 0, total: 0 };
+  }
 }
