@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useSupabase } from '@/hooks/useSupabase';
+import { getClient } from '@/lib/supabase';
 import { Maintenance, Notification } from '@/lib/types';
 import { useAuth } from './auth/AuthContext';
 import { useIndexedDB } from '@/hooks/useIndexedDB';
@@ -11,7 +12,7 @@ interface AppContextType {
   notifications: Notification[];
   isSidebarOpen: boolean;
   toggleSidebar: () => void;
-  fetchNotifications: (email: string) => Promise<void>;
+  fetchNotifications: (userId: string) => Promise<void>;
   isOnline: boolean;
 }
 
@@ -47,13 +48,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [getMaintenance, getCache, setCache, isOnline]);
 
-  const fetchNotifications = useCallback(async (email: string) => {
+  const fetchNotifications = useCallback(async (userId: string) => {
     try {
       const cachedNotes = await getCache<Notification[]>('notifications');
       if (cachedNotes) setNotifications(cachedNotes);
 
       if (isOnline) {
-        const n = await getNotifications(email);
+        const n = await getNotifications(userId);
         setNotifications(n);
         await setCache('notifications', n);
       }
@@ -68,12 +69,61 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   useEffect(() => {
     if (user) {
-        fetchNotifications(user.email);
-        if (isOnline) {
-            pullData(user.email, user.role);
+        fetchNotifications(user.id);
+        if (isOnline && user.sessionId) {
+            pullData(user.id, user.sessionId, user.role);
         }
     }
   }, [user, isOnline, pullData, fetchNotifications]);
+
+  // Realtime Subscriptions
+  useEffect(() => {
+    if (!user || !isOnline || !user.sessionId) return;
+
+    const client = getClient(user.sessionId);
+
+    // 1. Subscribe to Notifications
+    let debounceTimer: NodeJS.Timeout;
+    const notesChannel = client.channel(`user-notes-${user.id}`)
+      .on('postgres_changes', {
+          event: '*',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_id=eq.${user.id}`
+      }, () => {
+          clearTimeout(debounceTimer);
+          debounceTimer = setTimeout(() => fetchNotifications(user.id), 500);
+      })
+      .subscribe();
+
+    // 2. Subscribe to Broadcasts
+    const broadcastsChannel = client.channel('global-broadcasts')
+      .on('postgres_changes', {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'broadcasts'
+      }, (payload) => {
+          const newBroadcast = payload.new as { id: string; target_role: string | null; title: string; message: string; link: string | null; created_at: string };
+          if (!newBroadcast.target_role || newBroadcast.target_role === user.role) {
+              setNotifications(prev => [{
+                  id: newBroadcast.id,
+                  user_id: user.id,
+                  title: newBroadcast.title,
+                  message: newBroadcast.message,
+                  link: newBroadcast.link || undefined,
+                  type: 'broadcast',
+                  is_read: false,
+                  created_at: newBroadcast.created_at
+              }, ...prev]);
+          }
+      })
+      .subscribe();
+
+    return () => {
+      client.removeChannel(notesChannel);
+      client.removeChannel(broadcastsChannel);
+    };
+  }, [user, isOnline, fetchNotifications]);
 
   const toggleSidebar = useCallback(() => setIsSidebarOpen(prev => !prev), []);
 

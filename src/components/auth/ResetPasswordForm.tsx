@@ -16,11 +16,13 @@ export const ResetPasswordForm: React.FC<ResetPasswordFormProps> = ({ onClose, o
   const [error, setError] = useState('');
 
   const reasons = [
-    "Forgot my password",
-    "Account compromised",
-    "Login issues",
-    "Other"
+    { label: "I forgot my password.", value: "forgot" },
+    { label: "I think my account is hacked.", value: "hacked" },
+    { label: "I’m having trouble logging in.", value: "trouble" },
+    { label: "Other", value: "other" }
   ];
+
+  const riskMap: Record<string, string> = { forgot: "low", hacked: "high", trouble: "medium", other: "medium" };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,7 +30,9 @@ export const ResetPasswordForm: React.FC<ResetPasswordFormProps> = ({ onClose, o
         setError('Please select a reason.');
         return;
     }
-    const finalReason = reason === 'Other' ? customReason : reason;
+    const selectedLabel = reasons.find(r => r.value === reason)?.label;
+    const finalReason = reason === 'other' ? customReason : selectedLabel;
+
     if (!finalReason) {
         setError('Please provide a reason.');
         return;
@@ -38,7 +42,8 @@ export const ResetPasswordForm: React.FC<ResetPasswordFormProps> = ({ onClose, o
       const client = createSupabaseClient();
       const { data: success, error: rpcError } = await client.rpc('request_password_reset', {
           p_email: email,
-          p_reason: finalReason
+          p_reason: finalReason,
+          p_risk_level: riskMap[reason]
       });
 
       if (rpcError) throw rpcError;
@@ -83,11 +88,22 @@ export const ResetPasswordForm: React.FC<ResetPasswordFormProps> = ({ onClose, o
                     className="input-custom text-sm"
                     required
                 >
-                    <option value="">Select Reason...</option>
-                    {reasons.map(r => <option key={r} value={r}>{r}</option>)}
+                    <option value="">Why are you resetting your password?</option>
+                    {reasons.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
                 </select>
 
-                {reason === 'Other' && (
+                {reason === 'trouble' && (
+                    <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 text-xs text-blue-700 space-y-2">
+                        <p className="font-bold">Before resetting, try these:</p>
+                        <ul className="list-disc ml-4 space-y-1">
+                            <li>Check caps lock</li>
+                            <li>Check the special character used</li>
+                            <li>Try another device</li>
+                        </ul>
+                    </div>
+                )}
+
+                {reason === 'other' && (
                     <input
                         type="text"
                         placeholder="Please specify..."

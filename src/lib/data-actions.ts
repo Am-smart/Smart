@@ -1,20 +1,21 @@
 "use server";
 
-import { supabase } from './supabase';
+import { createSupabaseClient } from './supabase';
 import { getSession } from './auth-actions';
 import { revalidatePath } from 'next/cache';
 import { Submission, QuizSubmission } from './types';
 
 async function getVerifiedUser() {
   const session = await getSession();
-  if (!session) throw new Error('Unauthorized');
+  if (!session || !session.sessionId) throw new Error('Unauthorized');
   return session;
 }
 
 // 1. Enrollment Actions
 export async function enrollInCourse(courseId: string) {
   const user = await getVerifiedUser();
-  const { error } = await supabase
+  const client = createSupabaseClient(user.sessionId as string);
+  const { error } = await client
     .from('enrollments')
     .upsert({
       course_id: courseId,
@@ -30,7 +31,8 @@ export async function enrollInCourse(courseId: string) {
 // 2. Submission Actions
 export async function submitAssignment(assignmentId: string, content: Partial<Submission>) {
   const user = await getVerifiedUser();
-  const { error } = await supabase
+  const client = createSupabaseClient(user.sessionId as string);
+  const { error } = await client
     .from('submissions')
     .insert([{
       assignment_id: assignmentId,
@@ -50,7 +52,8 @@ export async function gradeSubmission(submissionId: string, gradeData: { score: 
   const user = await getVerifiedUser();
   if (user.role !== 'teacher' && user.role !== 'admin') throw new Error('Forbidden');
 
-  const { error } = await supabase
+  const client = createSupabaseClient(user.sessionId as string);
+  const { error } = await client
     .from('submissions')
     .update({
       ...gradeData,
@@ -69,7 +72,8 @@ export async function toggleUserStatus(userId: string, active: boolean) {
   const user = await getVerifiedUser();
   if (user.role !== 'admin') throw new Error('Forbidden');
 
-  const { error } = await supabase
+  const client = createSupabaseClient(user.sessionId as string);
+  const { error } = await client
     .from('users')
     .update({ active })
     .eq('id', userId);
@@ -82,7 +86,8 @@ export async function toggleUserStatus(userId: string, active: boolean) {
 // 5. Quiz Submission
 export async function submitQuiz(quizId: string, submissionData: Partial<QuizSubmission>) {
     const user = await getVerifiedUser();
-    const { error } = await supabase
+    const client = createSupabaseClient(user.sessionId as string);
+    const { error } = await client
       .from('quiz_submissions')
       .insert([{
         quiz_id: quizId,

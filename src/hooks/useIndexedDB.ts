@@ -11,7 +11,7 @@ export interface QueueItem {
   id?: number;
   type: 'ENROLL' | 'SUBMISSION' | 'QUIZ_SUBMISSION' | 'PROFILE_UPDATE' | 'COURSE_SAVE' | 'ASSIGNMENT_SAVE' | 'QUIZ_SAVE';
   payload: unknown;
-  userEmail?: string;
+  sessionId?: string;
   timestamp: number;
 }
 
@@ -74,12 +74,12 @@ export const useIndexedDB = () => {
     });
   }, [db]);
 
-  const addToQueue = useCallback(async (type: QueueItem['type'], payload: unknown, userEmail?: string) => {
+  const addToQueue = useCallback(async (type: QueueItem['type'], payload: unknown, sessionId?: string) => {
     if (!db) return;
     return new Promise<void>((resolve, reject) => {
         const tx = db.transaction(STORE_SYNC, 'readwrite');
         const store = tx.objectStore(STORE_SYNC);
-        const request = store.add({ type, payload, userEmail, timestamp: Date.now() });
+        const request = store.add({ type, payload, sessionId, timestamp: Date.now() });
         request.onsuccess = () => resolve();
         request.onerror = () => reject(request.error);
     });
@@ -116,7 +116,7 @@ export const useIndexedDB = () => {
 
     for (const item of queue) {
       try {
-        const client = createSupabaseClient(item.userEmail);
+        const client = createSupabaseClient(item.sessionId);
         let success = false;
         switch (item.type) {
           case 'ENROLL':
@@ -132,7 +132,7 @@ export const useIndexedDB = () => {
             if (!quizError) success = true;
             break;
           case 'PROFILE_UPDATE':
-            const { error: profError } = await client.from('users').update(item.payload as Partial<User>).eq('email', (item.payload as { email: string }).email);
+            const { error: profError } = await client.from('users').update(item.payload as Partial<User>).eq('id', (item.payload as { id: string }).id);
             if (!profError) success = true;
             break;
           case 'COURSE_SAVE':
@@ -158,14 +158,14 @@ export const useIndexedDB = () => {
     }
   }, [isOnline, db, getQueue, removeFromQueue]);
 
-  const pullData = useCallback(async (userEmail: string, role: string) => {
+  const pullData = useCallback(async (userId: string, sessionId: string, role: string) => {
     if (!isOnline) return;
     try {
-        const client = createSupabaseClient(userEmail);
+        const client = createSupabaseClient(sessionId);
         if (role === 'student') {
             const [courses, enrollments, assignments, quizzes] = await Promise.all([
                 client.from('courses').select('*').eq('status', 'published'),
-                client.from('enrollments').select('*, courses(*)').eq('student_id', userEmail),
+                client.from('enrollments').select('*, courses(*)').eq('student_id', userId),
                 client.from('assignments').select('*, courses(*)').eq('status', 'published'),
                 client.from('quizzes').select('*, courses(*)').eq('status', 'published')
             ]);
@@ -176,9 +176,9 @@ export const useIndexedDB = () => {
             if (quizzes.data) await setCache('all_quizzes', quizzes.data);
         } else if (role === 'teacher') {
              const [courses, assignments, quizzes] = await Promise.all([
-                client.from('courses').select('*').eq('teacher_email', userEmail),
-                client.from('assignments').select('*, courses(*)').eq('teacher_email', userEmail),
-                client.from('quizzes').select('*, courses(*)').eq('teacher_email', userEmail)
+                client.from('courses').select('*').eq('teacher_id', userId),
+                client.from('assignments').select('*, courses(*)').eq('teacher_id', userId),
+                client.from('quizzes').select('*, courses(*)').eq('teacher_id', userId)
             ]);
 
             if (courses.data) await setCache('teacher_courses', courses.data);

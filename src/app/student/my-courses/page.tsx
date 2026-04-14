@@ -22,7 +22,7 @@ export default function MyCoursesPage() {
   return (
     <MyCourses
         enrollments={enrollments}
-        onOpenCourse={() => router.push('/student')}
+        onOpenCourse={(id) => router.push(`/student/courses?id=${id}`)}
     />
   );
 }
