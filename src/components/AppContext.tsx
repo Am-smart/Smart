@@ -50,16 +50,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const fetchNotifications = useCallback(async (userId: string) => {
     try {
+      // Always try cache first for offline support
       const cachedNotes = await getCache<Notification[]>('notifications');
-      if (cachedNotes) setNotifications(cachedNotes);
+      if (cachedNotes && cachedNotes.length > 0) {
+        setNotifications(cachedNotes);
+      }
 
+      // Only fetch from server if online
       if (isOnline) {
-        const n = await getNotifications(userId);
-        setNotifications(n);
-        await setCache('notifications', n);
+        try {
+          const n = await getNotifications(userId);
+          if (n && Array.isArray(n)) {
+            setNotifications(n);
+            await setCache('notifications', n);
+          }
+        } catch (fetchErr) {
+          console.error('Failed to fetch notifications from server:', fetchErr);
+          // Keep cached notifications if server fetch fails
+        }
       }
     } catch (err) {
-      console.error('Failed to fetch notifications:', err);
+      console.error('Failed to initialize notifications:', err);
     }
   }, [getNotifications, getCache, setCache, isOnline]);
 
@@ -80,48 +91,80 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     if (!user || !isOnline || !user.sessionId) return;
 
-    const client = getClient(user.sessionId);
-
-    // 1. Subscribe to Notifications
     let debounceTimer: NodeJS.Timeout;
-    const notesChannel = client.channel(`user-notes-${user.id}`)
-      .on('postgres_changes', {
-          event: '*',
-          schema: 'public',
-          table: 'notifications',
-          filter: `user_id=eq.${user.id}`
-      }, () => {
-          clearTimeout(debounceTimer);
-          debounceTimer = setTimeout(() => fetchNotifications(user.id), 500);
-      })
-      .subscribe();
+    let isMounted = true;
 
-    // 2. Subscribe to Broadcasts
-    const broadcastsChannel = client.channel('global-broadcasts')
-      .on('postgres_changes', {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'broadcasts'
-      }, (payload) => {
-          const newBroadcast = payload.new as { id: string; target_role: string | null; title: string; message: string; link: string | null; created_at: string };
-          if (!newBroadcast.target_role || newBroadcast.target_role === user.role) {
-              setNotifications(prev => [{
-                  id: newBroadcast.id,
-                  user_id: user.id,
-                  title: newBroadcast.title,
-                  message: newBroadcast.message,
-                  link: newBroadcast.link || undefined,
-                  type: 'broadcast',
-                  is_read: false,
-                  created_at: newBroadcast.created_at
-              }, ...prev]);
-          }
-      })
-      .subscribe();
+    const setupSubscriptions = async () => {
+      try {
+        const client = getClient(user.sessionId as string);
+
+        // 1. Subscribe to Notifications
+        const notesChannel = client.channel(`user-notes-${user.id}`)
+          .on('postgres_changes', {
+              event: '*',
+              schema: 'public',
+              table: 'notifications',
+              filter: `user_id=eq.${user.id}`
+          }, () => {
+              clearTimeout(debounceTimer);
+              debounceTimer = setTimeout(() => {
+                if (isMounted) {
+                  fetchNotifications(user.id);
+                }
+              }, 500);
+          })
+          .subscribe((status) => {
+            if (status === 'SUBSCRIBED' && !isMounted) {
+              // Channel is ready but component unmounted, unsubscribe
+              client.removeChannel(notesChannel);
+            }
+          });
+
+        // 2. Subscribe to Broadcasts
+        const broadcastsChannel = client.channel('global-broadcasts')
+          .on('postgres_changes', {
+              event: 'INSERT',
+              schema: 'public',
+              table: 'broadcasts'
+          }, (payload) => {
+              if (!isMounted) return;
+              
+              const newBroadcast = payload.new as { id: string; target_role: string | null; title: string; message: string; link: string | null; created_at: string };
+              if (!newBroadcast.target_role || newBroadcast.target_role === user.role) {
+                  setNotifications(prev => [{
+                      id: newBroadcast.id,
+                      user_id: user.id,
+                      title: newBroadcast.title,
+                      message: newBroadcast.message,
+                      link: newBroadcast.link || undefined,
+                      type: 'broadcast',
+                      is_read: false,
+                      created_at: newBroadcast.created_at
+                  }, ...prev]);
+              }
+          })
+          .subscribe();
+
+        // Return cleanup function
+        return () => {
+          clearTimeout(debounceTimer);
+          if (notesChannel) client.removeChannel(notesChannel);
+          if (broadcastsChannel) client.removeChannel(broadcastsChannel);
+        };
+      } catch (err) {
+        console.error('Failed to setup subscriptions:', err);
+      }
+    };
+
+    let cleanup: (() => void) | undefined;
+    setupSubscriptions().then(fn => {
+      if (fn && isMounted) cleanup = fn;
+    });
 
     return () => {
-      client.removeChannel(notesChannel);
-      client.removeChannel(broadcastsChannel);
+      isMounted = false;
+      if (cleanup) cleanup();
+      clearTimeout(debounceTimer);
     };
   }, [user, isOnline, fetchNotifications]);
 
