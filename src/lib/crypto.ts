@@ -15,7 +15,7 @@ export async function comparePassword(password: string, hash: string): Promise<b
   return bcrypt.compare(password, hash);
 }
 
-const SESSION_SECRET = 'smart-lms-v1-session-secret-key-high-entropy';
+const SESSION_SECRET = process.env.SESSION_SECRET || 'smart-lms-v1-session-secret-key-high-entropy';
 
 export async function signData(data: object): Promise<string> {
     const encoder = new TextEncoder();
