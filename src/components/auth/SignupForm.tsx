@@ -78,10 +78,10 @@ export const SignupForm: React.FC<SignupFormProps> = ({ initialRole, onClose, on
   };
 
   return (
-    <div id="signup" className="bg-white w-full max-w-md rounded-2xl p-8 relative shadow-2xl max-h-[90vh] overflow-y-auto">
-      <button onClick={onClose} className="absolute top-4 right-4 text-2xl text-slate-400 hover:text-slate-600 transition-colors">×</button>
-      <h2 className="text-2xl font-bold text-slate-900 mb-6">Sign Up</h2>
-      <form onSubmit={handleSubmit} noValidate className="space-y-4">
+    <div id="signup" className="bg-white w-full max-w-md rounded-xl sm:rounded-2xl p-4 sm:p-8 relative shadow-2xl max-h-[90vh] overflow-y-auto">
+      <button onClick={onClose} className="absolute top-2 right-2 sm:top-4 sm:right-4 text-xl sm:text-2xl text-slate-400 hover:text-slate-600 transition-colors">×</button>
+      <h2 className="text-lg sm:text-2xl font-bold text-slate-900 mb-4 sm:mb-6 pr-6">Sign Up</h2>
+      <form onSubmit={handleSubmit} noValidate className="space-y-3 sm:space-y-4">
         <div>
           <input
             type="text"
@@ -163,15 +163,15 @@ export const SignupForm: React.FC<SignupFormProps> = ({ initialRole, onClose, on
         </div>
 
         <div className="space-y-2">
-          <p className="text-sm font-semibold text-slate-700">Select your role:</p>
-          <div className="flex gap-2">
+          <p className="text-xs sm:text-sm font-semibold text-slate-700">Select your role:</p>
+          <div className="flex gap-1 sm:gap-2">
             {(['student', 'teacher', 'admin'] as UserRole[]).map((r) => (
               <button
                 key={r}
                 type="button"
                 onClick={() => handleRoleChange(r)}
                 disabled={isLoading}
-                className={`flex-1 py-2 rounded-xl border-2 transition-all text-sm font-bold capitalize disabled:opacity-50 disabled:cursor-not-allowed ${
+                className={`flex-1 py-1.5 sm:py-2 rounded-lg sm:rounded-xl border-2 transition-all text-xs sm:text-sm font-bold capitalize disabled:opacity-50 disabled:cursor-not-allowed ${
                   formData.role === r
                     ? 'border-primary bg-primary/5 text-primary'
                     : 'border-slate-100 text-slate-400 hover:border-slate-200'
@@ -183,12 +183,12 @@ export const SignupForm: React.FC<SignupFormProps> = ({ initialRole, onClose, on
           </div>
         </div>
 
-        <button type="submit" className="btn-primary w-full py-3 disabled:opacity-50 disabled:cursor-not-allowed" disabled={isLoading}>
+        <button type="submit" className="btn-primary w-full py-2 sm:py-3 text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed" disabled={isLoading}>
           {isLoading ? 'Creating Account...' : 'Create Account'}
         </button>
-        <p className="text-center text-sm text-slate-600">Already have an account? <a href="#" onClick={onShowLogin} className="text-primary font-semibold hover:underline">Sign in</a></p>
+        <p className="text-center text-xs sm:text-sm text-slate-600">Already have an account? <button onClick={(e) => { e.preventDefault(); onShowLogin(); }} className="text-primary font-semibold hover:underline">Sign in</button></p>
       </form>
-      {error && <p className="text-red-500 text-sm mt-4 text-center">{error}</p>}
+      {error && <p className="text-red-500 text-xs sm:text-sm mt-4 text-center">{error}</p>}
     </div>
   );
 };
