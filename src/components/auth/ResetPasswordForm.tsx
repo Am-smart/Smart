@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { createSupabaseClient } from '@/lib/supabase';
+import { validateEmail, normalizeEmail, normalizeInput } from '@/lib/validation';
 
 interface ResetPasswordFormProps {
   onClose: () => void;
@@ -14,6 +15,8 @@ export const ResetPasswordForm: React.FC<ResetPasswordFormProps> = ({ onClose, o
   const [customReason, setCustomReason] = useState('');
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const reasons = [
     { label: "I forgot my password.", value: "forgot" },
@@ -26,10 +29,22 @@ export const ResetPasswordForm: React.FC<ResetPasswordFormProps> = ({ onClose, o
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError('');
+    setErrors({});
+
+    // Validate email
+    const emailValidation = validateEmail(email);
+    if (!emailValidation.isValid) {
+      setErrors({ email: emailValidation.errors[0]?.message || 'Invalid email' });
+      return;
+    }
+
+    // Validate reason
     if (!reason) {
         setError('Please select a reason.');
         return;
     }
+
     const selectedLabel = reasons.find(r => r.value === reason)?.label;
     const finalReason = reason === 'other' ? customReason : selectedLabel;
 
@@ -38,11 +53,20 @@ export const ResetPasswordForm: React.FC<ResetPasswordFormProps> = ({ onClose, o
         return;
     }
 
+    if (reason === 'other' && customReason.length < 10) {
+      setError('Please provide more details (at least 10 characters).');
+      return;
+    }
+
+    setIsLoading(true);
     try {
+      const normalizedEmail = normalizeEmail(email);
+      const sanitizedReason = normalizeInput(finalReason);
+      
       const client = createSupabaseClient();
       const { data: success, error: rpcError } = await client.rpc('request_password_reset', {
-          p_email: email,
-          p_reason: finalReason,
+          p_email: normalizedEmail,
+          p_reason: sanitizedReason,
           p_risk_level: riskMap[reason]
       });
 
@@ -55,6 +79,8 @@ export const ResetPasswordForm: React.FC<ResetPasswordFormProps> = ({ onClose, o
       setIsSubmitted(true);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Request failed');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -73,20 +99,29 @@ export const ResetPasswordForm: React.FC<ResetPasswordFormProps> = ({ onClose, o
         <>
             <p className="text-sm text-slate-500 mb-6">Enter your email and the reason for the reset. Our administrators will review your request.</p>
             <form onSubmit={handleSubmit} noValidate className="space-y-4">
-                <input
-                    type="email"
-                    placeholder="Email Address"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="input-custom"
-                    required
-                />
+                <div>
+                    <input
+                        type="email"
+                        placeholder="Email Address"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className={`input-custom ${errors.email ? 'border-red-500 focus:ring-red-500' : ''}`}
+                        required
+                        disabled={isLoading}
+                        aria-invalid={!!errors.email}
+                        aria-describedby={errors.email ? 'email-error' : undefined}
+                    />
+                    {errors.email && (
+                        <p id="email-error" className="text-red-500 text-xs mt-1">{errors.email}</p>
+                    )}
+                </div>
 
                 <select
                     value={reason}
                     onChange={e => setReason(e.target.value)}
                     className="input-custom text-sm"
                     required
+                    disabled={isLoading}
                 >
                     <option value="">Why are you resetting your password?</option>
                     {reasons.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
@@ -106,15 +141,19 @@ export const ResetPasswordForm: React.FC<ResetPasswordFormProps> = ({ onClose, o
                 {reason === 'other' && (
                     <input
                         type="text"
-                        placeholder="Please specify..."
+                        placeholder="Please specify... (at least 10 characters)"
                         value={customReason}
                         onChange={e => setCustomReason(e.target.value)}
                         className="input-custom text-sm"
+                        maxLength={500}
                         required
+                        disabled={isLoading}
                     />
                 )}
 
-                <button type="submit" className="btn-primary w-full py-3">Submit Request</button>
+                <button type="submit" className="btn-primary w-full py-3 disabled:opacity-50 disabled:cursor-not-allowed" disabled={isLoading}>
+                    {isLoading ? 'Submitting...' : 'Submit Request'}
+                </button>
                 <p className="text-center text-sm text-slate-600">Remembered your password? <a href="#" onClick={onShowLogin} className="text-primary font-semibold hover:underline">Sign in</a></p>
             </form>
         </>

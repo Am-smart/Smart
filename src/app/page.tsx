@@ -15,14 +15,16 @@ export default function Home() {
   const [showAuth, setShowAuth] = useState(false);
   const [authView, setAuthView] = useState<'login' | 'signup' | 'reset'>('login');
   const [selectedRole, setSelectedRole] = useState<'student' | 'teacher' | 'admin'>('student');
-  const { user, role } = useAuth();
+  const { user, role, isLoading } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (user && role) {
-      router.replace(`/${role}`);
+    // Only redirect after auth has finished loading and user is authenticated
+    if (!isLoading && user && role) {
+      // Use router.push instead of router.replace for better handling
+      router.push(`/${role}`);
     }
-  }, [user, role, router]);
+  }, [user, role, isLoading, router]);
 
   const toggleAuth = useCallback((view: 'login' | 'signup' = 'login', initialRole?: 'student' | 'teacher' | 'admin') => {
     setAuthView(view);

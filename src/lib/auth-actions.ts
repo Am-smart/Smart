@@ -4,6 +4,8 @@ import { cookies } from 'next/headers';
 import { hashPassword, signData, verifyToken } from './crypto';
 import { supabase } from './supabase';
 import { User } from './types';
+import { validateEmail, validatePassword, validateFullName, validatePhone, normalizeEmail, normalizeInput } from './validation';
+import { isRateLimited, recordAttempt, resetRateLimit, getRemainingAttempts } from './rate-limit';
 
 const SESSION_COOKIE = 'app-user-session';
 
@@ -58,14 +60,49 @@ async function ensureSession(userId: string, existingSessionId?: string | null):
 }
 
 export async function login(email: string, password: string) {
+  // Validate and normalize inputs
+  const emailValidation = validateEmail(email);
+  if (!emailValidation.isValid) {
+    return { success: false, error: emailValidation.errors[0]?.message || 'Invalid email' };
+  }
+
+  if (!password || password.length === 0) {
+    return { success: false, error: 'Password is required' };
+  }
+
+  if (password.length > 128) {
+    return { success: false, error: 'Invalid password' };
+  }
+
+  const normalizedEmail = normalizeEmail(email);
+
+  // Check rate limiting
+  if (isRateLimited(normalizedEmail)) {
+    const remainingTime = Math.ceil(15); // 15 minutes
+    return {
+      success: false,
+      error: `Too many login attempts. Please try again in ${remainingTime} minutes.`
+    };
+  }
+
   // NOTE: We pass the RAW password to the RPC.
   // The RPC will verify it using crypt() on the server side.
   const { data: rawData, error } = await supabase.rpc('authenticate_user', {
-    p_email: email,
+    p_email: normalizedEmail,
     p_password: password
   });
 
   if (error || !rawData) {
+    // Record failed attempt
+    recordAttempt(normalizedEmail);
+    const remaining = getRemainingAttempts(normalizedEmail);
+    
+    if (remaining === 0) {
+      return { success: false, error: 'Too many login attempts. Please try again later.' };
+    } else if (remaining <= 2) {
+      return { success: false, error: `Invalid email or password. ${remaining} attempts remaining.` };
+    }
+    
     return { success: false, error: 'Invalid email or password' };
   }
 
@@ -100,6 +137,9 @@ export async function login(email: string, password: string) {
         maxAge: 60 * 60 * 24 * 7 // 1 week
       });
 
+      // Clear rate limit on successful login
+      resetRateLimit(normalizedEmail);
+
       return { success: true, user: { ...user, sessionId: finalSessionId } };
   } catch (err: unknown) {
       const error = err as Error;
@@ -108,22 +148,65 @@ export async function login(email: string, password: string) {
 }
 
 export async function signup(userData: Partial<User>) {
-  if (!userData.password || !userData.email) {
-      return { success: false, error: 'Email and password are required' };
+  // Validate required fields
+  if (!userData.email || !userData.password || !userData.full_name) {
+      return { success: false, error: 'Email, name, and password are required' };
   }
+
+  // Validate email
+  const emailValidation = validateEmail(userData.email);
+  if (!emailValidation.isValid) {
+    return { success: false, error: emailValidation.errors[0]?.message || 'Invalid email' };
+  }
+
+  const normalizedEmail = normalizeEmail(userData.email);
+
+  // Check rate limiting for signup attempts
+  if (isRateLimited(normalizedEmail)) {
+    return {
+      success: false,
+      error: 'Too many signup attempts. Please try again later.'
+    };
+  }
+
+  // Validate full name
+  const nameValidation = validateFullName(userData.full_name);
+  if (!nameValidation.isValid) {
+    return { success: false, error: nameValidation.errors[0]?.message || 'Invalid name' };
+  }
+
+  // Validate password
+  const passwordValidation = validatePassword(userData.password);
+  if (!passwordValidation.isValid) {
+    return { success: false, error: passwordValidation.errors[0]?.message || 'Password does not meet requirements' };
+  }
+
+  // Validate phone if provided
+  if (userData.phone) {
+    const phoneValidation = validatePhone(userData.phone);
+    if (!phoneValidation.isValid) {
+      return { success: false, error: phoneValidation.errors[0]?.message || 'Invalid phone number' };
+    }
+  }
+
+  // Normalize inputs
+  const normalizedName = normalizeInput(userData.full_name);
+  const normalizedPhone = userData.phone ? normalizeInput(userData.phone) : null;
 
   // Hash the password using bcrypt BEFORE storage
   const hashedPassword = await hashPassword(userData.password);
 
   const { data: rawData, error } = await supabase.rpc('register_user', {
-      p_full_name: userData.full_name,
-      p_email: userData.email,
+      p_full_name: normalizedName,
+      p_email: normalizedEmail,
       p_password: hashedPassword,
-      p_phone: userData.phone || null,
+      p_phone: normalizedPhone,
       p_role: userData.role || 'student'
   });
 
   if (error || !rawData) {
+    // Record failed signup attempt
+    recordAttempt(normalizedEmail);
     return { success: false, error: error?.message || 'Signup failed' };
   }
 
@@ -153,6 +236,9 @@ export async function signup(userData: Partial<User>) {
         sameSite: 'lax',
         maxAge: 60 * 60 * 24 * 7
       });
+
+      // Clear rate limit on successful signup
+      resetRateLimit(normalizedEmail);
 
       return { success: true, user: { ...user, sessionId: finalSessionId } };
   } catch (err: unknown) {
