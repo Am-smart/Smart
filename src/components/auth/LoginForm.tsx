@@ -51,9 +51,9 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onClose, onShowSignup, onS
   };
 
   return (
-    <div id="login" className="bg-white w-full max-w-md rounded-2xl p-8 relative shadow-2xl">
-      <button onClick={onClose} className="absolute top-4 right-4 text-2xl text-slate-400 hover:text-slate-600 transition-colors">×</button>
-      <h2 className="text-2xl font-bold text-slate-900 mb-6">Login</h2>
+    <div id="login" className="bg-white w-full max-w-md rounded-xl sm:rounded-2xl p-4 sm:p-8 relative shadow-2xl">
+      <button onClick={onClose} className="absolute top-2 right-2 sm:top-4 sm:right-4 text-xl sm:text-2xl text-slate-400 hover:text-slate-600 transition-colors">×</button>
+      <h2 className="text-lg sm:text-2xl font-bold text-slate-900 mb-4 sm:mb-6 pr-6">Login</h2>
       <form onSubmit={handleSubmit} noValidate className="space-y-4">
         <div>
           <input
@@ -87,22 +87,13 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onClose, onShowSignup, onS
             <p id="password-error" className="text-red-500 text-xs mt-1">{errors.password}</p>
           )}
         </div>
-        <button type="submit" className="btn-primary w-full py-3 disabled:opacity-50 disabled:cursor-not-allowed" disabled={isLoading}>
+        <button type="submit" className="btn-primary w-full py-2 sm:py-3 text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed" disabled={isLoading}>
           {isLoading ? 'Logging in...' : 'Login'}
         </button>
+        <p className="text-center text-xs sm:text-sm text-slate-600">Don't have an account? <button onClick={(e) => { e.preventDefault(); onShowSignup(); }} className="text-primary font-semibold hover:underline">Sign up</button></p>
+        <p className="text-center text-xs sm:text-sm text-slate-600"><button onClick={(e) => { e.preventDefault(); onShowReset(); }} className="text-primary font-semibold hover:underline">Forgot your password?</button></p>
       </form>
-
-      <div className="mt-6 p-4 bg-slate-50 rounded-xl border border-slate-100">
-        <p className="text-xs font-bold text-slate-500 uppercase mb-2 tracking-wider">Login Help</p>
-        <ul className="text-xs text-slate-600 space-y-1 list-disc list-inside">
-          <li>Check caps lock</li>
-          <li>Ensure no extra spaces in email</li>
-          <li>Try another device if issue persists</li>
-        </ul>
-      </div>
-      <p className="text-center text-sm text-slate-600 mt-6"><a href="#" onClick={onShowReset} className="text-primary hover:underline">Forgot Password?</a></p>
-      <p className="text-center text-sm text-slate-600 mt-2">No account? <a href="#" onClick={onShowSignup} className="text-primary font-semibold hover:underline">Create one</a></p>
-      {error && <p className="text-red-500 text-sm mt-4 text-center">{error}</p>}
+      {error && <p className="text-red-500 text-xs sm:text-sm mt-4 text-center">{error}</p>}
     </div>
   );
 };

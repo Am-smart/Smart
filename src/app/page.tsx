@@ -42,28 +42,30 @@ export default function Home() {
       <LandingFooter onRoleSelect={(r) => toggleAuth('signup', r)} />
 
       {showAuth && (
-        <div className="fixed inset-0 bg-black/50 z-[2000] flex items-center justify-center p-4">
-          {authView === 'login' && (
-            <LoginForm
-              onClose={() => setShowAuth(false)}
-              onShowSignup={() => setAuthView('signup')}
-              onShowReset={() => setAuthView('reset')}
-            />
-          )}
-          {authView === 'signup' && (
-            <SignupForm
-              key={selectedRole}
-              initialRole={selectedRole}
-              onClose={() => setShowAuth(false)}
-              onShowLogin={() => setAuthView('login')}
-            />
-          )}
-          {authView === 'reset' && (
-            <ResetPasswordForm
-              onClose={() => setShowAuth(false)}
-              onShowLogin={() => setAuthView('login')}
-            />
-          )}
+        <div className="fixed inset-0 bg-black/50 z-[2000] flex items-center justify-center p-2 sm:p-4 overflow-y-auto">
+          <div className="flex items-center justify-center min-h-full py-4 sm:py-8">
+            {authView === 'login' && (
+              <LoginForm
+                onClose={() => setShowAuth(false)}
+                onShowSignup={() => setAuthView('signup')}
+                onShowReset={() => setAuthView('reset')}
+              />
+            )}
+            {authView === 'signup' && (
+              <SignupForm
+                key={selectedRole}
+                initialRole={selectedRole}
+                onClose={() => setShowAuth(false)}
+                onShowLogin={() => setAuthView('login')}
+              />
+            )}
+            {authView === 'reset' && (
+              <ResetPasswordForm
+                onClose={() => setShowAuth(false)}
+                onShowLogin={() => setAuthView('login')}
+              />
+            )}
+          </div>
         </div>
       )}
     </div>
