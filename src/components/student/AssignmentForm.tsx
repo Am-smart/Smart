@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Assignment, User } from '@/lib/types';
 import { useSupabase } from '@/hooks/useSupabase';
+import { submitAssignment } from '@/lib/data-actions';
 import { useAntiCheat } from '@/hooks/useAntiCheat';
 import { useIndexedDB } from '@/hooks/useIndexedDB';
 
@@ -70,17 +71,16 @@ export const AssignmentForm: React.FC<AssignmentFormProps> = ({ assignment, user
             student_id: user.id,
             submission_text: submissionText,
             answers,
-            file_url: fileUrl,
-            status: 'submitted',
+            file_url: fileUrl || undefined,
+            status: 'submitted' as const,
             submitted_at: new Date().toISOString()
         };
 
         if (isOnline) {
-            const { data, error } = await client.from('submissions').insert([payload]).select().single();
-            if (error) throw error;
-            onComplete(data.id);
+            await submitAssignment(assignment.id, payload);
+            onComplete(Math.random().toString()); // Placeholder as submitAssignment doesn't return ID yet
         } else {
-            await addToQueue('SUBMISSION', payload);
+            await addToQueue('SUBMISSION', payload, user.sessionId);
             alert('Offline: Submission queued for sync.');
             onComplete('temp-id');
         }

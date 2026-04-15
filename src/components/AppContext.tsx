@@ -6,6 +6,7 @@ import { getClient } from '@/lib/supabase';
 import { Maintenance, Notification } from '@/lib/types';
 import { useAuth } from './auth/AuthContext';
 import { useIndexedDB } from '@/hooks/useIndexedDB';
+import { Toast, ToastMessage, ToastType } from './ui/Toast';
 
 interface AppContextType {
   maintenance: Maintenance;
@@ -14,6 +15,7 @@ interface AppContextType {
   toggleSidebar: () => void;
   fetchNotifications: (userId: string) => Promise<void>;
   isOnline: boolean;
+  addToast: (message: string, type: ToastType, duration?: number) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -25,6 +27,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [maintenance, setMaintenance] = useState<Maintenance>({ id: "system-config", enabled: false, schedules: [] });
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+
+  const addToast = useCallback((message: string, type: ToastType, duration?: number) => {
+    const id = Math.random().toString(36).substring(2, 9);
+    setToasts(prev => [...prev, { id, message, type, duration }]);
+  }, []);
+
+  const removeToast = useCallback((id: string) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
+  }, []);
 
   // Guard to prevent multiple initializations
   const initialized = useRef(false);
@@ -77,6 +89,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     init();
   }, [init]);
+
+  const wasOnline = useRef(isOnline);
+
+  useEffect(() => {
+    if (wasOnline.current !== isOnline) {
+      if (isOnline) {
+        addToast('Back online - Synchronizing your data...', 'online');
+      } else {
+        addToast('Working offline - Some features may be limited.', 'offline');
+      }
+      wasOnline.current = isOnline;
+    }
+  }, [isOnline, addToast]);
 
   useEffect(() => {
     if (user) {
@@ -176,12 +201,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     isSidebarOpen,
     toggleSidebar,
     fetchNotifications,
-    isOnline
-  }), [maintenance, notifications, isSidebarOpen, toggleSidebar, fetchNotifications, isOnline]);
+    isOnline,
+    addToast
+  }), [maintenance, notifications, isSidebarOpen, toggleSidebar, fetchNotifications, isOnline, addToast]);
 
   return (
     <AppContext.Provider value={value}>
       {children}
+      <Toast toasts={toasts} removeToast={removeToast} />
     </AppContext.Provider>
   );
 };
