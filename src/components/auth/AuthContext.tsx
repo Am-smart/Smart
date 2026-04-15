@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
-import { createSupabaseClient } from '@/lib/supabase';
+import { createSupabaseClient, supabase } from '@/lib/supabase';
 import { User, UserRole } from '@/lib/types';
 import { useIndexedDB } from '@/hooks/useIndexedDB';
 import { login as loginAction, signup as signupAction, logout as logoutAction, getSession } from '@/lib/auth-actions';
@@ -34,7 +34,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const userId = session.id as string;
 
             try {
-              const client = createSupabaseClient(sessionId);
+              // Use sessionId if available, otherwise fall back to singleton
+              const client = sessionId ? createSupabaseClient(sessionId) : supabase;
               const { data: user, error } = await client.from('users').select('*').eq('id', userId).single();
 
               if (user && !error) {
@@ -123,7 +124,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setState(prev => ({ ...prev, user: updatedUser }));
 
     if (isOnline) {
-        const client = createSupabaseClient(state.user.sessionId);
+        // Use sessionId if available for RLS, otherwise use singleton
+        const client = state.user.sessionId ? createSupabaseClient(state.user.sessionId) : supabase;
         const { error } = await client.from('users').update(updates).eq('id', state.user.id);
         if (error) throw error;
     } else {
