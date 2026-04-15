@@ -1,12 +1,16 @@
 import { useAuth } from '@/components/auth/AuthContext';
 import { useMemo, useCallback } from 'react';
-import { getClient } from '@/lib/supabase';
+import { getClient, supabase } from '@/lib/supabase';
 import { User, Course, Enrollment, Assignment, Quiz, Discussion, Notification, Maintenance } from '@/lib/types';
 
 export const useSupabase = () => {
   const { user } = useAuth();
 
-  const client = useMemo(() => getClient(user?.sessionId), [user?.sessionId]);
+  // Use singleton if no sessionId, otherwise use user-specific client
+  const client = useMemo(() => {
+    if (!user?.sessionId) return supabase;
+    return getClient(user.sessionId);
+  }, [user?.sessionId]);
 
   // User operations
   const getUser = useCallback(async (id: string): Promise<User | null> => {
