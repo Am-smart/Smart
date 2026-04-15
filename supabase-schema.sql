@@ -616,25 +616,32 @@ ALTER TABLE system_logs ENABLE ROW LEVEL SECURITY;
 -- or expect it to be passed via a custom header which PostgREST maps to settings.
 CREATE OR REPLACE FUNCTION current_app_user() RETURNS UUID AS $$
 DECLARE
+  v_headers JSON;
   v_session_id TEXT;
   v_user_id UUID;
 BEGIN
-  v_session_id := current_setting('request.headers', true)::json->>'x-session-id';
+  -- Use SECURITY DEFINER via sub-function or direct table access if safe
+  -- We assume this function is called in RLS context
+  BEGIN
+    v_headers := current_setting('request.headers', true)::json;
+    v_session_id := v_headers->>'x-session-id';
+  EXCEPTION WHEN OTHERS THEN
+    RETURN NULL;
+  END;
+
   IF v_session_id IS NULL THEN
     RETURN NULL;
   END IF;
 
-  SELECT user_id INTO v_user_id
-  FROM sessions
-  WHERE id = v_session_id::uuid
-  AND expires_at > NOW();
+  -- We need to bypass RLS to check the sessions table
+  SELECT s.user_id INTO v_user_id
+  FROM sessions s
+  WHERE s.id = v_session_id::uuid
+  AND s.expires_at > NOW();
 
   RETURN v_user_id;
-EXCEPTION
-  WHEN OTHERS THEN
-    RETURN NULL;
 END;
-$$ LANGUAGE plpgsql STABLE;
+$$ LANGUAGE plpgsql STABLE SECURITY DEFINER;
 
 CREATE OR REPLACE FUNCTION current_app_role() RETURNS TEXT AS $$
 DECLARE

@@ -93,6 +93,7 @@ export async function login(email: string, password: string) {
   });
 
   if (error || !rawData) {
+    console.error('Login RPC failed:', error || 'No data returned');
     // Record failed attempt
     recordAttempt(normalizedEmail);
     const remaining = getRemainingAttempts(normalizedEmail);
@@ -204,6 +205,7 @@ export async function signup(userData: Partial<User>) {
   });
 
   if (error || !rawData) {
+    console.error('Signup RPC failed:', error || 'No data returned');
     // Record failed signup attempt
     recordAttempt(normalizedEmail);
     return { success: false, error: error?.message || 'Signup failed' };
