@@ -169,7 +169,7 @@ CREATE TABLE IF NOT EXISTS quiz_submissions (
   total_points INTEGER,
   answers JSONB DEFAULT '{}'::jsonb,
   analytics JSONB DEFAULT '{}'::jsonb,
-  status VARCHAR(50) DEFAULT 'submitted' CHECK (status IN ('draft', 'submitted')),
+  status VARCHAR(50) DEFAULT 'submitted' CHECK (status IN ('in progress', 'submitted')),
   time_spent INTEGER DEFAULT 0,
   started_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   submitted_at TIMESTAMP WITH TIME ZONE,
