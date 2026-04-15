@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Quiz, User } from '@/lib/types';
-import { useSupabase } from '@/hooks/useSupabase';
+import { submitQuiz } from '@/lib/data-actions';
 import { useAntiCheat } from '@/hooks/useAntiCheat';
 import { useIndexedDB } from '@/hooks/useIndexedDB';
 
@@ -12,12 +12,12 @@ interface QuizViewProps {
 }
 
 export const QuizView: React.FC<QuizViewProps> = ({ quiz, user, onComplete, onCancel }) => {
-  const { client } = useSupabase();
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [timeLeft, setTimeLeft] = useState<number | null>(quiz.time_limit ? quiz.time_limit * 60 : null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [result, setResult] = useState<{ score: number; passed: boolean; isTimeout?: boolean } | null>(null);
   const { addToQueue, setCache, getCache, isOnline } = useIndexedDB();
+  const [startedAt] = useState(new Date().toISOString());
 
   useAntiCheat(quiz.anti_cheat_enabled, quiz.title);
 
@@ -42,35 +42,40 @@ export const QuizView: React.FC<QuizViewProps> = ({ quiz, user, onComplete, onCa
     setIsSubmitting(true);
 
     try {
+        const timeSpent = quiz.time_limit ? (quiz.time_limit * 60) - (timeLeft || 0) : 0;
+
+        const payload = {
+            answers,
+            time_spent: timeSpent,
+            started_at: startedAt
+        };
+
         let score = 0;
-        const questions = quiz.questions || [];
-        if (questions.length > 0) {
+        if (isOnline) {
+            const res = await submitQuiz(quiz.id, payload);
+            if (!res.success) throw new Error('Submission failed');
+            score = res.score || 0;
+        } else {
+            // Offline estimation for immediate feedback
             let correct = 0;
+            const questions = quiz.questions || [];
             questions.forEach((q) => {
                 if (answers[q.id] === q.correct_answer) {
                     correct++;
                 }
             });
-            score = Math.round((correct / questions.length) * 100);
+            score = questions.length > 0 ? Math.round((correct / questions.length) * 100) : 0;
+
+            await addToQueue('QUIZ_SUBMISSION', {
+                quiz_id: quiz.id,
+                student_id: user.id,
+                ...payload,
+                score,
+                status: 'submitted'
+            });
         }
 
         const passed = score >= (quiz.passing_score || 60);
-
-        const payload = {
-            quiz_id: quiz.id,
-            student_id: user.id,
-            answers,
-            score,
-            status: 'submitted',
-            submitted_at: new Date().toISOString()
-        };
-
-        if (isOnline) {
-            const { error } = await client.from('quiz_submissions').insert([payload]);
-            if (error) throw error;
-        } else {
-            await addToQueue('QUIZ_SUBMISSION', payload);
-        }
 
         // Clean up progress cache
         await setCache(`quiz_progress_${quiz.id}`, null);
@@ -81,7 +86,7 @@ export const QuizView: React.FC<QuizViewProps> = ({ quiz, user, onComplete, onCa
         alert('Failed to submit quiz. Please try again.');
         setIsSubmitting(false);
     }
-  }, [quiz, user, answers, isSubmitting, result, isOnline, addToQueue, setCache, client]);
+  }, [quiz, user, answers, isSubmitting, result, isOnline, addToQueue, setCache, timeLeft, startedAt]);
 
   useEffect(() => {
     if (timeLeft === null) return;

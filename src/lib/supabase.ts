@@ -6,7 +6,16 @@ const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGci
 /**
  * Singleton instance of the public client.
  */
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+let supabaseInstance: SupabaseClient | null = null;
+
+const getSupabase = () => {
+  if (!supabaseInstance) {
+    supabaseInstance = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  }
+  return supabaseInstance;
+};
+
+export const supabase = getSupabase();
 
 /**
  * Cache for user-specific clients to avoid recreating them on every render.
@@ -17,10 +26,11 @@ const clientCache = new Map<string, SupabaseClient>();
  * Creates a Supabase client with optional session header for RLS.
  */
 export const createSupabaseClient = (sessionId?: string) => {
-  if (!sessionId) return supabase;
+  if (!sessionId) return getSupabase();
 
-  if (clientCache.has(sessionId)) {
-      return clientCache.get(sessionId)!;
+  const cachedClient = clientCache.get(sessionId);
+  if (cachedClient) {
+      return cachedClient;
   }
 
   const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
