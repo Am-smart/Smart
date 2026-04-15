@@ -11,19 +11,10 @@ export const Hero: React.FC<HeroProps> = ({ onRoleSelect }) => {
       <h1 className="text-2xl sm:text-4xl md:text-6xl font-[900] text-[#0f172a] mb-4 sm:mb-6 leading-tight">Modern Learning for Everyone</h1>
       <p className="text-sm sm:text-base md:text-lg lg:text-xl text-[#64748b] max-w-3xl mx-auto mb-8 sm:mb-12 leading-relaxed">Empower your education with our all-in-one learning management system. Collaborative, interactive, and built for results.</p>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-6 max-w-4xl mx-auto mb-12 sm:mb-24">
-        <div onClick={() => onRoleSelect('student')} className="bg-white p-4 sm:p-8 rounded-xl sm:rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-[#f1f5f9] transition-all hover:-translate-y-1 hover:shadow-[0_10px_30px_rgba(0,0,0,0.08)] cursor-pointer">
-          <div className="text-2xl sm:text-4xl mb-3 sm:mb-4">🧑‍🎓</div>
-          <span className="font-bold text-[#334155] text-sm sm:text-lg">Student</span>
-        </div>
-        <div onClick={() => onRoleSelect('teacher')} className="bg-white p-4 sm:p-8 rounded-xl sm:rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-[#f1f5f9] transition-all hover:-translate-y-1 hover:shadow-[0_10px_30px_rgba(0,0,0,0.08)] cursor-pointer">
-          <div className="text-2xl sm:text-4xl mb-3 sm:mb-4">🧑‍🏫</div>
-          <span className="font-bold text-[#334155] text-sm sm:text-lg">Teacher</span>
-        </div>
-        <div onClick={() => onRoleSelect('admin')} className="bg-white p-4 sm:p-8 rounded-xl sm:rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-[#f1f5f9] transition-all hover:-translate-y-1 hover:shadow-[0_10px_30px_rgba(0,0,0,0.08)] cursor-pointer">
-          <div className="text-2xl sm:text-4xl mb-3 sm:mb-4">⚙️</div>
-          <span className="font-bold text-[#334155] text-sm sm:text-lg">Admin</span>
-        </div>
+      <div className="mb-12 sm:mb-24">
+        <button onClick={() => onRoleSelect('student')} className="bg-[#2563eb] text-white px-8 sm:px-12 py-3 sm:py-4 rounded-xl sm:rounded-2xl font-bold text-base sm:text-lg transition-all hover:bg-[#1d4ed8] hover:shadow-lg">
+          Get Started
+        </button>
       </div>
 
       <div id="features" className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-8 text-left mt-8 sm:mt-16">

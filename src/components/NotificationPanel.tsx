@@ -9,6 +9,7 @@ interface NotificationPanelProps {
   notifications: Notification[];
   onClose: () => void;
   onNotificationClick: (notification: Notification) => Promise<void>;
+  onClearAll?: () => void;
 }
 
 // Helper function to parse deep links and navigate
@@ -65,10 +66,26 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = ({
   notifications,
   onClose,
   onNotificationClick,
+  onClearAll,
 }) => {
   const router = useRouter();
   const [isNavigating, setIsNavigating] = useState(false);
+  const [isClearing, setIsClearing] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
+
+  const handleClearAll = async () => {
+    if (notifications.length === 0) return;
+    if (!window.confirm('Are you sure you want to clear all notifications?')) return;
+
+    setIsClearing(true);
+    try {
+      if (onClearAll) {
+        await onClearAll();
+      }
+    } finally {
+      setIsClearing(false);
+    }
+  };
 
   // Close panel when clicking outside
   useEffect(() => {
