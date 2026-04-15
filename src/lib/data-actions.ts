@@ -1,10 +1,9 @@
 "use server";
 
-import { createSupabaseClient } from './supabase';
+import { supabase } from './supabase';
 import { getSession } from './auth-actions';
 import { revalidatePath } from 'next/cache';
 import { Submission, QuizSubmission } from './types';
-import { supabase } from './supabase';
 
 async function getVerifiedUser() {
   const session = await getSession();
@@ -15,8 +14,7 @@ async function getVerifiedUser() {
 // 1. Enrollment Actions
 export async function enrollInCourse(courseId: string) {
   const user = await getVerifiedUser();
-  const client = createSupabaseClient(user.sessionId as string);
-  const { error } = await client
+  const { error } = await supabase
     .from('enrollments')
     .upsert({
       course_id: courseId,
@@ -32,8 +30,7 @@ export async function enrollInCourse(courseId: string) {
 // 2. Submission Actions
 export async function submitAssignment(assignmentId: string, content: Partial<Submission>) {
   const user = await getVerifiedUser();
-  const client = createSupabaseClient(user.sessionId as string);
-  const { error } = await client
+  const { error } = await supabase
     .from('submissions')
     .insert([{
       assignment_id: assignmentId,

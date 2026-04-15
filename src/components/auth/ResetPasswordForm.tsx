@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
-import { createSupabaseClient } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 import { validateEmail, normalizeEmail, normalizeInput } from '@/lib/validation';
 
 interface ResetPasswordFormProps {
@@ -63,8 +63,7 @@ export const ResetPasswordForm: React.FC<ResetPasswordFormProps> = ({ onClose, o
       const normalizedEmail = normalizeEmail(email);
       const sanitizedReason = normalizeInput(finalReason);
       
-      const client = createSupabaseClient();
-      const { data: success, error: rpcError } = await client.rpc('request_password_reset', {
+      const { data: success, error: rpcError } = await supabase.rpc('request_password_reset', {
           p_email: normalizedEmail,
           p_reason: sanitizedReason,
           p_risk_level: riskMap[reason]

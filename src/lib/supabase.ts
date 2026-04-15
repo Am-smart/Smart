@@ -24,6 +24,8 @@ const clientCache = new Map<string, SupabaseClient>();
 
 /**
  * Creates a Supabase client with optional session header for RLS.
+ * Always returns the singleton instance when no sessionId is provided.
+ * Only creates user-specific clients when a sessionId is provided.
  */
 export const createSupabaseClient = (sessionId?: string) => {
   if (!sessionId) return getSupabase();
@@ -45,6 +47,7 @@ export const createSupabaseClient = (sessionId?: string) => {
 
 /**
  * Get a Supabase client with the correct user context.
+ * Prefers the singleton when no sessionId is provided.
  */
 export const getClient = (sessionId?: string) => {
     return createSupabaseClient(sessionId);
