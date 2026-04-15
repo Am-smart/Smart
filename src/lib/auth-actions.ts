@@ -1,7 +1,7 @@
 "use server";
 
 import { cookies } from 'next/headers';
-import { hashPassword, signData, verifyToken } from './crypto';
+import { signData, verifyToken } from './crypto';
 import { supabase } from './supabase';
 import { User } from './types';
 import { validateEmail, validatePassword, validateFullName, validatePhone, normalizeEmail, normalizeInput } from './validation';
@@ -93,6 +93,7 @@ export async function login(email: string, password: string) {
   });
 
   if (error || !rawData) {
+    console.error('Login RPC failed:', error || 'No data returned');
     // Record failed attempt
     recordAttempt(normalizedEmail);
     const remaining = getRemainingAttempts(normalizedEmail);
@@ -193,18 +194,18 @@ export async function signup(userData: Partial<User>) {
   const normalizedName = normalizeInput(userData.full_name);
   const normalizedPhone = userData.phone ? normalizeInput(userData.phone) : undefined;
 
-  // Hash the password using bcrypt BEFORE storage
-  const hashedPassword = await hashPassword(userData.password);
-
+  // NOTE: We pass the RAW password to the RPC.
+  // The RPC will hash it using crypt() on the server side.
   const { data: rawData, error } = await supabase.rpc('register_user', {
       p_full_name: normalizedName,
       p_email: normalizedEmail,
-      p_password: hashedPassword,
+      p_password: userData.password,
       p_phone: normalizedPhone,
       p_role: userData.role || 'student'
   });
 
   if (error || !rawData) {
+    console.error('Signup RPC failed:', error || 'No data returned');
     // Record failed signup attempt
     recordAttempt(normalizedEmail);
     return { success: false, error: error?.message || 'Signup failed' };

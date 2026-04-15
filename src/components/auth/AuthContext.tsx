@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { createSupabaseClient } from '@/lib/supabase';
-import { User } from '@/lib/types';
+import { User, UserRole } from '@/lib/types';
 import { useIndexedDB } from '@/hooks/useIndexedDB';
 import { login as loginAction, signup as signupAction, logout as logoutAction, getSession } from '@/lib/auth-actions';
 
@@ -29,14 +29,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const initAuth = async () => {
         // 1. Try secure session first
         const session = await getSession();
-        if (session) {
-            const client = createSupabaseClient(session.sessionId as string);
-            const { data: user } = await client.from('users').select('*').eq('id', session.id).single();
-            if (user) {
-                const authenticatedUser = { ...user, sessionId: session.sessionId } as User;
-                await setCache('current_user', authenticatedUser);
-                setState({ user: authenticatedUser, role: user.role, isLoading: false });
-                return;
+        if (session && typeof session === 'object' && 'id' in session) {
+            const sessionId = session.sessionId as string;
+            const userId = session.id as string;
+
+            try {
+              const client = createSupabaseClient(sessionId);
+              const { data: user, error } = await client.from('users').select('*').eq('id', userId).single();
+
+              if (user && !error) {
+                  const authenticatedUser = { ...user, sessionId } as User;
+                  await setCache('current_user', authenticatedUser);
+                  setState({ user: authenticatedUser, role: user.role, isLoading: false });
+                  return;
+              } else {
+                  console.warn('Profile fetch failed, falling back to session metadata:', error);
+                  // Fallback to session metadata if DB fetch fails but session is valid
+                  const authenticatedUser = {
+                    id: userId,
+                    email: session.email as string,
+                    full_name: session.full_name as string,
+                    role: session.role as UserRole,
+                    sessionId
+                  } as User;
+                  setState({ user: authenticatedUser, role: authenticatedUser.role, isLoading: false });
+                  return;
+              }
+            } catch (err) {
+              console.error('Auth initialization error:', err);
             }
         }
 

@@ -169,7 +169,7 @@ CREATE TABLE IF NOT EXISTS quiz_submissions (
   total_points INTEGER,
   answers JSONB DEFAULT '{}'::jsonb,
   analytics JSONB DEFAULT '{}'::jsonb,
-  status VARCHAR(50) DEFAULT 'submitted' CHECK (status IN ('draft', 'submitted')),
+  status VARCHAR(50) DEFAULT 'submitted' CHECK (status IN ('in progress', 'submitted')),
   time_spent INTEGER DEFAULT 0,
   started_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   submitted_at TIMESTAMP WITH TIME ZONE,
@@ -369,9 +369,13 @@ BEGIN
   WHERE email = p_email AND active = TRUE;
 
   -- Verify password using bcrypt (crypt from pgcrypto)
-  IF v_user.id IS NULL OR crypt(p_password, v_user.password) != v_user.password THEN
+  -- We use = operator for comparison as crypt returns the hash
+  IF v_user.id IS NULL OR v_user.password IS NULL OR crypt(p_password, v_user.password) != v_user.password THEN
     RETURN NULL;
   END IF;
+
+  -- Update last login
+  UPDATE users SET last_login = NOW(), failed_attempts = 0 WHERE id = v_user.id;
 
   -- Create session
   INSERT INTO sessions (user_id, expires_at)
@@ -392,13 +396,17 @@ DECLARE
   v_session_id UUID;
   v_count INTEGER;
   v_caller_role TEXT;
+  v_hashed_password TEXT;
 BEGIN
   v_caller_role := current_app_role();
+
+  -- Hash the password in the database
+  v_hashed_password := crypt(p_password, gen_salt('bf', 10));
 
   -- Admins can create unlimited users of any role
   IF v_caller_role = 'admin' THEN
     INSERT INTO users (full_name, email, password, phone, role, active)
-    VALUES (p_full_name, p_email, p_password, p_phone, p_role, TRUE)
+    VALUES (p_full_name, p_email, v_hashed_password, p_phone, p_role, TRUE)
     RETURNING * INTO v_user;
   ELSE
     -- Public signup logic: Limit public creation of teachers and admins to 3 total
@@ -413,7 +421,7 @@ BEGIN
     END IF;
 
     INSERT INTO users (full_name, email, password, phone, role, active)
-    VALUES (p_full_name, p_email, p_password, p_phone, p_role, TRUE)
+    VALUES (p_full_name, p_email, v_hashed_password, p_phone, p_role, TRUE)
     RETURNING * INTO v_user;
   END IF;
 
@@ -608,25 +616,32 @@ ALTER TABLE system_logs ENABLE ROW LEVEL SECURITY;
 -- or expect it to be passed via a custom header which PostgREST maps to settings.
 CREATE OR REPLACE FUNCTION current_app_user() RETURNS UUID AS $$
 DECLARE
+  v_headers JSON;
   v_session_id TEXT;
   v_user_id UUID;
 BEGIN
-  v_session_id := current_setting('request.headers', true)::json->>'x-session-id';
+  -- Use SECURITY DEFINER via sub-function or direct table access if safe
+  -- We assume this function is called in RLS context
+  BEGIN
+    v_headers := current_setting('request.headers', true)::json;
+    v_session_id := v_headers->>'x-session-id';
+  EXCEPTION WHEN OTHERS THEN
+    RETURN NULL;
+  END;
+
   IF v_session_id IS NULL THEN
     RETURN NULL;
   END IF;
 
-  SELECT user_id INTO v_user_id
-  FROM sessions
-  WHERE id = v_session_id::uuid
-  AND expires_at > NOW();
+  -- We need to bypass RLS to check the sessions table
+  SELECT s.user_id INTO v_user_id
+  FROM sessions s
+  WHERE s.id = v_session_id::uuid
+  AND s.expires_at > NOW();
 
   RETURN v_user_id;
-EXCEPTION
-  WHEN OTHERS THEN
-    RETURN NULL;
 END;
-$$ LANGUAGE plpgsql STABLE;
+$$ LANGUAGE plpgsql STABLE SECURITY DEFINER;
 
 CREATE OR REPLACE FUNCTION current_app_role() RETURNS TEXT AS $$
 DECLARE

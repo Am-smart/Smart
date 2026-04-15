@@ -37,7 +37,7 @@ export async function submitAssignment(assignmentId: string, content: Partial<Su
       student_id: user.id,
       ...content,
       submitted_at: new Date().toISOString(),
-      status: 'pending'
+      status: 'submitted'
     }]);
 
   if (error) throw new Error(error.message);
@@ -85,18 +85,47 @@ export async function toggleUserStatus(userId: string, active: boolean) {
 export async function submitQuiz(quizId: string, submissionData: Partial<QuizSubmission>) {
     const user = await getVerifiedUser();
     const client = createSupabaseClient(user.sessionId as string);
+
+    // Fetch quiz to validate and calculate score server-side
+    const { data: quiz, error: quizError } = await client
+      .from('quizzes')
+      .select('questions, passing_score')
+      .eq('id', quizId)
+      .single();
+
+    if (quizError || !quiz) throw new Error('Quiz not found');
+
+    const answers = (submissionData.answers as Record<string, string>) || {};
+    const questions = (quiz.questions as { id: string; correct_answer: string; points?: number }[]) || [];
+    let correct = 0;
+
+    questions.forEach((q) => {
+        if (answers[q.id] === q.correct_answer) {
+            correct++;
+        }
+    });
+
+    const calculatedScore = questions.length > 0 ? Math.round((correct / questions.length) * 100) : 0;
+    const totalPoints = questions.reduce((acc, q) => acc + (q.points || 0), 0);
+
     const { error } = await client
       .from('quiz_submissions')
       .insert([{
         quiz_id: quizId,
         student_id: user.id,
-        ...submissionData,
-        submitted_at: new Date().toISOString()
+        answers,
+        score: calculatedScore,
+        total_points: totalPoints,
+        status: 'submitted',
+        submitted_at: new Date().toISOString(),
+        time_spent: submissionData.time_spent || 0,
+        violation_count: submissionData.violation_count || 0,
+        started_at: submissionData.started_at || new Date().toISOString()
       }]);
 
     if (error) throw new Error(error.message);
     revalidatePath('/student/quizzes');
-    return { success: true };
+    return { success: true, score: calculatedScore };
 }
 
 // Public function to check the count of teachers and admins (for signup form)
