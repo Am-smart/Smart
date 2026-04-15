@@ -252,9 +252,8 @@ export async function logout() {
   const session = await getSession();
   if (session && typeof session === 'object' && 'sessionId' in session) {
     const sessionId = session.sessionId as string;
-    const { createSupabaseClient } = await import('./supabase');
-    const client = createSupabaseClient(sessionId);
-    await client.from('sessions').delete().eq('id', sessionId);
+    const { supabase, withSession } = await import('./supabase');
+    await withSession(supabase.from('sessions'), sessionId).delete().eq('id', sessionId);
   }
   const cookieStore = await cookies();
   cookieStore.delete(SESSION_COOKIE);

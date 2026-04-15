@@ -1,54 +1,31 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://qwwszltqalhduvkoycmi.supabase.co';
 const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF3d3N6bHRxYWxoZHV2a295Y21pIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ4MTMyODAsImV4cCI6MjA5MDM4OTI4MH0.-RVQsKfdYT_ZieGxd8NyVHwL87zwRITJ-qI2vk0LSxY';
 
 /**
  * Singleton instance of the public client.
+ * Configured to disable all default Supabase Auth behaviors.
  */
-let supabaseInstance: SupabaseClient | null = null;
+export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: {
+    persistSession: false,
+    autoRefreshToken: false,
+    detectSessionInUrl: false,
+  },
+});
 
-const getSupabase = () => {
-  if (!supabaseInstance) {
-    supabaseInstance = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+/**
+ * Helper to inject the session ID into a Supabase query or RPC call.
+ * This avoids creating multiple client instances.
+ */
+export function withSession<T>(query: T, sessionId?: string): T {
+  if (sessionId && query && typeof query === 'object' && 'headers' in query) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const q = query as any;
+    if (q.headers && typeof q.headers.set === 'function') {
+        q.headers.set('x-session-id', sessionId);
+    }
   }
-  return supabaseInstance;
-};
-
-export const supabase = getSupabase();
-
-/**
- * Cache for user-specific clients to avoid recreating them on every render.
- */
-const clientCache = new Map<string, SupabaseClient>();
-
-/**
- * Creates a Supabase client with optional session header for RLS.
- * Always returns the singleton instance when no sessionId is provided.
- * Only creates user-specific clients when a sessionId is provided.
- */
-export const createSupabaseClient = (sessionId?: string) => {
-  if (!sessionId) return getSupabase();
-
-  const cachedClient = clientCache.get(sessionId);
-  if (cachedClient) {
-      return cachedClient;
-  }
-
-  const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-    global: {
-      headers: { 'x-session-id': sessionId },
-    },
-  });
-
-  clientCache.set(sessionId, client);
-  return client;
-};
-
-/**
- * Get a Supabase client with the correct user context.
- * Prefers the singleton when no sessionId is provided.
- */
-export const getClient = (sessionId?: string) => {
-    return createSupabaseClient(sessionId);
-};
+  return query;
+}

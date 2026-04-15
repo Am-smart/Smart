@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { createSupabaseClient } from '@/lib/supabase';
+import { supabase, withSession } from '@/lib/supabase';
 import { Enrollment, Submission, QuizSubmission, Course, Assignment, Quiz, User } from '@/lib/types';
 
 const DB_NAME = 'smartlms-offline-v3';
@@ -116,35 +116,34 @@ export const useIndexedDB = () => {
 
     for (const item of queue) {
       try {
-        const client = createSupabaseClient(item.sessionId);
         let success = false;
         switch (item.type) {
           case 'ENROLL':
-            const { error: enrollError } = await client.from('enrollments').upsert(item.payload as Partial<Enrollment>, { onConflict: 'course_id,student_id' });
+            const { error: enrollError } = await withSession(supabase.from('enrollments'), item.sessionId).upsert(item.payload as Partial<Enrollment>, { onConflict: 'course_id,student_id' });
             if (!enrollError) success = true;
             break;
           case 'SUBMISSION':
-            const { error: subError } = await client.from('submissions').upsert(item.payload as Partial<Submission>, { onConflict: 'assignment_id,student_id' });
+            const { error: subError } = await withSession(supabase.from('submissions'), item.sessionId).upsert(item.payload as Partial<Submission>, { onConflict: 'assignment_id,student_id' });
             if (!subError) success = true;
             break;
           case 'QUIZ_SUBMISSION':
-            const { error: quizError } = await client.from('quiz_submissions').upsert(item.payload as Partial<QuizSubmission>, { onConflict: 'quiz_id,student_id' });
+            const { error: quizError } = await withSession(supabase.from('quiz_submissions'), item.sessionId).upsert(item.payload as Partial<QuizSubmission>, { onConflict: 'quiz_id,student_id' });
             if (!quizError) success = true;
             break;
           case 'PROFILE_UPDATE':
-            const { error: profError } = await client.from('users').update(item.payload as Partial<User>).eq('id', (item.payload as { id: string }).id);
+            const { error: profError } = await withSession(supabase.from('users'), item.sessionId).update(item.payload as Partial<User>).eq('id', (item.payload as { id: string }).id);
             if (!profError) success = true;
             break;
           case 'COURSE_SAVE':
-            const { error: cError } = await client.from('courses').upsert(item.payload as Partial<Course>, { onConflict: 'id' });
+            const { error: cError } = await withSession(supabase.from('courses'), item.sessionId).upsert(item.payload as Partial<Course>, { onConflict: 'id' });
             if (!cError) success = true;
             break;
           case 'ASSIGNMENT_SAVE':
-            const { error: aError } = await client.from('assignments').upsert(item.payload as Partial<Assignment>, { onConflict: 'id' });
+            const { error: aError } = await withSession(supabase.from('assignments'), item.sessionId).upsert(item.payload as Partial<Assignment>, { onConflict: 'id' });
             if (!aError) success = true;
             break;
           case 'QUIZ_SAVE':
-            const { error: qError } = await client.from('quizzes').upsert(item.payload as Partial<Quiz>, { onConflict: 'id' });
+            const { error: qError } = await withSession(supabase.from('quizzes'), item.sessionId).upsert(item.payload as Partial<Quiz>, { onConflict: 'id' });
             if (!qError) success = true;
             break;
         }
@@ -161,13 +160,12 @@ export const useIndexedDB = () => {
   const pullData = useCallback(async (userId: string, sessionId: string, role: string) => {
     if (!isOnline) return;
     try {
-        const client = createSupabaseClient(sessionId);
         if (role === 'student') {
             const [courses, enrollments, assignments, quizzes] = await Promise.all([
-                client.from('courses').select('*').eq('status', 'published'),
-                client.from('enrollments').select('*, courses(*)').eq('student_id', userId),
-                client.from('assignments').select('*, courses(*)').eq('status', 'published'),
-                client.from('quizzes').select('*, courses(*)').eq('status', 'published')
+                withSession(supabase.from('courses'), sessionId).select('*').eq('status', 'published'),
+                withSession(supabase.from('enrollments'), sessionId).select('*, courses(*)').eq('student_id', userId),
+                withSession(supabase.from('assignments'), sessionId).select('*, courses(*)').eq('status', 'published'),
+                withSession(supabase.from('quizzes'), sessionId).select('*, courses(*)').eq('status', 'published')
             ]);
 
             if (courses.data) await setCache('all_courses', courses.data);
@@ -176,9 +174,9 @@ export const useIndexedDB = () => {
             if (quizzes.data) await setCache('all_quizzes', quizzes.data);
         } else if (role === 'teacher') {
              const [courses, assignments, quizzes] = await Promise.all([
-                client.from('courses').select('*').eq('teacher_id', userId),
-                client.from('assignments').select('*, courses(*)').eq('teacher_id', userId),
-                client.from('quizzes').select('*, courses(*)').eq('teacher_id', userId)
+                withSession(supabase.from('courses'), sessionId).select('*').eq('teacher_id', userId),
+                withSession(supabase.from('assignments'), sessionId).select('*, courses(*)').eq('teacher_id', userId),
+                withSession(supabase.from('quizzes'), sessionId).select('*, courses(*)').eq('teacher_id', userId)
             ]);
 
             if (courses.data) await setCache('teacher_courses', courses.data);

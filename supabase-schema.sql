@@ -340,6 +340,8 @@ BEGIN
 END $$;
 
 -- 5. Indexes (idempotent)
+CREATE INDEX IF NOT EXISTS idx_sessions_id ON sessions(id);
+CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions(expires_at);
 CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
 CREATE INDEX IF NOT EXISTS idx_users_active ON users(active);
 CREATE INDEX IF NOT EXISTS idx_courses_teacher ON courses(teacher_id);
@@ -826,7 +828,9 @@ CREATE POLICY "Users can create logs" ON system_logs FOR INSERT WITH CHECK (true
 CREATE POLICY "Admins can view all logs" ON system_logs FOR SELECT USING (current_app_role() = 'admin');
 
 -- General permissions
-GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated, postgres, service_role;
+REVOKE ALL ON ALL TABLES IN SCHEMA public FROM anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES TO authenticated;
+
 GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated, postgres, service_role;
 GRANT ALL ON ALL FUNCTIONS IN SCHEMA public TO anon, authenticated, postgres, service_role;
 
