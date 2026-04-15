@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
-import { createSupabaseClient, supabase } from '@/lib/supabase';
+import { supabase, withSession } from '@/lib/supabase';
 import { User, UserRole } from '@/lib/types';
 import { useIndexedDB } from '@/hooks/useIndexedDB';
 import { login as loginAction, signup as signupAction, logout as logoutAction, getSession } from '@/lib/auth-actions';
@@ -35,8 +35,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
             try {
               // Use sessionId if available, otherwise fall back to singleton
-              const client = sessionId ? createSupabaseClient(sessionId) : supabase;
-              const { data: user, error } = await client.from('users').select('*').eq('id', userId).single();
+              const { data: user, error } = await withSession(supabase.from('users'), sessionId)
+                .select('*')
+                .eq('id', userId)
+                .single();
 
               if (user && !error) {
                   const authenticatedUser = { ...user, sessionId } as User;
@@ -125,8 +127,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     if (isOnline) {
         // Use sessionId if available for RLS, otherwise use singleton
-        const client = state.user.sessionId ? createSupabaseClient(state.user.sessionId) : supabase;
-        const { error } = await client.from('users').update(updates).eq('id', state.user.id);
+        const { error } = await withSession(supabase.from('users'), state.user.sessionId)
+          .update(updates)
+          .eq('id', state.user.id);
         if (error) throw error;
     } else {
         await addToQueue('PROFILE_UPDATE', { id: state.user.id, ...updates }, state.user.sessionId);

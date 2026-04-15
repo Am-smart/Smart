@@ -1,6 +1,6 @@
 "use server";
 
-import { supabase, createSupabaseClient } from './supabase';
+import { supabase, withSession } from './supabase';
 import { getSession } from './auth-actions';
 import { revalidatePath } from 'next/cache';
 import { Submission, QuizSubmission } from './types';
@@ -14,8 +14,7 @@ async function getVerifiedUser() {
 // 1. Enrollment Actions
 export async function enrollInCourse(courseId: string) {
   const user = await getVerifiedUser();
-  const { error } = await supabase
-    .from('enrollments')
+  const { error } = await withSession(supabase.from('enrollments'), user.sessionId as string)
     .upsert({
       course_id: courseId,
       student_id: user.id,
@@ -30,8 +29,7 @@ export async function enrollInCourse(courseId: string) {
 // 2. Submission Actions
 export async function submitAssignment(assignmentId: string, content: Partial<Submission>) {
   const user = await getVerifiedUser();
-  const { error } = await supabase
-    .from('submissions')
+  const { error } = await withSession(supabase.from('submissions'), user.sessionId as string)
     .insert([{
       assignment_id: assignmentId,
       student_id: user.id,
@@ -50,9 +48,10 @@ export async function gradeSubmission(submissionId: string, gradeData: { score: 
   const user = await getVerifiedUser();
   if (user.role !== 'teacher' && user.role !== 'admin') throw new Error('Forbidden');
 
-  const client = createSupabaseClient(user.sessionId as string);
-  const { error } = await client
-    .from('submissions')
+  const { error } = await withSession(
+    supabase.from('submissions'),
+    user.sessionId as string
+  )
     .update({
       ...gradeData,
       status: 'graded',
@@ -70,9 +69,10 @@ export async function toggleUserStatus(userId: string, active: boolean) {
   const user = await getVerifiedUser();
   if (user.role !== 'admin') throw new Error('Forbidden');
 
-  const client = createSupabaseClient(user.sessionId as string);
-  const { error } = await client
-    .from('users')
+  const { error } = await withSession(
+    supabase.from('users'),
+    user.sessionId as string
+  )
     .update({ active })
     .eq('id', userId);
 
@@ -84,11 +84,12 @@ export async function toggleUserStatus(userId: string, active: boolean) {
 // 5. Quiz Submission
 export async function submitQuiz(quizId: string, submissionData: Partial<QuizSubmission>) {
     const user = await getVerifiedUser();
-    const client = createSupabaseClient(user.sessionId as string);
 
     // Fetch quiz to validate and calculate score server-side
-    const { data: quiz, error: quizError } = await client
-      .from('quizzes')
+    const { data: quiz, error: quizError } = await withSession(
+      supabase.from('quizzes'),
+      user.sessionId as string
+    )
       .select('questions, passing_score')
       .eq('id', quizId)
       .single();
@@ -108,8 +109,10 @@ export async function submitQuiz(quizId: string, submissionData: Partial<QuizSub
     const calculatedScore = questions.length > 0 ? Math.round((correct / questions.length) * 100) : 0;
     const totalPoints = questions.reduce((acc, q) => acc + (q.points || 0), 0);
 
-    const { error } = await client
-      .from('quiz_submissions')
+    const { error } = await withSession(
+      supabase.from('quiz_submissions'),
+      user.sessionId as string
+    )
       .insert([{
         quiz_id: quizId,
         student_id: user.id,
@@ -131,8 +134,8 @@ export async function submitQuiz(quizId: string, submissionData: Partial<QuizSub
 // Mark a notification as read (for deep linking)
 export async function markNotificationAsRead(notificationId: string) {
   try {
-    const { error } = await supabase
-      .from('notifications')
+    const user = await getVerifiedUser();
+    const { error } = await withSession(supabase.from('notifications'), user.sessionId as string)
       .update({ is_read: true })
       .eq('id', notificationId);
 
@@ -150,8 +153,8 @@ export async function markNotificationAsRead(notificationId: string) {
 // Mark all notifications as read
 export async function markAllNotificationsAsRead(userId: string) {
   try {
-    const { error } = await supabase
-      .from('notifications')
+    const user = await getVerifiedUser();
+    const { error } = await withSession(supabase.from('notifications'), user.sessionId as string)
       .update({ is_read: true })
       .eq('user_id', userId)
       .eq('is_read', false);

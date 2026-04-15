@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useSupabase } from '@/hooks/useSupabase';
-import { getClient } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 import { Maintenance, Notification } from '@/lib/types';
 import { useAuth } from './auth/AuthContext';
 import { useIndexedDB } from '@/hooks/useIndexedDB';
@@ -121,7 +121,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const setupSubscriptions = async () => {
       try {
-        const client = getClient(user.sessionId as string);
+        const client = supabase;
 
         // 1. Subscribe to Notifications
         const notesChannel = client.channel(`user-notes-${user.id}`)
