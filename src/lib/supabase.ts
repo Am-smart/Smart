@@ -18,13 +18,18 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
 /**
  * Helper to inject the session ID into a Supabase query or RPC call.
  * This avoids creating multiple client instances.
+ * Handles both plain objects and Headers instances for maximum compatibility.
  */
 export function withSession<T>(query: T, sessionId?: string): T {
   if (sessionId && query && typeof query === 'object' && 'headers' in query) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const q = query as any;
-    if (q.headers && typeof q.headers.set === 'function') {
+    if (q.headers) {
+      if (typeof q.headers.set === 'function') {
         q.headers.set('x-session-id', sessionId);
+      } else {
+        q.headers['x-session-id'] = sessionId;
+      }
     }
   }
   return query;
