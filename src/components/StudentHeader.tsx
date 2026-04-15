@@ -3,7 +3,7 @@ import { User, Notification } from '@/lib/types';
 import { Bell } from 'lucide-react';
 import { Header } from './ui/Header';
 import { NotificationPanel } from './NotificationPanel';
-import { markNotificationAsRead } from '@/lib/data-actions';
+import { markNotificationAsRead, markAllNotificationsAsRead } from '@/lib/data-actions';
 
 interface HeaderStats {
   courses: number;
@@ -30,6 +30,14 @@ export const StudentHeader: React.FC<HeaderProps> = ({ user, stats, notification
       }
     } catch (error) {
       console.error('Failed to mark notification as read:', error);
+    }
+  };
+
+  const handleClearAll = async () => {
+    try {
+      await markAllNotificationsAsRead(user.id);
+    } catch (error) {
+      console.error('Failed to clear all notifications:', error);
     }
   };
 
@@ -87,6 +95,7 @@ export const StudentHeader: React.FC<HeaderProps> = ({ user, stats, notification
           notifications={notifications}
           onClose={() => setShowNotifications(false)}
           onNotificationClick={handleNotificationClick}
+          onClearAll={handleClearAll}
         />
       )}
     </>
