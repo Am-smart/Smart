@@ -1,6 +1,6 @@
 "use server";
 
-import { supabase } from './supabase';
+import { supabase, createSupabaseClient } from './supabase';
 import { getSession } from './auth-actions';
 import { revalidatePath } from 'next/cache';
 import { Submission, QuizSubmission } from './types';
