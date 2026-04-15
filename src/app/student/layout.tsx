@@ -1,8 +1,8 @@
 "use client";
-import { Notification as AppNotification } from "@/lib/types";
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
+import { useAppContext } from '@/components/AppContext';
 import { useSupabase } from '@/hooks/useSupabase';
 import { StudentSidebar } from "@/components/StudentSidebar";
 import { StudentHeader } from "@/components/StudentHeader";
@@ -15,7 +15,8 @@ export default function StudentLayout({
   children: React.ReactNode;
 }) {
   const { user, role, logout, isLoading: authLoading } = useAuth();
-  const { getNotifications, client } = useSupabase();
+  const { notifications } = useAppContext();
+  const { client } = useSupabase();
   const [stats, setStats] = useState({ courses: 0, dueSoon: 0, badges: 0, unreadNotifications: 0 });
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const router = useRouter();
@@ -23,25 +24,24 @@ export default function StudentLayout({
 
   const fetchStats = useCallback(async (u: User) => {
     try {
-      const [myEnrollments, allAssignments, mySubmissions, allNotifications, myBadges] = await Promise.all([
+      const [myEnrollments, allAssignments, mySubmissions, myBadges] = await Promise.all([
         client.from('enrollments').select('*').eq('student_id', u.id).then(r => r.data || []),
         client.from('assignments').select('*').eq('status', 'published').then(r => r.data || []),
         client.from('submissions').select('*').eq('student_id', u.id).then(r => r.data || []),
-        getNotifications(u.id!),
         client.from('user_badges').select('*').eq('user_id', u.id).then(r => r.data || [])
       ]);
 
       const enrolledIds = myEnrollments.map((e: Enrollment) => e.course_id);
-      setStats({
+      setStats(prev => ({
+        ...prev,
         courses: myEnrollments.length,
         dueSoon: allAssignments.filter((a: Assignment) => enrolledIds.includes(a.course_id) && new Date(a.due_date as string) > new Date() && !mySubmissions.some((s: Submission) => s.assignment_id === a.id)).length,
-        badges: myBadges.length,
-        unreadNotifications: allNotifications.filter((n: AppNotification) => !n.is_read).length
-      });
+        badges: myBadges.length
+      }));
     } catch (err) {
       console.error('Failed to fetch stats:', err);
     }
-  }, [client, getNotifications]);
+  }, [client]);
 
   useEffect(() => {
     if (!authLoading) {
@@ -52,6 +52,13 @@ export default function StudentLayout({
       }
     }
   }, [authLoading, user, role, router, fetchStats]);
+
+  useEffect(() => {
+    setStats(prev => ({
+      ...prev,
+      unreadNotifications: notifications.filter(n => !n.is_read).length
+    }));
+  }, [notifications]);
 
   const handleLogout = async () => {
     await logout();

@@ -369,9 +369,13 @@ BEGIN
   WHERE email = p_email AND active = TRUE;
 
   -- Verify password using bcrypt (crypt from pgcrypto)
-  IF v_user.id IS NULL OR crypt(p_password, v_user.password) != v_user.password THEN
+  -- We use = operator for comparison as crypt returns the hash
+  IF v_user.id IS NULL OR v_user.password IS NULL OR crypt(p_password, v_user.password) != v_user.password THEN
     RETURN NULL;
   END IF;
+
+  -- Update last login
+  UPDATE users SET last_login = NOW(), failed_attempts = 0 WHERE id = v_user.id;
 
   -- Create session
   INSERT INTO sessions (user_id, expires_at)
@@ -392,13 +396,17 @@ DECLARE
   v_session_id UUID;
   v_count INTEGER;
   v_caller_role TEXT;
+  v_hashed_password TEXT;
 BEGIN
   v_caller_role := current_app_role();
+
+  -- Hash the password in the database
+  v_hashed_password := crypt(p_password, gen_salt('bf', 10));
 
   -- Admins can create unlimited users of any role
   IF v_caller_role = 'admin' THEN
     INSERT INTO users (full_name, email, password, phone, role, active)
-    VALUES (p_full_name, p_email, p_password, p_phone, p_role, TRUE)
+    VALUES (p_full_name, p_email, v_hashed_password, p_phone, p_role, TRUE)
     RETURNING * INTO v_user;
   ELSE
     -- Public signup logic: Limit public creation of teachers and admins to 3 total
@@ -413,7 +421,7 @@ BEGIN
     END IF;
 
     INSERT INTO users (full_name, email, password, phone, role, active)
-    VALUES (p_full_name, p_email, p_password, p_phone, p_role, TRUE)
+    VALUES (p_full_name, p_email, v_hashed_password, p_phone, p_role, TRUE)
     RETURNING * INTO v_user;
   END IF;
 
