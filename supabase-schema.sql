@@ -829,7 +829,10 @@ CREATE POLICY "Admins can view all logs" ON system_logs FOR SELECT USING (curren
 
 -- General permissions
 REVOKE ALL ON ALL TABLES IN SCHEMA public FROM anon;
-GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES TO authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO authenticated;
+
+ALTER DEFAULT PRIVILEGES IN SCHEMA public
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO authenticated;
 
 GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated, postgres, service_role;
 GRANT ALL ON ALL FUNCTIONS IN SCHEMA public TO anon, authenticated, postgres, service_role;
