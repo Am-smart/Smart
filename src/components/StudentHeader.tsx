@@ -1,7 +1,9 @@
-import React from 'react';
-import { User } from '@/lib/types';
+import React, { useState } from 'react';
+import { User, Notification } from '@/lib/types';
 import { Bell } from 'lucide-react';
 import { Header } from './ui/Header';
+import { NotificationPanel } from './NotificationPanel';
+import { markNotificationAsRead } from '@/lib/data-actions';
 
 interface HeaderStats {
   courses: number;
@@ -13,11 +15,24 @@ interface HeaderStats {
 interface HeaderProps {
   user: User;
   stats: HeaderStats;
+  notifications: Notification[];
   onLogout: () => void;
   onMenuClick: () => void;
 }
 
-export const StudentHeader: React.FC<HeaderProps> = ({ user, stats, onLogout, onMenuClick }) => {
+export const StudentHeader: React.FC<HeaderProps> = ({ user, stats, notifications, onLogout, onMenuClick }) => {
+  const [showNotifications, setShowNotifications] = useState(false);
+
+  const handleNotificationClick = async (notification: Notification) => {
+    try {
+      if (!notification.is_read) {
+        await markNotificationAsRead(notification.id);
+      }
+    } catch (error) {
+      console.error('Failed to mark notification as read:', error);
+    }
+  };
+
   const centerContent = (
     <div className="flex gap-6 items-center">
         <div className="text-center px-4 border-r border-[#e2e8f0]">
@@ -41,26 +56,39 @@ export const StudentHeader: React.FC<HeaderProps> = ({ user, stats, onLogout, on
 
   const rightContent = (
     <div className="flex items-center gap-4">
-        <div className="relative group">
-          <div className="text-2xl cursor-pointer p-2 rounded-lg transition-colors hover:bg-[#f1f5f9] relative">
+        <div className="relative">
+          <button
+            onClick={() => setShowNotifications(!showNotifications)}
+            className="text-2xl cursor-pointer p-2 rounded-lg transition-colors hover:bg-[#f1f5f9] relative"
+            aria-label="Notifications"
+          >
             <Bell size={24} className="text-slate-600" />
             {stats.unreadNotifications > 0 && (
               <div className="absolute top-1 right-1 bg-[#ef4444] text-white text-[10px] font-bold min-w-[18px] h-[18px] rounded-full flex items-center justify-center border-2 border-white">
                 {stats.unreadNotifications}
               </div>
             )}
-          </div>
+          </button>
         </div>
         <button onClick={onLogout} className="bg-[#f1f5f9] text-[#1e293b] px-4 py-2 rounded-lg font-semibold text-sm transition-all hover:bg-[#e2e8f0]">Logout</button>
     </div>
   );
 
   return (
-    <Header
-        title={`Hi, ${user.full_name || 'Student'}!`}
-        onMenuClick={onMenuClick}
-        centerContent={centerContent}
-        rightContent={rightContent}
-    />
+    <>
+      <Header
+          title={`Hi, ${user.full_name || 'Student'}!`}
+          onMenuClick={onMenuClick}
+          centerContent={centerContent}
+          rightContent={rightContent}
+      />
+      {showNotifications && (
+        <NotificationPanel
+          notifications={notifications}
+          onClose={() => setShowNotifications(false)}
+          onNotificationClick={handleNotificationClick}
+        />
+      )}
+    </>
   );
 };
