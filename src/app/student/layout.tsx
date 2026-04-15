@@ -81,7 +81,7 @@ export default function StudentLayout({
           onClose={() => setIsSidebarOpen(false)}
         />
         <main className="flex-1 transition-all duration-300 ml-0 md:ml-[240px]">
-          <StudentHeader user={user} stats={stats} onLogout={handleLogout} onMenuClick={() => setIsSidebarOpen(true)} />
+          <StudentHeader user={user} stats={stats} notifications={notifications} onLogout={handleLogout} onMenuClick={() => setIsSidebarOpen(true)} />
           <div className="content-area p-4 md:p-8 bg-[#f8fafc] min-h-[calc(100vh-70px)] overflow-x-hidden">
             {children}
           </div>

@@ -128,6 +128,45 @@ export async function submitQuiz(quizId: string, submissionData: Partial<QuizSub
     return { success: true, score: calculatedScore };
 }
 
+// Mark a notification as read (for deep linking)
+export async function markNotificationAsRead(notificationId: string) {
+  try {
+    const { error } = await supabase
+      .from('notifications')
+      .update({ is_read: true })
+      .eq('id', notificationId);
+
+    if (error) throw error;
+    revalidatePath('/student');
+    revalidatePath('/teacher');
+    revalidatePath('/admin');
+    return { success: true };
+  } catch (error) {
+    console.error('Error marking notification as read:', error);
+    return { success: false, error };
+  }
+}
+
+// Mark all notifications as read
+export async function markAllNotificationsAsRead(userId: string) {
+  try {
+    const { error } = await supabase
+      .from('notifications')
+      .update({ is_read: true })
+      .eq('user_id', userId)
+      .eq('is_read', false);
+
+    if (error) throw error;
+    revalidatePath('/student');
+    revalidatePath('/teacher');
+    revalidatePath('/admin');
+    return { success: true };
+  } catch (error) {
+    console.error('Error marking all notifications as read:', error);
+    return { success: false, error };
+  }
+}
+
 // Public function to check the count of teachers and admins (for signup form)
 export async function getRoleCount(): Promise<{ teachers: number; admins: number; total: number }> {
   try {
