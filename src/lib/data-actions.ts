@@ -173,28 +173,13 @@ export async function markAllNotificationsAsRead(userId: string) {
 // Public function to check the count of teachers and admins (for signup form)
 export async function getRoleCount(): Promise<{ teachers: number; admins: number; total: number }> {
   try {
-    const { data: teachersData, error: teachersError } = await supabase
-      .from('users')
-      .select('id', { count: 'exact' })
-      .eq('role', 'teacher');
+    const { data, error } = await supabase.rpc('get_role_counts');
 
-    const { data: adminsData, error: adminsError } = await supabase
-      .from('users')
-      .select('id', { count: 'exact' })
-      .eq('role', 'admin');
-
-    if (teachersError || adminsError) {
-      throw new Error('Failed to fetch role counts');
+    if (error) {
+      throw new Error(error.message);
     }
 
-    const teacherCount = teachersData?.length || 0;
-    const adminCount = adminsData?.length || 0;
-
-    return {
-      teachers: teacherCount,
-      admins: adminCount,
-      total: teacherCount + adminCount
-    };
+    return data as { teachers: number; admins: number; total: number };
   } catch (error) {
     console.error('Error fetching role count:', error);
     return { teachers: 0, admins: 0, total: 0 };

@@ -9,6 +9,7 @@ interface NotificationPanelProps {
   notifications: Notification[];
   onClose: () => void;
   onNotificationClick: (notification: Notification) => Promise<void>;
+  onClearAll?: () => Promise<void>;
 }
 
 // Helper function to parse deep links and navigate
@@ -65,6 +66,7 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = ({
   notifications,
   onClose,
   onNotificationClick,
+  onClearAll,
 }) => {
   const router = useRouter();
   const [isNavigating, setIsNavigating] = useState(false);
@@ -114,7 +116,17 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = ({
       >
         {/* Header */}
         <div className="sticky top-0 bg-white border-b border-slate-200 p-4 flex items-center justify-between">
-          <h3 className="text-lg font-bold text-slate-900">Notifications</h3>
+          <div className="flex items-center gap-4">
+            <h3 className="text-lg font-bold text-slate-900">Notifications</h3>
+            {onClearAll && notifications.length > 0 && (
+              <button
+                onClick={onClearAll}
+                className="text-xs font-semibold text-blue-600 hover:text-blue-800 transition-colors py-1 px-2 rounded-lg hover:bg-blue-50"
+              >
+                Clear all
+              </button>
+            )}
+          </div>
           <button
             onClick={onClose}
             className="p-1 hover:bg-slate-100 rounded-lg transition-colors"

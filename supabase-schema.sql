@@ -439,6 +439,23 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+CREATE OR REPLACE FUNCTION get_role_counts()
+RETURNS JSONB AS $$
+DECLARE
+  v_teachers INTEGER;
+  v_admins INTEGER;
+BEGIN
+  SELECT COUNT(*) INTO v_teachers FROM users WHERE role = 'teacher';
+  SELECT COUNT(*) INTO v_admins FROM users WHERE role = 'admin';
+
+  RETURN jsonb_build_object(
+    'teachers', v_teachers,
+    'admins', v_admins,
+    'total', v_teachers + v_admins
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
 CREATE OR REPLACE FUNCTION request_password_reset(p_email VARCHAR, p_reason TEXT, p_risk_level TEXT DEFAULT 'medium')
 RETURNS BOOLEAN AS $$
 BEGIN
