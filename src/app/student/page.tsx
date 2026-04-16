@@ -19,14 +19,14 @@ export default function StudentDashboard() {
     if (!user) return;
     const [myEnrollments, allAssignments, mySubmissions] = await Promise.all([
       client.from('enrollments').select('*, courses(*)').eq('student_id', user.id).then(r => r.data || []),
-      client.from('assignments').select('*').eq('status', 'published').then(r => r.data || []),
+      client.from('assignments').select('*, courses(*)').eq('status', 'published').then(r => r.data || []),
       client.from('submissions').select('*').eq('student_id', user.id).then(r => r.data || [])
     ]);
 
     const enrolledIds = myEnrollments.map((e: Enrollment) => e.course_id);
     const pendingAssignments = allAssignments.filter((a: Assignment) =>
         enrolledIds.includes(a.course_id) &&
-        new Date(a.due_date as string) > new Date() &&
+        (!a.due_date || new Date(a.due_date as string) > new Date()) &&
         !mySubmissions.some((s: { assignment_id: string }) => s.assignment_id === a.id)
     );
 

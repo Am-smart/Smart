@@ -75,7 +75,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     initAuth();
-  }, [getCache, setCache]);
+  }, [getCache, setCache, pullData]);
 
   const login = useCallback(async (email: string, pass: string) => {
     const result = await loginAction(email, pass);

@@ -728,23 +728,47 @@ END $$;
 
 -- 8. Storage Buckets
 INSERT INTO storage.buckets (id, name, public)
-VALUES ('lms-files', 'lms-files', true)
+VALUES ('lms-files', 'lms-files', false) -- Make bucket private for RLS enforcement
 ON CONFLICT (id) DO NOTHING;
 
 -- 9. Storage Policies
 DO $$
 BEGIN
     DROP POLICY IF EXISTS "Public view files" ON storage.objects;
-    CREATE POLICY "Public view files" ON storage.objects FOR SELECT USING (bucket_id = 'lms-files');
-
     DROP POLICY IF EXISTS "Anyone can upload files" ON storage.objects;
-    CREATE POLICY "Anyone can upload files" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'lms-files');
-
     DROP POLICY IF EXISTS "Users can manage own files" ON storage.objects;
-    CREATE POLICY "Users can manage own files" ON storage.objects FOR ALL USING (bucket_id = 'lms-files');
-
     DROP POLICY IF EXISTS "Admins full storage access" ON storage.objects;
-    CREATE POLICY "Admins full storage access" ON storage.objects FOR ALL USING (true);
+
+    -- Standardized Storage Policies using current_app_user()
+    CREATE POLICY "Authenticated users can view assessment artifacts"
+    ON storage.objects FOR SELECT
+    USING (
+      bucket_id = 'lms-files' AND (
+        (storage.foldername(name))[1] = 'submissions' AND (
+          (storage.foldername(name))[2] = current_app_user()::text OR
+          current_app_role() IN ('teacher', 'admin')
+        )
+      )
+    );
+
+    CREATE POLICY "Students can upload own submissions"
+    ON storage.objects FOR INSERT
+    WITH CHECK (
+      bucket_id = 'lms-files' AND
+      (storage.foldername(name))[1] = 'submissions' AND
+      (storage.foldername(name))[2] = current_app_user()::text
+    );
+
+    CREATE POLICY "Users can delete own files"
+    ON storage.objects FOR DELETE
+    USING (
+      bucket_id = 'lms-files' AND
+      (storage.foldername(name))[2] = current_app_user()::text
+    );
+
+    CREATE POLICY "Admins full storage access"
+    ON storage.objects FOR ALL
+    USING (current_app_role() = 'admin');
 EXCEPTION WHEN OTHERS THEN NULL;
 END $$;
 

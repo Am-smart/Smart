@@ -1,5 +1,5 @@
 import { useAuth } from '@/components/auth/AuthContext';
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { supabase, withSession } from '@/lib/supabase';
 import { User, Course, Enrollment, Assignment, Quiz, Discussion, Notification, Maintenance } from '@/lib/types';
 import { useIndexedDB } from './useIndexedDB';
@@ -151,8 +151,23 @@ export const useSupabase = () => {
     return data || { enabled: false, schedules: [] };
   }, [user?.sessionId]);
 
+  const proxiedClient = useMemo(() => {
+    return new Proxy(supabase, {
+      get(target, prop, receiver) {
+        const value = Reflect.get(target, prop, receiver);
+        if (prop === 'from' || prop === 'rpc') {
+          return (...args: unknown[]) => {
+            const result = (value as (...args: unknown[]) => unknown).apply(target, args);
+            return withSession(result, user?.sessionId);
+          };
+        }
+        return value;
+      }
+    });
+  }, [user?.sessionId]);
+
   return {
-    client: supabase,
+    client: proxiedClient,
     getUser,
     saveUser,
     getCourses,
