@@ -22,11 +22,11 @@ export default function TeacherDashboard() {
     }
 
     const [courses, pending, live] = await Promise.all([
-      client.from('courses').select('id', { count: 'exact', head: true }).eq('teacher_id', user.id),
+      client.from('courses').select('*', { count: 'exact', head: true }).eq('teacher_id', user.id),
       assignmentIds.length > 0
-        ? client.from('submissions').select('id', { count: 'exact', head: true }).eq('status', 'submitted').in('assignment_id', assignmentIds)
+        ? client.from('submissions').select('*', { count: 'exact', head: true }).eq('status', 'submitted').in('assignment_id', assignmentIds)
         : Promise.resolve({ count: 0, error: null }),
-      client.from('live_classes').select('id', { count: 'exact', head: true }).eq('teacher_id', user.id)
+      client.from('live_classes').select('*', { count: 'exact', head: true }).eq('teacher_id', user.id)
     ]);
 
     setStats({

@@ -18,6 +18,7 @@ export interface User {
   flagged?: boolean;
   locked_until?: string | null;
   reset_request?: Record<string, unknown> | null;
+  notification_preferences?: Record<string, boolean>;
 }
 
 export interface Course {

@@ -19,12 +19,12 @@ export default function AdminDashboard() {
   const fetchData = useCallback(async () => {
     if (!user) return;
     const [usersRes, coursesRes, flaggedRes, teachersRes, studentsRes, resetsRes] = await Promise.all([
-      client.from('users').select('id', { count: 'exact', head: true }),
-      client.from('courses').select('id', { count: 'exact', head: true }).eq('status', 'published'),
-      client.from('users').select('id', { count: 'exact', head: true }).eq('flagged', true),
-      client.from('users').select('id', { count: 'exact', head: true }).eq('role', 'teacher'),
-      client.from('users').select('id', { count: 'exact', head: true }).eq('role', 'student'),
-      client.from('users').select('id', { count: 'exact', head: true }).not('reset_request', 'is', null)
+      client.from('users').select('*', { count: 'exact', head: true }),
+      client.from('courses').select('*', { count: 'exact', head: true }).eq('status', 'published'),
+      client.from('users').select('*', { count: 'exact', head: true }).eq('flagged', true),
+      client.from('users').select('*', { count: 'exact', head: true }).eq('role', 'teacher'),
+      client.from('users').select('*', { count: 'exact', head: true }).eq('role', 'student'),
+      client.from('users').select('*', { count: 'exact', head: true }).not('reset_request', 'is', null)
     ]);
 
     setStats({
