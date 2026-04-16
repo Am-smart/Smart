@@ -2,9 +2,11 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useSupabase } from '@/hooks/useSupabase';
 import { Badge, User } from '@/lib/types';
 import { Plus, Trash2, Award } from 'lucide-react';
+import { useAppContext } from '@/components/AppContext';
 
 export const BadgeManager: React.FC = () => {
     const { client } = useSupabase();
+    const { addToast } = useAppContext();
     const [badges, setBadges] = useState<Badge[]>([]);
     const [students, setStudents] = useState<User[]>([]);
     const [isFormOpen, setIsFormOpen] = useState(false);
@@ -42,8 +44,8 @@ export const BadgeManager: React.FC = () => {
             user_id: studentId,
             awarded_at: new Date().toISOString()
         }]);
-        if (error) alert('Awarding failed. Student might already have this badge.');
-        else alert('Badge awarded successfully!');
+        if (error) addToast('Awarding failed. Student might already have this badge.', 'error');
+        else addToast('Badge awarded successfully!', 'success');
     };
 
     return (

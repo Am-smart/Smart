@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useSupabase } from '@/hooks/useSupabase';
 import { PlannerItem } from '@/lib/types';
+import { useIndexedDB } from '@/hooks/useIndexedDB';
+import { useAppContext } from '../AppContext';
+import { useAuth } from '../auth/AuthContext';
 
 interface PlannerViewProps {
   userId: string;
@@ -8,6 +11,9 @@ interface PlannerViewProps {
 
 export const PlannerView: React.FC<PlannerViewProps> = ({ userId }) => {
   const { client } = useSupabase();
+  const { user } = useAuth();
+  const { addToast } = useAppContext();
+  const { isOnline, addToQueue, setCache, getCache } = useIndexedDB();
   const [items, setItems] = useState<PlannerItem[]>([]);
   const [newItem, setNewItem] = useState('');
   const [dueDate, setDueDate] = useState('');
@@ -15,14 +21,24 @@ export const PlannerView: React.FC<PlannerViewProps> = ({ userId }) => {
 
   const fetchPlanner = useCallback(async () => {
     setIsLoading(true);
-    const { data } = await client
-      .from('planner')
-      .select('*')
-      .eq('user_id', userId)
-      .order('due_date', { ascending: true });
-    setItems((data as PlannerItem[]) || []);
+
+    const cached = await getCache<PlannerItem[]>('planner_items');
+    if (cached) setItems(cached);
+
+    if (isOnline) {
+        const { data } = await client
+          .from('planner')
+          .select('*')
+          .eq('user_id', userId)
+          .order('due_date', { ascending: true });
+
+        if (data) {
+            setItems((data as PlannerItem[]));
+            await setCache('planner_items', data);
+        }
+    }
     setIsLoading(false);
-  }, [userId, client]);
+  }, [userId, client, isOnline, getCache, setCache]);
 
   useEffect(() => {
     fetchPlanner();
@@ -32,29 +48,52 @@ export const PlannerView: React.FC<PlannerViewProps> = ({ userId }) => {
     e.preventDefault();
     if (!newItem) return;
 
-    const { error } = await client.from('planner').insert([{
+    const payload = {
+      id: Math.random().toString(),
       user_id: userId,
       title: newItem,
       due_date: dueDate || null,
-      completed: false
-    }]);
+      completed: false,
+      created_at: new Date().toISOString()
+    };
 
-    if (!error) {
-      setNewItem('');
-      setDueDate('');
-      fetchPlanner();
+    if (isOnline) {
+        const { error } = await client.from('planner').insert([payload]);
+        if (!error) {
+          setNewItem('');
+          setDueDate('');
+          fetchPlanner();
+          addToast('Task added!', 'success');
+        }
+    } else {
+        await addToQueue('PLANNER_UPDATE', payload, user?.sessionId);
+        setItems(prev => [...prev, payload as PlannerItem]);
+        setNewItem('');
+        setDueDate('');
+        addToast('Task queued offline.', 'info');
     }
   };
 
   const toggleComplete = async (item: PlannerItem) => {
-    const { error } = await client
-      .from('planner')
-      .update({ completed: !item.completed })
-      .eq('id', item.id);
-    if (!error) fetchPlanner();
+    const updated = { ...item, completed: !item.completed };
+    if (isOnline) {
+        const { error } = await client
+          .from('planner')
+          .update({ completed: !item.completed })
+          .eq('id', item.id);
+        if (!error) fetchPlanner();
+    } else {
+        await addToQueue('PLANNER_UPDATE', updated, user?.sessionId);
+        setItems(prev => prev.map(i => i.id === item.id ? updated : i));
+        addToast('Change queued offline.', 'info');
+    }
   };
 
   const deleteItem = async (id: string) => {
+    if (!isOnline) {
+        addToast('Cannot delete tasks while offline.', 'error');
+        return;
+    }
     const { error } = await client.from('planner').delete().eq('id', id);
     if (!error) fetchPlanner();
   };

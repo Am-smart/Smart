@@ -55,13 +55,14 @@ export const DiscussionBoard: React.FC<DiscussionBoardProps> = ({ discussions, u
       <form onSubmit={handleSubmit} className="flex flex-col md:flex-row gap-3">
         <input
           type="text"
-          placeholder={isOnline ? "Start a new thread..." : "Posting is disabled while offline"}
+          placeholder="Start a new thread..."
           className="input-custom flex-1"
           value={newPost}
           onChange={(e) => setNewPost(e.target.value)}
-          disabled={!isOnline}
         />
-        <button type="submit" disabled={!isOnline || !newPost.trim()} className="btn-primary px-8 py-3 md:py-2">Post Message</button>
+        <button type="submit" disabled={!newPost.trim()} className="btn-primary px-8 py-3 md:py-2">
+            {isOnline ? 'Post Message' : 'Queue Post'}
+        </button>
       </form>
     </div>
   );

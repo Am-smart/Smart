@@ -7,6 +7,7 @@ import { useAppContext } from '@/components/AppContext';
 
 export default function AdminSettingsPage() {
     const { user } = useAuth();
+    const { client } = useSupabase();
     const { addToast } = useAppContext();
     const [config, setConfig] = useState({
         requireVerification: true,
@@ -17,24 +18,36 @@ export default function AdminSettingsPage() {
 
     const handleSave = async () => {
         setIsSaving(true);
-        // Persist to localStorage for simulation of persistence
-        localStorage.setItem('admin_config', JSON.stringify(config));
-        await new Promise(r => setTimeout(r, 800));
-        setIsSaving(false);
-        addToast('Global configurations saved successfully!', 'success');
+        try {
+            const { error } = await client.rpc('update_setting', {
+                p_key: 'global_config',
+                p_value: config
+            });
+            if (error) throw error;
+            addToast('Global configurations saved successfully!', 'success');
+        } catch (err) {
+            console.error('Save failed:', err);
+            addToast('Failed to save configuration.', 'error');
+        } finally {
+            setIsSaving(false);
+        }
     };
 
-    // Load from localStorage on mount
+    // Load from database on mount
     React.useEffect(() => {
-        const saved = localStorage.getItem('admin_config');
-        if (saved) {
-            try {
-                setConfig(JSON.parse(saved));
-            } catch (e) {
-                console.error('Failed to parse saved config', e);
+        const loadConfig = async () => {
+            const { data, error } = await client
+                .from('settings')
+                .select('value')
+                .eq('key', 'global_config')
+                .single();
+
+            if (data && !error) {
+                setConfig(data.value);
             }
-        }
-    }, []);
+        };
+        loadConfig();
+    }, [client]);
 
     if (!user) return null;
 

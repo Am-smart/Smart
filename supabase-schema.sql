@@ -303,6 +303,12 @@ CREATE TABLE IF NOT EXISTS system_logs (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS settings (
+  key VARCHAR(255) PRIMARY KEY,
+  value JSONB NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 -- 4. Migrations (safe column additions)
 DO $$
 BEGIN
@@ -447,6 +453,63 @@ BEGIN
     'user', (to_jsonb(v_user) - 'password'),
     'session_id', v_session_id
   );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE OR REPLACE FUNCTION update_setting(p_key VARCHAR, p_value JSONB)
+RETURNS VOID AS $$
+BEGIN
+  INSERT INTO settings (key, value, updated_at)
+  VALUES (p_key, p_value, NOW())
+  ON CONFLICT (key) DO UPDATE
+  SET value = EXCLUDED.value, updated_at = NOW();
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE OR REPLACE FUNCTION update_user_password(p_current_password VARCHAR, p_new_password VARCHAR)
+RETURNS JSONB AS $$
+DECLARE
+  v_user_id UUID;
+  v_hashed_password TEXT;
+BEGIN
+  v_user_id := current_app_user();
+  IF v_user_id IS NULL THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Unauthorized');
+  END IF;
+
+  -- Verify current password
+  IF NOT EXISTS (
+    SELECT 1 FROM users
+    WHERE id = v_user_id
+    AND password IS NOT NULL
+    AND crypt(p_current_password, password) = password
+  ) THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Incorrect current password');
+  END IF;
+
+  -- Hash and update
+  v_hashed_password := crypt(p_new_password, gen_salt('bf', 10));
+  UPDATE users SET password = v_hashed_password, updated_at = NOW() WHERE id = v_user_id;
+
+  RETURN jsonb_build_object('success', true);
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE OR REPLACE FUNCTION update_user_preferences(p_preferences JSONB)
+RETURNS JSONB AS $$
+DECLARE
+  v_user_id UUID;
+BEGIN
+  v_user_id := current_app_user();
+  IF v_user_id IS NULL THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Unauthorized');
+  END IF;
+
+  UPDATE users
+  SET notification_preferences = p_preferences, updated_at = NOW()
+  WHERE id = v_user_id;
+
+  RETURN jsonb_build_object('success', true);
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
@@ -709,6 +772,7 @@ ALTER TABLE user_badges ENABLE ROW LEVEL SECURITY;
 ALTER TABLE study_sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE lesson_completions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE system_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE settings ENABLE ROW LEVEL SECURITY;
 
 -- Utility function to get current user's email from session/header
 -- Since we use custom auth, we will set a configuration parameter 'app.user_id'
@@ -977,6 +1041,12 @@ ON system_logs
 FOR SELECT
 USING (current_app_role() = 'admin');
 
+-- Settings policies
+DROP POLICY IF EXISTS "Anyone can view settings" ON settings;
+CREATE POLICY "Anyone can view settings" ON settings FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Admins can manage settings" ON settings;
+CREATE POLICY "Admins can manage settings" ON settings FOR ALL USING (current_app_role() = 'admin');
+
 -- General permissions
 -- Revoke all from anon first to be safe
 REVOKE ALL ON ALL TABLES IN SCHEMA public FROM anon;
@@ -989,7 +1059,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON
     live_classes, attendance, quizzes, quiz_submissions, materials,
     discussions, notifications, sessions, broadcasts, maintenance,
     planner, certificates, badges, user_badges, study_sessions,
-    lesson_completions, system_logs
+    lesson_completions, system_logs, settings
 TO anon;
 
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO authenticated;
@@ -1004,3 +1074,7 @@ GRANT ALL ON ALL FUNCTIONS IN SCHEMA public TO anon, authenticated, postgres, se
 INSERT INTO maintenance (enabled, schedules)
 SELECT false, '[]'::jsonb
 WHERE NOT EXISTS (SELECT 1 FROM maintenance);
+
+INSERT INTO settings (key, value)
+VALUES ('global_config', '{"requireVerification": true, "publicRegistration": true, "maintenanceBypass": false}'::jsonb)
+ON CONFLICT DO NOTHING;

@@ -281,3 +281,28 @@ export async function getSession() {
 
   return verifyToken(session.value);
 }
+
+export async function updatePassword(currentPass: string, newPass: string) {
+    const session = await getSession();
+    if (!session || !session.sessionId) return { success: false, error: 'Unauthorized' };
+
+    const { data, error } = await supabase.rpc('update_user_password', {
+        p_current_password: currentPass,
+        p_new_password: newPass
+    }).setHeader('x-session-id', session.sessionId as string);
+
+    if (error) return { success: false, error: error.message };
+    return data;
+}
+
+export async function updatePreferences(preferences: object) {
+    const session = await getSession();
+    if (!session || !session.sessionId) return { success: false, error: 'Unauthorized' };
+
+    const { data, error } = await supabase.rpc('update_user_preferences', {
+        p_preferences: preferences
+    }).setHeader('x-session-id', session.sessionId as string);
+
+    if (error) return { success: false, error: error.message };
+    return data;
+}
