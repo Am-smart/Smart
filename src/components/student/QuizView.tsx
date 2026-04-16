@@ -3,6 +3,7 @@ import { Quiz, User } from '@/lib/types';
 import { submitQuiz } from '@/lib/data-actions';
 import { useAntiCheat } from '@/hooks/useAntiCheat';
 import { useIndexedDB } from '@/hooks/useIndexedDB';
+import { useAppContext } from '@/components/AppContext';
 
 interface QuizViewProps {
   quiz: Quiz;
@@ -12,6 +13,7 @@ interface QuizViewProps {
 }
 
 export const QuizView: React.FC<QuizViewProps> = ({ quiz, user, onComplete, onCancel }) => {
+  const { addToast } = useAppContext();
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [timeLeft, setTimeLeft] = useState<number | null>(quiz.time_limit ? quiz.time_limit * 60 : null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -81,12 +83,13 @@ export const QuizView: React.FC<QuizViewProps> = ({ quiz, user, onComplete, onCa
         await setCache(`quiz_progress_${quiz.id}`, null);
         setResult({ score, passed, isTimeout });
         setIsSubmitting(false);
-    } catch (err) {
+    } catch (err: unknown) {
         console.error('Failed to submit quiz:', err);
-        alert('Failed to submit quiz. Please try again.');
+        const msg = err instanceof Error ? err.message : 'Failed to submit quiz. Please try again.';
+        addToast(msg, 'error');
         setIsSubmitting(false);
     }
-  }, [quiz, user, answers, isSubmitting, result, isOnline, addToQueue, setCache, timeLeft, startedAt]);
+  }, [quiz, user, answers, isSubmitting, result, isOnline, addToQueue, setCache, timeLeft, startedAt, addToast]);
 
   useEffect(() => {
     if (timeLeft === null) return;

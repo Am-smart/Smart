@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Quiz, Course, QuizQuestion } from '@/lib/types';
 import { useSupabase } from '@/hooks/useSupabase';
+import { useAppContext } from '@/components/AppContext';
 
 interface QuizEditorProps {
     teacherId: string;
@@ -12,6 +13,7 @@ interface QuizEditorProps {
 
 export const QuizEditor: React.FC<QuizEditorProps> = ({ teacherId, quiz, courses, onSave, onCancel }) => {
     const { client } = useSupabase();
+    const { addToast } = useAppContext();
     const [formData, setFormData] = useState({
         title: quiz?.title || '',
         description: quiz?.description || '',
@@ -59,10 +61,12 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({ teacherId, quiz, courses
                 ? await client.from('quizzes').update(payload).eq('id', quiz.id)
                 : await client.from('quizzes').insert([payload]);
             if (error) throw error;
+            addToast('Quiz saved successfully!', 'success');
             onSave();
-        } catch (err) {
+        } catch (err: unknown) {
             console.error('Save failed:', err);
-            alert('Failed to save quiz.');
+            const msg = err instanceof Error ? err.message : 'Failed to save quiz.';
+            addToast(msg, 'error');
         } finally {
             setIsSaving(false);
         }

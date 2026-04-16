@@ -3,9 +3,11 @@
 import React, { useState } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
 import { Settings, Shield, Bell, Save } from 'lucide-react';
+import { useAppContext } from '@/components/AppContext';
 
 export default function AdminSettingsPage() {
     const { user } = useAuth();
+    const { addToast } = useAppContext();
     const [config, setConfig] = useState({
         requireVerification: true,
         publicRegistration: true,
@@ -21,7 +23,7 @@ export default function AdminSettingsPage() {
         // but it satisfies the UI requirement and provides feedback.
         await new Promise(r => setTimeout(r, 800));
         setIsSaving(false);
-        alert('Global configurations saved successfully!');
+        addToast('Global configurations saved successfully!', 'success');
     };
 
     return (

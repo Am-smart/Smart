@@ -3,12 +3,14 @@
 import React from 'react';
 import { SystemHealth, SystemInfo } from "@/components/admin/SystemMisc";
 import { Shield, Settings, Database } from 'lucide-react';
+import { useAppContext } from '@/components/AppContext';
 
 export default function ManagementPage() {
+    const { addToast } = useAppContext();
     const handleAction = async (action: string) => {
         const confirmAction = confirm(`Are you sure you want to perform: ${action}?`);
         if (confirmAction) {
-            alert(`${action} completed successfully.`);
+            addToast(`${action} completed successfully.`, 'success');
         }
     };
 

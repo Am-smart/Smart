@@ -443,7 +443,12 @@ DECLARE
 BEGIN
   v_caller_role := current_app_role();
 
-  -- Hash the password in the database
+  -- 1. Check if email already exists
+  IF EXISTS (SELECT 1 FROM users WHERE email = p_email) THEN
+    RETURN jsonb_build_object('success', false, 'error', 'An account with this email already exists.');
+  END IF;
+
+  -- 2. Hash the password
   v_hashed_password := crypt(p_password, gen_salt('bf', 10));
 
   -- Validate role for public registration
@@ -461,13 +466,14 @@ BEGIN
     -- Only enforce this limit when user is trying to create a teacher or admin account
     IF p_role IN ('teacher', 'admin') THEN
       SELECT COUNT(*) INTO v_count FROM users WHERE role IN ('teacher', 'admin');
-      
-      -- Only restrict if limit is reached (>= 3 means 3 or more already exist)
       IF v_count >= 3 THEN
         RETURN jsonb_build_object('success', false, 'error', 'Public creation of teachers and admins is restricted (Limit: 3). Please contact support.');
       END IF;
     END IF;
+  END IF;
 
+  -- 4. Perform Insertion
+  BEGIN
     -- Check if email already exists
     IF EXISTS (SELECT 1 FROM users WHERE email = p_email) THEN
       RETURN jsonb_build_object('success', false, 'error', 'Email already in use');
@@ -476,9 +482,11 @@ BEGIN
     INSERT INTO users (full_name, email, password, phone, role, active)
     VALUES (p_full_name, p_email, v_hashed_password, p_phone, p_role, TRUE)
     RETURNING * INTO v_user;
-  END IF;
+  EXCEPTION WHEN OTHERS THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Failed to create user record: ' || SQLERRM);
+  END;
 
-  -- Create session
+  -- 5. Create session (Ensures user is granted immediate access if needed)
   INSERT INTO sessions (user_id, expires_at)
   VALUES (v_user.id, NOW() + INTERVAL '7 days')
   RETURNING id INTO v_session_id;

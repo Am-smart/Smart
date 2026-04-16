@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { User } from '@/lib/types';
 import { useSupabase } from '@/hooks/useSupabase';
-import { hashPassword } from '@/lib/crypto';
+import { useAppContext } from '@/components/AppContext';
 
 interface UserEditorProps {
     user?: User;
@@ -11,6 +11,7 @@ interface UserEditorProps {
 
 export const UserEditor: React.FC<UserEditorProps> = ({ user, onSave, onCancel }) => {
     const { client } = useSupabase();
+    const { addToast } = useAppContext();
     const [formData, setFormData] = useState({
         email: user?.email || '',
         full_name: user?.full_name || '',
@@ -25,27 +26,42 @@ export const UserEditor: React.FC<UserEditorProps> = ({ user, onSave, onCancel }
         e.preventDefault();
         setIsSaving(true);
         try {
-            const userData: Partial<User> & { password?: string } = {
-                ...formData,
-                updated_at: new Date().toISOString()
-            };
+            if (user?.id) {
+                // Update User
+                const userData = {
+                    full_name: formData.full_name,
+                    phone: formData.phone,
+                    role: formData.role as User['role'],
+                    xp: formData.xp,
+                    updated_at: new Date().toISOString()
+                };
 
-            if (!formData.password) {
-                delete userData.password;
+                const { error } = await client.from('users').update(userData).eq('id', user.id);
+                if (error) throw error;
+                addToast('User profile updated successfully.', 'success');
             } else {
-                // Use bcrypt hashing
-                userData.password = await hashPassword(formData.password);
+                // Create New User via secure RPC
+                const { data, error } = await client.rpc('register_user', {
+                    p_full_name: formData.full_name,
+                    p_email: formData.email,
+                    p_password: formData.password,
+                    p_phone: formData.phone,
+                    p_role: formData.role
+                });
+
+                if (error) throw error;
+                if (data && data.success === false) {
+                    addToast(data.error || 'Failed to create user.', 'error');
+                    setIsSaving(false);
+                    return;
+                }
+                addToast('New user created and session assigned.', 'success');
             }
-
-            const { error } = user?.id
-                ? await client.from('users').update(userData).eq('id', user.id)
-                : await client.from('users').insert([userData]);
-
-            if (error) throw error;
             onSave();
-        } catch (err) {
+        } catch (err: unknown) {
             console.error('Save failed:', err);
-            alert('Failed to save user.');
+            const msg = err instanceof Error ? err.message : 'An unexpected error occurred.';
+            addToast(msg, 'error');
         } finally {
             setIsSaving(false);
         }
