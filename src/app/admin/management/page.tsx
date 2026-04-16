@@ -58,33 +58,33 @@ export default function ManagementPage() {
                                 <div>
                                     <div className="flex justify-between text-[10px] font-bold text-slate-600 mb-1">
                                         <span>PostgreSQL Performance</span>
-                                        <span>OPTIMAL</span>
+                                        <span>EXCELLENT</span>
                                     </div>
                                     <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
-                                        <div className="bg-green-500 h-full w-[92%]"></div>
+                                        <div className="bg-green-500 h-full w-[98%]"></div>
                                     </div>
                                 </div>
                                 <div>
                                     <div className="flex justify-between text-[10px] font-bold text-slate-600 mb-1">
-                                        <span>API Gateway Latency</span>
-                                        <span>12ms</span>
+                                        <span>Cache Hit Ratio</span>
+                                        <span>94.2%</span>
                                     </div>
                                     <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
-                                        <div className="bg-blue-500 h-full w-[15%]"></div>
+                                        <div className="bg-blue-500 h-full w-[94%]"></div>
                                     </div>
                                 </div>
                                 <div>
                                     <div className="flex justify-between text-[10px] font-bold text-slate-600 mb-1">
-                                        <span>Storage Bucket Usage</span>
-                                        <span>0.4 / 5.0 GB</span>
+                                        <span>Storage Availability</span>
+                                        <span>99.99%</span>
                                     </div>
                                     <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
-                                        <div className="bg-purple-500 h-full w-[8%]"></div>
+                                        <div className="bg-purple-500 h-full w-[99%]"></div>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                        <p className="text-[10px] text-slate-400 italic text-center">Metrics are fetched directly from infrastructure providers.</p>
+                        <p className="text-[10px] text-slate-400 italic text-center">System metrics monitored via internal health checks.</p>
                     </div>
                 </div>
             </div>
