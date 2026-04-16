@@ -446,6 +446,11 @@ BEGIN
   -- Hash the password in the database
   v_hashed_password := crypt(p_password, gen_salt('bf', 10));
 
+  -- Validate role for public registration
+  IF v_caller_role != 'admin' AND p_role NOT IN ('student', 'teacher') THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Invalid role for public registration');
+  END IF;
+
   -- Admins can create unlimited users of any role
   IF v_caller_role = 'admin' THEN
     INSERT INTO users (full_name, email, password, phone, role, active)
@@ -768,7 +773,6 @@ $$ LANGUAGE sql STABLE SECURITY DEFINER;
 -- Users policies
 CREATE POLICY "Users can view own profile" ON users FOR SELECT USING (id = current_app_user() OR current_app_role() = 'admin');
 CREATE POLICY "Users can update own profile" ON users FOR UPDATE USING (id = current_app_user() OR current_app_role() = 'admin');
-CREATE POLICY "Anyone can sign up" ON users FOR INSERT WITH CHECK (true);
 CREATE POLICY "Admins can manage all users" ON users FOR ALL USING (current_app_role() = 'admin');
 
 -- Courses policies
@@ -888,7 +892,7 @@ CREATE POLICY "Users manage own study sessions" ON study_sessions FOR ALL USING 
 CREATE POLICY "Users manage own lesson completions" ON lesson_completions FOR ALL USING (student_id = current_app_user());
 
 -- System Logs policies
-CREATE POLICY "Users can create logs" ON system_logs FOR INSERT WITH CHECK (true);
+CREATE POLICY "Authenticated users can create logs" ON system_logs FOR INSERT WITH CHECK (current_app_user() IS NOT NULL);
 CREATE POLICY "Admins can view all logs" ON system_logs FOR SELECT USING (current_app_role() = 'admin');
 
 -- General permissions
