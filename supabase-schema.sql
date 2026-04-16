@@ -365,26 +365,67 @@ RETURNS JSONB AS $$
 DECLARE
   v_user users;
   v_session_id UUID;
+  v_now TIMESTAMP WITH TIME ZONE := NOW();
 BEGIN
   -- Find user by email first
-  SELECT * INTO v_user FROM users
-  WHERE email = p_email AND active = TRUE;
+  SELECT * INTO v_user FROM users WHERE email = p_email;
 
-  -- Verify password using bcrypt (crypt from pgcrypto)
-  -- We use = operator for comparison as crypt returns the hash
-  IF v_user.id IS NULL OR v_user.password IS NULL OR crypt(p_password, v_user.password) != v_user.password THEN
-    RETURN NULL;
+  -- 1. Check if user exists
+  IF v_user.id IS NULL THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Invalid email or password');
   END IF;
 
-  -- Update last login
-  UPDATE users SET last_login = NOW(), failed_attempts = 0 WHERE id = v_user.id;
+  -- 2. Check if account is active
+  IF v_user.active = FALSE THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Account is deactivated');
+  END IF;
+
+  -- 3. Check if account is locked
+  IF v_user.locked_until IS NOT NULL AND v_user.locked_until > v_now THEN
+    RETURN jsonb_build_object(
+      'success', false,
+      'error', 'Account is temporarily locked. Please try again after ' || to_char(v_user.locked_until, 'HH24:MI:SS')
+    );
+  END IF;
+
+  -- 4. Verify password
+  IF v_user.password IS NULL OR crypt(p_password, v_user.password) != v_user.password THEN
+    -- Increment failed attempts
+    UPDATE users
+    SET
+      failed_attempts = COALESCE(failed_attempts, 0) + 1,
+      locked_until = CASE
+        WHEN COALESCE(failed_attempts, 0) + 1 >= 5 THEN v_now + INTERVAL '30 minutes'
+        ELSE locked_until
+      END,
+      lockouts = CASE
+        WHEN COALESCE(failed_attempts, 0) + 1 >= 5 THEN COALESCE(lockouts, 0) + 1
+        ELSE lockouts
+      END
+    WHERE id = v_user.id;
+
+    IF COALESCE(v_user.failed_attempts, 0) + 1 >= 5 THEN
+       RETURN jsonb_build_object('success', false, 'error', 'Too many failed attempts. Account locked for 30 minutes.');
+    END IF;
+
+    RETURN jsonb_build_object('success', false, 'error', 'Invalid email or password');
+  END IF;
+
+  -- 5. Successful login: Update last login and reset failed attempts
+  UPDATE users
+  SET
+    last_login = v_now,
+    failed_attempts = 0,
+    locked_until = NULL
+  WHERE id = v_user.id;
 
   -- Create session
   INSERT INTO sessions (user_id, expires_at)
-  VALUES (v_user.id, NOW() + INTERVAL '7 days')
+  VALUES (v_user.id, v_now + INTERVAL '7 days')
   RETURNING id INTO v_session_id;
 
   RETURN jsonb_build_object(
+    'success', true,
     'user', (to_jsonb(v_user) - 'password'),
     'session_id', v_session_id
   );
@@ -405,6 +446,11 @@ BEGIN
   -- Hash the password in the database
   v_hashed_password := crypt(p_password, gen_salt('bf', 10));
 
+  -- Validate role for public registration
+  IF v_caller_role != 'admin' AND p_role NOT IN ('student', 'teacher') THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Invalid role for public registration');
+  END IF;
+
   -- Admins can create unlimited users of any role
   IF v_caller_role = 'admin' THEN
     INSERT INTO users (full_name, email, password, phone, role, active)
@@ -418,8 +464,13 @@ BEGIN
       
       -- Only restrict if limit is reached (>= 3 means 3 or more already exist)
       IF v_count >= 3 THEN
-        RAISE EXCEPTION 'Public creation of teachers and admins is restricted (Limit: 3). Please contact support.';
+        RETURN jsonb_build_object('success', false, 'error', 'Public creation of teachers and admins is restricted (Limit: 3). Please contact support.');
       END IF;
+    END IF;
+
+    -- Check if email already exists
+    IF EXISTS (SELECT 1 FROM users WHERE email = p_email) THEN
+      RETURN jsonb_build_object('success', false, 'error', 'Email already in use');
     END IF;
 
     INSERT INTO users (full_name, email, password, phone, role, active)
@@ -433,6 +484,7 @@ BEGIN
   RETURNING id INTO v_session_id;
 
   RETURN jsonb_build_object(
+    'success', true,
     'user', (to_jsonb(v_user) - 'password'),
     'session_id', v_session_id
   );
@@ -721,7 +773,6 @@ $$ LANGUAGE sql STABLE SECURITY DEFINER;
 -- Users policies
 CREATE POLICY "Users can view own profile" ON users FOR SELECT USING (id = current_app_user() OR current_app_role() = 'admin');
 CREATE POLICY "Users can update own profile" ON users FOR UPDATE USING (id = current_app_user() OR current_app_role() = 'admin');
-CREATE POLICY "Anyone can sign up" ON users FOR INSERT WITH CHECK (true);
 CREATE POLICY "Admins can manage all users" ON users FOR ALL USING (current_app_role() = 'admin');
 
 -- Courses policies
@@ -841,11 +892,29 @@ CREATE POLICY "Users manage own study sessions" ON study_sessions FOR ALL USING 
 CREATE POLICY "Users manage own lesson completions" ON lesson_completions FOR ALL USING (student_id = current_app_user());
 
 -- System Logs policies
-CREATE POLICY "Users can create logs" ON system_logs FOR INSERT WITH CHECK (true);
+CREATE POLICY "Authenticated users can create logs" ON system_logs FOR INSERT WITH CHECK (current_app_user() IS NOT NULL);
 CREATE POLICY "Admins can view all logs" ON system_logs FOR SELECT USING (current_app_role() = 'admin');
 
 -- General permissions
+-- Revoke all from anon first to be safe
 REVOKE ALL ON ALL TABLES IN SCHEMA public FROM anon;
+
+-- Grant specific permissions to anon role
+-- These are required for PostgREST to process requests using the anon key.
+-- We restrict anon to SELECT-only on most tables to force the use of secure RPCs
+-- for mutations, while allowing the app to fetch public data (like maintenance/courses).
+GRANT SELECT ON
+    users, courses, lessons, enrollments, assignments, submissions,
+    live_classes, attendance, quizzes, quiz_submissions, materials,
+    discussions, notifications, sessions, broadcasts, maintenance,
+    planner, certificates, badges, user_badges, study_sessions,
+    lesson_completions, system_logs
+TO anon;
+
+-- Allow anon to INSERT only into tables where public interaction is strictly required
+-- and protected by other means (like RPCs or specific RLS checks).
+GRANT INSERT ON system_logs TO anon;
+
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO authenticated;
 
 ALTER DEFAULT PRIVILEGES IN SCHEMA public

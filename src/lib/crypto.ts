@@ -15,7 +15,8 @@ export async function comparePassword(password: string, hash: string): Promise<b
   return bcrypt.compare(password, hash);
 }
 
-const SESSION_SECRET = process.env.SESSION_SECRET || 'smart-lms-v1-session-secret-key-high-entropy';
+// In production, SESSION_SECRET MUST be set as an environment variable.
+const SESSION_SECRET = process.env.SESSION_SECRET || 'dev-only-secret-do-not-use-in-production-1234567890';
 
 export async function signData(data: object): Promise<string> {
     const encoder = new TextEncoder();

@@ -94,27 +94,29 @@ export async function login(email: string, password: string) {
 
   if (error || !rawData) {
     console.error('Login RPC failed:', error || 'No data returned');
-    // Record failed attempt
-    recordAttempt(normalizedEmail);
-    const remaining = getRemainingAttempts(normalizedEmail);
+    return { success: false, error: 'Authentication service unavailable' };
+  }
+
+  // Handle structured response from the enhanced authenticate_user RPC
+  if (rawData.success === false) {
+    const errorMessage = rawData.error || 'Invalid email or password';
     
-    if (remaining === 0) {
-      return { success: false, error: 'Too many login attempts. Please try again later.' };
-    } else if (remaining <= 2) {
-      return { success: false, error: `Invalid email or password. ${remaining} attempts remaining.` };
+    // If it's a simple invalid credentials error, track it in the local rate limiter too
+    if (errorMessage === 'Invalid email or password') {
+        recordAttempt(normalizedEmail);
+        const remaining = getRemainingAttempts(normalizedEmail);
+        if (remaining <= 2 && remaining > 0) {
+            return { success: false, error: `${errorMessage}. ${remaining} attempts remaining.` };
+        }
     }
     
-    return { success: false, error: 'Invalid email or password' };
+    return { success: false, error: errorMessage };
   }
 
   const { user, session_id } = normalizeAuthResult(rawData);
 
   if (!user) {
     return { success: false, error: 'Invalid response from authentication server' };
-  }
-
-  if (!user.active) {
-    return { success: false, error: 'Account is deactivated' };
   }
 
   try {
@@ -206,9 +208,12 @@ export async function signup(userData: Partial<User>) {
 
   if (error || !rawData) {
     console.error('Signup RPC failed:', error || 'No data returned');
-    // Record failed signup attempt
-    recordAttempt(normalizedEmail);
-    return { success: false, error: error?.message || 'Signup failed' };
+    return { success: false, error: 'Signup service unavailable' };
+  }
+
+  // Handle structured response from the enhanced register_user RPC
+  if (rawData.success === false) {
+    return { success: false, error: rawData.error || 'Signup failed' };
   }
 
   const { user, session_id } = normalizeAuthResult(rawData);
