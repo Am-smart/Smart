@@ -771,34 +771,48 @@ CREATE OR REPLACE FUNCTION check_is_enrolled(p_course_id UUID) RETURNS BOOLEAN A
 $$ LANGUAGE sql STABLE SECURITY DEFINER;
 
 -- Users policies
+DROP POLICY IF EXISTS "Users can view own profile" ON users;
 CREATE POLICY "Users can view own profile" ON users FOR SELECT USING (id = current_app_user() OR current_app_role() = 'admin');
+DROP POLICY IF EXISTS "Users can update own profile" ON users;
 CREATE POLICY "Users can update own profile" ON users FOR UPDATE USING (id = current_app_user() OR current_app_role() = 'admin');
+DROP POLICY IF EXISTS "Admins can manage all users" ON users;
 CREATE POLICY "Admins can manage all users" ON users FOR ALL USING (current_app_role() = 'admin');
 
 -- Courses policies
+DROP POLICY IF EXISTS "Anyone can view published courses" ON courses;
 CREATE POLICY "Anyone can view published courses" ON courses FOR SELECT USING (status = 'published');
+DROP POLICY IF EXISTS "Teachers can manage own courses" ON courses;
 CREATE POLICY "Teachers can manage own courses" ON courses FOR ALL USING (teacher_id = current_app_user() OR current_app_role() = 'admin');
+DROP POLICY IF EXISTS "Students can view courses they are enrolled in" ON courses;
 CREATE POLICY "Students can view courses they are enrolled in" ON courses FOR SELECT USING (check_is_enrolled(id));
 
 -- Lessons policies
+DROP POLICY IF EXISTS "Enrolled students can view lessons" ON lessons;
 CREATE POLICY "Enrolled students can view lessons" ON lessons FOR SELECT USING (
   check_is_enrolled(course_id) OR check_is_course_teacher(course_id) OR
   EXISTS (SELECT 1 FROM courses WHERE id = lessons.course_id AND status = 'published')
 );
+DROP POLICY IF EXISTS "Teachers manage own course lessons" ON lessons;
 CREATE POLICY "Teachers manage own course lessons" ON lessons FOR ALL USING (
   check_is_course_teacher(course_id) OR current_app_role() = 'admin'
 );
 
 -- Enrollments policies
+DROP POLICY IF EXISTS "Users view own enrollments" ON enrollments;
 CREATE POLICY "Users view own enrollments" ON enrollments FOR SELECT USING (student_id = current_app_user());
+DROP POLICY IF EXISTS "Teachers view course enrollments" ON enrollments;
 CREATE POLICY "Teachers view course enrollments" ON enrollments FOR SELECT USING (check_is_course_teacher(course_id));
+DROP POLICY IF EXISTS "Students can enroll themselves" ON enrollments;
 CREATE POLICY "Students can enroll themselves" ON enrollments FOR INSERT WITH CHECK (student_id = current_app_user());
+DROP POLICY IF EXISTS "Admins manage enrollments" ON enrollments;
 CREATE POLICY "Admins manage enrollments" ON enrollments FOR ALL USING (current_app_role() = 'admin');
 
 -- Assignments policies
+DROP POLICY IF EXISTS "Students view published assignments for enrolled courses" ON assignments;
 CREATE POLICY "Students view published assignments for enrolled courses" ON assignments FOR SELECT USING (
   status = 'published' AND EXISTS (SELECT 1 FROM enrollments WHERE course_id = assignments.course_id AND student_id = current_app_user())
 );
+DROP POLICY IF EXISTS "Teachers manage own assignments" ON assignments;
 CREATE POLICY "Teachers manage own assignments" ON assignments FOR ALL USING (teacher_id = current_app_user() OR current_app_role() = 'admin');
 
 -- Security Definer helper for assignment course check
@@ -811,42 +825,55 @@ CREATE OR REPLACE FUNCTION check_assignment_course_teacher(p_assignment_id UUID)
 $$ LANGUAGE sql STABLE SECURITY DEFINER;
 
 -- Submissions policies
+DROP POLICY IF EXISTS "Students manage own submissions" ON submissions;
 CREATE POLICY "Students manage own submissions" ON submissions FOR ALL USING (student_id = current_app_user());
+DROP POLICY IF EXISTS "Teachers view and grade submissions for own courses" ON submissions;
 CREATE POLICY "Teachers view and grade submissions for own courses" ON submissions FOR ALL USING (
   check_assignment_course_teacher(assignment_id) OR current_app_role() = 'admin'
 );
 
 -- Live Classes policies
+DROP POLICY IF EXISTS "Enrolled students view live classes" ON live_classes;
 CREATE POLICY "Enrolled students view live classes" ON live_classes FOR SELECT USING (
   EXISTS (SELECT 1 FROM enrollments WHERE course_id = live_classes.course_id AND student_id = current_app_user())
 );
+DROP POLICY IF EXISTS "Teachers manage own live classes" ON live_classes;
 CREATE POLICY "Teachers manage own live classes" ON live_classes FOR ALL USING (teacher_id = current_app_user() OR current_app_role() = 'admin');
 
 -- Attendance policies
+DROP POLICY IF EXISTS "Students mark own attendance" ON attendance;
 CREATE POLICY "Students mark own attendance" ON attendance FOR ALL USING (student_id = current_app_user());
+DROP POLICY IF EXISTS "Teachers view attendance for own classes" ON attendance;
 CREATE POLICY "Teachers view attendance for own classes" ON attendance FOR SELECT USING (
   EXISTS (SELECT 1 FROM live_classes WHERE id = attendance.live_class_id AND teacher_id = current_app_user())
 );
 
 -- Quizzes policies
+DROP POLICY IF EXISTS "Students view published quizzes for enrolled courses" ON quizzes;
 CREATE POLICY "Students view published quizzes for enrolled courses" ON quizzes FOR SELECT USING (
   status = 'published' AND EXISTS (SELECT 1 FROM enrollments WHERE course_id = quizzes.course_id AND student_id = current_app_user())
 );
+DROP POLICY IF EXISTS "Teachers manage own quizzes" ON quizzes;
 CREATE POLICY "Teachers manage own quizzes" ON quizzes FOR ALL USING (teacher_id = current_app_user() OR current_app_role() = 'admin');
 
 -- Quiz Submissions policies
+DROP POLICY IF EXISTS "Students manage own quiz submissions" ON quiz_submissions;
 CREATE POLICY "Students manage own quiz submissions" ON quiz_submissions FOR ALL USING (student_id = current_app_user());
+DROP POLICY IF EXISTS "Teachers view quiz submissions for own courses" ON quiz_submissions;
 CREATE POLICY "Teachers view quiz submissions for own courses" ON quiz_submissions FOR SELECT USING (
   EXISTS (SELECT 1 FROM quizzes WHERE id = quiz_submissions.quiz_id AND teacher_id = current_app_user())
 );
 
 -- Materials policies
+DROP POLICY IF EXISTS "Enrolled students view materials" ON materials;
 CREATE POLICY "Enrolled students view materials" ON materials FOR SELECT USING (
   EXISTS (SELECT 1 FROM enrollments WHERE course_id = materials.course_id AND student_id = current_app_user())
 );
+DROP POLICY IF EXISTS "Teachers manage own materials" ON materials;
 CREATE POLICY "Teachers manage own materials" ON materials FOR ALL USING (teacher_id = current_app_user() OR current_app_role() = 'admin');
 
 -- Discussions policies
+DROP POLICY IF EXISTS "Enrolled students and teachers view/post discussions" ON discussions;
 CREATE POLICY "Enrolled students and teachers view/post discussions" ON discussions FOR ALL USING (
   EXISTS (SELECT 1 FROM enrollments WHERE course_id = discussions.course_id AND student_id = current_app_user()) OR
   EXISTS (SELECT 1 FROM courses WHERE id = discussions.course_id AND teacher_id = current_app_user()) OR
@@ -854,41 +881,57 @@ CREATE POLICY "Enrolled students and teachers view/post discussions" ON discussi
 );
 
 -- Notifications policies
+DROP POLICY IF EXISTS "Users manage own notifications" ON notifications;
 CREATE POLICY "Users manage own notifications" ON notifications FOR ALL USING (user_id = current_app_user());
 
 -- Sessions policies
+DROP POLICY IF EXISTS "Users can manage own sessions" ON sessions;
 CREATE POLICY "Users can manage own sessions" ON sessions FOR SELECT USING (user_id = current_app_user());
+DROP POLICY IF EXISTS "Users can delete own sessions" ON sessions;
 CREATE POLICY "Users can delete own sessions" ON sessions FOR DELETE USING (user_id = current_app_user());
 
 -- Broadcasts policies
+DROP POLICY IF EXISTS "Anyone can view relevant broadcasts" ON broadcasts;
 CREATE POLICY "Anyone can view relevant broadcasts" ON broadcasts FOR SELECT USING (
   target_role IS NULL OR target_role = current_app_role() OR current_app_role() = 'admin'
 );
+DROP POLICY IF EXISTS "Admins manage broadcasts" ON broadcasts;
 CREATE POLICY "Admins manage broadcasts" ON broadcasts FOR ALL USING (current_app_role() = 'admin');
 
 -- Maintenance policies
+DROP POLICY IF EXISTS "Anyone can view maintenance status" ON maintenance;
 CREATE POLICY "Anyone can view maintenance status" ON maintenance FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Admins manage maintenance" ON maintenance;
 CREATE POLICY "Admins manage maintenance" ON maintenance FOR ALL USING (current_app_role() = 'admin');
 
 -- Planner policies
+DROP POLICY IF EXISTS "Users manage own planner" ON planner;
 CREATE POLICY "Users manage own planner" ON planner FOR ALL USING (user_id = current_app_user());
 
 -- Certificates policies
+DROP POLICY IF EXISTS "Users view own certificates" ON certificates;
 CREATE POLICY "Users view own certificates" ON certificates FOR SELECT USING (student_id = current_app_user());
+DROP POLICY IF EXISTS "Teachers/Admins manage certificates" ON certificates;
 CREATE POLICY "Teachers/Admins manage certificates" ON certificates FOR ALL USING (current_app_role() IN ('teacher', 'admin'));
 
 -- Badges policies
+DROP POLICY IF EXISTS "Anyone can view badges" ON badges;
 CREATE POLICY "Anyone can view badges" ON badges FOR SELECT USING (true);
+DROP POLICY IF EXISTS "Admins manage badges" ON badges;
 CREATE POLICY "Admins manage badges" ON badges FOR ALL USING (current_app_role() = 'admin');
 
 -- User Badges policies
+DROP POLICY IF EXISTS "Anyone can view user badges" ON user_badges;
 CREATE POLICY "Anyone can view user badges" ON user_badges FOR SELECT USING (true);
+DROP POLICY IF EXISTS "System/Admins manage user badges" ON user_badges;
 CREATE POLICY "System/Admins manage user badges" ON user_badges FOR ALL USING (current_app_role() = 'admin');
 
 -- Study Sessions policies
+DROP POLICY IF EXISTS "Users manage own study sessions" ON study_sessions;
 CREATE POLICY "Users manage own study sessions" ON study_sessions FOR ALL USING (user_id = current_app_user());
 
 -- Lesson Completions policies
+DROP POLICY IF EXISTS "Users manage own lesson completions" ON lesson_completions;
 CREATE POLICY "Users manage own lesson completions" ON lesson_completions FOR ALL USING (student_id = current_app_user());
 
 -- System Logs policies
