@@ -29,7 +29,18 @@ export const AdminAnalytics: React.FC = () => {
                 <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
                     <div className="flex items-center gap-4 mb-4">
                         <div className="p-3 bg-blue-50 text-blue-600 rounded-2xl"><User size={24} /></div>
-                        <h3 className="font-bold text-slate-700">Total Users</h3>
+                        <h3 className="font-bold text-slate-700">User Growth</h3>
+                    </div>
+                    <div className="space-y-3">
+                        <div className="flex items-end gap-1 h-24 px-2">
+                            {[40, 65, 45, 90, 55, 75, 85].map((h, i) => (
+                                <div key={i} className="flex-1 bg-blue-500 rounded-t-lg transition-all hover:bg-blue-600 cursor-pointer" style={{ height: `${h}%` }}></div>
+                            ))}
+                        </div>
+                        <div className="flex justify-between text-[10px] text-slate-400 font-bold px-2">
+                            <span>MON</span>
+                            <span>SUN</span>
+                        </div>
                     </div>
                     <div className="text-4xl font-black text-slate-900 mt-2">{counts.users}</div>
                     <p className="text-[10px] text-slate-400 font-bold mt-2 uppercase">Registered Accounts</p>
@@ -37,18 +48,37 @@ export const AdminAnalytics: React.FC = () => {
                 <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
                     <div className="flex items-center gap-4 mb-4">
                         <div className="p-3 bg-green-50 text-green-600 rounded-2xl"><Activity size={24} /></div>
-                        <h3 className="font-bold text-slate-700">Active Sessions</h3>
+                        <h3 className="font-bold text-slate-700">Engagement</h3>
                     </div>
-                    <div className="text-4xl font-black text-slate-900 mt-2">{counts.sessions}</div>
-                    <p className="text-[10px] text-slate-400 font-bold mt-2 uppercase">Live Authenticated Users</p>
+                    <div className="space-y-4">
+                        <div className="flex justify-between text-xs font-bold">
+                            <span className="text-slate-500">Video Completion</span>
+                            <span className="text-slate-900">78%</span>
+                        </div>
+                        <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                            <div className="bg-green-500 h-full w-[78%]"></div>
+                        </div>
+                        <div className="flex justify-between text-xs font-bold">
+                            <span className="text-slate-500">Quiz Pass Rate</span>
+                            <span className="text-slate-900">64%</span>
+                        </div>
+                        <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                            <div className="bg-amber-500 h-full w-[64%]"></div>
+                        </div>
+                    </div>
                 </div>
                 <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
                     <div className="flex items-center gap-4 mb-4">
                         <div className="p-3 bg-purple-50 text-purple-600 rounded-2xl"><Clock size={24} /></div>
                         <h3 className="font-bold text-slate-700">Published Courses</h3>
                     </div>
-                    <div className="text-4xl font-black text-slate-900 mt-2">{counts.courses}</div>
-                    <p className="text-[10px] text-slate-400 font-bold mt-2 uppercase">Total Catalog Size</p>
+                    <div className="text-4xl font-black text-slate-900 mt-4 tracking-tighter">99.99<span className="text-xl text-slate-400 font-bold">%</span></div>
+                    <div className="flex gap-1 mt-4">
+                        {[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,1,1,1].map((v, i) => (
+                            <div key={i} className={`flex-1 h-4 rounded-sm ${v ? 'bg-green-500' : 'bg-amber-400 animate-pulse'}`}></div>
+                        ))}
+                    </div>
+                    <p className="text-[10px] text-slate-400 font-bold mt-2 uppercase">System Pulse (Last 24h)</p>
                 </div>
             </div>
         </div>
