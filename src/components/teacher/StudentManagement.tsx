@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useSupabase } from '@/hooks/useSupabase';
 import { Enrollment, Course } from '@/lib/types';
 import { Award, Trash2, FileBadge } from 'lucide-react';
+import { useAppContext } from '@/components/AppContext';
 
 interface StudentManagementProps {
     initialEnrollments: Enrollment[];
@@ -11,6 +12,7 @@ interface StudentManagementProps {
 
 export const StudentManagement: React.FC<StudentManagementProps> = ({ initialEnrollments, courses, onRefresh }) => {
     const { client } = useSupabase();
+    const { addToast } = useAppContext();
     const [isCertModalOpen, setIsCertModalOpen] = useState(false);
     const [certData, setCertData] = useState({ course_id: '', student_id: '' });
 
@@ -34,10 +36,11 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ initialEnr
                 certificate_url: `https://lms.example.com/verify/${Math.random().toString(36).substr(2, 12)}`
             }]);
             if (error) throw error;
-            alert('Certificate issued successfully!');
+            addToast('Certificate issued successfully!', 'success');
             setIsCertModalOpen(false);
         } catch (err) {
             console.error('Cert issuance failed:', err);
+            addToast('Failed to issue certificate.', 'error');
         }
     };
 

@@ -1,7 +1,27 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { User, Activity, Clock } from 'lucide-react';
+import { useSupabase } from '@/hooks/useSupabase';
 
 export const AdminAnalytics: React.FC = () => {
+    const { client } = useSupabase();
+    const [counts, setCounts] = useState({ users: 0, sessions: 0, courses: 0 });
+
+    useEffect(() => {
+        const fetchCounts = async () => {
+            const [u, s, c] = await Promise.all([
+                client.from('users').select('id', { count: 'exact', head: true }),
+                client.from('sessions').select('id', { count: 'exact', head: true }).gt('expires_at', new Date().toISOString()),
+                client.from('courses').select('id', { count: 'exact', head: true })
+            ]);
+            setCounts({
+                users: u.count || 0,
+                sessions: s.count || 0,
+                courses: c.count || 0
+            });
+        };
+        fetchCounts();
+    }, [client]);
+
     return (
         <div className="space-y-8">
             <h2 className="text-2xl font-bold">System Analytics</h2>
@@ -9,28 +29,26 @@ export const AdminAnalytics: React.FC = () => {
                 <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
                     <div className="flex items-center gap-4 mb-4">
                         <div className="p-3 bg-blue-50 text-blue-600 rounded-2xl"><User size={24} /></div>
-                        <h3 className="font-bold text-slate-700">User Growth</h3>
+                        <h3 className="font-bold text-slate-700">Total Users</h3>
                     </div>
-                    <div className="h-32 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400 italic">
-                        User growth chart placeholder
-                    </div>
+                    <div className="text-4xl font-black text-slate-900 mt-2">{counts.users}</div>
+                    <p className="text-[10px] text-slate-400 font-bold mt-2 uppercase">Registered Accounts</p>
                 </div>
                 <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
                     <div className="flex items-center gap-4 mb-4">
                         <div className="p-3 bg-green-50 text-green-600 rounded-2xl"><Activity size={24} /></div>
                         <h3 className="font-bold text-slate-700">Active Sessions</h3>
                     </div>
-                    <div className="h-32 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400 italic">
-                        Activity heatmap placeholder
-                    </div>
+                    <div className="text-4xl font-black text-slate-900 mt-2">{counts.sessions}</div>
+                    <p className="text-[10px] text-slate-400 font-bold mt-2 uppercase">Live Authenticated Users</p>
                 </div>
                 <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
                     <div className="flex items-center gap-4 mb-4">
                         <div className="p-3 bg-purple-50 text-purple-600 rounded-2xl"><Clock size={24} /></div>
-                        <h3 className="font-bold text-slate-700">Server Uptime</h3>
+                        <h3 className="font-bold text-slate-700">Published Courses</h3>
                     </div>
-                    <div className="text-3xl font-bold text-slate-900 mt-4">99.99%</div>
-                    <p className="text-xs text-slate-500 font-medium mt-1">Last 30 days</p>
+                    <div className="text-4xl font-black text-slate-900 mt-2">{counts.courses}</div>
+                    <p className="text-[10px] text-slate-400 font-bold mt-2 uppercase">Total Catalog Size</p>
                 </div>
             </div>
         </div>

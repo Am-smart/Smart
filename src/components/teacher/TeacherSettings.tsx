@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { User } from '@/lib/types';
 import { Bell, User as UserIcon, Lock, Save } from 'lucide-react';
+import { useAppContext } from '../AppContext';
+import { updatePassword, updatePreferences } from '@/lib/auth-actions';
 
 interface TeacherSettingsProps {
     user: User;
@@ -8,17 +10,16 @@ interface TeacherSettingsProps {
 }
 
 export const TeacherSettings: React.FC<TeacherSettingsProps> = ({ user, onUpdate }) => {
+    const { addToast } = useAppContext();
     const [activeTab, setActiveTab] = useState<'profile' | 'notifications' | 'security'>('profile');
     const [formData, setFormData] = useState({
         full_name: user.full_name || '',
         phone: user.phone || '',
     });
-    const [notificationPreferences, setNotificationPreferences] = useState({
-        email_notifications: true,
-        push_notifications: true,
-        student_submissions: true,
-        grading_notifications: true,
-        class_announcements: true,
+    const [notificationPreferences, setNotificationPreferences] = useState(user.notification_preferences || {
+        email: true,
+        push: true,
+        inApp: true
     });
     const [securityData, setSecurityData] = useState({
         current_password: '',
@@ -32,7 +33,55 @@ export const TeacherSettings: React.FC<TeacherSettingsProps> = ({ user, onUpdate
         setIsSaving(true);
         try {
             await onUpdate(formData);
-            alert('Settings updated successfully!');
+            addToast('Settings updated successfully!', 'success');
+        } catch (err) {
+            console.error('Update failed:', err);
+            addToast('Failed to update settings.', 'error');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleSavePreferences = async () => {
+        setIsSaving(true);
+        try {
+            const res = await updatePreferences(notificationPreferences);
+            if (res.success) {
+                addToast('Notification preferences saved', 'success');
+                await onUpdate({ notification_preferences: notificationPreferences });
+            } else {
+                throw new Error(res.error);
+            }
+        } catch (error: unknown) {
+            const err = error as Error;
+            addToast(err.message || 'Failed to save preferences', 'error');
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleUpdatePassword = async () => {
+        if (securityData.new_password !== securityData.confirm_password) {
+            addToast('Passwords do not match', 'error');
+            return;
+        }
+        if (securityData.new_password.length < 8) {
+            addToast('Password must be at least 8 characters', 'error');
+            return;
+        }
+
+        setIsSaving(true);
+        try {
+            const res = await updatePassword(securityData.current_password, securityData.new_password);
+            if (res.success) {
+                addToast('Password updated successfully', 'success');
+                setSecurityData({ current_password: '', new_password: '', confirm_password: '' });
+            } else {
+                throw new Error(res.error);
+            }
+        } catch (error: unknown) {
+            const err = error as Error;
+            addToast(err.message || 'Failed to update password', 'error');
         } finally {
             setIsSaving(false);
         }
@@ -128,10 +177,11 @@ export const TeacherSettings: React.FC<TeacherSettingsProps> = ({ user, onUpdate
 
                                 <div className="pt-6 border-t">
                                     <button 
-                                        onClick={() => alert('Notification preferences saved')}
+                                        onClick={handleSavePreferences}
+                                        disabled={isSaving}
                                         className="btn-primary w-full md:w-auto px-8 flex items-center justify-center gap-2">
                                         <Save size={18} />
-                                        Save Preferences
+                                        {isSaving ? 'Saving...' : 'Save Preferences'}
                                     </button>
                                 </div>
                             </div>
@@ -183,10 +233,11 @@ export const TeacherSettings: React.FC<TeacherSettingsProps> = ({ user, onUpdate
 
                                 <div className="pt-6 border-t">
                                     <button 
-                                        onClick={() => alert('Password change submitted')}
+                                        onClick={handleUpdatePassword}
+                                        disabled={isSaving}
                                         className="btn-primary w-full md:w-auto px-8 flex items-center justify-center gap-2">
                                         <Save size={18} />
-                                        Update Password
+                                        {isSaving ? 'Updating...' : 'Update Password'}
                                     </button>
                                 </div>
                             </div>

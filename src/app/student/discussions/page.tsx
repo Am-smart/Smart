@@ -5,10 +5,14 @@ import { useAuth } from '@/components/auth/AuthContext';
 import { useSupabase } from '@/hooks/useSupabase';
 import { DiscussionBoard } from "@/components/student/DiscussionBoard";
 import { Discussion, Enrollment } from '@/lib/types';
+import { useIndexedDB } from '@/hooks/useIndexedDB';
+import { useAppContext } from '@/components/AppContext';
 
 export default function DiscussionsPage() {
   const { user } = useAuth();
+  const { addToast } = useAppContext();
   const { client, getEnrollments, getDiscussions } = useSupabase();
+  const { isOnline, addToQueue } = useIndexedDB();
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
   const [selectedCourseId, setSelectedCourseId] = useState<string>('');
   const [discussions, setDiscussions] = useState<Discussion[]>([]);
@@ -30,12 +34,26 @@ export default function DiscussionsPage() {
 
   const handlePost = async (content: string) => {
       if (!user || !selectedCourseId) return;
-      const { error } = await client.from('discussions').insert([{
+
+      const payload = {
           course_id: selectedCourseId,
           user_id: user.id,
-          content
-      }]);
-      if (!error) getDiscussions(selectedCourseId!).then(setDiscussions);
+          content,
+          created_at: new Date().toISOString()
+      };
+
+      if (isOnline) {
+          const { error } = await client.from('discussions').insert([payload]);
+          if (!error) {
+              getDiscussions(selectedCourseId!).then(setDiscussions);
+              addToast('Message posted!', 'success');
+          }
+      } else {
+          await addToQueue('DISCUSSION_POST', payload, user.sessionId);
+          addToast('Post queued for synchronization.', 'info');
+          // Optimistically update local state if possible, or just keep as is
+          setDiscussions(prev => [{ ...payload, id: Math.random().toString(), users: { full_name: user.full_name } } as unknown as Discussion, ...prev]);
+      }
   };
 
   return (
@@ -59,10 +77,14 @@ export default function DiscussionsPage() {
                 userId={user?.id || ''}
                 onPost={handlePost}
                 onDelete={async (id) => {
+                    if (!isOnline) {
+                        addToast('Cannot delete posts while offline.', 'error');
+                        return;
+                    }
                     await client.from('discussions').delete().eq('id', id);
                     getDiscussions(selectedCourseId!).then(setDiscussions);
                 }}
-                isOnline={true}
+                isOnline={isOnline}
             />
         )}
     </div>

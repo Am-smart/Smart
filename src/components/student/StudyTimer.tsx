@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSupabase } from '@/hooks/useSupabase';
 import { Course } from '@/lib/types';
+import { useAppContext } from '../AppContext';
 
 interface StudyTimerProps {
   userId: string;
@@ -9,6 +10,7 @@ interface StudyTimerProps {
 
 export const StudyTimer: React.FC<StudyTimerProps> = ({ userId, courses }) => {
   const { client } = useSupabase();
+  const { addToast } = useAppContext();
   const [isActive, setIsActive] = useState(false);
   const [seconds, setSeconds] = useState(0);
   const [selectedCourseId, setSelectedCourseId] = useState('');
@@ -28,7 +30,7 @@ export const StudyTimer: React.FC<StudyTimerProps> = ({ userId, courses }) => {
 
   const toggleTimer = () => {
     if (!selectedCourseId) {
-        alert('Please select a course to start focusing.');
+        addToast('Please select a course to start focusing.', 'error');
         return;
     }
 

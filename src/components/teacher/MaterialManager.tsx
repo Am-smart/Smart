@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useSupabase } from '@/hooks/useSupabase';
 import { Course, Material } from '@/lib/types';
+import { useAppContext } from '@/components/AppContext';
 
 interface MaterialManagerProps {
     initialMaterials: Material[];
@@ -10,6 +11,7 @@ interface MaterialManagerProps {
 
 export const MaterialManager: React.FC<MaterialManagerProps> = ({ initialMaterials, courses, onRefresh }) => {
     const { client } = useSupabase();
+    const { addToast } = useAppContext();
     const [selectedCourseId, setSelectedCourseId] = useState('');
     const [isUploading, setIsUploading] = useState(false);
 
@@ -42,9 +44,10 @@ export const MaterialManager: React.FC<MaterialManagerProps> = ({ initialMateria
 
             if (dbError) throw dbError;
             onRefresh();
+            addToast('Material uploaded successfully!', 'success');
         } catch (err) {
             console.error('Upload failed:', err);
-            alert('File upload failed.');
+            addToast('File upload failed.', 'error');
         } finally {
             setIsUploading(false);
         }
@@ -86,7 +89,7 @@ export const MaterialManager: React.FC<MaterialManagerProps> = ({ initialMateria
                             </div>
                             <div className="mt-auto pt-4 flex gap-3">
                                 <a href={mat.file_url} target="_blank" rel="noopener noreferrer" className="btn-secondary flex-1 py-2 text-[10px] uppercase font-bold tracking-widest text-center">View</a>
-                                <button onClick={() => { navigator.clipboard.writeText(mat.file_url); alert('URL copied to clipboard!'); }} className="p-2 bg-slate-50 text-slate-400 hover:bg-slate-100 rounded-lg transition-colors">🔗</button>
+                                <button onClick={() => { navigator.clipboard.writeText(mat.file_url); addToast('URL copied to clipboard!', 'success'); }} className="p-2 bg-slate-50 text-slate-400 hover:bg-slate-100 rounded-lg transition-colors">🔗</button>
                             </div>
                         </div>
                     ))

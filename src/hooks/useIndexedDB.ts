@@ -9,7 +9,7 @@ const STORE_CACHE = 'lms-cache';
 
 export interface QueueItem {
   id?: number;
-  type: 'ENROLL' | 'SUBMISSION' | 'QUIZ_SUBMISSION' | 'PROFILE_UPDATE' | 'COURSE_SAVE' | 'ASSIGNMENT_SAVE' | 'QUIZ_SAVE';
+  type: 'ENROLL' | 'SUBMISSION' | 'QUIZ_SUBMISSION' | 'PROFILE_UPDATE' | 'COURSE_SAVE' | 'ASSIGNMENT_SAVE' | 'QUIZ_SAVE' | 'DISCUSSION_POST' | 'PLANNER_UPDATE' | 'SETTING_UPDATE';
   payload: unknown;
   sessionId?: string;
   timestamp: number;
@@ -146,6 +146,19 @@ export const useIndexedDB = () => {
             const { error: qError } = await withSession(supabase.from('quizzes'), item.sessionId).upsert(item.payload as Partial<Quiz>, { onConflict: 'id' });
             if (!qError) success = true;
             break;
+          case 'DISCUSSION_POST':
+            const { error: dError } = await withSession(supabase.from('discussions'), item.sessionId).insert([item.payload]);
+            if (!dError) success = true;
+            break;
+          case 'PLANNER_UPDATE':
+            const { error: pError } = await withSession(supabase.from('planner'), item.sessionId).upsert(item.payload as Record<string, unknown>, { onConflict: 'id' });
+            if (!pError) success = true;
+            break;
+          case 'SETTING_UPDATE':
+            const { p_key, p_value } = item.payload as { p_key: string, p_value: unknown };
+            const { error: sError } = await withSession(supabase, item.sessionId).rpc('update_setting', { p_key, p_value });
+            if (!sError) success = true;
+            break;
         }
 
         if (success && item.id) {
@@ -161,27 +174,52 @@ export const useIndexedDB = () => {
     if (!isOnline) return;
     try {
         if (role === 'student') {
-            const [courses, enrollments, assignments, quizzes] = await Promise.all([
+            const [courses, enrollments, assignments, quizzes, materials, planner, liveClasses, discussions] = await Promise.all([
                 withSession(supabase.from('courses'), sessionId).select('*').eq('status', 'published'),
                 withSession(supabase.from('enrollments'), sessionId).select('*, courses(*)').eq('student_id', userId),
                 withSession(supabase.from('assignments'), sessionId).select('*, courses(*)').eq('status', 'published'),
-                withSession(supabase.from('quizzes'), sessionId).select('*, courses(*)').eq('status', 'published')
+                withSession(supabase.from('quizzes'), sessionId).select('*, courses(*)').eq('status', 'published'),
+                withSession(supabase.from('materials'), sessionId).select('*, courses(*)'),
+                withSession(supabase.from('planner'), sessionId).select('*').eq('user_id', userId),
+                withSession(supabase.from('live_classes'), sessionId).select('*, courses(*)'),
+                withSession(supabase.from('discussions'), sessionId).select('*, users(full_name)').order('created_at', { ascending: false }).limit(100)
             ]);
 
             if (courses.data) await setCache('all_courses', courses.data);
             if (enrollments.data) await setCache('my_enrollments', enrollments.data);
             if (assignments.data) await setCache('all_assignments', assignments.data);
             if (quizzes.data) await setCache('all_quizzes', quizzes.data);
+            if (materials.data) await setCache('all_materials', materials.data);
+            if (planner.data) await setCache('planner_items', planner.data);
+            if (liveClasses.data) await setCache('all_live_classes', liveClasses.data);
+            if (discussions.data) await setCache('recent_discussions', discussions.data);
         } else if (role === 'teacher') {
-             const [courses, assignments, quizzes] = await Promise.all([
+             const [courses, assignments, quizzes, materials, submissions, liveClasses] = await Promise.all([
                 withSession(supabase.from('courses'), sessionId).select('*').eq('teacher_id', userId),
                 withSession(supabase.from('assignments'), sessionId).select('*, courses(*)').eq('teacher_id', userId),
-                withSession(supabase.from('quizzes'), sessionId).select('*, courses(*)').eq('teacher_id', userId)
+                withSession(supabase.from('quizzes'), sessionId).select('*, courses(*)').eq('teacher_id', userId),
+                withSession(supabase.from('materials'), sessionId).select('*').eq('teacher_id', userId),
+                withSession(supabase.from('submissions'), sessionId).select('*, assignments(*), users(*)')
             ]);
 
             if (courses.data) await setCache('teacher_courses', courses.data);
             if (assignments.data) await setCache('teacher_assignments', assignments.data);
             if (quizzes.data) await setCache('teacher_quizzes', quizzes.data);
+            if (materials.data) await setCache('teacher_materials', materials.data);
+            if (submissions.data) await setCache('teacher_submissions', submissions.data);
+            if (liveClasses.data) await setCache('teacher_live_classes', liveClasses.data);
+        } else if (role === 'admin') {
+            const [users, courses, logs, settings] = await Promise.all([
+                withSession(supabase.from('users'), sessionId).select('*'),
+                withSession(supabase.from('courses'), sessionId).select('*'),
+                withSession(supabase.from('system_logs'), sessionId).select('*').limit(100),
+                withSession(supabase.from('settings'), sessionId).select('*')
+            ]);
+
+            if (users.data) await setCache('admin_users', users.data);
+            if (courses.data) await setCache('admin_courses', courses.data);
+            if (logs.data) await setCache('admin_logs', logs.data);
+            if (settings.data) await setCache('admin_settings', settings.data);
         }
     } catch (err) {
         console.error('Data pull failed:', err);

@@ -119,6 +119,15 @@ export async function login(email: string, password: string) {
     return { success: false, error: 'Invalid response from authentication server' };
   }
 
+  // Enforce pending password reset check at the application level
+  // This ensures the policy is applied even if the database RPC is not updated.
+  if (user.reset_request && user.reset_request.status === 'pending') {
+    return {
+      success: false,
+      error: 'Your password reset request is currently under review by an administrator. Please check back later.'
+    };
+  }
+
   try {
       const finalSessionId = await ensureSession(user.id, session_id);
 
@@ -271,4 +280,29 @@ export async function getSession() {
   if (!session) return null;
 
   return verifyToken(session.value);
+}
+
+export async function updatePassword(currentPass: string, newPass: string) {
+    const session = await getSession();
+    if (!session || !session.sessionId) return { success: false, error: 'Unauthorized' };
+
+    const { data, error } = await supabase.rpc('update_user_password', {
+        p_current_password: currentPass,
+        p_new_password: newPass
+    }).setHeader('x-session-id', session.sessionId as string);
+
+    if (error) return { success: false, error: error.message };
+    return data;
+}
+
+export async function updatePreferences(preferences: object) {
+    const session = await getSession();
+    if (!session || !session.sessionId) return { success: false, error: 'Unauthorized' };
+
+    const { data, error } = await supabase.rpc('update_user_preferences', {
+        p_preferences: preferences
+    }).setHeader('x-session-id', session.sessionId as string);
+
+    if (error) return { success: false, error: error.message };
+    return data;
 }
