@@ -935,9 +935,7 @@ DROP POLICY IF EXISTS "Users manage own lesson completions" ON lesson_completion
 CREATE POLICY "Users manage own lesson completions" ON lesson_completions FOR ALL USING (student_id = current_app_user());
 
 -- System Logs policies
-DROP POLICY IF EXISTS "Authenticated users can create logs" ON system_logs;
 CREATE POLICY "Authenticated users can create logs" ON system_logs FOR INSERT WITH CHECK (current_app_user() IS NOT NULL);
-DROP POLICY IF EXISTS "Admins can view all logs" ON system_logs;
 CREATE POLICY "Admins can view all logs" ON system_logs FOR SELECT USING (current_app_role() = 'admin');
 
 -- General permissions
@@ -945,20 +943,15 @@ CREATE POLICY "Admins can view all logs" ON system_logs FOR SELECT USING (curren
 REVOKE ALL ON ALL TABLES IN SCHEMA public FROM anon;
 
 -- Grant specific permissions to anon role
--- These are required for PostgREST to process requests using the anon key.
--- We restrict anon to SELECT-only on most tables to force the use of secure RPCs
--- for mutations, while allowing the app to fetch public data (like maintenance/courses).
-GRANT SELECT ON
+-- These are required for PostgREST to process requests using the anon key
+-- RLS policies will still enforce data access controls
+GRANT SELECT, INSERT, UPDATE, DELETE ON
     users, courses, lessons, enrollments, assignments, submissions,
     live_classes, attendance, quizzes, quiz_submissions, materials,
     discussions, notifications, sessions, broadcasts, maintenance,
     planner, certificates, badges, user_badges, study_sessions,
     lesson_completions, system_logs
 TO anon;
-
--- Allow anon to INSERT only into tables where public interaction is strictly required
--- and protected by other means (like RPCs or specific RLS checks).
-GRANT INSERT ON system_logs TO anon;
 
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO authenticated;
 
