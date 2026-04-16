@@ -23,7 +23,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [state, setState] = useState<AuthState>({ user: null, role: null, isLoading: true });
-  const { setCache, getCache, addToQueue, isOnline } = useIndexedDB();
+  const { setCache, getCache, addToQueue, isOnline, pullData } = useIndexedDB();
 
   useEffect(() => {
     const initAuth = async () => {
@@ -44,6 +44,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                   const authenticatedUser = { ...user, sessionId } as User;
                   await setCache('current_user', authenticatedUser);
                   setState({ user: authenticatedUser, role: user.role, isLoading: false });
+                  // Background pull
+                  pullData(userId, sessionId, user.role);
                   return;
               } else {
                   console.warn('Profile fetch failed, falling back to session metadata:', error);
