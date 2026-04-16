@@ -935,8 +935,19 @@ DROP POLICY IF EXISTS "Users manage own lesson completions" ON lesson_completion
 CREATE POLICY "Users manage own lesson completions" ON lesson_completions FOR ALL USING (student_id = current_app_user());
 
 -- System Logs policies
-CREATE POLICY "Authenticated users can create logs" ON system_logs FOR INSERT WITH CHECK (current_app_user() IS NOT NULL);
-CREATE POLICY "Admins can view all logs" ON system_logs FOR SELECT USING (current_app_role() = 'admin');
+-- System Logs policies (idempotent)
+DROP POLICY IF EXISTS "Authenticated users can create logs" ON system_logs;
+DROP POLICY IF EXISTS "Admins can view all logs" ON system_logs;
+
+CREATE POLICY "Authenticated users can create logs"
+ON system_logs
+FOR INSERT
+WITH CHECK (current_app_user() IS NOT NULL);
+
+CREATE POLICY "Admins can view all logs"
+ON system_logs
+FOR SELECT
+USING (current_app_role() = 'admin');
 
 -- General permissions
 -- Revoke all from anon first to be safe
