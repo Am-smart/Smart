@@ -199,7 +199,8 @@ export const useIndexedDB = () => {
                 withSession(supabase.from('assignments'), sessionId).select('*, courses(*)').eq('teacher_id', userId),
                 withSession(supabase.from('quizzes'), sessionId).select('*, courses(*)').eq('teacher_id', userId),
                 withSession(supabase.from('materials'), sessionId).select('*').eq('teacher_id', userId),
-                withSession(supabase.from('submissions'), sessionId).select('*, assignments(*), users(*)')
+                withSession(supabase.from('submissions'), sessionId).select('*, assignments(*), users(*)'),
+                withSession(supabase.from('live_classes'), sessionId).select('*').eq('teacher_id', userId)
             ]);
 
             if (courses.data) await setCache('teacher_courses', courses.data);
