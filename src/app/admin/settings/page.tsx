@@ -15,16 +15,28 @@ export default function AdminSettingsPage() {
     });
     const [isSaving, setIsSaving] = useState(false);
 
-    if (!user) return null;
-
     const handleSave = async () => {
         setIsSaving(true);
-        // Simulate persistence since there is no dedicated 'settings' table yet,
-        // but it satisfies the UI requirement and provides feedback.
+        // Persist to localStorage for simulation of persistence
+        localStorage.setItem('admin_config', JSON.stringify(config));
         await new Promise(r => setTimeout(r, 800));
         setIsSaving(false);
         addToast('Global configurations saved successfully!', 'success');
     };
+
+    // Load from localStorage on mount
+    React.useEffect(() => {
+        const saved = localStorage.getItem('admin_config');
+        if (saved) {
+            try {
+                setConfig(JSON.parse(saved));
+            } catch (e) {
+                console.error('Failed to parse saved config', e);
+            }
+        }
+    }, []);
+
+    if (!user) return null;
 
     return (
         <div className="max-w-4xl mx-auto space-y-8">

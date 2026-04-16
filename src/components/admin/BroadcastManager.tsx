@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useSupabase } from '@/hooks/useSupabase';
 import { Course } from '@/lib/types';
+import { useAppContext } from '@/components/AppContext';
 
 interface BroadcastManagerProps {
     initialCourses: Course[];
@@ -8,6 +9,7 @@ interface BroadcastManagerProps {
 
 export const BroadcastManager: React.FC<BroadcastManagerProps> = ({ initialCourses }) => {
     const { client } = useSupabase();
+    const { addToast } = useAppContext();
     const [title, setTitle] = useState('');
     const [message, setMessage] = useState('');
     const [selectedCourseId, setSelectedCourseId] = useState('all');
@@ -32,10 +34,10 @@ export const BroadcastManager: React.FC<BroadcastManagerProps> = ({ initialCours
 
             setTitle('');
             setMessage('');
-            alert('Broadcast sent successfully!');
+            addToast('Broadcast sent successfully!', 'success');
         } catch (err: unknown) {
             console.error('Broadcast failed:', err);
-            alert('Failed to send broadcast.');
+            addToast('Failed to send broadcast.', 'error');
         } finally {
             setIsSending(false);
         }
