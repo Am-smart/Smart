@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { User } from '@/lib/types';
-import { hashPassword } from '@/lib/crypto';
+import { useAppContext } from '@/components/AppContext';
 
 interface PasswordResetProps {
     users: User[];
@@ -8,6 +8,7 @@ interface PasswordResetProps {
 }
 
 export const PasswordReset: React.FC<PasswordResetProps> = ({ users, onUpdate }) => {
+    const { addToast } = useAppContext();
     const [selectedId, setSelectedId] = useState('');
     const [newPassword, setNewPassword] = useState('');
     const [isResetting, setIsResetting] = useState(false);
@@ -18,18 +19,21 @@ export const PasswordReset: React.FC<PasswordResetProps> = ({ users, onUpdate })
         if (!user || !newPassword) return;
         setIsResetting(true);
         try {
-            // Use bcrypt hashing
+            const { hashPassword } = await import('@/lib/crypto');
             const hashed = await hashPassword(newPassword);
+
             await onUpdate(user.id, {
                 password: hashed,
-                reset_request: null
+                reset_request: null,
+                failed_attempts: 0,
+                locked_until: null
             });
-            alert(`Password for ${user.email} has been reset successfully.`);
+            addToast(`Password for ${user.email} has been reset successfully.`, 'success');
             setNewPassword('');
             setSelectedId('');
         } catch (err) {
             console.error('Reset failed:', err);
-            alert('Failed to reset password.');
+            addToast('Failed to reset password.', 'error');
         } finally {
             setIsResetting(false);
         }

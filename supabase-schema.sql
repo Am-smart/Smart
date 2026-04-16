@@ -375,9 +375,13 @@ BEGIN
     RETURN jsonb_build_object('success', false, 'error', 'Invalid email or password');
   END IF;
 
-  -- 2. Check if account is active
+  -- 2. Check if account is active or flagged
   IF v_user.active = FALSE THEN
     RETURN jsonb_build_object('success', false, 'error', 'Account is deactivated');
+  END IF;
+
+  IF v_user.flagged = TRUE THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Account is flagged and access is denied. Please contact support.');
   END IF;
 
   -- 3. Check if account is locked
@@ -390,21 +394,35 @@ BEGIN
 
   -- 4. Verify password
   IF v_user.password IS NULL OR crypt(p_password, v_user.password) != v_user.password THEN
-    -- Increment failed attempts
+    -- Increment failed attempts and handle lockout/flagging
     UPDATE users
     SET
-      failed_attempts = COALESCE(failed_attempts, 0) + 1,
+      lockouts = CASE
+        WHEN COALESCE(failed_attempts, 0) + 1 >= 5 THEN COALESCE(lockouts, 0) + 1
+        ELSE lockouts
+      END,
+      flagged = CASE
+        WHEN COALESCE(failed_attempts, 0) + 1 >= 5 AND COALESCE(lockouts, 0) + 1 >= 3 THEN TRUE
+        ELSE flagged
+      END,
       locked_until = CASE
         WHEN COALESCE(failed_attempts, 0) + 1 >= 5 THEN v_now + INTERVAL '30 minutes'
         ELSE locked_until
       END,
-      lockouts = CASE
-        WHEN COALESCE(failed_attempts, 0) + 1 >= 5 THEN COALESCE(lockouts, 0) + 1
-        ELSE lockouts
+      failed_attempts = CASE
+        WHEN COALESCE(failed_attempts, 0) + 1 >= 5 THEN 0
+        ELSE COALESCE(failed_attempts, 0) + 1
       END
     WHERE id = v_user.id;
 
-    IF COALESCE(v_user.failed_attempts, 0) + 1 >= 5 THEN
+    -- Refresh v_user to check updated status
+    SELECT * INTO v_user FROM users WHERE id = v_user.id;
+
+    IF v_user.flagged = TRUE THEN
+        RETURN jsonb_build_object('success', false, 'error', 'Too many lockouts. Account has been flagged for security review.');
+    END IF;
+
+    IF v_user.locked_until IS NOT NULL AND v_user.locked_until > v_now THEN
        RETURN jsonb_build_object('success', false, 'error', 'Too many failed attempts. Account locked for 30 minutes.');
     END IF;
 
@@ -441,7 +459,7 @@ DECLARE
   v_caller_role TEXT;
   v_hashed_password TEXT;
 BEGIN
-  v_caller_role := current_app_role();
+  v_caller_role := COALESCE(current_app_role(), 'public');
 
   -- 1. Check if email already exists
   IF EXISTS (SELECT 1 FROM users WHERE email = p_email) THEN
@@ -451,19 +469,13 @@ BEGIN
   -- 2. Hash the password
   v_hashed_password := crypt(p_password, gen_salt('bf', 10));
 
-  -- Validate role for public registration
-  IF v_caller_role != 'admin' AND p_role NOT IN ('student', 'teacher') THEN
-    RETURN jsonb_build_object('success', false, 'error', 'Invalid role for public registration');
-  END IF;
+  -- 3. Role and Limit Validation
+  IF v_caller_role != 'admin' THEN
+    -- Public signup logic
+    IF p_role NOT IN ('student', 'teacher', 'admin') THEN
+       RETURN jsonb_build_object('success', false, 'error', 'Invalid role');
+    END IF;
 
-  -- Admins can create unlimited users of any role
-  IF v_caller_role = 'admin' THEN
-    INSERT INTO users (full_name, email, password, phone, role, active)
-    VALUES (p_full_name, p_email, v_hashed_password, p_phone, p_role, TRUE)
-    RETURNING * INTO v_user;
-  ELSE
-    -- Public signup logic: Limit public creation of teachers and admins to 3 total
-    -- Only enforce this limit when user is trying to create a teacher or admin account
     IF p_role IN ('teacher', 'admin') THEN
       SELECT COUNT(*) INTO v_count FROM users WHERE role IN ('teacher', 'admin');
       IF v_count >= 3 THEN
@@ -473,18 +485,9 @@ BEGIN
   END IF;
 
   -- 4. Perform Insertion
-  BEGIN
-    -- Check if email already exists
-    IF EXISTS (SELECT 1 FROM users WHERE email = p_email) THEN
-      RETURN jsonb_build_object('success', false, 'error', 'Email already in use');
-    END IF;
-
-    INSERT INTO users (full_name, email, password, phone, role, active)
-    VALUES (p_full_name, p_email, v_hashed_password, p_phone, p_role, TRUE)
-    RETURNING * INTO v_user;
-  EXCEPTION WHEN OTHERS THEN
-    RETURN jsonb_build_object('success', false, 'error', 'Failed to create user record: ' || SQLERRM);
-  END;
+  INSERT INTO users (full_name, email, password, phone, role, active)
+  VALUES (p_full_name, p_email, v_hashed_password, p_phone, p_role, TRUE)
+  RETURNING * INTO v_user;
 
   -- 5. Create session (Ensures user is granted immediate access if needed)
   INSERT INTO sessions (user_id, expires_at)
@@ -496,6 +499,8 @@ BEGIN
     'user', (to_jsonb(v_user) - 'password'),
     'session_id', v_session_id
   );
+EXCEPTION WHEN OTHERS THEN
+  RETURN jsonb_build_object('success', false, 'error', 'Failed to register user: ' || SQLERRM);
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
@@ -557,6 +562,21 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- 7. Triggers
+CREATE OR REPLACE FUNCTION tr_check_lockouts_flag() RETURNS TRIGGER AS $$
+BEGIN
+  IF NEW.lockouts >= 3 AND OLD.lockouts < 3 THEN
+    NEW.flagged := TRUE;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.triggers WHERE trigger_name = 'tr_users_lockout_flag') THEN
+        CREATE TRIGGER tr_users_lockout_flag BEFORE UPDATE ON users FOR EACH ROW EXECUTE PROCEDURE tr_check_lockouts_flag();
+    END IF;
+END $$;
+
 CREATE OR REPLACE FUNCTION tr_notify_live_class() RETURNS TRIGGER AS $$
 BEGIN
   IF (NEW.status = 'live' AND (OLD.status IS NULL OR OLD.status != 'live')) THEN
