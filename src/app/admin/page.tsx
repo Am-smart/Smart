@@ -7,19 +7,33 @@ import { useSupabase } from '@/hooks/useSupabase';
 export default function AdminDashboard() {
   const { user } = useAuth();
   const { client } = useSupabase();
-  const [stats, setStats] = useState({ totalUsers: 0, activeCourses: 0, pendingReports: 0 });
+  const [stats, setStats] = useState({
+      totalUsers: 0,
+      activeCourses: 0,
+      flaggedUsers: 0,
+      teachers: 0,
+      students: 0,
+      pendingResets: 0
+  });
 
   const fetchData = useCallback(async () => {
     if (!user) return;
-    const [users, courses] = await Promise.all([
-      client.from('users').select('id', { count: 'exact' }),
-      client.from('courses').select('id', { count: 'exact' }).eq('status', 'published')
+    const [usersRes, coursesRes, flaggedRes, teachersRes, studentsRes, resetsRes] = await Promise.all([
+      client.from('users').select('id', { count: 'exact', head: true }),
+      client.from('courses').select('id', { count: 'exact', head: true }).eq('status', 'published'),
+      client.from('users').select('id', { count: 'exact', head: true }).eq('flagged', true),
+      client.from('users').select('id', { count: 'exact', head: true }).eq('role', 'teacher'),
+      client.from('users').select('id', { count: 'exact', head: true }).eq('role', 'student'),
+      client.from('users').select('id', { count: 'exact', head: true }).not('reset_request', 'is', null)
     ]);
 
     setStats({
-      totalUsers: users.count || 0,
-      activeCourses: courses.count || 0,
-      pendingReports: 0
+      totalUsers: usersRes.count || 0,
+      activeCourses: coursesRes.count || 0,
+      flaggedUsers: flaggedRes.count || 0,
+      teachers: teachersRes.count || 0,
+      students: studentsRes.count || 0,
+      pendingResets: resetsRes.count || 0
     });
   }, [user, client]);
 
@@ -32,16 +46,25 @@ export default function AdminDashboard() {
       <h2 className="text-2xl font-bold mb-6">Admin Overview</h2>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-          <h4 className="text-slate-500 text-sm font-bold uppercase mb-2">Total Users</h4>
-          <div className="text-3xl font-bold text-slate-900">{stats.totalUsers}</div>
+          <h4 className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-2">Total Users</h4>
+          <div className="text-4xl font-black text-slate-900">{stats.totalUsers}</div>
+          <div className="flex gap-4 mt-4">
+              <div className="text-[10px] font-bold text-slate-400">Teachers: <span className="text-blue-600">{stats.teachers}</span></div>
+              <div className="text-[10px] font-bold text-slate-400">Students: <span className="text-slate-900">{stats.students}</span></div>
+          </div>
         </div>
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-          <h4 className="text-slate-500 text-sm font-bold uppercase mb-2">Active Courses</h4>
-          <div className="text-3xl font-bold text-slate-900">{stats.activeCourses}</div>
+          <h4 className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-2">Active Courses</h4>
+          <div className="text-4xl font-black text-slate-900">{stats.activeCourses}</div>
+          <div className="text-[10px] font-bold text-green-600 mt-4 uppercase tracking-tighter">Live & Published</div>
         </div>
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-          <h4 className="text-slate-500 text-sm font-bold uppercase mb-2">System Health</h4>
-          <div className="text-3xl font-bold text-green-600">Optimal</div>
+          <h4 className="text-slate-500 text-[10px] font-black uppercase tracking-widest mb-2">Security Alerts</h4>
+          <div className={`text-4xl font-black ${stats.flaggedUsers > 0 ? 'text-red-600' : 'text-slate-900'}`}>{stats.flaggedUsers}</div>
+          <div className="flex gap-4 mt-4">
+              <div className="text-[10px] font-bold text-slate-400">Flagged: <span className="text-red-600">{stats.flaggedUsers}</span></div>
+              <div className="text-[10px] font-bold text-slate-400">Pending Resets: <span className="text-amber-600">{stats.pendingResets}</span></div>
+          </div>
         </div>
       </div>
     </div>

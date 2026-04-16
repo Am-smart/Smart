@@ -119,6 +119,15 @@ export async function login(email: string, password: string) {
     return { success: false, error: 'Invalid response from authentication server' };
   }
 
+  // Enforce pending password reset check at the application level
+  // This ensures the policy is applied even if the database RPC is not updated.
+  if (user.reset_request && user.reset_request.status === 'pending') {
+    return {
+      success: false,
+      error: 'Your password reset request is currently under review by an administrator. Please check back later.'
+    };
+  }
+
   try {
       const finalSessionId = await ensureSession(user.id, session_id);
 
