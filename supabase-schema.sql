@@ -384,14 +384,6 @@ BEGIN
     RETURN jsonb_build_object('success', false, 'error', 'Account is flagged and access is denied. Please contact support.');
   END IF;
 
-  -- Check for pending password reset request
-  IF v_user.reset_request IS NOT NULL AND (v_user.reset_request->>'status') = 'pending' THEN
-    RETURN jsonb_build_object(
-      'success', false,
-      'error', 'Your password reset request is currently under review by an administrator. Please check back later.'
-    );
-  END IF;
-
   -- 3. Check if account is locked
   IF v_user.locked_until IS NOT NULL AND v_user.locked_until > v_now THEN
     RETURN jsonb_build_object(
