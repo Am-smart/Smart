@@ -451,23 +451,34 @@ BEGIN
   -- 2. Hash the password
   v_hashed_password := crypt(p_password, gen_salt('bf', 10));
 
-  -- 3. Validation Logic
-  IF v_caller_role != 'admin' THEN
-    -- Public signup validation
-    IF p_role NOT IN ('student', 'teacher') THEN
-      RETURN jsonb_build_object('success', false, 'error', 'Invalid role selection.');
-    END IF;
+  -- Validate role for public registration
+  IF v_caller_role != 'admin' AND p_role NOT IN ('student', 'teacher') THEN
+    RETURN jsonb_build_object('success', false, 'error', 'Invalid role for public registration');
+  END IF;
 
+  -- Admins can create unlimited users of any role
+  IF v_caller_role = 'admin' THEN
+    INSERT INTO users (full_name, email, password, phone, role, active)
+    VALUES (p_full_name, p_email, v_hashed_password, p_phone, p_role, TRUE)
+    RETURNING * INTO v_user;
+  ELSE
+    -- Public signup logic: Limit public creation of teachers and admins to 3 total
+    -- Only enforce this limit when user is trying to create a teacher or admin account
     IF p_role IN ('teacher', 'admin') THEN
       SELECT COUNT(*) INTO v_count FROM users WHERE role IN ('teacher', 'admin');
       IF v_count >= 3 THEN
-        RETURN jsonb_build_object('success', false, 'error', 'Public registration limit reached. Please contact support.');
+        RETURN jsonb_build_object('success', false, 'error', 'Public creation of teachers and admins is restricted (Limit: 3). Please contact support.');
       END IF;
     END IF;
   END IF;
 
   -- 4. Perform Insertion
   BEGIN
+    -- Check if email already exists
+    IF EXISTS (SELECT 1 FROM users WHERE email = p_email) THEN
+      RETURN jsonb_build_object('success', false, 'error', 'Email already in use');
+    END IF;
+
     INSERT INTO users (full_name, email, password, phone, role, active)
     VALUES (p_full_name, p_email, v_hashed_password, p_phone, p_role, TRUE)
     RETURNING * INTO v_user;
@@ -932,30 +943,34 @@ DROP POLICY IF EXISTS "Users manage own lesson completions" ON lesson_completion
 CREATE POLICY "Users manage own lesson completions" ON lesson_completions FOR ALL USING (student_id = current_app_user());
 
 -- System Logs policies
+-- System Logs policies (idempotent)
 DROP POLICY IF EXISTS "Authenticated users can create logs" ON system_logs;
-CREATE POLICY "Authenticated users can create logs" ON system_logs FOR INSERT WITH CHECK (current_app_user() IS NOT NULL);
 DROP POLICY IF EXISTS "Admins can view all logs" ON system_logs;
-CREATE POLICY "Admins can view all logs" ON system_logs FOR SELECT USING (current_app_role() = 'admin');
+
+CREATE POLICY "Authenticated users can create logs"
+ON system_logs
+FOR INSERT
+WITH CHECK (current_app_user() IS NOT NULL);
+
+CREATE POLICY "Admins can view all logs"
+ON system_logs
+FOR SELECT
+USING (current_app_role() = 'admin');
 
 -- General permissions
 -- Revoke all from anon first to be safe
 REVOKE ALL ON ALL TABLES IN SCHEMA public FROM anon;
 
 -- Grant specific permissions to anon role
--- These are required for PostgREST to process requests using the anon key.
--- We restrict anon to SELECT-only on most tables to force the use of secure RPCs
--- for mutations, while allowing the app to fetch public data (like maintenance/courses).
-GRANT SELECT ON
+-- These are required for PostgREST to process requests using the anon key
+-- RLS policies will still enforce data access controls
+GRANT SELECT, INSERT, UPDATE, DELETE ON
     users, courses, lessons, enrollments, assignments, submissions,
     live_classes, attendance, quizzes, quiz_submissions, materials,
     discussions, notifications, sessions, broadcasts, maintenance,
     planner, certificates, badges, user_badges, study_sessions,
     lesson_completions, system_logs
 TO anon;
-
--- Allow anon to INSERT only into tables where public interaction is strictly required
--- and protected by other means (like RPCs or specific RLS checks).
-GRANT INSERT ON system_logs TO anon;
 
 GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO authenticated;
 
