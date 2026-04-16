@@ -6,11 +6,13 @@ import { useSupabase } from '@/hooks/useSupabase';
 import { AssignmentsList } from "@/components/student/AssignmentsList";
 import { Assignment, Submission } from '@/lib/types';
 import dynamic from 'next/dynamic';
+import { useAppContext } from '@/components/AppContext';
 
 const AssignmentForm = dynamic(() => import("@/components/student/AssignmentForm").then(m => m.AssignmentForm), { ssr: false });
 
 export default function AssignmentsPage() {
   const { user } = useAuth();
+  const { addToast } = useAppContext();
   const { client, getAssignments, getEnrollments } = useSupabase();
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
@@ -52,18 +54,20 @@ export default function AssignmentsPage() {
           onViewFeedback={(a) => {
               const sub = submissions.find(s => s.assignment_id === a.id);
               if (sub) {
-                  alert(`FEEDBACK: ${sub.feedback || 'No feedback yet.'}\n\nGRADE: ${sub.final_grade}%`);
+                  addToast(`GRADE: ${sub.final_grade}% | Feedback: ${sub.feedback || 'No feedback yet.'}`, 'info', 5000);
               }
           }}
           onRegradeRequest={async (a, reason) => {
               if (!a.regrade_requests_enabled) {
-                  alert('Regrade requests are disabled for this assignment.');
+                  addToast('Regrade requests are disabled for this assignment.', 'error');
                   return;
               }
               const { error } = await client.from('submissions').update({ regrade_request: reason, status: 'submitted' }).eq('assignment_id', a.id).eq('student_id', user!.id);
               if (!error) {
-                  alert('Regrade request sent!');
+                  addToast('Regrade request sent successfully!', 'success');
                   fetchData();
+              } else {
+                  addToast('Failed to send regrade request.', 'error');
               }
           }}
       />

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Course } from '@/lib/types';
 import { useSupabase } from '@/hooks/useSupabase';
 import { useIndexedDB } from '@/hooks/useIndexedDB';
+import { useAppContext } from '@/components/AppContext';
 
 interface CourseEditorProps {
     teacherId: string;
@@ -13,6 +14,7 @@ interface CourseEditorProps {
 
 export const CourseEditor: React.FC<CourseEditorProps> = ({ course, teacherId, onSave, onCancel }) => {
     const { client } = useSupabase();
+    const { addToast } = useAppContext();
     const [formData, setFormData] = useState({
         title: course?.title || '',
         description: course?.description || '',
@@ -39,15 +41,17 @@ export const CourseEditor: React.FC<CourseEditorProps> = ({ course, teacherId, o
                     : await client.from('courses').insert([courseData]);
 
                 if (error) throw error;
+                addToast('Course saved successfully!', 'success');
             } else {
                 await addToQueue('COURSE_SAVE', course?.id ? { id: course.id, ...courseData } : courseData);
-                alert('Offline: Course changes queued for sync.');
+                addToast('Offline: Course changes queued for synchronization.', 'info');
             }
 
             onSave();
-        } catch (err) {
+        } catch (err: unknown) {
             console.error('Save failed:', err);
-            alert('Failed to save course.');
+            const msg = err instanceof Error ? err.message : 'Failed to save course.';
+            addToast(msg, 'error');
         } finally {
             setIsSaving(false);
         }

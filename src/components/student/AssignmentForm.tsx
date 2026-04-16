@@ -4,6 +4,7 @@ import { useSupabase } from '@/hooks/useSupabase';
 import { submitAssignment } from '@/lib/data-actions';
 import { useAntiCheat } from '@/hooks/useAntiCheat';
 import { useIndexedDB } from '@/hooks/useIndexedDB';
+import { useAppContext } from '@/components/AppContext';
 
 interface AssignmentFormProps {
   assignment: Assignment;
@@ -14,6 +15,7 @@ interface AssignmentFormProps {
 
 export const AssignmentForm: React.FC<AssignmentFormProps> = ({ assignment, user, onComplete, onCancel }) => {
   const { client } = useSupabase();
+  const { addToast } = useAppContext();
   const [submissionText, setSubmissionText] = useState('');
   const [answers, setAnswers] = useState<Record<number, string>>({});
   const [fileUrl, setFileUrl] = useState<string | null>(null);
@@ -28,7 +30,7 @@ export const AssignmentForm: React.FC<AssignmentFormProps> = ({ assignment, user
     if (!file) return;
 
     if (!isOnline) {
-        alert('File upload requires an active internet connection. Please try again when online.');
+        addToast('File upload requires an active internet connection.', 'error');
         return;
     }
 
@@ -55,7 +57,7 @@ export const AssignmentForm: React.FC<AssignmentFormProps> = ({ assignment, user
         }
     } catch (err) {
         console.error('Upload failed:', err);
-        alert('File upload failed. Please try again.');
+        addToast('File upload failed. Please try again.', 'error');
     } finally {
         setIsUploading(false);
     }
@@ -78,15 +80,17 @@ export const AssignmentForm: React.FC<AssignmentFormProps> = ({ assignment, user
 
         if (isOnline) {
             await submitAssignment(assignment.id, payload);
+            addToast('Assignment submitted successfully!', 'success');
             onComplete(Math.random().toString()); // Placeholder as submitAssignment doesn't return ID yet
         } else {
             await addToQueue('SUBMISSION', payload, user.sessionId);
-            alert('Offline: Submission queued for sync.');
+            addToast('Offline: Submission queued for synchronization.', 'info');
             onComplete('temp-id');
         }
-    } catch (err) {
+    } catch (err: unknown) {
         console.error('Failed to submit assignment:', err);
-        alert('Failed to submit assignment. Please try again.');
+        const msg = err instanceof Error ? err.message : 'Failed to submit assignment. Please try again.';
+        addToast(msg, 'error');
         setIsSubmitting(false);
     }
   };

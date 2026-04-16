@@ -8,9 +8,11 @@ import { enrollInCourse } from '@/lib/data-actions';
 import { CourseCatalog } from "@/components/student/CourseCatalog";
 import { Course } from '@/lib/types';
 import { useRouter } from 'next/navigation';
+import { useAppContext } from '@/components/AppContext';
 
 export default function CatalogPage() {
   const { user } = useAuth();
+  const { addToast } = useAppContext();
   const { getCourses, getEnrollments } = useSupabase();
   const { isOnline, addToQueue } = useIndexedDB();
   const [courses, setCourses] = useState<Course[]>([]);
@@ -30,14 +32,15 @@ export default function CatalogPage() {
     try {
       if (isOnline) {
           await enrollInCourse(courseId);
+          addToast('Successfully enrolled in course!', 'success');
       } else {
           await addToQueue('ENROLL', { course_id: courseId, student_id: user.id }, user.sessionId);
-          alert('Offline: Enrollment queued for sync.');
+          addToast('Offline: Enrollment queued for synchronization.', 'info');
       }
       router.push('/student/my-courses');
     } catch (err) {
       console.error('Enrollment failed:', err);
-      alert('Failed to enroll in course.');
+      addToast('Failed to enroll in course. Please try again.', 'error');
     }
   };
 

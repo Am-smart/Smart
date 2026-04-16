@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Assignment, Course, AssignmentQuestion } from '@/lib/types';
 import { useSupabase } from '@/hooks/useSupabase';
+import { useAppContext } from '@/components/AppContext';
 
 interface AssignmentEditorProps {
     teacherId: string;
@@ -12,6 +13,7 @@ interface AssignmentEditorProps {
 
 export const AssignmentEditor: React.FC<AssignmentEditorProps> = ({ teacherId, assignment, courses, onSave, onCancel }) => {
     const { client } = useSupabase();
+    const { addToast } = useAppContext();
     const [formData, setFormData] = useState({
         title: assignment?.title || '',
         description: assignment?.description || '',
@@ -34,10 +36,12 @@ export const AssignmentEditor: React.FC<AssignmentEditorProps> = ({ teacherId, a
                 ? await client.from('assignments').update(payload).eq('id', assignment.id)
                 : await client.from('assignments').insert([payload]);
             if (error) throw error;
+            addToast('Assignment saved successfully!', 'success');
             onSave();
-        } catch (err) {
+        } catch (err: unknown) {
             console.error('Save failed:', err);
-            alert('Failed to save assignment.');
+            const msg = err instanceof Error ? err.message : 'Failed to save assignment.';
+            addToast(msg, 'error');
         } finally {
             setIsSaving(false);
         }
