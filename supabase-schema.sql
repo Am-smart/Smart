@@ -782,6 +782,261 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+-- 7. Security (RLS & Permissions)
+
+-- Enable RLS on all tables
+ALTER TABLE users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE courses ENABLE ROW LEVEL SECURITY;
+ALTER TABLE lessons ENABLE ROW LEVEL SECURITY;
+ALTER TABLE enrollments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE assignments ENABLE ROW LEVEL SECURITY;
+ALTER TABLE submissions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE live_classes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE attendance ENABLE ROW LEVEL SECURITY;
+ALTER TABLE quizzes ENABLE ROW LEVEL SECURITY;
+ALTER TABLE quiz_submissions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE materials ENABLE ROW LEVEL SECURITY;
+ALTER TABLE discussions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE sessions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE broadcasts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE maintenance ENABLE ROW LEVEL SECURITY;
+ALTER TABLE planner ENABLE ROW LEVEL SECURITY;
+ALTER TABLE certificates ENABLE ROW LEVEL SECURITY;
+ALTER TABLE badges ENABLE ROW LEVEL SECURITY;
+ALTER TABLE user_badges ENABLE ROW LEVEL SECURITY;
+ALTER TABLE study_sessions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE lesson_completions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE system_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE settings ENABLE ROW LEVEL SECURITY;
+
+-- Grant permissions to anonymous role for PostgREST access
+GRANT ALL ON ALL TABLES IN SCHEMA public TO anon;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon;
+
+-- RLS Policies
+
+-- COURSES
+CREATE POLICY "Teachers can manage their own courses" ON courses
+  FOR ALL TO anon USING (teacher_id = current_app_user()) WITH CHECK (teacher_id = current_app_user());
+
+CREATE POLICY "Students can view published or enrolled courses" ON courses
+  FOR SELECT TO anon USING (
+    status = 'published' OR
+    EXISTS (SELECT 1 FROM enrollments WHERE course_id = courses.id AND student_id = current_app_user())
+  );
+
+CREATE POLICY "Admins have full access to courses" ON courses
+  FOR ALL TO anon USING (current_app_role() = 'admin');
+
+-- LESSONS
+CREATE POLICY "Teachers can manage lessons for their courses" ON lessons
+  FOR ALL TO anon USING (
+    EXISTS (SELECT 1 FROM courses WHERE id = lessons.course_id AND teacher_id = current_app_user())
+  );
+
+CREATE POLICY "Students can view lessons for enrolled courses" ON lessons
+  FOR SELECT TO anon USING (
+    EXISTS (SELECT 1 FROM enrollments WHERE course_id = lessons.course_id AND student_id = current_app_user())
+  );
+
+CREATE POLICY "Admins have full access to lessons" ON lessons
+  FOR ALL TO anon USING (current_app_role() = 'admin');
+
+-- MATERIALS
+CREATE POLICY "Teachers can manage materials for their courses" ON materials
+  FOR ALL TO anon USING (
+    EXISTS (SELECT 1 FROM courses WHERE id = materials.course_id AND teacher_id = current_app_user())
+  );
+
+CREATE POLICY "Students can view materials for enrolled courses" ON materials
+  FOR SELECT TO anon USING (
+    EXISTS (SELECT 1 FROM enrollments WHERE course_id = materials.course_id AND student_id = current_app_user())
+  );
+
+CREATE POLICY "Admins have full access to materials" ON materials
+  FOR ALL TO anon USING (current_app_role() = 'admin');
+
+-- ENROLLMENTS
+CREATE POLICY "Students can enroll themselves" ON enrollments
+  FOR INSERT TO anon WITH CHECK (student_id = current_app_user());
+
+CREATE POLICY "Users can view their own enrollments" ON enrollments
+  FOR SELECT TO anon USING (student_id = current_app_user());
+
+CREATE POLICY "Teachers can view enrollments for their courses" ON enrollments
+  FOR SELECT TO anon USING (
+    EXISTS (SELECT 1 FROM courses WHERE id = enrollments.course_id AND teacher_id = current_app_user())
+  );
+
+CREATE POLICY "Admins have full access to enrollments" ON enrollments
+  FOR ALL TO anon USING (current_app_role() = 'admin');
+
+-- ASSIGNMENTS
+CREATE POLICY "Teachers can manage assignments for their courses" ON assignments
+  FOR ALL TO anon USING (
+    EXISTS (SELECT 1 FROM courses WHERE id = assignments.course_id AND teacher_id = current_app_user())
+  );
+
+CREATE POLICY "Students can view assignments for enrolled courses" ON assignments
+  FOR SELECT TO anon USING (
+    EXISTS (SELECT 1 FROM enrollments WHERE course_id = assignments.course_id AND student_id = current_app_user())
+  );
+
+CREATE POLICY "Admins have full access to assignments" ON assignments
+  FOR ALL TO anon USING (current_app_role() = 'admin');
+
+-- SUBMISSIONS
+CREATE POLICY "Students can manage their own submissions" ON submissions
+  FOR ALL TO anon USING (student_id = current_app_user()) WITH CHECK (student_id = current_app_user());
+
+CREATE POLICY "Teachers can view and grade submissions for their courses" ON submissions
+  FOR ALL TO anon USING (
+    EXISTS (SELECT 1 FROM assignments a JOIN courses c ON a.course_id = c.id WHERE a.id = submissions.assignment_id AND c.teacher_id = current_app_user())
+  );
+
+CREATE POLICY "Admins have full access to submissions" ON submissions
+  FOR ALL TO anon USING (current_app_role() = 'admin');
+
+-- QUIZZES
+CREATE POLICY "Teachers can manage quizzes for their courses" ON quizzes
+  FOR ALL TO anon USING (
+    EXISTS (SELECT 1 FROM courses WHERE id = quizzes.course_id AND teacher_id = current_app_user())
+  );
+
+CREATE POLICY "Students can view quizzes for enrolled courses" ON quizzes
+  FOR SELECT TO anon USING (
+    EXISTS (SELECT 1 FROM enrollments WHERE course_id = quizzes.course_id AND student_id = current_app_user())
+  );
+
+CREATE POLICY "Admins have full access to quizzes" ON quizzes
+  FOR ALL TO anon USING (current_app_role() = 'admin');
+
+-- QUIZ SUBMISSIONS
+CREATE POLICY "Students can manage their own quiz submissions" ON quiz_submissions
+  FOR ALL TO anon USING (student_id = current_app_user()) WITH CHECK (student_id = current_app_user());
+
+CREATE POLICY "Teachers can view quiz submissions for their courses" ON quiz_submissions
+  FOR SELECT TO anon USING (
+    EXISTS (SELECT 1 FROM quizzes q JOIN courses c ON q.course_id = c.id WHERE q.id = quiz_submissions.quiz_id AND c.teacher_id = current_app_user())
+  );
+
+CREATE POLICY "Admins have full access to quiz submissions" ON quiz_submissions
+  FOR ALL TO anon USING (current_app_role() = 'admin');
+
+-- USERS
+CREATE POLICY "Users can view and update their own profile" ON users
+  FOR ALL TO anon USING (id = current_app_user()) WITH CHECK (id = current_app_user());
+
+CREATE POLICY "Admins have full access to users" ON users
+  FOR ALL TO anon USING (current_app_role() = 'admin');
+
+-- DISCUSSIONS
+CREATE POLICY "Users can manage their own discussion posts" ON discussions
+  FOR ALL TO anon USING (user_id = current_app_user()) WITH CHECK (user_id = current_app_user());
+
+CREATE POLICY "Users can view discussions for enrolled courses" ON discussions
+  FOR SELECT TO anon USING (
+    course_id IS NULL OR
+    EXISTS (SELECT 1 FROM enrollments WHERE course_id = discussions.course_id AND student_id = current_app_user()) OR
+    EXISTS (SELECT 1 FROM courses WHERE id = discussions.course_id AND teacher_id = current_app_user())
+  );
+
+CREATE POLICY "Admins have full access to discussions" ON discussions
+  FOR ALL TO anon USING (current_app_role() = 'admin');
+
+-- NOTIFICATIONS
+CREATE POLICY "Users can manage their own notifications" ON notifications
+  FOR ALL TO anon USING (user_id = current_app_user()) WITH CHECK (user_id = current_app_user());
+
+-- PLANNER
+CREATE POLICY "Users can manage their own planner items" ON planner
+  FOR ALL TO anon USING (user_id = current_app_user()) WITH CHECK (user_id = current_app_user());
+
+-- STUDY SESSIONS
+CREATE POLICY "Users can manage their own study sessions" ON study_sessions
+  FOR ALL TO anon USING (user_id = current_app_user()) WITH CHECK (user_id = current_app_user());
+
+-- LESSON COMPLETIONS
+CREATE POLICY "Students can manage their own lesson completions" ON lesson_completions
+  FOR ALL TO anon USING (student_id = current_app_user()) WITH CHECK (student_id = current_app_user());
+
+-- ATTENDANCE
+CREATE POLICY "Students can manage their own attendance" ON attendance
+  FOR ALL TO anon USING (student_id = current_app_user()) WITH CHECK (student_id = current_app_user());
+
+-- LIVE CLASSES
+CREATE POLICY "Teachers can manage live classes for their courses" ON live_classes
+  FOR ALL TO anon USING (
+    EXISTS (SELECT 1 FROM courses WHERE id = live_classes.course_id AND teacher_id = current_app_user())
+  );
+
+CREATE POLICY "Students can view live classes for enrolled courses" ON live_classes
+  FOR SELECT TO anon USING (
+    EXISTS (SELECT 1 FROM enrollments WHERE course_id = live_classes.course_id AND student_id = current_app_user())
+  );
+
+CREATE POLICY "Admins have full access to live classes" ON live_classes
+  FOR ALL TO anon USING (current_app_role() = 'admin');
+
+-- SESSIONS
+CREATE POLICY "Users can manage their own sessions" ON sessions
+  FOR ALL TO anon USING (user_id = current_app_user()) WITH CHECK (user_id = current_app_user());
+
+-- BROADCASTS
+CREATE POLICY "Everyone can view broadcasts" ON broadcasts
+  FOR SELECT TO anon USING (TRUE);
+
+CREATE POLICY "Admins can manage broadcasts" ON broadcasts
+  FOR ALL TO anon USING (current_app_role() = 'admin');
+
+-- MAINTENANCE
+CREATE POLICY "Everyone can view maintenance status" ON maintenance
+  FOR SELECT TO anon USING (TRUE);
+
+CREATE POLICY "Admins can manage maintenance" ON maintenance
+  FOR ALL TO anon USING (current_app_role() = 'admin');
+
+-- CERTIFICATES
+CREATE POLICY "Users can view their own certificates" ON certificates
+  FOR SELECT TO anon USING (student_id = current_app_user());
+
+CREATE POLICY "Teachers can manage certificates for their courses" ON certificates
+  FOR ALL TO anon USING (
+    EXISTS (SELECT 1 FROM courses WHERE id = certificates.course_id AND teacher_id = current_app_user())
+  );
+
+CREATE POLICY "Admins have full access to certificates" ON certificates
+  FOR ALL TO anon USING (current_app_role() = 'admin');
+
+-- BADGES & USER BADGES
+CREATE POLICY "Everyone can view badges" ON badges
+  FOR SELECT TO anon USING (TRUE);
+
+CREATE POLICY "Everyone can view user badges" ON user_badges
+  FOR SELECT TO anon USING (TRUE);
+
+CREATE POLICY "Admins can manage badges" ON badges
+  FOR ALL TO anon USING (current_app_role() = 'admin');
+
+CREATE POLICY "Teachers and Admins can assign badges" ON user_badges
+  FOR INSERT TO anon WITH CHECK (current_app_role() IN ('teacher', 'admin'));
+
+-- SYSTEM LOGS
+CREATE POLICY "Authenticated users can insert system logs" ON system_logs
+  FOR INSERT TO anon WITH CHECK (current_app_user() IS NOT NULL);
+
+CREATE POLICY "Only admins can view system logs" ON system_logs
+  FOR SELECT TO anon USING (current_app_role() = 'admin');
+
+-- SETTINGS
+CREATE POLICY "Admins can manage settings" ON settings
+  FOR ALL TO anon USING (current_app_role() = 'admin');
+
+CREATE POLICY "Everyone can view certain settings" ON settings
+  FOR SELECT TO anon USING (TRUE);
+
+-- Triggers
 DROP TRIGGER IF EXISTS tr_user_creation_limit ON users;
 CREATE TRIGGER tr_user_creation_limit
   BEFORE INSERT ON users
