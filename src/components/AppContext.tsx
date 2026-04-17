@@ -145,7 +145,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             }
           });
 
-        // 2. Subscribe to Broadcasts
+        // 3. Subscribe to Enrollments & Lessons (Progress)
+        const progressChannel = client.channel(`user-progress-${user.id}`)
+          .on('postgres_changes', {
+              event: 'UPDATE',
+              schema: 'public',
+              table: 'enrollments',
+              filter: `student_id=eq.${user.id}`
+          }, () => {
+              if (isMounted) addToast('Your course progress has been updated!', 'info');
+          })
+          .subscribe();
+
+        // 4. Subscribe to Broadcasts
         const broadcastsChannel = client.channel('global-broadcasts')
           .on('postgres_changes', {
               event: 'INSERT',
@@ -174,6 +186,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         return () => {
           clearTimeout(debounceTimer);
           if (notesChannel) client.removeChannel(notesChannel);
+          if (progressChannel) client.removeChannel(progressChannel);
           if (broadcastsChannel) client.removeChannel(broadcastsChannel);
         };
       } catch (err) {

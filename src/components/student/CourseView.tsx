@@ -1,6 +1,9 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Course, Lesson } from '@/lib/types';
-import { ArrowLeft, BookOpen, Video, FileText, ChevronRight } from 'lucide-react';
+import { ArrowLeft, BookOpen, Video, FileText, ChevronRight, CheckCircle } from 'lucide-react';
+import { markLessonComplete } from '@/lib/data-actions';
+import { useAppContext } from '@/components/AppContext';
+import { useSupabase } from '@/hooks/useSupabase';
 
 interface CourseViewProps {
     course: Course;
@@ -9,7 +12,34 @@ interface CourseViewProps {
 }
 
 export const CourseView: React.FC<CourseViewProps> = ({ course, lessons, onBack }) => {
-    const [activeLesson, setActiveLesson] = React.useState<Lesson | null>(lessons[0] || null);
+    const { addToast } = useAppContext();
+    const { client } = useSupabase();
+    const [activeLesson, setActiveLesson] = useState<Lesson | null>(lessons[0] || null);
+    const [completions, setCompletions] = useState<string[]>([]);
+    const [isUpdating, setIsUpdating] = useState(false);
+
+    useEffect(() => {
+        const fetchCompletions = async () => {
+            const { data } = await client.from('lesson_completions').select('lesson_id');
+            if (data) setCompletions(data.map(c => c.lesson_id));
+        };
+        fetchCompletions();
+    }, [client]);
+
+    const handleMarkComplete = async () => {
+        if (!activeLesson || isUpdating) return;
+        setIsUpdating(true);
+        try {
+            await markLessonComplete(activeLesson.id, course.id);
+            setCompletions(prev => [...prev, activeLesson.id]);
+            addToast('Lesson marked as complete!', 'success');
+        } catch (err) {
+            console.error('Failed to mark lesson complete:', err);
+            addToast('Failed to mark lesson complete.', 'error');
+        } finally {
+            setIsUpdating(false);
+        }
+    };
 
     const getEmbedUrl = (url?: string) => {
         if (!url) return null;
@@ -49,7 +79,10 @@ export const CourseView: React.FC<CourseViewProps> = ({ course, lessons, onBack 
                                     {idx + 1}
                                 </div>
                                 <div className="flex-1">
-                                    <h4 className={`text-sm font-bold ${activeLesson?.id === lesson.id ? 'text-blue-900' : 'text-slate-700'}`}>{lesson.title}</h4>
+                                    <div className="flex items-center gap-2">
+                                        <h4 className={`text-sm font-bold ${activeLesson?.id === lesson.id ? 'text-blue-900' : 'text-slate-700'}`}>{lesson.title}</h4>
+                                        {completions.includes(lesson.id) && <CheckCircle size={14} className="text-green-500" />}
+                                    </div>
                                     <div className="flex items-center gap-2 mt-1">
                                         {lesson.video_url ? <Video size={10} className="text-slate-400" /> : <FileText size={10} className="text-slate-400" />}
                                         <span className="text-[10px] text-slate-400 font-bold uppercase">{lesson.video_url ? 'Video' : 'Reading'}</span>
@@ -76,7 +109,22 @@ export const CourseView: React.FC<CourseViewProps> = ({ course, lessons, onBack 
                             )}
 
                             <div className="bg-white p-10 rounded-3xl shadow-sm border border-slate-100">
-                                <h1 className="text-3xl font-black text-slate-900 mb-6">{activeLesson.title}</h1>
+                                <div className="flex justify-between items-start mb-6">
+                                    <h1 className="text-3xl font-black text-slate-900">{activeLesson.title}</h1>
+                                    {!completions.includes(activeLesson.id) ? (
+                                        <button
+                                            onClick={handleMarkComplete}
+                                            disabled={isUpdating}
+                                            className="btn-primary py-2 px-6 text-xs flex items-center gap-2"
+                                        >
+                                            <CheckCircle size={16} /> Mark as Complete
+                                        </button>
+                                    ) : (
+                                        <div className="flex items-center gap-2 text-green-600 font-bold text-xs bg-green-50 px-4 py-2 rounded-full border border-green-100">
+                                            <CheckCircle size={16} /> COMPLETED
+                                        </div>
+                                    )}
+                                </div>
                                 <div className="prose prose-slate max-w-none text-slate-600 leading-relaxed whitespace-pre-line">
                                     {activeLesson.content}
                                 </div>
