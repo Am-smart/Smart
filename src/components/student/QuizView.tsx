@@ -22,7 +22,7 @@ export const QuizView: React.FC<QuizViewProps> = ({ quiz, user, onComplete, onCa
   const { addToQueue, setCache, getCache, isOnline } = useIndexedDB();
   const [startedAt] = useState(new Date().toISOString());
 
-  useAntiCheat(quiz.anti_cheat_enabled, quiz.title);
+  const { violationCount } = useAntiCheat(quiz.anti_cheat_enabled, quiz.title);
 
   // Handle Shuffling
   useEffect(() => {
@@ -101,6 +101,14 @@ export const QuizView: React.FC<QuizViewProps> = ({ quiz, user, onComplete, onCa
         setIsSubmitting(false);
     }
   }, [quiz, user, answers, isSubmitting, result, isOnline, addToQueue, setCache, timeLeft, startedAt, addToast]);
+
+  // Anti-cheat prevention: Auto-submit if violation threshold reached
+  useEffect(() => {
+    if (quiz.anti_cheat_enabled && violationCount >= 5 && !isSubmitting && !result) {
+        addToast('Security Threshold Reached: Assessment locked and auto-submitted due to multiple violations.', 'error', 10000);
+        handleSubmit(false);
+    }
+  }, [violationCount, quiz.anti_cheat_enabled, isSubmitting, result, handleSubmit, addToast]);
 
   useEffect(() => {
     if (timeLeft === null) return;

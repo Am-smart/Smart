@@ -23,7 +23,15 @@ export const AssignmentForm: React.FC<AssignmentFormProps> = ({ assignment, user
   const [isUploading, setIsUploading] = useState(false);
   const { addToQueue, isOnline } = useIndexedDB();
 
-  useAntiCheat(assignment.anti_cheat_enabled, assignment.title);
+  const { violationCount } = useAntiCheat(assignment.anti_cheat_enabled, assignment.title);
+
+  // Anti-cheat prevention
+  React.useEffect(() => {
+    if (assignment.anti_cheat_enabled && violationCount >= 5 && !isSubmitting) {
+        addToast('Security Threshold Reached: Assignment locked and auto-submitted due to multiple violations.', 'error', 10000);
+        handleSubmit();
+    }
+  }, [violationCount, assignment.anti_cheat_enabled, isSubmitting, addToast]);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, idx?: number) => {
     const file = e.target.files?.[0];

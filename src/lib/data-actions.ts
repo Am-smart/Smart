@@ -872,6 +872,62 @@ export async function updateProfile(updates: Partial<User>) {
     return saveUser({ ...updates, id: user.id } as any);
 }
 
+// 20. Lesson Completion & Progress
+export async function markLessonComplete(lessonId: string, courseId: string) {
+    const user = await getVerifiedUser();
+
+    const { error: completionError } = await withSession(supabase.from('lesson_completions'), user.sessionId as string)
+        .upsert({
+            student_id: user.id,
+            lesson_id: lessonId,
+            completed_at: new Date().toISOString()
+        }, { onConflict: 'student_id, lesson_id' });
+
+    if (completionError) throw new Error(completionError.message);
+
+    // 1. Get all lesson IDs for this course
+    const { data: allLessons } = await withSession(supabase.from('lessons'), user.sessionId as string)
+        .select('id')
+        .eq('course_id', courseId);
+
+    const lessonIds = allLessons?.map(l => l.id) || [];
+    if (lessonIds.length === 0) return { success: true, progress: 0 };
+
+    // 2. Get completed lessons for this student in this course
+    const { data: completions } = await withSession(supabase.from('lesson_completions'), user.sessionId as string)
+        .select('lesson_id')
+        .eq('student_id', user.id)
+        .in('lesson_id', lessonIds);
+
+    const progress = Math.round(((completions?.length || 0) / lessonIds.length) * 100);
+
+    // 3. Update enrollment progress
+    const { error: progressError } = await withSession(supabase.from('enrollments'), user.sessionId as string)
+        .update({ progress, completed: progress === 100 })
+        .eq('student_id', user.id)
+        .eq('course_id', courseId);
+
+    if (progressError) throw new Error(progressError.message);
+
+    revalidatePath(`/student/courses?id=${courseId}`);
+    return { success: true, progress };
+}
+
+// 21. Attendance
+export async function recordAttendance(liveClassId: string) {
+    const user = await getVerifiedUser();
+    const { error } = await withSession(supabase.from('attendance'), user.sessionId as string)
+        .upsert({
+            live_class_id: liveClassId,
+            student_id: user.id,
+            join_time: new Date().toISOString(),
+            is_present: true
+        }, { onConflict: 'live_class_id, student_id' });
+
+    if (error) throw new Error(error.message);
+    return { success: true };
+}
+
 // 19. File Upload Utility (Server-side metadata/logging, client does the actual heavy lifting to Supabase Storage)
 export async function uploadFile(fileName: string, category: 'materials' | 'submissions' | 'thumbnails') {
     const user = await getVerifiedUser();

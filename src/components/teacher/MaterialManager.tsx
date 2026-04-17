@@ -93,7 +93,7 @@ export const MaterialManager: React.FC<MaterialManagerProps> = ({ initialMateria
                             </div>
                             <div>
                                 <h4 className="font-bold text-slate-900 line-clamp-1">{mat.title}</h4>
-                                <p className="text-xs text-slate-500 mt-1 font-medium">{courses.find(c => c.id === mat.course_id)?.title}</p>
+                                <p className="text-xs text-slate-500 mt-1 font-medium">{courses.find(c => c.id === mat.course_id)?.title || 'Global Material'}</p>
                             </div>
                             <div className="mt-auto pt-4 flex gap-3">
                                 <a href={mat.file_url} target="_blank" rel="noopener noreferrer" className="btn-secondary flex-1 py-2 text-[10px] uppercase font-bold tracking-widest text-center">View</a>
