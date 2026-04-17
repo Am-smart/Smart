@@ -3,6 +3,7 @@ import { useSupabase } from '@/hooks/useSupabase';
 import { Badge, User } from '@/lib/types';
 import { Plus, Trash2, Award } from 'lucide-react';
 import { useAppContext } from '@/components/AppContext';
+import { saveBadge, deleteBadge, assignBadge } from '@/lib/data-actions';
 
 export const BadgeManager: React.FC = () => {
     const { client } = useSupabase();
@@ -25,27 +26,40 @@ export const BadgeManager: React.FC = () => {
 
     const handleCreate = async (e: React.FormEvent) => {
         e.preventDefault();
-        await client.from('badges').insert([formData]);
-        setIsFormOpen(false);
-        fetchData();
+        try {
+            await saveBadge(formData);
+            setIsFormOpen(false);
+            fetchData();
+        } catch (err) {
+            console.error('Failed to create badge:', err);
+            addToast('Failed to create badge.', 'error');
+        }
     };
 
     const handleDelete = async (id: string) => {
         if (confirm('Delete this badge?')) {
-            await client.from('badges').delete().eq('id', id);
-            fetchData();
+            try {
+                await deleteBadge(id);
+                fetchData();
+            } catch (err) {
+                console.error('Failed to delete badge:', err);
+                addToast('Failed to delete badge.', 'error');
+            }
         }
     };
 
     const handleAward = async (badgeId: string, studentId: string) => {
         if (!studentId) return;
-        const { error } = await client.from('user_badges').insert([{
-            badge_id: badgeId,
-            user_id: studentId,
-            awarded_at: new Date().toISOString()
-        }]);
-        if (error) addToast('Awarding failed. Student might already have this badge.', 'error');
-        else addToast('Badge awarded successfully!', 'success');
+        try {
+            await assignBadge({
+                badge_id: badgeId,
+                user_id: studentId
+            });
+            addToast('Badge awarded successfully!', 'success');
+        } catch (err) {
+            console.error('Failed to award badge:', err);
+            addToast('Awarding failed. Student might already have this badge.', 'error');
+        }
     };
 
     return (

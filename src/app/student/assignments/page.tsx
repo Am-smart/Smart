@@ -7,6 +7,7 @@ import { AssignmentsList } from "@/components/student/AssignmentsList";
 import { Assignment, Submission } from '@/lib/types';
 import dynamic from 'next/dynamic';
 import { useAppContext } from '@/components/AppContext';
+import { requestRegrade } from '@/lib/data-actions';
 
 const AssignmentForm = dynamic(() => import("@/components/student/AssignmentForm").then(m => m.AssignmentForm), { ssr: false });
 
@@ -62,11 +63,12 @@ export default function AssignmentsPage() {
                   addToast('Regrade requests are disabled for this assignment.', 'error');
                   return;
               }
-              const { error } = await client.from('submissions').update({ regrade_request: reason, status: 'submitted' }).eq('assignment_id', a.id).eq('student_id', user!.id);
-              if (!error) {
+              try {
+                  await requestRegrade(a.id, reason);
                   addToast('Regrade request sent successfully!', 'success');
                   fetchData();
-              } else {
+              } catch (err) {
+                  console.error('Failed to send regrade request:', err);
                   addToast('Failed to send regrade request.', 'error');
               }
           }}

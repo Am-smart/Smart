@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { Quiz, Course, QuizQuestion } from '@/lib/types';
-import { useSupabase } from '@/hooks/useSupabase';
 import { useAppContext } from '@/components/AppContext';
 import { Plus } from 'lucide-react';
+import { saveQuiz } from '@/lib/data-actions';
 
 interface QuizEditorProps {
     teacherId: string;
@@ -13,7 +13,6 @@ interface QuizEditorProps {
 }
 
 export const QuizEditor: React.FC<QuizEditorProps> = ({ teacherId, quiz, courses, onSave, onCancel }) => {
-    const { client } = useSupabase();
     const { addToast } = useAppContext();
     const [formData, setFormData] = useState({
         title: quiz?.title || '',
@@ -57,11 +56,8 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({ teacherId, quiz, courses
         e.preventDefault();
         setIsSaving(true);
         try {
-            const payload = { ...formData, teacher_id: teacherId };
-            const { error } = quiz?.id
-                ? await client.from('quizzes').update(payload).eq('id', quiz.id)
-                : await client.from('quizzes').insert([payload]);
-            if (error) throw error;
+            const payload = { ...formData, teacher_id: teacherId, id: quiz?.id };
+            await saveQuiz(payload);
             addToast('Quiz saved successfully!', 'success');
             onSave();
         } catch (err: unknown) {

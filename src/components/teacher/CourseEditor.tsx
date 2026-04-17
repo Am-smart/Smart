@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { Course } from '@/lib/types';
-import { useSupabase } from '@/hooks/useSupabase';
 import { useIndexedDB } from '@/hooks/useIndexedDB';
 import { useAppContext } from '@/components/AppContext';
+import { saveCourse } from '@/lib/data-actions';
 
 interface CourseEditorProps {
     teacherId: string;
@@ -13,7 +13,6 @@ interface CourseEditorProps {
 }
 
 export const CourseEditor: React.FC<CourseEditorProps> = ({ course, teacherId, onSave, onCancel }) => {
-    const { client } = useSupabase();
     const { addToast } = useAppContext();
     const [formData, setFormData] = useState({
         title: course?.title || '',
@@ -32,18 +31,14 @@ export const CourseEditor: React.FC<CourseEditorProps> = ({ course, teacherId, o
             const courseData = {
                 ...formData,
                 teacher_id: teacherId,
-                updated_at: new Date().toISOString()
+                id: course?.id
             };
 
             if (isOnline) {
-                const { error } = course?.id
-                    ? await client.from('courses').update(courseData).eq('id', course.id)
-                    : await client.from('courses').insert([courseData]);
-
-                if (error) throw error;
+                await saveCourse(courseData);
                 addToast('Course saved successfully!', 'success');
             } else {
-                await addToQueue('COURSE_SAVE', course?.id ? { id: course.id, ...courseData } : courseData);
+                await addToQueue('COURSE_SAVE', courseData);
                 addToast('Offline: Course changes queued for synchronization.', 'info');
             }
 

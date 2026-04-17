@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Assignment, Course, AssignmentQuestion } from '@/lib/types';
-import { useSupabase } from '@/hooks/useSupabase';
 import { useAppContext } from '@/components/AppContext';
 import { Plus } from 'lucide-react';
+import { saveAssignment } from '@/lib/data-actions';
 
 interface AssignmentEditorProps {
     teacherId: string;
@@ -13,7 +13,6 @@ interface AssignmentEditorProps {
 }
 
 export const AssignmentEditor: React.FC<AssignmentEditorProps> = ({ teacherId, assignment, courses, onSave, onCancel }) => {
-    const { client } = useSupabase();
     const { addToast } = useAppContext();
     const [formData, setFormData] = useState({
         title: assignment?.title || '',
@@ -38,11 +37,8 @@ export const AssignmentEditor: React.FC<AssignmentEditorProps> = ({ teacherId, a
         e.preventDefault();
         setIsSaving(true);
         try {
-            const payload = { ...formData, teacher_id: teacherId };
-            const { error } = assignment?.id
-                ? await client.from('assignments').update(payload).eq('id', assignment.id)
-                : await client.from('assignments').insert([payload]);
-            if (error) throw error;
+            const payload = { ...formData, teacher_id: teacherId, id: assignment?.id };
+            await saveAssignment(payload);
             addToast('Assignment saved successfully!', 'success');
             onSave();
         } catch (err: unknown) {

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useSupabase } from '@/hooks/useSupabase';
 import { Course } from '@/lib/types';
 import { useAppContext } from '../AppContext';
+import { saveStudySession } from '@/lib/data-actions';
 
 interface StudyTimerProps {
   userId: string;
@@ -9,8 +9,7 @@ interface StudyTimerProps {
   activeCourseId?: string; // Optional course context for auto-tracking
 }
 
-export const StudyTimer: React.FC<StudyTimerProps> = ({ userId, courses, activeCourseId }) => {
-  const { client } = useSupabase();
+export const StudyTimer: React.FC<StudyTimerProps> = ({ courses, activeCourseId }) => {
   const { addToast } = useAppContext();
   const [isActive, setIsActive] = useState(false);
   const [seconds, setSeconds] = useState(0);
@@ -48,23 +47,23 @@ export const StudyTimer: React.FC<StudyTimerProps> = ({ userId, courses, activeC
 
     if (duration < 30) return; // Save sessions longer than 30s in auto-mode
 
-    const { error } = await client.from('study_sessions').insert([{
-      user_id: userId,
-      course_id: cId,
-      duration,
-      started_at: start.toISOString(),
-      ended_at: endTime.toISOString()
-    }]);
-
-    if (!error) {
+    try {
         const xpEarned = Math.floor(duration / 60) * 2;
+        await saveStudySession({
+            course_id: cId,
+            duration,
+            started_at: start.toISOString(),
+            ended_at: endTime.toISOString()
+        }, xpEarned);
+
         if (xpEarned > 0) {
-            const { data: user } = await client.from('users').select('xp').eq('id', userId).single();
-            await client.from('users').update({ xp: (user?.xp || 0) + xpEarned }).eq('id', userId);
             addToast(`Study Session Saved! You earned ${xpEarned} XP.`, 'success');
         }
+    } catch (err) {
+        console.error('Failed to save study session:', err);
+        addToast('Failed to save study session.', 'error');
     }
-  }, [client, userId, addToast]);
+  }, [addToast]);
 
   // Handle saving when component unmounts or status changes
   useEffect(() => {

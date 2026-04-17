@@ -3,6 +3,7 @@ import { useSupabase } from '@/hooks/useSupabase';
 import { Course, Lesson } from '@/lib/types';
 import { Plus, Trash2, GripVertical, Save, X, Edit2 } from 'lucide-react';
 import { useAppContext } from '@/components/AppContext';
+import { saveLesson, deleteLesson } from '@/lib/data-actions';
 
 interface LessonEditorProps {
     course: Course;
@@ -28,19 +29,18 @@ export const LessonEditor: React.FC<LessonEditorProps> = ({ course, onClose }) =
         e.preventDefault();
         try {
             if (editingLesson) {
-                const { error } = await client.from('lessons').update({
+                await saveLesson({
                     ...formData,
-                    updated_at: new Date().toISOString()
-                }).eq('id', editingLesson.id);
-                if (error) throw error;
+                    id: editingLesson.id,
+                    course_id: course.id
+                });
                 addToast('Lesson updated successfully!', 'success');
             } else {
-                const { error } = await client.from('lessons').insert([{
+                await saveLesson({
                     ...formData,
                     course_id: course.id,
                     order_index: lessons.length
-                }]);
-                if (error) throw error;
+                });
                 addToast('Lesson added successfully!', 'success');
             }
             setIsAdding(false);
@@ -55,11 +55,12 @@ export const LessonEditor: React.FC<LessonEditorProps> = ({ course, onClose }) =
 
     const handleDelete = async (id: string) => {
         if (!confirm('Are you sure you want to delete this lesson?')) return;
-        const { error } = await client.from('lessons').delete().eq('id', id);
-        if (!error) {
+        try {
+            await deleteLesson(id, course.id);
             addToast('Lesson deleted', 'success');
             fetchLessons();
-        } else {
+        } catch (err) {
+            console.error('Delete failed:', err);
             addToast('Failed to delete lesson', 'error');
         }
     };

@@ -7,10 +7,11 @@ import { QuizEditor } from "@/components/teacher/QuizEditor";
 import { Quiz, Course } from '@/lib/types';
 import { Trash2, Edit } from 'lucide-react';
 import { useAppContext } from '@/components/AppContext';
+import { deleteQuiz } from '@/lib/data-actions';
 
 export default function QuizzesPage() {
   const { user } = useAuth();
-  const { client, getCourses, getQuizzes } = useSupabase();
+  const { getCourses, getQuizzes } = useSupabase();
   const { addToast } = useAppContext();
   const [courses, setCourses] = useState<Course[]>([]);
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
@@ -32,8 +33,7 @@ export default function QuizzesPage() {
   const handleDelete = async (id: string) => {
       if (!confirm('Are you sure you want to delete this quiz?')) return;
       try {
-          const { error } = await client.from('quizzes').delete().eq('id', id);
-          if (error) throw error;
+          await deleteQuiz(id);
           addToast('Quiz deleted successfully', 'success');
           fetchData();
       } catch (err: unknown) {

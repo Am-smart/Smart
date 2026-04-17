@@ -3,6 +3,7 @@ import { useCallback, useMemo } from 'react';
 import { supabase, withSession } from '@/lib/supabase';
 import { User, Course, Enrollment, Assignment, Quiz, Discussion, Notification, Maintenance } from '@/lib/types';
 import { useIndexedDB } from './useIndexedDB';
+import { saveUser as saveUserAction, enrollInCourse as enrollInCourseAction } from '@/lib/data-actions';
 
 export const useSupabase = () => {
   const { user } = useAuth();
@@ -27,13 +28,10 @@ export const useSupabase = () => {
   }, [user?.sessionId, user?.id, isOnline, getCache, setCache]);
 
   const saveUser = useCallback(async (u: Partial<User>): Promise<User> => {
-    const { data, error } = await withSession(supabase.from('users'), user?.sessionId)
-      .upsert(u, { onConflict: 'id' })
-      .select()
-      .single();
-    if (error) throw error;
-    return data;
-  }, [user?.sessionId]);
+    const res = await saveUserAction(u);
+    if (!res.success) throw new Error('Failed to save user');
+    return res.data as User;
+  }, []);
 
   // Course operations
   const getCourses = useCallback(async (teacherId?: string): Promise<Course[]> => {
@@ -71,14 +69,11 @@ export const useSupabase = () => {
     return data || [];
   }, [user?.sessionId, isOnline, getCache, setCache]);
 
-  const enrollInCourse = useCallback(async (courseId: string, studentId: string): Promise<Enrollment> => {
-    const { data, error } = await withSession(supabase.from('enrollments'), user?.sessionId)
-      .upsert({ course_id: courseId, student_id: studentId }, { onConflict: 'course_id,student_id' })
-      .select()
-      .single();
-    if (error) throw error;
-    return data;
-  }, [user?.sessionId]);
+  const enrollInCourse = useCallback(async (courseId: string): Promise<Enrollment> => {
+    const res = await enrollInCourseAction(courseId);
+    if (!res.success) throw new Error('Failed to enroll in course');
+    return { course_id: courseId, student_id: user?.id || '' } as Enrollment;
+  }, [user?.id]);
 
   // Assignment operations
   const getAssignments = useCallback(async (teacherId?: string, courseId?: string): Promise<Assignment[]> => {

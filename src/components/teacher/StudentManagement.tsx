@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { useSupabase } from '@/hooks/useSupabase';
 import { Enrollment, Course } from '@/lib/types';
 import { Award, Trash2, FileBadge, X } from 'lucide-react';
 import { useAppContext } from '@/components/AppContext';
+import { removeEnrollment, issueCertificate } from '@/lib/data-actions';
 
 interface StudentManagementProps {
     initialEnrollments: Enrollment[];
@@ -11,7 +11,6 @@ interface StudentManagementProps {
 }
 
 export const StudentManagement: React.FC<StudentManagementProps> = ({ initialEnrollments, courses, onRefresh }) => {
-    const { client } = useSupabase();
     const { addToast } = useAppContext();
     const [isCertModalOpen, setIsCertModalOpen] = useState(false);
     const [certData, setCertData] = useState({ course_id: '', student_id: '', student_name: '' });
@@ -19,8 +18,7 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ initialEnr
     const handleUnenroll = async (courseId: string, studentId: string) => {
         if (!confirm('Are you sure you want to unenroll this student?')) return;
         try {
-            const { error } = await client.from('enrollments').delete().eq('course_id', courseId).eq('student_id', studentId);
-            if (error) throw error;
+            await removeEnrollment(courseId, studentId);
             onRefresh();
             addToast('Student unenrolled successfully', 'success');
         } catch (err) {
@@ -32,13 +30,11 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ initialEnr
     const handleIssueCert = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            const { error } = await client.from('certificates').insert([{
+            await issueCertificate({
                 course_id: certData.course_id,
                 student_id: certData.student_id,
-                issued_at: new Date().toISOString(),
                 certificate_url: `https://lms.example.com/verify/${Math.random().toString(36).substr(2, 12)}`
-            }]);
-            if (error) throw error;
+            });
             addToast(`Certificate issued to ${certData.student_name}!`, 'success');
             setIsCertModalOpen(false);
         } catch (err) {

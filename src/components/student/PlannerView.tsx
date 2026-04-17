@@ -4,6 +4,7 @@ import { PlannerItem } from '@/lib/types';
 import { useIndexedDB } from '@/hooks/useIndexedDB';
 import { useAppContext } from '../AppContext';
 import { useAuth } from '../auth/AuthContext';
+import { savePlannerItem, deletePlannerItem } from '@/lib/data-actions';
 
 interface PlannerViewProps {
   userId: string;
@@ -49,21 +50,23 @@ export const PlannerView: React.FC<PlannerViewProps> = ({ userId }) => {
     if (!newItem) return;
 
     const payload = {
-      id: Math.random().toString(),
       user_id: userId,
       title: newItem,
-      due_date: dueDate || null,
+      due_date: dueDate || undefined,
       completed: false,
       created_at: new Date().toISOString()
     };
 
     if (isOnline) {
-        const { error } = await client.from('planner').insert([payload]);
-        if (!error) {
+        try {
+          await savePlannerItem(payload);
           setNewItem('');
           setDueDate('');
           fetchPlanner();
           addToast('Task added!', 'success');
+        } catch (err) {
+          console.error('Failed to add task:', err);
+          addToast('Failed to add task.', 'error');
         }
     } else {
         await addToQueue('PLANNER_UPDATE', payload, user?.sessionId);
@@ -77,11 +80,13 @@ export const PlannerView: React.FC<PlannerViewProps> = ({ userId }) => {
   const toggleComplete = async (item: PlannerItem) => {
     const updated = { ...item, completed: !item.completed };
     if (isOnline) {
-        const { error } = await client
-          .from('planner')
-          .update({ completed: !item.completed })
-          .eq('id', item.id);
-        if (!error) fetchPlanner();
+        try {
+          await savePlannerItem({ id: item.id, completed: !item.completed });
+          fetchPlanner();
+        } catch (err) {
+          console.error('Failed to toggle completion:', err);
+          addToast('Failed to update task.', 'error');
+        }
     } else {
         await addToQueue('PLANNER_UPDATE', updated, user?.sessionId);
         setItems(prev => prev.map(i => i.id === item.id ? updated : i));
@@ -94,8 +99,13 @@ export const PlannerView: React.FC<PlannerViewProps> = ({ userId }) => {
         addToast('Cannot delete tasks while offline.', 'error');
         return;
     }
-    const { error } = await client.from('planner').delete().eq('id', id);
-    if (!error) fetchPlanner();
+    try {
+      await deletePlannerItem(id);
+      fetchPlanner();
+    } catch (err) {
+      console.error('Failed to delete item:', err);
+      addToast('Failed to delete item.', 'error');
+    }
   };
 
   return (

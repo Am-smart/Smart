@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useState } from 'react';
-import { supabase } from '@/lib/supabase';
 import { validateEmail, normalizeEmail, normalizeInput } from '@/lib/validation';
+import { requestPasswordReset } from '@/lib/auth-actions';
 
 interface ResetPasswordFormProps {
   onClose: () => void;
@@ -63,13 +63,8 @@ export const ResetPasswordForm: React.FC<ResetPasswordFormProps> = ({ onClose, o
       const normalizedEmail = normalizeEmail(email);
       const sanitizedReason = normalizeInput(finalReason);
       
-      const { data: success, error: rpcError } = await supabase.rpc('request_password_reset', {
-          p_email: normalizedEmail,
-          p_reason: sanitizedReason,
-          p_risk_level: riskMap[reason]
-      });
+      const success = await requestPasswordReset(normalizedEmail, sanitizedReason, riskMap[reason]);
 
-      if (rpcError) throw rpcError;
       if (!success) {
           setError('No account found with this email.');
           return;

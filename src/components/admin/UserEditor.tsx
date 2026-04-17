@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { User } from '@/lib/types';
-import { useSupabase } from '@/hooks/useSupabase';
 import { useAppContext } from '@/components/AppContext';
+import { saveUser } from '@/lib/data-actions';
+import { signup } from '@/lib/auth-actions';
 
 interface UserEditorProps {
     user?: User;
@@ -10,7 +11,6 @@ interface UserEditorProps {
 }
 
 export const UserEditor: React.FC<UserEditorProps> = ({ user, onSave, onCancel }) => {
-    const { client } = useSupabase();
     const { addToast } = useAppContext();
     const [formData, setFormData] = useState({
         email: user?.email || '',
@@ -29,34 +29,33 @@ export const UserEditor: React.FC<UserEditorProps> = ({ user, onSave, onCancel }
             if (user?.id) {
                 // Update User
                 const userData = {
+                    id: user.id,
                     full_name: formData.full_name,
                     phone: formData.phone,
                     role: formData.role as User['role'],
                     xp: formData.xp,
-                    reset_request: null, // Invalidate reset request on edit
-                    updated_at: new Date().toISOString()
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    reset_request: null as any, // Invalidate reset request on edit
                 };
 
-                const { error } = await client.from('users').update(userData).eq('id', user.id);
-                if (error) throw error;
+                await saveUser(userData);
                 addToast('User profile updated successfully. Reset requests invalidated.', 'success');
             } else {
-                // Create New User via secure RPC
-                const { data, error } = await client.rpc('register_user', {
-                    p_full_name: formData.full_name,
-                    p_email: formData.email,
-                    p_password: formData.password,
-                    p_phone: formData.phone,
-                    p_role: formData.role
+                // Create New User via signup server action
+                const res = await signup({
+                    full_name: formData.full_name,
+                    email: formData.email,
+                    password: formData.password,
+                    phone: formData.phone,
+                    role: formData.role as User['role']
                 });
 
-                if (error) throw error;
-                if (data && data.success === false) {
-                    addToast(data.error || 'Failed to create user.', 'error');
+                if (res.success === false) {
+                    addToast(res.error || 'Failed to create user.', 'error');
                     setIsSaving(false);
                     return;
                 }
-                addToast('New user created and session assigned.', 'success');
+                addToast('New user created.', 'success');
             }
             onSave();
         } catch (err: unknown) {

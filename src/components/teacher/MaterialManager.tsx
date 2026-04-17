@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useSupabase } from '@/hooks/useSupabase';
 import { Course, Material } from '@/lib/types';
 import { useAppContext } from '@/components/AppContext';
+import { saveMaterial, deleteMaterial } from '@/lib/data-actions';
 
 interface MaterialManagerProps {
     initialMaterials: Material[];
@@ -35,14 +36,11 @@ export const MaterialManager: React.FC<MaterialManagerProps> = ({ initialMateria
                 .from('lms-files')
                 .getPublicUrl(filePath);
 
-            const { error: dbError } = await client.from('materials').insert([{
+            await saveMaterial({
                 course_id: selectedCourseId,
                 title: file.name,
-                file_url: publicUrl.publicUrl,
-                created_at: new Date().toISOString()
-            }]);
-
-            if (dbError) throw dbError;
+                file_url: publicUrl.publicUrl
+            });
             onRefresh();
             addToast('Material uploaded successfully!', 'success');
         } catch (err) {
@@ -56,8 +54,7 @@ export const MaterialManager: React.FC<MaterialManagerProps> = ({ initialMateria
     const handleDelete = async (id: string, title: string) => {
         if (!confirm(`Are you sure you want to delete "${title}"?`)) return;
         try {
-            const { error } = await client.from('materials').delete().eq('id', id);
-            if (error) throw error;
+            await deleteMaterial(id);
             addToast('Material deleted successfully', 'success');
             onRefresh();
         } catch (err) {

@@ -128,11 +128,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setState(prev => ({ ...prev, user: updatedUser }));
 
     if (isOnline) {
-        // Use sessionId if available for RLS, otherwise use singleton
-        const { error } = await withSession(supabase.from('users'), state.user.sessionId)
-          .update(updates)
-          .eq('id', state.user.id);
-        if (error) throw error;
+        const { updateProfile: updateProfileAction } = await import('@/lib/data-actions');
+        await updateProfileAction(updates);
     } else {
         await addToQueue('PROFILE_UPDATE', { id: state.user.id, ...updates }, state.user.sessionId);
     }
