@@ -133,7 +133,8 @@ CREATE TABLE IF NOT EXISTS live_classes (
   status VARCHAR(50) DEFAULT 'scheduled' CHECK (status IN ('scheduled', 'live', 'completed', 'cancelled')),
   actual_end_at TIMESTAMP WITH TIME ZONE,
   version INTEGER DEFAULT 1,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS attendance (
@@ -180,6 +181,7 @@ CREATE TABLE IF NOT EXISTS quiz_submissions (
   time_spent INTEGER DEFAULT 0,
   started_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   submitted_at TIMESTAMP WITH TIME ZONE,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   violation_count INTEGER DEFAULT 0,
   version INTEGER DEFAULT 1,
   UNIQUE(quiz_id, student_id)
@@ -194,7 +196,8 @@ CREATE TABLE IF NOT EXISTS materials (
   file_url TEXT,
   file_type VARCHAR(50),
   version INTEGER DEFAULT 1,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS discussions (
@@ -205,7 +208,8 @@ CREATE TABLE IF NOT EXISTS discussions (
   title VARCHAR(255),
   content TEXT NOT NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  version INTEGER DEFAULT 1
 );
 
 CREATE TABLE IF NOT EXISTS notifications (
@@ -259,7 +263,8 @@ CREATE TABLE IF NOT EXISTS planner (
   priority VARCHAR(20) DEFAULT 'medium' CHECK (priority IN ('low', 'medium', 'high')),
   completed BOOLEAN DEFAULT FALSE,
   version INTEGER DEFAULT 1,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS certificates (
@@ -278,7 +283,8 @@ CREATE TABLE IF NOT EXISTS badges (
   icon_url TEXT,
   xp_required INTEGER DEFAULT 0,
   version INTEGER DEFAULT 1,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS user_badges (
@@ -389,6 +395,26 @@ BEGIN
     END IF;
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'badges' AND column_name = 'version') THEN
         ALTER TABLE badges ADD COLUMN version INTEGER DEFAULT 1;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'discussions' AND column_name = 'version') THEN
+        ALTER TABLE discussions ADD COLUMN version INTEGER DEFAULT 1;
+    END IF;
+
+    -- Timestamp Harmonization
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'live_classes' AND column_name = 'updated_at') THEN
+        ALTER TABLE live_classes ADD COLUMN updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'quiz_submissions' AND column_name = 'updated_at') THEN
+        ALTER TABLE quiz_submissions ADD COLUMN updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'materials' AND column_name = 'updated_at') THEN
+        ALTER TABLE materials ADD COLUMN updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'planner' AND column_name = 'updated_at') THEN
+        ALTER TABLE planner ADD COLUMN updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'badges' AND column_name = 'updated_at') THEN
+        ALTER TABLE badges ADD COLUMN updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
     END IF;
 END $$;
 

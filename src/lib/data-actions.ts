@@ -405,15 +405,26 @@ export async function deletePlannerItem(id: string) {
 // 10. Discussion Actions
 export async function saveDiscussionPost(post: Partial<Discussion>) {
   const user = await getVerifiedUser();
-  const { data, error } = await withSession(supabase.from('discussions'), user.sessionId as string)
-    .insert([{
-      ...post,
-      user_id: user.id
-    }])
-    .select()
-    .single();
+  const { version, ...postData } = post;
+  let query = withSession(supabase.from('discussions'), user.sessionId as string)
+    .upsert({
+      ...postData,
+      user_id: user.id,
+      version: (version || 0) + 1
+    });
 
-  if (error) throw new Error(error.message);
+  if (post.id && version) {
+    query = query.eq('id', post.id).eq('version', version);
+  }
+
+  const { data, error } = await query.select().single();
+
+  if (error) {
+    if (post.id && version && error.code === 'PGRST116') {
+        throw new Error('Conflict detected: Discussion post has been updated by another user.');
+    }
+    throw new Error(error.message);
+  }
   return { success: true, data };
 }
 

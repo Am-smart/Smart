@@ -251,6 +251,7 @@ export interface Discussion {
   user_id: string;
   content: string;
   parent_id?: string;
+  version?: number;
   created_at: string;
   users?: {
     full_name: string;
