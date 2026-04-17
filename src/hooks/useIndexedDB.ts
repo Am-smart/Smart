@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase, withSession } from '@/lib/supabase';
-import { Enrollment, Submission, QuizSubmission, Course, Assignment, Quiz, User, PlannerItem, Discussion } from '@/lib/types';
+import { Submission, QuizSubmission, Course, Assignment, Quiz, User, PlannerItem, Discussion } from '@/lib/types';
 import * as actions from '@/lib/data-actions';
 
 const DB_NAME = 'smartlms-offline-v3';

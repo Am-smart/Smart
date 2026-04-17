@@ -42,20 +42,19 @@ export default function AssignmentsPage() {
       }
   };
 
-  if (isAdding || editingAssignment) {
-      return (
-          <AssignmentEditor
-              teacherId={user!.id}
-              assignment={editingAssignment || undefined}
-              courses={courses}
-              onSave={() => { setEditingAssignment(null); setIsAdding(false); fetchData(); }}
-              onCancel={() => { setEditingAssignment(null); setIsAdding(false); }}
-          />
-      );
-  }
-
   return (
     <div className="space-y-6">
+        {(isAdding || editingAssignment) && (
+            <div className="fixed inset-0 z-[60] overflow-y-auto">
+                <AssignmentEditor
+                    teacherId={user!.id}
+                    assignment={editingAssignment || undefined}
+                    courses={courses}
+                    onSave={() => { setEditingAssignment(null); setIsAdding(false); fetchData(); }}
+                    onCancel={() => { setEditingAssignment(null); setIsAdding(false); }}
+                />
+            </div>
+        )}
         <div className="flex justify-between items-center">
             <h2 className="text-2xl font-bold text-slate-900">Assignments</h2>
             <button onClick={() => setIsAdding(true)} className="btn-primary">Create Assignment</button>
