@@ -1,78 +1,143 @@
 import React, { useState } from 'react';
 import { User } from '@/lib/types';
 import { useAppContext } from '@/components/AppContext';
+import { approveResetRequest, denyResetRequest } from '@/lib/auth-actions';
+import { CheckCircle, XCircle, ShieldAlert } from 'lucide-react';
 
 interface PasswordResetProps {
     users: User[];
-    onUpdate: (id: string, updates: Partial<User>) => Promise<void>;
+    onRefresh: () => void;
 }
 
-export const PasswordReset: React.FC<PasswordResetProps> = ({ users, onUpdate }) => {
+interface ResetRequestMetadata {
+    status: 'pending' | 'approved' | 'denied';
+    reason?: string;
+    denial_reason?: string;
+    temp_password?: string;
+    expires_at?: string;
+}
+
+export const PasswordReset: React.FC<PasswordResetProps> = ({ users, onRefresh }) => {
     const { addToast } = useAppContext();
     const [selectedId, setSelectedId] = useState('');
-    const [newPassword, setNewPassword] = useState('');
-    const [isResetting, setIsResetting] = useState(false);
+    const [denialReason, setDenialReason] = useState('');
+    const [isProcessing, setIsProcessing] = useState(false);
 
-    const handleReset = async (e: React.FormEvent) => {
-        e.preventDefault();
-        const user = users.find(u => u.id === selectedId);
-        if (!user || !newPassword) return;
-        setIsResetting(true);
+    const pendingUsers = users.filter(u => {
+        const req = u.reset_request as ResetRequestMetadata | null;
+        return req && req.status === 'pending';
+    });
+
+    const handleApprove = async (userId: string) => {
+        const user = users.find(u => u.id === userId);
+        if (!user) return;
+
+        setIsProcessing(true);
         try {
-            const { hashPassword } = await import('@/lib/crypto');
-            const hashed = await hashPassword(newPassword);
+            const tempPass = Math.floor(10000 + Math.random() * 90000).toString();
+            const res = await approveResetRequest(userId, tempPass);
 
-            await onUpdate(user.id, {
-                password: hashed,
-                reset_request: null,
-                failed_attempts: 0,
-                locked_until: null
-            });
-            addToast(`Password for ${user.email} has been reset successfully.`, 'success');
-            setNewPassword('');
-            setSelectedId('');
-        } catch (err) {
-            console.error('Reset failed:', err);
-            addToast('Failed to reset password.', 'error');
+            if (res.success) {
+                addToast(`Request approved! Temp Password: ${tempPass}`, 'success', 10000);
+                onRefresh();
+            } else {
+                throw new Error(res.error);
+            }
+        } catch (err: unknown) {
+            const msg = err instanceof Error ? err.message : 'Approval failed';
+            addToast(msg, 'error');
         } finally {
-            setIsResetting(false);
+            setIsProcessing(false);
+        }
+    };
+
+    const handleDeny = async (userId: string) => {
+        if (!denialReason.trim()) {
+            addToast('Please provide a reason for denial', 'error');
+            return;
+        }
+
+        setIsProcessing(true);
+        try {
+            const res = await denyResetRequest(userId, denialReason);
+            if (res.success) {
+                addToast('Reset request denied.', 'info');
+                setDenialReason('');
+                onRefresh();
+            } else {
+                throw new Error(res.error);
+            }
+        } catch (err: unknown) {
+            const msg = err instanceof Error ? err.message : 'Denial failed';
+            addToast(msg, 'error');
+        } finally {
+            setIsProcessing(false);
         }
     };
 
     return (
-        <div className="max-w-2xl mx-auto space-y-8">
-            <h2 className="text-2xl font-bold">Password Management</h2>
-            <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100">
-                <form onSubmit={handleReset} className="space-y-6">
-                    <div>
-                        <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">Select User</label>
-                        <select value={selectedId} onChange={e => setSelectedId(e.target.value)} className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all">
-                            <option value="">Choose a user with a pending request...</option>
-                            {users.map(u => {
-                                const request = u.reset_request as { reason?: string } | null;
-                                return (
-                                    <option key={u.id} value={u.id}>
-                                        {u.email} ({u.full_name}) - {request?.reason || 'No reason'}
-                                    </option>
-                                );
-                            })}
-                        </select>
-                    </div>
-                    <div>
-                        <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">New Password</label>
-                        <input type="password" required value={newPassword} onChange={e => setNewPassword(e.target.value)} className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all" placeholder="••••••••" />
-                    </div>
-                    <button type="submit" disabled={isResetting || !selectedId || !newPassword} className="btn-primary w-full py-4 text-center">
-                        {isResetting ? 'Processing...' : 'Reset User Password'}
-                    </button>
-                </form>
-            </div>
-
-            <div className="p-6 bg-amber-50 rounded-2xl border border-amber-100 flex gap-4">
-                <div className="text-2xl">⚠️</div>
-                <div className="text-sm text-amber-800 font-medium">
-                    Resetting a password will take effect immediately. Ensure you have verified the user&apos;s identity before proceeding.
+        <div className="max-w-4xl mx-auto space-y-8">
+            <header className="flex justify-between items-center">
+                <h2 className="text-2xl font-bold text-slate-900">Password Reset Requests</h2>
+                <div className="px-4 py-2 bg-blue-50 text-blue-700 rounded-full text-xs font-bold uppercase tracking-wider">
+                    {pendingUsers.length} Pending
                 </div>
+            </header>
+
+            <div className="grid grid-cols-1 gap-6">
+                {pendingUsers.length === 0 ? (
+                    <div className="bg-white p-12 rounded-3xl border-2 border-dashed border-slate-100 flex flex-col items-center justify-center text-center text-slate-400">
+                        <ShieldAlert size={48} className="mb-4 opacity-20" />
+                        <p className="font-medium italic">No pending password reset requests.</p>
+                    </div>
+                ) : (
+                    pendingUsers.map(user => {
+                        const request = user.reset_request as ResetRequestMetadata | null;
+                        return (
+                            <div key={user.id} className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 flex flex-col md:flex-row justify-between gap-6 hover:shadow-md transition-shadow">
+                                <div className="flex-1">
+                                    <div className="flex items-center gap-3 mb-2">
+                                        <h3 className="font-bold text-slate-900">{user.full_name}</h3>
+                                        <span className="text-[10px] bg-slate-100 px-2 py-0.5 rounded-full font-bold text-slate-500 uppercase">{user.role}</span>
+                                    </div>
+                                    <p className="text-xs text-slate-500 mb-4 font-medium">{user.email}</p>
+
+                                    <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                                        <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Reason for Reset</label>
+                                        <p className="text-sm text-slate-700 leading-relaxed font-medium italic">&ldquo;{request?.reason || 'No reason provided'}&rdquo;</p>
+                                    </div>
+                                </div>
+
+                                <div className="flex flex-col gap-3 w-full md:w-72 justify-center">
+                                    <button
+                                        onClick={() => handleApprove(user.id)}
+                                        disabled={isProcessing}
+                                        className="btn-primary w-full py-3 flex items-center justify-center gap-2"
+                                    >
+                                        <CheckCircle size={18} /> Approve Reset
+                                    </button>
+
+                                    <div className="space-y-2">
+                                        <input
+                                            type="text"
+                                            placeholder="Denial reason..."
+                                            value={selectedId === user.id ? denialReason : ''}
+                                            onChange={(e) => { setSelectedId(user.id); setDenialReason(e.target.value); }}
+                                            className="w-full p-3 rounded-xl border border-slate-200 text-xs outline-none focus:border-red-400 transition-all"
+                                        />
+                                        <button
+                                            onClick={() => handleDeny(user.id)}
+                                            disabled={isProcessing || selectedId !== user.id || !denialReason}
+                                            className="btn-secondary w-full py-3 text-red-600 border-red-100 hover:bg-red-50 flex items-center justify-center gap-2"
+                                        >
+                                            <XCircle size={18} /> Deny Request
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })
+                )}
             </div>
         </div>
     );

@@ -1,36 +1,56 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
 import { useAppContext } from '@/components/AppContext';
 import { useSupabase } from '@/hooks/useSupabase';
 import { StudentSidebar } from "@/components/StudentSidebar";
 import { StudentHeader } from "@/components/StudentHeader";
-import { useRouter, usePathname } from 'next/navigation';
-import { User, Enrollment, Assignment, Submission } from '@/lib/types';
+import { ForcePasswordChange } from "@/components/auth/ForcePasswordChange";
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
+import { User, Enrollment, Assignment, Submission, Course } from '@/lib/types';
+import dynamic from 'next/dynamic';
 
-export default function StudentLayout({
+const StudyTimer = dynamic(() => import("@/components/student/StudyTimer").then(m => m.StudyTimer), { ssr: false });
+
+interface ResetRequest {
+    status: string;
+}
+
+function StudentLayoutContent({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const { user, role, logout, isLoading: authLoading } = useAuth();
+  const { user, role, logout, isLoading: authLoading, updateProfile } = useAuth();
   const { notifications } = useAppContext();
-  const { client } = useSupabase();
+  const { client, getEnrollments } = useSupabase();
   const [stats, setStats] = useState({ courses: 0, dueSoon: 0, badges: 0, unreadNotifications: 0 });
+  const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const isResetApproved = user?.reset_request && (user.reset_request as unknown as ResetRequest).status === 'approved';
+
+  // Determine if user is in an "Active Learning" state
+  const activeCourseId = searchParams.get('id') || undefined;
+  const isLearning = pathname.includes('/student/courses') ||
+                   pathname.includes('/student/assignments') ||
+                   pathname.includes('/student/quizzes') ||
+                   pathname.includes('/student/live');
 
   const fetchStats = useCallback(async (u: User) => {
     try {
       const [myEnrollments, allAssignments, mySubmissions, myBadges] = await Promise.all([
-        client.from('enrollments').select('*').eq('student_id', u.id).then(r => r.data || []),
+        getEnrollments(u.id),
         client.from('assignments').select('*').eq('status', 'published').then(r => r.data || []),
         client.from('submissions').select('*').eq('student_id', u.id).then(r => r.data || []),
         client.from('user_badges').select('*').eq('user_id', u.id).then(r => r.data || [])
       ]);
 
+      setEnrollments(myEnrollments);
       const enrolledIds = myEnrollments.map((e: Enrollment) => e.course_id);
       setStats(prev => ({
         ...prev,
@@ -41,7 +61,7 @@ export default function StudentLayout({
     } catch (err) {
       console.error('Failed to fetch stats:', err);
     }
-  }, [client]);
+  }, [client, getEnrollments]);
 
   useEffect(() => {
     if (!authLoading) {
@@ -73,6 +93,10 @@ export default function StudentLayout({
 
   return (
     <div className="student-dashboard">
+      {isResetApproved && (
+          <ForcePasswordChange onSuccess={() => updateProfile({ reset_request: null })} />
+      )}
+
       <div className="flex">
         <StudentSidebar
           activePage={activePage === 'student' ? 'dashboard' : activePage}
@@ -82,6 +106,18 @@ export default function StudentLayout({
         />
         <main className="flex-1 transition-all duration-300 ml-0 md:ml-[240px]">
           <StudentHeader user={user} stats={stats} notifications={notifications} onLogout={handleLogout} onMenuClick={() => setIsSidebarOpen(true)} />
+
+          {/* Background Study Timer */}
+          {enrollments.length > 0 && (
+            <div className={`${pathname === '/student' ? 'p-4 md:p-8' : 'hidden'}`}>
+                <StudyTimer
+                  userId={user.id}
+                  courses={enrollments.map(e => e.courses).filter(Boolean) as Course[]}
+                  activeCourseId={isLearning ? activeCourseId : undefined}
+                />
+            </div>
+          )}
+
           <div className="content-area p-4 md:p-8 bg-[#f8fafc] min-h-[calc(100vh-70px)] overflow-x-hidden">
             {children}
           </div>
@@ -89,4 +125,12 @@ export default function StudentLayout({
       </div>
     </div>
   );
+}
+
+export default function StudentLayout({ children }: { children: React.ReactNode }) {
+    return (
+        <Suspense fallback={<div>Loading Layout...</div>}>
+            <StudentLayoutContent>{children}</StudentLayoutContent>
+        </Suspense>
+    );
 }

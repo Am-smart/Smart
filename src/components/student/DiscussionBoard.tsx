@@ -1,67 +1,96 @@
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useSupabase } from '@/hooks/useSupabase';
 import { Discussion } from '@/lib/types';
+import { MessageSquare, Send, Trash2 } from 'lucide-react';
 
 interface DiscussionBoardProps {
+  courseId?: string;
   userId: string;
-  discussions: Discussion[];
-
-  onPost: (content: string, parentId?: string) => Promise<void>;
-  onDelete: (id: string) => Promise<void>;
-  isOnline: boolean;
 }
 
-export const DiscussionBoard: React.FC<DiscussionBoardProps> = ({ discussions, userId, onPost, onDelete, isOnline }) => {
-  const [newPost, setNewPost] = React.useState('');
+export const DiscussionBoard: React.FC<DiscussionBoardProps> = ({ courseId, userId }) => {
+  const { client } = useSupabase();
+  const [discussions, setDiscussions] = useState<Discussion[]>([]);
+  const [message, setMessage] = useState('');
+
+  const fetchDiscussions = useCallback(async () => {
+    let query = client.from('discussions').select('*, users(full_name)').order('created_at', { ascending: false });
+
+    if (courseId) {
+      query = query.eq('course_id', courseId);
+    } else {
+      query = query.is('course_id', null);
+    }
+
+    const { data } = await query;
+    setDiscussions((data as Discussion[]) || []);
+  }, [client, courseId]);
+
+  useEffect(() => { fetchDiscussions(); }, [fetchDiscussions]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newPost.trim()) return;
-    await onPost(newPost);
-    setNewPost('');
+    if (!message.trim()) return;
+    const { error } = await client.from('discussions').insert([{
+      course_id: courseId || null,
+      user_id: userId,
+      content: message,
+      created_at: new Date().toISOString()
+    }]);
+    if (!error) {
+      setMessage('');
+      fetchDiscussions();
+    }
   };
 
-  const renderThread = (parentId: string | null = null, depth = 0) => {
-    return discussions
-      .filter(d => (parentId === null ? !d.parent_id : d.parent_id === parentId))
-      .map(d => (
-        <div key={d.id} className={`p-4 rounded-xl border border-slate-100 bg-slate-50 mb-4`} style={{ marginLeft: `${depth * 24}px` }}>
-          <div className="flex justify-between items-start mb-2">
-            <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-              {d.users?.full_name || d.user_id} • {new Date(d.created_at).toLocaleString()}
-            </div>
-            {d.user_id === userId && (
-                <button onClick={() => onDelete(d.id)} className="text-red-500 hover:text-red-700 text-[10px] font-bold uppercase">Delete</button>
-            )}
-          </div>
-          <p className="text-sm text-slate-800 leading-relaxed whitespace-pre-line">{d.content}</p>
-          <div className="mt-4">
-             {renderThread(d.id, depth + 1)}
-          </div>
-        </div>
-      ));
+  const handleDelete = async (id: string) => {
+      await client.from('discussions').delete().eq('id', id);
+      fetchDiscussions();
   };
 
   return (
-    <div className="bg-white p-4 md:p-8 rounded-2xl shadow-sm border border-slate-100">
-      <div className="flex justify-between items-center mb-6">
-        <h3 className="text-lg font-bold">Course Discussion</h3>
-        {!isOnline && (
-            <span className="text-[10px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full font-bold uppercase">Offline Mode</span>
+    <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden flex flex-col h-[600px]">
+      <header className="p-6 border-b bg-slate-50 flex items-center gap-3">
+        <MessageSquare className="text-blue-600" />
+        <h3 className="font-bold text-slate-900">{courseId ? 'Course Discussion' : 'Global Discussion'}</h3>
+      </header>
+
+      <div className="flex-1 overflow-y-auto p-6 space-y-6">
+        {discussions.map(d => (
+          <div key={d.id} className={`flex flex-col ${d.user_id === userId ? 'items-end' : 'items-start'}`}>
+            <div className={`max-w-[80%] p-4 rounded-2xl ${d.user_id === userId ? 'bg-blue-600 text-white rounded-tr-none' : 'bg-slate-100 text-slate-800 rounded-tl-none'}`}>
+              <div className="text-[10px] font-bold uppercase tracking-wider mb-1 opacity-70">
+                {d.users?.full_name || 'Anonymous User'}
+              </div>
+              <p className="text-sm leading-relaxed">{d.content}</p>
+            </div>
+            <div className="flex items-center gap-2 mt-1">
+                <span className="text-[10px] text-slate-400 font-medium">{new Date(d.created_at).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>
+                {d.user_id === userId && (
+                    <button onClick={() => handleDelete(d.id)} className="text-slate-300 hover:text-red-500 transition-colors">
+                        <Trash2 size={12} />
+                    </button>
+                )}
+            </div>
+          </div>
+        ))}
+        {discussions.length === 0 && (
+          <div className="h-full flex items-center justify-center text-slate-400 italic text-sm">
+            No messages yet. Start the conversation!
+          </div>
         )}
       </div>
-      <div className="max-h-[500px] overflow-y-auto mb-8 pr-2">
-        {discussions.length > 0 ? renderThread() : <p className="text-slate-500 italic text-center py-8">No messages yet. Start the conversation!</p>}
-      </div>
-      <form onSubmit={handleSubmit} className="flex flex-col md:flex-row gap-3">
+
+      <form onSubmit={handleSubmit} className="p-4 bg-slate-50 border-t flex gap-3">
         <input
           type="text"
-          placeholder="Start a new thread..."
-          className="input-custom flex-1"
-          value={newPost}
-          onChange={(e) => setNewPost(e.target.value)}
+          value={message}
+          onChange={e => setMessage(e.target.value)}
+          placeholder="Type your message..."
+          className="flex-1 p-3 rounded-xl border border-slate-200 outline-none focus:border-blue-500 text-sm"
         />
-        <button type="submit" disabled={!newPost.trim()} className="btn-primary px-8 py-3 md:py-2">
-            {isOnline ? 'Post Message' : 'Queue Post'}
+        <button type="submit" className="p-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-colors">
+          <Send size={18} />
         </button>
       </form>
     </div>

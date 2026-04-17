@@ -5,6 +5,7 @@ import { useAuth } from '@/components/auth/AuthContext';
 import { useSupabase } from '@/hooks/useSupabase';
 import { CourseManager } from "@/components/teacher/CourseManager";
 import { CourseEditor } from "@/components/teacher/CourseEditor";
+import { LessonEditor } from "@/components/teacher/LessonEditor";
 import { Course } from '@/lib/types';
 
 export default function CoursesPage() {
@@ -12,6 +13,7 @@ export default function CoursesPage() {
   const { client, getCourses } = useSupabase();
   const [courses, setCourses] = useState<Course[]>([]);
   const [editingCourse, setEditingCourse] = useState<Course | null>(null);
+  const [activeLessonCourse, setActiveLessonCourse] = useState<Course | null>(null);
   const [isAdding, setIsAdding] = useState(false);
 
   const fetchCourses = useCallback(async () => {
@@ -37,15 +39,25 @@ export default function CoursesPage() {
   }
 
   return (
-    <CourseManager
-        courses={courses}
-        onEdit={setEditingCourse}
-        onDelete={async (id) => {
-            await client.from('courses').delete().eq('id', id);
-            fetchCourses();
-        }}
-        onCreate={() => setIsAdding(true)}
-        onManageLessons={() => {}}
-    />
+    <div className="relative">
+      <CourseManager
+          courses={courses}
+          onEdit={setEditingCourse}
+          onDelete={async (id) => {
+              if (!confirm('Are you sure you want to delete this course and all its lessons?')) return;
+              await client.from('courses').delete().eq('id', id);
+              fetchCourses();
+          }}
+          onCreate={() => setIsAdding(true)}
+          onManageLessons={(course) => setActiveLessonCourse(course)}
+      />
+
+      {activeLessonCourse && (
+          <LessonEditor
+              course={activeLessonCourse}
+              onClose={() => setActiveLessonCourse(null)}
+          />
+      )}
+    </div>
   );
 }

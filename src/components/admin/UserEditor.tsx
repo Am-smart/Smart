@@ -33,12 +33,13 @@ export const UserEditor: React.FC<UserEditorProps> = ({ user, onSave, onCancel }
                     phone: formData.phone,
                     role: formData.role as User['role'],
                     xp: formData.xp,
+                    reset_request: null, // Invalidate reset request on edit
                     updated_at: new Date().toISOString()
                 };
 
                 const { error } = await client.from('users').update(userData).eq('id', user.id);
                 if (error) throw error;
-                addToast('User profile updated successfully.', 'success');
+                addToast('User profile updated successfully. Reset requests invalidated.', 'success');
             } else {
                 // Create New User via secure RPC
                 const { data, error } = await client.rpc('register_user', {

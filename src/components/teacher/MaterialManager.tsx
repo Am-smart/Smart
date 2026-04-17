@@ -53,10 +53,23 @@ export const MaterialManager: React.FC<MaterialManagerProps> = ({ initialMateria
         }
     };
 
+    const handleDelete = async (id: string, title: string) => {
+        if (!confirm(`Are you sure you want to delete "${title}"?`)) return;
+        try {
+            const { error } = await client.from('materials').delete().eq('id', id);
+            if (error) throw error;
+            addToast('Material deleted successfully', 'success');
+            onRefresh();
+        } catch (err) {
+            console.error('Delete failed:', err);
+            addToast('Failed to delete material.', 'error');
+        }
+    };
+
     return (
         <div className="space-y-12">
             <header className="flex justify-between items-center mb-8">
-                <h2 className="text-2xl font-bold">Course Materials</h2>
+                <h2 className="text-2xl font-bold text-slate-900">Course Materials</h2>
                 <div className="flex gap-4">
                     <select value={selectedCourseId} onChange={e => setSelectedCourseId(e.target.value)} className="p-3 rounded-xl border border-slate-200 outline-none focus:border-blue-500">
                         <option value="">Select Course to Upload</option>
@@ -81,7 +94,7 @@ export const MaterialManager: React.FC<MaterialManagerProps> = ({ initialMateria
                         <div key={mat.id} className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 flex flex-col gap-4">
                             <div className="flex justify-between items-start">
                                 <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center text-2xl font-bold">📄</div>
-                                <button onClick={async () => { await client.from('materials').delete().eq('id', mat.id); onRefresh(); }} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors">🗑️</button>
+                                <button onClick={() => handleDelete(mat.id, mat.title)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors">🗑️</button>
                             </div>
                             <div>
                                 <h4 className="font-bold text-slate-900 line-clamp-1">{mat.title}</h4>

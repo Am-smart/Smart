@@ -4,24 +4,29 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
 import { AdminSidebar } from "@/components/AdminSidebar";
 import { AdminHeader } from "@/components/AdminHeader";
+import { ForcePasswordChange } from "@/components/auth/ForcePasswordChange";
 import { useRouter, usePathname } from 'next/navigation';
+
+interface ResetRequest {
+    status: string;
+}
 
 export default function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const { user, role, logout, isLoading: authLoading } = useAuth();
+  const { user, role, logout, isLoading: authLoading, updateProfile } = useAuth();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
 
+  const isResetApproved = user?.reset_request && (user.reset_request as unknown as ResetRequest).status === 'approved';
 
   useEffect(() => {
     if (!authLoading) {
       if (!user || role !== 'admin') {
         router.push('/');
-      } else {
       }
     }
   }, [authLoading, user, role, router]);
@@ -39,6 +44,9 @@ export default function AdminLayout({
 
   return (
     <div className="admin-dashboard">
+      {isResetApproved && (
+          <ForcePasswordChange onSuccess={() => updateProfile({ reset_request: null })} />
+      )}
       <div className="flex">
         <AdminSidebar
           activePage={activePage === 'admin' ? 'dashboard' : activePage}

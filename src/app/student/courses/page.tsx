@@ -1,30 +1,55 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
 import { useSupabase } from '@/hooks/useSupabase';
 import { useIndexedDB } from '@/hooks/useIndexedDB';
 import { enrollInCourse } from '@/lib/data-actions';
 import { CourseCatalog } from "@/components/student/CourseCatalog";
-import { Course } from '@/lib/types';
-import { useRouter } from 'next/navigation';
+import { CourseView } from "@/components/student/CourseView";
+import { Course, Lesson } from '@/lib/types';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAppContext } from '@/components/AppContext';
 
-export default function CatalogPage() {
+function CatalogContent() {
   const { user } = useAuth();
   const { addToast } = useAppContext();
-  const { getCourses, getEnrollments } = useSupabase();
+  const { client, getCourses, getEnrollments } = useSupabase();
   const { isOnline, addToQueue } = useIndexedDB();
   const [courses, setCourses] = useState<Course[]>([]);
   const [enrolledIds, setEnrolledIds] = useState<string[]>([]);
+  const [activeCourse, setActiveCourse] = useState<Course | null>(null);
+  const [lessons, setLessons] = useState<Lesson[]>([]);
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const courseIdParam = searchParams.get('id');
+
+  const fetchData = useCallback(async () => {
+    if (!user) return;
+    const [all, enrolled] = await Promise.all([
+      getCourses(),
+      getEnrollments(user.id!)
+    ]);
+    setCourses(all.filter(c => c.status === 'published'));
+    setEnrolledIds(enrolled.map(item => item.course_id));
+  }, [user, getCourses, getEnrollments]);
 
   useEffect(() => {
-    if (user) {
-        getCourses().then(all => setCourses(all.filter(c => c.status === 'published')));
-        getEnrollments(user.id!).then(e => setEnrolledIds(e.map(item => item.course_id)));
+    fetchData();
+  }, [fetchData]);
+
+  useEffect(() => {
+    if (courseIdParam && courses.length > 0) {
+        const c = courses.find(item => item.id === courseIdParam);
+        if (c) {
+            setActiveCourse(c);
+            client.from('lessons').select('*').eq('course_id', c.id).order('order_index', { ascending: true })
+                .then(({ data }) => setLessons((data as Lesson[]) || []));
+        }
+    } else {
+        setActiveCourse(null);
     }
-  }, [user, getCourses, getEnrollments]);
+  }, [courseIdParam, courses, client]);
 
   const handleEnroll = async (courseId: string) => {
     if (!user) return;
@@ -44,12 +69,30 @@ export default function CatalogPage() {
     }
   };
 
+  if (activeCourse) {
+      return (
+          <CourseView
+              course={activeCourse}
+              lessons={lessons}
+              onBack={() => router.push('/student/courses')}
+          />
+      );
+  }
+
   return (
     <CourseCatalog
         courses={courses}
         enrolledCourseIds={enrolledIds}
         onEnroll={handleEnroll}
-        onViewDetails={() => router.push('/student/my-courses')}
+        onViewDetails={(id) => router.push(`/student/courses?id=${id}`)}
     />
+  );
+}
+
+export default function CatalogPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <CatalogContent />
+    </Suspense>
   );
 }

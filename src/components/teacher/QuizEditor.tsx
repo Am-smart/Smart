@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Quiz, Course, QuizQuestion } from '@/lib/types';
 import { useSupabase } from '@/hooks/useSupabase';
 import { useAppContext } from '@/components/AppContext';
+import { Plus } from 'lucide-react';
 
 interface QuizEditorProps {
     teacherId: string;
@@ -113,7 +114,6 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({ teacherId, quiz, courses
                     <div className="space-y-8 pt-8 border-t">
                         <div className="flex justify-between items-center">
                             <h3 className="text-xl font-bold text-slate-900">Questions</h3>
-                            <button type="button" onClick={handleAddQuestion} className="btn-secondary py-2 px-6">+ Add Question</button>
                         </div>
                         {formData.questions.map((q, index) => (
                             <div key={q.id} className="p-6 bg-slate-50 rounded-2xl border-2 border-slate-100 space-y-4">
@@ -191,6 +191,10 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({ teacherId, quiz, courses
                                 </div>
                             </div>
                         ))}
+
+                        <button type="button" onClick={handleAddQuestion} className="w-full py-4 border-2 border-dashed border-slate-200 rounded-2xl text-slate-400 hover:border-blue-400 hover:text-blue-500 transition-all font-bold flex items-center justify-center gap-2">
+                            <Plus size={18} /> Add Question
+                        </button>
                     </div>
                 </form>
                 <footer className="p-8 border-t bg-slate-50 flex justify-between gap-4 shrink-0">

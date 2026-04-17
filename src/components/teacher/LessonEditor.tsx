@@ -1,16 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useSupabase } from '@/hooks/useSupabase';
-import { Course } from '@/lib/types';
-import { Plus, Trash2, GripVertical, Save, X } from 'lucide-react';
-
-interface Lesson {
-    id: string;
-    course_id: string;
-    title: string;
-    content: string;
-    video_url?: string;
-    order_index: number;
-}
+import { Course, Lesson } from '@/lib/types';
+import { Plus, Trash2, GripVertical, Save, X, Edit2 } from 'lucide-react';
+import { useAppContext } from '@/components/AppContext';
 
 interface LessonEditorProps {
     course: Course;
@@ -19,34 +11,63 @@ interface LessonEditorProps {
 
 export const LessonEditor: React.FC<LessonEditorProps> = ({ course, onClose }) => {
     const { client } = useSupabase();
+    const { addToast } = useAppContext();
     const [lessons, setLessons] = useState<Lesson[]>([]);
     const [isAdding, setIsAdding] = useState(false);
-    const [newLesson, setNewLesson] = useState({ title: '', content: '', video_url: '' });
+    const [editingLesson, setEditingLesson] = useState<Lesson | null>(null);
+    const [formData, setFormData] = useState({ title: '', content: '', video_url: '' });
 
     const fetchLessons = useCallback(async () => {
         const { data } = await client.from('lessons').select('*').eq('course_id', course.id).order('order_index', { ascending: true });
-        setLessons(data || []);
+        setLessons((data as Lesson[]) || []);
     }, [client, course.id]);
 
     useEffect(() => { fetchLessons(); }, [fetchLessons]);
 
-    const handleAdd = async (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        const { error } = await client.from('lessons').insert([{
-            ...newLesson,
-            course_id: course.id,
-            order_index: lessons.length
-        }]);
-        if (!error) {
+        try {
+            if (editingLesson) {
+                const { error } = await client.from('lessons').update({
+                    ...formData,
+                    updated_at: new Date().toISOString()
+                }).eq('id', editingLesson.id);
+                if (error) throw error;
+                addToast('Lesson updated successfully!', 'success');
+            } else {
+                const { error } = await client.from('lessons').insert([{
+                    ...formData,
+                    course_id: course.id,
+                    order_index: lessons.length
+                }]);
+                if (error) throw error;
+                addToast('Lesson added successfully!', 'success');
+            }
             setIsAdding(false);
-            setNewLesson({ title: '', content: '', video_url: '' });
+            setEditingLesson(null);
+            setFormData({ title: '', content: '', video_url: '' });
             fetchLessons();
+        } catch (err: unknown) {
+            const msg = err instanceof Error ? err.message : 'Failed to save lesson';
+            addToast(msg, 'error');
         }
     };
 
     const handleDelete = async (id: string) => {
-        await client.from('lessons').delete().eq('id', id);
-        fetchLessons();
+        if (!confirm('Are you sure you want to delete this lesson?')) return;
+        const { error } = await client.from('lessons').delete().eq('id', id);
+        if (!error) {
+            addToast('Lesson deleted', 'success');
+            fetchLessons();
+        } else {
+            addToast('Failed to delete lesson', 'error');
+        }
+    };
+
+    const startEdit = (lesson: Lesson) => {
+        setEditingLesson(lesson);
+        setFormData({ title: lesson.title, content: lesson.content, video_url: lesson.video_url || '' });
+        setIsAdding(true);
     };
 
     return (
@@ -64,31 +85,33 @@ export const LessonEditor: React.FC<LessonEditorProps> = ({ course, onClose }) =
                     <div className="flex justify-between items-center">
                         <h3 className="font-bold text-slate-900">Course Content ({lessons.length} Lessons)</h3>
                         {!isAdding && (
-                            <button onClick={() => setIsAdding(true)} className="btn-secondary py-2 px-4 text-xs flex items-center gap-2">
+                            <button onClick={() => { setIsAdding(true); setEditingLesson(null); setFormData({ title: '', content: '', video_url: '' }); }} className="btn-secondary py-2 px-4 text-xs flex items-center gap-2">
                                 <Plus size={16} /> Add Lesson
                             </button>
                         )}
                     </div>
 
                     {isAdding && (
-                        <form onSubmit={handleAdd} className="p-6 bg-blue-50/50 rounded-2xl border-2 border-blue-100 space-y-4 animate-in slide-in-from-top-2">
+                        <form onSubmit={handleSubmit} className="p-6 bg-blue-50/50 rounded-2xl border-2 border-blue-100 space-y-4 animate-in slide-in-from-top-2">
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="col-span-2">
                                     <label className="block text-[10px] font-bold uppercase text-slate-500 mb-2">Lesson Title</label>
-                                    <input type="text" required value={newLesson.title} onChange={e => setNewLesson({...newLesson, title: e.target.value})} className="input-custom bg-white" placeholder="Introduction to..." />
+                                    <input type="text" required value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} className="input-custom bg-white" placeholder="Introduction to..." />
                                 </div>
                                 <div className="col-span-2">
                                     <label className="block text-[10px] font-bold uppercase text-slate-500 mb-2">Video URL (Optional)</label>
-                                    <input type="url" value={newLesson.video_url} onChange={e => setNewLesson({...newLesson, video_url: e.target.value})} className="input-custom bg-white" placeholder="https://youtube.com/..." />
+                                    <input type="url" value={formData.video_url} onChange={e => setFormData({...formData, video_url: e.target.value})} className="input-custom bg-white" placeholder="https://youtube.com/..." />
                                 </div>
                                 <div className="col-span-2">
                                     <label className="block text-[10px] font-bold uppercase text-slate-500 mb-2">Lesson Content</label>
-                                    <textarea required value={newLesson.content} onChange={e => setNewLesson({...newLesson, content: e.target.value})} className="input-custom bg-white h-32 resize-none" placeholder="Lesson body text..." />
+                                    <textarea required value={formData.content} onChange={e => setFormData({...formData, content: e.target.value})} className="input-custom bg-white h-32 resize-none" placeholder="Lesson body text..." />
                                 </div>
                             </div>
                             <div className="flex justify-end gap-3 pt-2">
-                                <button type="button" onClick={() => setIsAdding(false)} className="px-4 py-2 text-xs font-bold text-slate-500 uppercase">Cancel</button>
-                                <button type="submit" className="btn-primary py-2 px-6 text-xs flex items-center gap-2"><Save size={14} /> Save Lesson</button>
+                                <button type="button" onClick={() => { setIsAdding(false); setEditingLesson(null); }} className="px-4 py-2 text-xs font-bold text-slate-500 uppercase">Cancel</button>
+                                <button type="submit" className="btn-primary py-2 px-6 text-xs flex items-center gap-2">
+                                    <Save size={14} /> {editingLesson ? 'Update Lesson' : 'Save Lesson'}
+                                </button>
                             </div>
                         </form>
                     )}
@@ -102,7 +125,10 @@ export const LessonEditor: React.FC<LessonEditorProps> = ({ course, onClose }) =
                                     <h4 className="font-bold text-slate-900">{lesson.title}</h4>
                                     <p className="text-[10px] text-slate-500 font-medium truncate max-w-md">{lesson.content}</p>
                                 </div>
-                                <button onClick={() => handleDelete(lesson.id)} className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"><Trash2 size={18} /></button>
+                                <div className="flex gap-2">
+                                    <button onClick={() => startEdit(lesson)} className="p-2 text-slate-300 hover:text-blue-500 hover:bg-blue-50 rounded-xl transition-all"><Edit2 size={18} /></button>
+                                    <button onClick={() => handleDelete(lesson.id)} className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"><Trash2 size={18} /></button>
+                                </div>
                             </div>
                         ))}
                     </div>

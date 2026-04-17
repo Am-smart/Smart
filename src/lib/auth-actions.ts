@@ -4,8 +4,8 @@ import { cookies } from 'next/headers';
 import { signData, verifyToken } from './crypto';
 import { supabase } from './supabase';
 import { User } from './types';
-import { validateEmail, validatePassword, validateFullName, validatePhone, normalizeEmail, normalizeInput } from './validation';
-import { isRateLimited, recordAttempt, resetRateLimit, getRemainingAttempts } from './rate-limit';
+import { validateEmail, normalizeEmail, normalizeInput } from './validation';
+import { isRateLimited, recordAttempt, resetRateLimit } from './rate-limit';
 
 const SESSION_COOKIE = 'app-user-session';
 
@@ -17,17 +17,14 @@ const SESSION_COOKIE = 'app-user-session';
 function normalizeAuthResult(data: any) {
     if (!data) return { user: null, session_id: null };
 
-    // Case 1: Nested object { user: {...}, session_id: "..." }
     if (data.user) {
         return { user: data.user, session_id: data.session_id };
     }
 
-    // Case 2: Array of user objects [{...}]
     if (Array.isArray(data) && data.length > 0) {
         return { user: data[0], session_id: null };
     }
 
-    // Case 3: Direct user object {...}
     if (data.id && data.email) {
         return { user: data, session_id: null };
     }
@@ -35,10 +32,6 @@ function normalizeAuthResult(data: any) {
     return { user: null, session_id: null };
 }
 
-/**
- * Ensures a session exists for the user. If the RPC didn't return one,
- * it attempts to create one manually.
- */
 async function ensureSession(userId: string, existingSessionId?: string | null): Promise<string> {
     if (existingSessionId) return existingSessionId;
 
@@ -60,7 +53,6 @@ async function ensureSession(userId: string, existingSessionId?: string | null):
 }
 
 export async function login(email: string, password: string) {
-  // Validate and normalize inputs
   const emailValidation = validateEmail(email);
   if (!emailValidation.isValid) {
     return { success: false, error: emailValidation.errors[0]?.message || 'Invalid email' };
@@ -70,23 +62,12 @@ export async function login(email: string, password: string) {
     return { success: false, error: 'Password is required' };
   }
 
-  if (password.length > 128) {
-    return { success: false, error: 'Invalid password' };
-  }
-
   const normalizedEmail = normalizeEmail(email);
 
-  // Check rate limiting
   if (isRateLimited(normalizedEmail)) {
-    const remainingTime = Math.ceil(15); // 15 minutes
-    return {
-      success: false,
-      error: `Too many login attempts. Please try again in ${remainingTime} minutes.`
-    };
+    return { success: false, error: `Too many login attempts. Please try again later.` };
   }
 
-  // NOTE: We pass the RAW password to the RPC.
-  // The RPC will verify it using crypt() on the server side.
   const { data: rawData, error } = await supabase.rpc('authenticate_user', {
     p_email: normalizedEmail,
     p_password: password
@@ -101,13 +82,9 @@ export async function login(email: string, password: string) {
   if (rawData.success === false) {
     const errorMessage = rawData.error || 'Invalid email or password';
     
-    // If it's a simple invalid credentials error, track it in the local rate limiter too
+    // Track attempts
     if (errorMessage === 'Invalid email or password') {
         recordAttempt(normalizedEmail);
-        const remaining = getRemainingAttempts(normalizedEmail);
-        if (remaining <= 2 && remaining > 0) {
-            return { success: false, error: `${errorMessage}. ${remaining} attempts remaining.` };
-        }
     }
     
     return { success: false, error: errorMessage };
@@ -119,129 +96,9 @@ export async function login(email: string, password: string) {
     return { success: false, error: 'Invalid response from authentication server' };
   }
 
-  // Enforce pending password reset check at the application level
-  // This ensures the policy is applied even if the database RPC is not updated.
-  if (user.reset_request && user.reset_request.status === 'pending') {
-    return {
-      success: false,
-      error: 'Your password reset request is currently under review by an administrator. Please check back later.'
-    };
-  }
-
   try {
       const finalSessionId = await ensureSession(user.id, session_id);
-
-      const sessionData = {
-        id: user.id,
-        sessionId: finalSessionId,
-        email: user.email,
-        role: user.role,
-        full_name: user.full_name
-      };
-
-      const token = await signData(sessionData);
-
-      const cookieStore = await cookies();
-      cookieStore.set(SESSION_COOKIE, token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: 60 * 60 * 24 * 7 // 1 week
-      });
-
-      // Clear rate limit on successful login
-      resetRateLimit(normalizedEmail);
-
-      return { success: true, user: { ...user, sessionId: finalSessionId } };
-  } catch (err: unknown) {
-      const error = err as Error;
-      return { success: false, error: error.message };
-  }
-}
-
-export async function signup(userData: Partial<User>) {
-  // Validate required fields
-  if (!userData.email || !userData.password || !userData.full_name) {
-      return { success: false, error: 'Email, name, and password are required' };
-  }
-
-  // Validate email
-  const emailValidation = validateEmail(userData.email);
-  if (!emailValidation.isValid) {
-    return { success: false, error: emailValidation.errors[0]?.message || 'Invalid email' };
-  }
-
-  const normalizedEmail = normalizeEmail(userData.email);
-
-  // Check rate limiting for signup attempts
-  if (isRateLimited(normalizedEmail)) {
-    return {
-      success: false,
-      error: 'Too many signup attempts. Please try again later.'
-    };
-  }
-
-  // Validate full name
-  const nameValidation = validateFullName(userData.full_name);
-  if (!nameValidation.isValid) {
-    return { success: false, error: nameValidation.errors[0]?.message || 'Invalid name' };
-  }
-
-  // Validate password
-  const passwordValidation = validatePassword(userData.password);
-  if (!passwordValidation.isValid) {
-    return { success: false, error: passwordValidation.errors[0]?.message || 'Password does not meet requirements' };
-  }
-
-  // Validate phone if provided
-  if (userData.phone) {
-    const phoneValidation = validatePhone(userData.phone);
-    if (!phoneValidation.isValid) {
-      return { success: false, error: phoneValidation.errors[0]?.message || 'Invalid phone number' };
-    }
-  }
-
-  // Normalize inputs
-  const normalizedName = normalizeInput(userData.full_name);
-  const normalizedPhone = userData.phone ? normalizeInput(userData.phone) : undefined;
-
-  // NOTE: We pass the RAW password to the RPC.
-  // The RPC will hash it using crypt() on the server side.
-  const { data: rawData, error } = await supabase.rpc('register_user', {
-      p_full_name: normalizedName,
-      p_email: normalizedEmail,
-      p_password: userData.password,
-      p_phone: normalizedPhone,
-      p_role: userData.role || 'student'
-  });
-
-  if (error || !rawData) {
-    console.error('Signup RPC failed:', error || 'No data returned');
-    return { success: false, error: 'Signup service unavailable' };
-  }
-
-  // Handle structured response from the enhanced register_user RPC
-  if (rawData.success === false) {
-    return { success: false, error: rawData.error || 'Signup failed' };
-  }
-
-  const { user, session_id } = normalizeAuthResult(rawData);
-
-  if (!user) {
-    return { success: false, error: 'Signup succeeded but user data is missing' };
-  }
-
-  try {
-      const finalSessionId = await ensureSession(user.id, session_id);
-
-      const sessionData = {
-        id: user.id,
-        sessionId: finalSessionId,
-        email: user.email,
-        role: user.role,
-        full_name: user.full_name
-      };
-
+      const sessionData = { id: user.id, sessionId: finalSessionId, email: user.email, role: user.role, full_name: user.full_name };
       const token = await signData(sessionData);
 
       const cookieStore = await cookies();
@@ -252,9 +109,50 @@ export async function signup(userData: Partial<User>) {
         maxAge: 60 * 60 * 24 * 7
       });
 
-      // Clear rate limit on successful signup
       resetRateLimit(normalizedEmail);
+      return { success: true, user: { ...user, sessionId: finalSessionId } };
+  } catch (err: unknown) {
+      const error = err as Error;
+      return { success: false, error: error.message };
+  }
+}
 
+export async function signup(userData: Partial<User>) {
+  if (!userData.email || !userData.password || !userData.full_name) {
+      return { success: false, error: 'Email, name, and password are required' };
+  }
+
+  const normalizedEmail = normalizeEmail(userData.email);
+
+  const { data: rawData, error } = await supabase.rpc('register_user', {
+      p_full_name: normalizeInput(userData.full_name),
+      p_email: normalizedEmail,
+      p_password: userData.password,
+      p_phone: userData.phone ? normalizeInput(userData.phone) : undefined,
+      p_role: userData.role || 'student'
+  });
+
+  if (error || !rawData) {
+    return { success: false, error: 'Signup service unavailable' };
+  }
+
+  if (rawData.success === false) {
+    return { success: false, error: rawData.error || 'Signup failed' };
+  }
+
+  const { user, session_id } = normalizeAuthResult(rawData);
+
+  try {
+      const finalSessionId = await ensureSession(user.id, session_id);
+      const sessionData = { id: user.id, sessionId: finalSessionId, email: user.email, role: user.role, full_name: user.full_name };
+      const token = await signData(sessionData);
+      const cookieStore = await cookies();
+      cookieStore.set(SESSION_COOKIE, token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 60 * 60 * 24 * 7
+      });
       return { success: true, user: { ...user, sessionId: finalSessionId } };
   } catch (err: unknown) {
       const error = err as Error;
@@ -278,7 +176,6 @@ export async function getSession() {
   const cookieStore = await cookies();
   const session = cookieStore.get(SESSION_COOKIE);
   if (!session) return null;
-
   return verifyToken(session.value);
 }
 
@@ -301,6 +198,33 @@ export async function updatePreferences(preferences: object) {
 
     const { data, error } = await supabase.rpc('update_user_preferences', {
         p_preferences: preferences
+    }).setHeader('x-session-id', session.sessionId as string);
+
+    if (error) return { success: false, error: error.message };
+    return data;
+}
+
+// Admin Password Management Helpers
+export async function approveResetRequest(userId: string, tempPassword: string) {
+    const session = await getSession();
+    if (!session || session.role !== 'admin') return { success: false, error: 'Unauthorized' };
+
+    const { data, error } = await supabase.rpc('approve_password_reset', {
+        p_user_id: userId,
+        p_temp_password: tempPassword
+    }).setHeader('x-session-id', session.sessionId as string);
+
+    if (error) return { success: false, error: error.message };
+    return data;
+}
+
+export async function denyResetRequest(userId: string, reason: string) {
+    const session = await getSession();
+    if (!session || session.role !== 'admin') return { success: false, error: 'Unauthorized' };
+
+    const { data, error } = await supabase.rpc('deny_password_reset', {
+        p_user_id: userId,
+        p_reason: reason
     }).setHeader('x-session-id', session.sessionId as string);
 
     if (error) return { success: false, error: error.message };
