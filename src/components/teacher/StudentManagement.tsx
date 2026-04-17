@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useSupabase } from '@/hooks/useSupabase';
 import { Enrollment, Course } from '@/lib/types';
-import { Award, Trash2, FileBadge } from 'lucide-react';
+import { Award, Trash2, FileBadge, X } from 'lucide-react';
 import { useAppContext } from '@/components/AppContext';
 
 interface StudentManagementProps {
@@ -14,7 +14,7 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ initialEnr
     const { client } = useSupabase();
     const { addToast } = useAppContext();
     const [isCertModalOpen, setIsCertModalOpen] = useState(false);
-    const [certData, setCertData] = useState({ course_id: '', student_id: '' });
+    const [certData, setCertData] = useState({ course_id: '', student_id: '', student_name: '' });
 
     const handleUnenroll = async (courseId: string, studentId: string) => {
         if (!confirm('Are you sure you want to unenroll this student?')) return;
@@ -22,8 +22,10 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ initialEnr
             const { error } = await client.from('enrollments').delete().eq('course_id', courseId).eq('student_id', studentId);
             if (error) throw error;
             onRefresh();
+            addToast('Student unenrolled successfully', 'success');
         } catch (err) {
             console.error('Unenroll failed:', err);
+            addToast('Failed to unenroll student', 'error');
         }
     };
 
@@ -31,12 +33,13 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ initialEnr
         e.preventDefault();
         try {
             const { error } = await client.from('certificates').insert([{
-                ...certData,
+                course_id: certData.course_id,
+                student_id: certData.student_id,
                 issued_at: new Date().toISOString(),
                 certificate_url: `https://lms.example.com/verify/${Math.random().toString(36).substr(2, 12)}`
             }]);
             if (error) throw error;
-            addToast('Certificate issued successfully!', 'success');
+            addToast(`Certificate issued to ${certData.student_name}!`, 'success');
             setIsCertModalOpen(false);
         } catch (err) {
             console.error('Cert issuance failed:', err);
@@ -50,7 +53,8 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ initialEnr
 
             {isCertModalOpen && (
                 <div className="fixed inset-0 bg-slate-900/60 z-[3000] flex items-center justify-center p-4">
-                    <div className="bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl animate-in zoom-in">
+                    <div className="bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl animate-in zoom-in relative">
+                        <button onClick={() => setIsCertModalOpen(false)} className="absolute top-6 right-6 p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400"><X size={20} /></button>
                         <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
                             <FileBadge className="text-blue-600" />
                             Issue Certificate
@@ -58,7 +62,7 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ initialEnr
                         <form onSubmit={handleIssueCert} className="space-y-6">
                             <div>
                                 <label className="block text-xs font-bold uppercase text-slate-500 mb-2">Student</label>
-                                <input type="text" readOnly value={certData.student_id} className="input-custom bg-slate-50" />
+                                <div className="input-custom bg-slate-50 flex items-center">{certData.student_name}</div>
                             </div>
                             <div>
                                 <label className="block text-xs font-bold uppercase text-slate-500 mb-2">For Course</label>
@@ -97,8 +101,8 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ initialEnr
                                 return (
                                     <tr key={`${e.course_id}-${e.student_id}`} className="hover:bg-slate-50/50 transition-colors">
                                         <td className="px-6 py-4">
-                                            <div className="font-bold text-slate-900">{student?.full_name || e.student_id}</div>
-                                            <div className="text-[10px] text-slate-400 font-medium">{e.student_id}</div>
+                                            <div className="font-bold text-slate-900">{student?.full_name || 'Unknown Student'}</div>
+                                            <div className="text-[10px] text-slate-400 font-medium">Joined {e.enrolled_at ? new Date(e.enrolled_at).toLocaleDateString() : 'N/A'}</div>
                                         </td>
                                         <td className="px-6 py-4 text-sm text-slate-600">{e.courses?.title}</td>
                                         <td className="px-6 py-4">
@@ -113,7 +117,7 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ initialEnr
                                             <div className="flex justify-end gap-2">
                                                 <button
                                                     onClick={() => {
-                                                        setCertData({ course_id: e.course_id, student_id: e.student_id });
+                                                        setCertData({ course_id: e.course_id, student_id: e.student_id, student_name: student?.full_name || 'Student' });
                                                         setIsCertModalOpen(true);
                                                     }}
                                                     className="p-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100 transition-colors"

@@ -5,10 +5,13 @@ import { useAuth } from '@/components/auth/AuthContext';
 import { useSupabase } from '@/hooks/useSupabase';
 import { AssignmentEditor } from "@/components/teacher/AssignmentEditor";
 import { Assignment, Course } from '@/lib/types';
+import { Trash2, Edit } from 'lucide-react';
+import { useAppContext } from '@/components/AppContext';
 
 export default function AssignmentsPage() {
   const { user } = useAuth();
-  const { getCourses, getAssignments } = useSupabase();
+  const { client, getCourses, getAssignments } = useSupabase();
+  const { addToast } = useAppContext();
   const [courses, setCourses] = useState<Course[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [editingAssignment, setEditingAssignment] = useState<Assignment | null>(null);
@@ -26,6 +29,19 @@ export default function AssignmentsPage() {
     fetchData();
   }, [fetchData]);
 
+  const handleDelete = async (id: string) => {
+      if (!confirm('Are you sure you want to delete this assignment?')) return;
+      try {
+          const { error } = await client.from('assignments').delete().eq('id', id);
+          if (error) throw error;
+          addToast('Assignment deleted successfully', 'success');
+          fetchData();
+      } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : 'Failed to delete assignment';
+          addToast(msg, 'error');
+      }
+  };
+
   if (isAdding || editingAssignment) {
       return (
           <AssignmentEditor
@@ -41,20 +57,35 @@ export default function AssignmentsPage() {
   return (
     <div className="space-y-6">
         <div className="flex justify-between items-center">
-            <h2 className="text-2xl font-bold">Assignments</h2>
+            <h2 className="text-2xl font-bold text-slate-900">Assignments</h2>
             <button onClick={() => setIsAdding(true)} className="btn-primary">Create Assignment</button>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {assignments.map(a => (
-                <div key={a.id} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-                    <h3 className="font-bold text-lg mb-2">{a.title}</h3>
-                    <p className="text-slate-500 text-sm mb-4 line-clamp-2">{a.description}</p>
-                    <div className="flex justify-between items-center">
-                        <span className="text-xs font-bold px-2 py-1 bg-blue-50 text-blue-600 rounded uppercase">{a.status}</span>
-                        <button onClick={() => setEditingAssignment(a)} className="text-blue-600 font-bold text-sm">Edit</button>
-                    </div>
+            {assignments.length === 0 ? (
+                <div className="col-span-full py-12 bg-white rounded-2xl border-2 border-dashed border-slate-100 flex flex-col items-center justify-center text-slate-500 italic">
+                    No assignments created yet.
                 </div>
-            ))}
+            ) : (
+                assignments.map(a => (
+                    <div key={a.id} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow">
+                        <h3 className="font-bold text-lg mb-2 text-slate-900 line-clamp-1">{a.title}</h3>
+                        <p className="text-slate-500 text-sm mb-4 line-clamp-2 min-h-[40px]">{a.description}</p>
+                        <div className="flex justify-between items-center pt-4 border-t">
+                            <span className={`text-[10px] font-bold px-2 py-1 rounded uppercase ${a.status === 'published' ? 'bg-green-50 text-green-600' : 'bg-slate-50 text-slate-500'}`}>
+                                {a.status}
+                            </span>
+                            <div className="flex gap-2">
+                                <button onClick={() => setEditingAssignment(a)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+                                    <Edit size={16} />
+                                </button>
+                                <button onClick={() => handleDelete(a.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                                    <Trash2 size={16} />
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                ))
+            )}
         </div>
     </div>
   );
