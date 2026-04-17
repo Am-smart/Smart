@@ -32,8 +32,6 @@ function StudentLayoutContent({
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const isResetApproved = user?.reset_request && (user.reset_request as unknown as ResetRequest).status === 'approved';
-
   // Determine if user is in an "Active Learning" state
   const activeCourseId = searchParams.get('id') || undefined;
   const isLearning = pathname.includes('/student/courses') ||

@@ -18,7 +18,7 @@ export const CourseView: React.FC<CourseViewProps> = ({ course, lessons, onBack 
                 ? url.split('v=')[1].split('&')[0]
                 : url.split('/').pop();
             return `https://www.youtube.com/embed/${videoId}`;
-        } catch {
+        } catch (e) {
             return url;
         }
     };

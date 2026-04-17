@@ -367,7 +367,7 @@ CREATE INDEX IF NOT EXISTS idx_planner_user_date ON planner(user_id, due_date);
 
 -- 6. Helper Functions
 
--- Authenticate User with enhanced Password Reset logic
+-- Authenticate User with Password Reset logic
 CREATE OR REPLACE FUNCTION authenticate_user(p_email VARCHAR, p_password VARCHAR)
 RETURNS JSONB AS $$
 DECLARE
@@ -380,6 +380,23 @@ BEGIN
 
   IF v_user.id IS NULL THEN
     RETURN jsonb_build_object('success', false, 'error', 'Invalid email or password');
+  END IF;
+
+  -- Password Reset Status Check
+  IF v_user.reset_request IS NOT NULL THEN
+     IF v_user.reset_request->>'status' = 'pending' THEN
+        RETURN jsonb_build_object('success', false, 'error', 'Your password reset request is currently under review by an administrator.');
+     ELSIF v_user.reset_request->>'status' = 'approved' THEN
+        -- Check if approved temp password is still valid (24h)
+        IF (v_user.reset_request->>'expires_at')::timestamp with time zone > v_now THEN
+           RETURN jsonb_build_object(
+             'success', false,
+             'error', 'Your password reset has been approved. Your temporary 5-digit password is: ' || (v_user.reset_request->>'temp_password') || '. Use this to log in and change your password.'
+           );
+        END IF;
+     ELSIF v_user.reset_request->>'status' = 'denied' THEN
+        RETURN jsonb_build_object('success', false, 'error', 'Your password reset request was denied. Reason: ' || (v_user.reset_request->>'denial_reason') || '. You may submit a new request.');
+     END IF;
   END IF;
 
   IF v_user.active = FALSE THEN
@@ -396,19 +413,6 @@ BEGIN
 
   -- Verify password
   IF v_user.password IS NULL OR crypt(p_password, v_user.password) != v_user.password THEN
-    -- PASSWORD FAILED: Check if there is reset info to show before reporting failure
-    IF v_user.reset_request IS NOT NULL THEN
-       IF v_user.reset_request->>'status' = 'pending' THEN
-          RETURN jsonb_build_object('success', false, 'error', 'Your password reset request is currently under review by an administrator.');
-       ELSIF v_user.reset_request->>'status' = 'approved' THEN
-          IF (v_user.reset_request->>'expires_at')::timestamp with time zone > v_now THEN
-             RETURN jsonb_build_object('success', false, 'error', 'Your password reset has been approved. Your temporary 5-digit password is: ' || (v_user.reset_request->>'temp_password') || '. Use this to log in and set a permanent password.');
-          END IF;
-       ELSIF v_user.reset_request->>'status' = 'denied' THEN
-          RETURN jsonb_build_object('success', false, 'error', 'Your password reset request was denied. Reason: ' || (v_user.reset_request->>'denial_reason') || '. You may submit a new request.');
-       END IF;
-    END IF;
-
     UPDATE users SET failed_attempts = failed_attempts + 1 WHERE id = v_user.id;
     RETURN jsonb_build_object('success', false, 'error', 'Invalid email or password');
   END IF;
@@ -459,7 +463,6 @@ BEGIN
   END IF;
 
   v_hashed_password := crypt(p_new_password, gen_salt('bf', 10));
-  -- Force password change logic: update_user_password ALWAYS clears any pending/approved reset requests
   UPDATE users SET password = v_hashed_password, reset_request = NULL, updated_at = NOW() WHERE id = v_user_id;
 
   RETURN jsonb_build_object('success', true);
@@ -495,7 +498,7 @@ DECLARE
 BEGIN
   v_caller_role := COALESCE(current_app_role(), 'public');
 
-  -- Check if user already exists and report reset status if relevant
+  -- Check if user already exists and has a pending/approved reset
   SELECT * INTO v_user FROM users WHERE email = p_email;
   IF v_user.id IS NOT NULL THEN
     IF v_user.reset_request IS NOT NULL THEN
@@ -503,8 +506,6 @@ BEGIN
           RETURN jsonb_build_object('success', false, 'error', 'This email is registered. A password reset request is under review.');
        ELSIF v_user.reset_request->>'status' = 'approved' THEN
           RETURN jsonb_build_object('success', false, 'error', 'This email is registered. Password reset approved. Temp Pass: ' || (v_user.reset_request->>'temp_password'));
-       ELSIF v_user.reset_request->>'status' = 'denied' THEN
-          RETURN jsonb_build_object('success', false, 'error', 'This email is registered. Previous reset denied: ' || (v_user.reset_request->>'denial_reason'));
        END IF;
     END IF;
     RETURN jsonb_build_object('success', false, 'error', 'An account with this email already exists.');
@@ -548,13 +549,12 @@ BEGIN
     RETURN jsonb_build_object('success', false, 'error', 'No account found with this email.');
   END IF;
 
+  -- Prevent duplicate requests if already pending/approved
   IF v_user.reset_request IS NOT NULL THEN
      IF v_user.reset_request->>'status' = 'pending' THEN
-        RETURN jsonb_build_object('success', false, 'error', 'A request is already under review for this account.');
+        RETURN jsonb_build_object('success', false, 'error', 'You already have a request under review.');
      ELSIF v_user.reset_request->>'status' = 'approved' THEN
-        IF (v_user.reset_request->>'expires_at')::timestamp with time zone > NOW() THEN
-           RETURN jsonb_build_object('success', false, 'error', 'Reset approved. Your temporary password is: ' || (v_user.reset_request->>'temp_password'));
-        END IF;
+        RETURN jsonb_build_object('success', false, 'error', 'Request approved. Your temp password is: ' || (v_user.reset_request->>'temp_password'));
      END IF;
   END IF;
 
@@ -573,7 +573,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Admin Approval Logic
+-- Admin Approval
 CREATE OR REPLACE FUNCTION approve_password_reset(p_user_id UUID, p_temp_password TEXT)
 RETURNS JSONB AS $$
 DECLARE
@@ -596,7 +596,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- Admin Denial Logic
+-- Admin Denial
 CREATE OR REPLACE FUNCTION deny_password_reset(p_user_id UUID, p_reason TEXT)
 RETURNS JSONB AS $$
 BEGIN
@@ -647,7 +647,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql STABLE SECURITY DEFINER;
 
--- Creation Limit Trigger
+-- Limit Triggers
 CREATE OR REPLACE FUNCTION enforce_user_creation_limits() RETURNS TRIGGER AS $$
 DECLARE
   v_count INTEGER;
