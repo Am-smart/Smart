@@ -55,13 +55,13 @@ export const LiveClassManager: React.FC<LiveClassManagerProps> = ({ teacherId, l
     };
 
     const toggleStatus = async (lc: LiveClass) => {
-        const newStatus = lc.status === 'live' ? 'ended' : 'live';
+        const newStatus = lc.status === 'live' ? 'completed' : 'live';
         try {
             await saveLiveClass({
                 id: lc.id,
-                status: newStatus,
+                status: newStatus as 'completed' | 'live',
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                actual_end_at: newStatus === 'ended' ? new Date().toISOString() : (null as any)
+                actual_end_at: newStatus === 'completed' ? new Date().toISOString() : (null as any)
             });
 
             addToast(`Class ${newStatus === 'live' ? 'is now LIVE!' : 'has ended.'}`, 'success');
@@ -136,7 +136,7 @@ export const LiveClassManager: React.FC<LiveClassManagerProps> = ({ teacherId, l
                                 </div>
                                 <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-tighter ${
                                     lc.status === 'live' ? 'bg-red-500 text-white animate-pulse' :
-                                    lc.status === 'ended' ? 'bg-slate-100 text-slate-400' : 'bg-blue-100 text-blue-700'
+                                    lc.status === 'completed' ? 'bg-slate-100 text-slate-400' : 'bg-blue-100 text-blue-700'
                                 }`}>
                                     {lc.status}
                                 </span>
@@ -154,7 +154,7 @@ export const LiveClassManager: React.FC<LiveClassManagerProps> = ({ teacherId, l
                             </div>
 
                             <div className="mt-auto pt-4 flex gap-2 border-t">
-                                {lc.status !== 'ended' ? (
+                                {lc.status !== 'completed' ? (
                                     <button onClick={() => toggleStatus(lc)} className={`flex-1 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest flex items-center justify-center gap-2 transition-all ${
                                         lc.status === 'live' ? 'bg-slate-900 text-white hover:bg-slate-800' : 'bg-blue-600 text-white hover:bg-blue-700'
                                     }`}>

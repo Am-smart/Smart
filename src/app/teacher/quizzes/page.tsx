@@ -42,20 +42,19 @@ export default function QuizzesPage() {
       }
   };
 
-  if (isAdding || editingQuiz) {
-      return (
-          <QuizEditor
-              teacherId={user!.id}
-              quiz={editingQuiz || undefined}
-              courses={courses}
-              onSave={() => { setEditingQuiz(null); setIsAdding(false); fetchData(); }}
-              onCancel={() => { setEditingQuiz(null); setIsAdding(false); }}
-          />
-      );
-  }
-
   return (
     <div className="space-y-6">
+        {(isAdding || editingQuiz) && (
+          <div className="fixed inset-0 z-[60] overflow-y-auto">
+            <QuizEditor
+                teacherId={user!.id}
+                quiz={editingQuiz || undefined}
+                courses={courses}
+                onSave={() => { setEditingQuiz(null); setIsAdding(false); fetchData(); }}
+                onCancel={() => { setEditingQuiz(null); setIsAdding(false); }}
+            />
+          </div>
+        )}
         <div className="flex justify-between items-center">
             <h2 className="text-2xl font-bold text-slate-900">Quizzes</h2>
             <button onClick={() => setIsAdding(true)} className="btn-primary">Create Quiz</button>

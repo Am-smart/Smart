@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase, withSession } from '@/lib/supabase';
-import { Enrollment, Submission, QuizSubmission, Course, Assignment, Quiz, User, PlannerItem, Discussion } from '@/lib/types';
+import { Submission, QuizSubmission, Course, Assignment, Quiz, User, PlannerItem, Discussion } from '@/lib/types';
 import * as actions from '@/lib/data-actions';
 
 const DB_NAME = 'smartlms-offline-v3';
@@ -10,7 +10,7 @@ const STORE_CACHE = 'lms-cache';
 
 export interface QueueItem {
   id?: number;
-  type: 'ENROLL' | 'SUBMISSION' | 'QUIZ_SUBMISSION' | 'PROFILE_UPDATE' | 'COURSE_SAVE' | 'ASSIGNMENT_SAVE' | 'QUIZ_SAVE' | 'DISCUSSION_POST' | 'PLANNER_UPDATE' | 'SETTING_UPDATE';
+  type: 'ENROLL' | 'SUBMISSION' | 'QUIZ_SUBMISSION' | 'PROFILE_UPDATE' | 'COURSE_SAVE' | 'ASSIGNMENT_SAVE' | 'QUIZ_SAVE' | 'DISCUSSION_POST' | 'PLANNER_UPDATE' | 'SETTING_UPDATE' | 'LESSON_COMPLETE' | 'ATTENDANCE';
   payload: unknown;
   sessionId?: string;
   timestamp: number;
@@ -163,6 +163,16 @@ export const useIndexedDB = () => {
             const sRes = await actions.updateSetting(p_key, p_value);
             if (sRes.success) success = true;
             break;
+          case 'LESSON_COMPLETE':
+            const { lesson_id, course_id: l_course_id } = item.payload as { lesson_id: string, course_id: string };
+            const lcRes = await actions.markLessonComplete(lesson_id, l_course_id);
+            if (lcRes.success) success = true;
+            break;
+          case 'ATTENDANCE':
+            const { live_class_id } = item.payload as { live_class_id: string };
+            const attRes = await actions.recordAttendance(live_class_id);
+            if (attRes.success) success = true;
+            break;
         }
 
         if (success && item.id) {
@@ -184,7 +194,7 @@ export const useIndexedDB = () => {
     if (!isOnline) return;
     try {
         if (role === 'student') {
-            const [courses, enrollments, assignments, quizzes, materials, planner, liveClasses, discussions] = await Promise.all([
+            const [courses, enrollments, assignments, quizzes, materials, planner, liveClasses, discussions, completions] = await Promise.all([
                 withSession(supabase.from('courses'), sessionId).select('*').eq('status', 'published'),
                 withSession(supabase.from('enrollments'), sessionId).select('*, courses(*)').eq('student_id', userId),
                 withSession(supabase.from('assignments'), sessionId).select('*, courses(*)').eq('status', 'published'),
@@ -192,7 +202,8 @@ export const useIndexedDB = () => {
                 withSession(supabase.from('materials'), sessionId).select('*, courses(*)'),
                 withSession(supabase.from('planner'), sessionId).select('*').eq('user_id', userId),
                 withSession(supabase.from('live_classes'), sessionId).select('*, courses(*)'),
-                withSession(supabase.from('discussions'), sessionId).select('*, users(full_name)').order('created_at', { ascending: false }).limit(100)
+                withSession(supabase.from('discussions'), sessionId).select('*, users(full_name)').order('created_at', { ascending: false }).limit(100),
+                withSession(supabase.from('lesson_completions'), sessionId).select('*').eq('student_id', userId)
             ]);
 
             if (courses.data) await setCache('all_courses', courses.data);
@@ -203,6 +214,7 @@ export const useIndexedDB = () => {
             if (planner.data) await setCache('planner_items', planner.data);
             if (liveClasses.data) await setCache('all_live_classes', liveClasses.data);
             if (discussions.data) await setCache('recent_discussions', discussions.data);
+            if (completions.data) await setCache('lesson_completions', completions.data);
         } else if (role === 'teacher') {
              const [courses, assignments, quizzes, materials, submissions, liveClasses] = await Promise.all([
                 withSession(supabase.from('courses'), sessionId).select('*').eq('teacher_id', userId),

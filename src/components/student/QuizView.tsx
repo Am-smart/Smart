@@ -15,13 +15,24 @@ interface QuizViewProps {
 export const QuizView: React.FC<QuizViewProps> = ({ quiz, user, onComplete, onCancel }) => {
   const { addToast } = useAppContext();
   const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [questions, setQuestions] = useState(quiz.questions || []);
   const [timeLeft, setTimeLeft] = useState<number | null>(quiz.time_limit ? quiz.time_limit * 60 : null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [result, setResult] = useState<{ score: number; passed: boolean; isTimeout?: boolean } | null>(null);
   const { addToQueue, setCache, getCache, isOnline } = useIndexedDB();
   const [startedAt] = useState(new Date().toISOString());
 
-  useAntiCheat(quiz.anti_cheat_enabled, quiz.title);
+  const { violationCount } = useAntiCheat(quiz.anti_cheat_enabled, quiz.title);
+
+  // Handle Shuffling
+  useEffect(() => {
+    if (quiz.shuffle_questions && quiz.questions) {
+        const shuffled = [...quiz.questions].sort(() => Math.random() - 0.5);
+        setQuestions(shuffled);
+    } else {
+        setQuestions(quiz.questions || []);
+    }
+  }, [quiz.shuffle_questions, quiz.questions]);
 
   // Load saved progress from IndexedDB
   useEffect(() => {
@@ -91,6 +102,19 @@ export const QuizView: React.FC<QuizViewProps> = ({ quiz, user, onComplete, onCa
     }
   }, [quiz, user, answers, isSubmitting, result, isOnline, addToQueue, setCache, timeLeft, startedAt, addToast]);
 
+  // Anti-cheat: Soft-flagging only (No hard lock/auto-submit per requirements)
+  useEffect(() => {
+    if (quiz.anti_cheat_enabled && violationCount > 0) {
+        addToast(`Security Warning: Violation detected (${violationCount}). This assessment has been flagged for review.`, 'info');
+    }
+    /* Hard enforcement disabled:
+    if (quiz.anti_cheat_enabled && violationCount >= 5 && !isSubmitting && !result) {
+        addToast('Security Threshold Reached: Assessment locked and auto-submitted due to multiple violations.', 'error', 10000);
+        handleSubmit(false);
+    }
+    */
+  }, [violationCount, quiz.anti_cheat_enabled, addToast]);
+
   useEffect(() => {
     if (timeLeft === null) return;
     if (timeLeft <= 0) {
@@ -153,14 +177,16 @@ export const QuizView: React.FC<QuizViewProps> = ({ quiz, user, onComplete, onCa
         </header>
 
         {quiz.anti_cheat_enabled && (
-            <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-3 text-amber-800 text-xs md:text-sm font-medium">
-                <span className="text-xl">🛡️</span>
-                Anti-cheat protection is active. Your actions are being monitored.
+            <div className={`mb-6 p-4 rounded-xl flex items-center gap-3 text-xs md:text-sm font-medium border ${violationCount > 0 ? 'bg-red-50 border-red-200 text-red-800' : 'bg-amber-50 border-amber-200 text-amber-800'}`}>
+                <span className="text-xl">{violationCount > 0 ? '⚠️' : '🛡️'}</span>
+                {violationCount > 0
+                    ? `SECURITY FLAG: ${violationCount} violation(s) detected. This attempt is marked for review.`
+                    : 'Anti-cheat protection is active. Your actions are being monitored.'}
             </div>
         )}
 
         <div className="space-y-10 md:space-y-12">
-          {(quiz.questions || []).map((q, index: number) => (
+          {questions.map((q, index: number) => (
             <div key={q.id} className="quiz-question">
               <h3 className="text-lg font-bold mb-4 flex items-start gap-2">
                 <span className="text-blue-600 shrink-0">{index + 1}.</span>
@@ -197,7 +223,7 @@ export const QuizView: React.FC<QuizViewProps> = ({ quiz, user, onComplete, onCa
 
         <div className="mt-12 pt-8 border-t flex flex-col md:flex-row justify-between items-center gap-6">
             <p className="text-slate-500 text-sm font-medium">
-                {Object.keys(answers).length} of {quiz.questions?.length || 0} answered
+                {Object.keys(answers).length} of {questions.length} answered
             </p>
             <button
                 onClick={() => handleSubmit(false)}
