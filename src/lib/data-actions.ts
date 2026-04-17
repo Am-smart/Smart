@@ -11,6 +11,23 @@ async function getVerifiedUser() {
   return session;
 }
 
+export async function createSystemLog(log: Record<string, unknown>) {
+    const user = await getVerifiedUser();
+
+    // System logs can be created by admins, or by users reporting anti-cheat violations
+    const isAntiCheat = log.category === 'anti-cheat';
+    if (user.role !== 'admin' && !isAntiCheat) throw new Error('Forbidden');
+
+    const { error } = await withSession(supabase.from('system_logs'), user.sessionId as string)
+        .insert([{
+            ...log,
+            user_id: log.user_id || user.id
+        }]);
+
+    if (error) throw new Error(error.message);
+    return { success: true };
+}
+
 // 1. Enrollment Actions
 export async function enrollInCourse(courseId: string) {
   const user = await getVerifiedUser();
@@ -22,6 +39,14 @@ export async function enrollInCourse(courseId: string) {
     });
 
   if (error) throw new Error(error.message);
+
+  await createSystemLog({
+    level: 'info',
+    category: 'academic',
+    message: `Student enrolled in course: ${courseId}`,
+    user_id: user.id
+  });
+
   revalidatePath('/student/courses');
   return { success: true };
 }
@@ -30,36 +55,61 @@ export async function enrollInCourse(courseId: string) {
 export async function submitAssignment(assignmentId: string, content: Partial<Submission>) {
   const user = await getVerifiedUser();
   const { error } = await withSession(supabase.from('submissions'), user.sessionId as string)
-    .insert([{
+    .upsert({
       assignment_id: assignmentId,
       student_id: user.id,
       ...content,
       submitted_at: new Date().toISOString(),
       status: 'submitted'
-    }]);
+    }, { onConflict: 'assignment_id, student_id' });
 
   if (error) throw new Error(error.message);
+
+  await createSystemLog({
+    level: 'info',
+    category: 'academic',
+    message: `Assignment submitted: ${assignmentId}`,
+    user_id: user.id
+  });
+
   revalidatePath('/student/assignments');
   return { success: true };
 }
 
 // 3. Teacher Actions: Grading
-export async function gradeSubmission(submissionId: string, gradeData: { score: number; feedback: string }) {
+export async function gradeSubmission(submissionId: string, gradeData: { score: number; feedback: string; version?: number }) {
   const user = await getVerifiedUser();
   if (user.role !== 'teacher' && user.role !== 'admin') throw new Error('Forbidden');
 
-  const { error } = await withSession(
+  const { version, ...cleanGradeData } = gradeData;
+  let query = withSession(
     supabase.from('submissions'),
     user.sessionId as string
   )
     .update({
-      ...gradeData,
+      ...cleanGradeData,
       status: 'graded',
-      graded_at: new Date().toISOString()
-    })
+      graded_at: new Date().toISOString(),
+      version: (version || 1) + 1
+    }, { count: 'exact' })
     .eq('id', submissionId);
 
+  if (version) {
+    query = query.eq('version', version);
+  }
+
+  const { error, count } = await query;
+
   if (error) throw new Error(error.message);
+  if (version && count === 0) throw new Error('Conflict detected: Submission has been updated by another user.');
+
+  await createSystemLog({
+    level: 'info',
+    category: 'academic',
+    message: `Submission graded: ${submissionId} with score ${gradeData.score}`,
+    user_id: user.id
+  });
+
   revalidatePath('/teacher/grading');
   return { success: true };
 }
@@ -88,16 +138,35 @@ export async function saveCourse(course: Partial<Course>) {
 
   if (!course.title) throw new Error('Course title is required');
 
-  const { data, error } = await withSession(supabase.from('courses'), user.sessionId as string)
+  const { version, ...courseData } = course;
+  let query = withSession(supabase.from('courses'), user.sessionId as string)
     .upsert({
-      ...course,
+      ...courseData,
       teacher_id: course.teacher_id || user.id,
-      updated_at: new Date().toISOString()
-    })
-    .select()
-    .single();
+      updated_at: new Date().toISOString(),
+      version: (version || 0) + 1
+    });
 
-  if (error) throw new Error(error.message);
+  if (course.id && version) {
+    query = query.eq('id', course.id).eq('version', version);
+  }
+
+  const { data, error } = await query.select().single();
+
+  if (error) {
+    if (course.id && version && error.code === 'PGRST116') {
+      throw new Error('Conflict detected: Course has been updated by another user.');
+    }
+    throw new Error(error.message);
+  }
+
+  await createSystemLog({
+    level: 'info',
+    category: 'management',
+    message: `Course ${course.id ? 'updated' : 'created'}: ${course.title}`,
+    user_id: user.id
+  });
+
   revalidatePath('/teacher/courses');
   revalidatePath('/student/courses');
   return { success: true, data };
@@ -112,6 +181,14 @@ export async function deleteCourse(courseId: string) {
     .eq('id', courseId);
 
   if (error) throw new Error(error.message);
+
+  await createSystemLog({
+    level: 'info',
+    category: 'management',
+    message: `Course deleted: ${courseId}`,
+    user_id: user.id
+  });
+
   revalidatePath('/teacher/courses');
   revalidatePath('/student/courses');
   return { success: true };
@@ -125,15 +202,26 @@ export async function saveLesson(lesson: Partial<Lesson>) {
   if (!lesson.title) throw new Error('Lesson title is required');
   if (!lesson.course_id) throw new Error('Course ID is required');
 
-  const { data, error } = await withSession(supabase.from('lessons'), user.sessionId as string)
+  const { version, ...lessonData } = lesson;
+  let query = withSession(supabase.from('lessons'), user.sessionId as string)
     .upsert({
-      ...lesson,
-      updated_at: new Date().toISOString()
-    })
-    .select()
-    .single();
+      ...lessonData,
+      updated_at: new Date().toISOString(),
+      version: (version || 0) + 1
+    });
 
-  if (error) throw new Error(error.message);
+  if (lesson.id && version) {
+    query = query.eq('id', lesson.id).eq('version', version);
+  }
+
+  const { data, error } = await query.select().single();
+
+  if (error) {
+    if (lesson.id && version && error.code === 'PGRST116') {
+        throw new Error('Conflict detected: Lesson has been updated by another user.');
+    }
+    throw new Error(error.message);
+  }
   revalidatePath(`/student/courses?id=${lesson.course_id}`);
   return { success: true, data };
 }
@@ -159,15 +247,34 @@ export async function saveAssignment(assignment: Partial<Assignment>) {
   if (!assignment.title) throw new Error('Assignment title is required');
   if (!assignment.course_id) throw new Error('Course ID is required');
 
-  const { data, error } = await withSession(supabase.from('assignments'), user.sessionId as string)
+  const { version, ...assignmentData } = assignment;
+  let query = withSession(supabase.from('assignments'), user.sessionId as string)
     .upsert({
-      ...assignment,
-      teacher_id: assignment.teacher_id || user.id
-    })
-    .select()
-    .single();
+      ...assignmentData,
+      teacher_id: assignment.teacher_id || user.id,
+      version: (version || 0) + 1
+    });
 
-  if (error) throw new Error(error.message);
+  if (assignment.id && version) {
+    query = query.eq('id', assignment.id).eq('version', version);
+  }
+
+  const { data, error } = await query.select().single();
+
+  if (error) {
+    if (assignment.id && version && error.code === 'PGRST116') {
+        throw new Error('Conflict detected: Assignment has been updated by another user.');
+    }
+    throw new Error(error.message);
+  }
+
+  await createSystemLog({
+    level: 'info',
+    category: 'academic',
+    message: `Assignment ${assignment.id ? 'updated' : 'created'}: ${assignment.title}`,
+    user_id: user.id
+  });
+
   revalidatePath('/teacher/assignments');
   revalidatePath('/student/assignments');
   return { success: true, data };
@@ -182,6 +289,14 @@ export async function deleteAssignment(assignmentId: string) {
     .eq('id', assignmentId);
 
   if (error) throw new Error(error.message);
+
+  await createSystemLog({
+    level: 'info',
+    category: 'academic',
+    message: `Assignment deleted: ${assignmentId}`,
+    user_id: user.id
+  });
+
   revalidatePath('/teacher/assignments');
   revalidatePath('/student/assignments');
   return { success: true };
@@ -195,15 +310,34 @@ export async function saveQuiz(quiz: Partial<Quiz>) {
   if (!quiz.title) throw new Error('Quiz title is required');
   if (!quiz.course_id) throw new Error('Course ID is required');
 
-  const { data, error } = await withSession(supabase.from('quizzes'), user.sessionId as string)
+  const { version, ...quizData } = quiz;
+  let query = withSession(supabase.from('quizzes'), user.sessionId as string)
     .upsert({
-      ...quiz,
-      teacher_id: quiz.teacher_id || user.id
-    })
-    .select()
-    .single();
+      ...quizData,
+      teacher_id: quiz.teacher_id || user.id,
+      version: (version || 0) + 1
+    });
 
-  if (error) throw new Error(error.message);
+  if (quiz.id && version) {
+    query = query.eq('id', quiz.id).eq('version', version);
+  }
+
+  const { data, error } = await query.select().single();
+
+  if (error) {
+    if (quiz.id && version && error.code === 'PGRST116') {
+        throw new Error('Conflict detected: Quiz has been updated by another user.');
+    }
+    throw new Error(error.message);
+  }
+
+  await createSystemLog({
+    level: 'info',
+    category: 'academic',
+    message: `Quiz ${quiz.id ? 'updated' : 'created'}: ${quiz.title}`,
+    user_id: user.id
+  });
+
   revalidatePath('/teacher/quizzes');
   revalidatePath('/student/quizzes');
   return { success: true, data };
@@ -218,6 +352,14 @@ export async function deleteQuiz(quizId: string) {
     .eq('id', quizId);
 
   if (error) throw new Error(error.message);
+
+  await createSystemLog({
+    level: 'info',
+    category: 'academic',
+    message: `Quiz deleted: ${quizId}`,
+    user_id: user.id
+  });
+
   revalidatePath('/teacher/quizzes');
   revalidatePath('/student/quizzes');
   return { success: true };
@@ -226,15 +368,26 @@ export async function deleteQuiz(quizId: string) {
 // 9. Planner Actions
 export async function savePlannerItem(item: Partial<PlannerItem>) {
   const user = await getVerifiedUser();
-  const { data, error } = await withSession(supabase.from('planner'), user.sessionId as string)
+  const { version, ...itemData } = item;
+  let query = withSession(supabase.from('planner'), user.sessionId as string)
     .upsert({
-      ...item,
-      user_id: user.id
-    })
-    .select()
-    .single();
+      ...itemData,
+      user_id: user.id,
+      version: (version || 0) + 1
+    });
 
-  if (error) throw new Error(error.message);
+  if (item.id && version) {
+    query = query.eq('id', item.id).eq('version', version);
+  }
+
+  const { data, error } = await query.select().single();
+
+  if (error) {
+    if (item.id && version && error.code === 'PGRST116') {
+        throw new Error('Conflict detected: Planner item has been updated by another user.');
+    }
+    throw new Error(error.message);
+  }
   return { success: true, data };
 }
 
@@ -329,15 +482,26 @@ export async function saveMaterial(material: Partial<Material>) {
     const user = await getVerifiedUser();
     if (user.role !== 'teacher' && user.role !== 'admin') throw new Error('Forbidden');
 
-    const { data, error } = await withSession(supabase.from('materials'), user.sessionId as string)
+    const { version, ...materialData } = material;
+    let query = withSession(supabase.from('materials'), user.sessionId as string)
         .upsert({
-            ...material,
-            teacher_id: material.teacher_id || user.id
-        })
-        .select()
-        .single();
+            ...materialData,
+            teacher_id: material.teacher_id || user.id,
+            version: (version || 0) + 1
+        });
 
-    if (error) throw new Error(error.message);
+    if (material.id && version) {
+        query = query.eq('id', material.id).eq('version', version);
+    }
+
+    const { data, error } = await query.select().single();
+
+    if (error) {
+        if (material.id && version && error.code === 'PGRST116') {
+            throw new Error('Conflict detected: Material has been updated by another user.');
+        }
+        throw new Error(error.message);
+    }
     return { success: true, data };
 }
 
@@ -388,12 +552,25 @@ export async function saveBadge(badge: Partial<Badge>) {
     const user = await getVerifiedUser();
     if (user.role !== 'teacher' && user.role !== 'admin') throw new Error('Forbidden');
 
-    const { data, error } = await withSession(supabase.from('badges'), user.sessionId as string)
-        .upsert(badge)
-        .select()
-        .single();
+    const { version, ...badgeData } = badge;
+    let query = withSession(supabase.from('badges'), user.sessionId as string)
+        .upsert({
+            ...badgeData,
+            version: (version || 0) + 1
+        });
 
-    if (error) throw new Error(error.message);
+    if (badge.id && version) {
+        query = query.eq('id', badge.id).eq('version', version);
+    }
+
+    const { data, error } = await query.select().single();
+
+    if (error) {
+        if (badge.id && version && error.code === 'PGRST116') {
+            throw new Error('Conflict detected: Badge has been updated by another user.');
+        }
+        throw new Error(error.message);
+    }
     return { success: true, data };
 }
 
@@ -428,15 +605,26 @@ export async function saveLiveClass(liveClass: Partial<LiveClass>) {
     const user = await getVerifiedUser();
     if (user.role !== 'teacher' && user.role !== 'admin') throw new Error('Forbidden');
 
-    const { data, error } = await withSession(supabase.from('live_classes'), user.sessionId as string)
+    const { version, ...liveClassData } = liveClass;
+    let query = withSession(supabase.from('live_classes'), user.sessionId as string)
         .upsert({
-            ...liveClass,
-            teacher_id: liveClass.teacher_id || user.id
-        })
-        .select()
-        .single();
+            ...liveClassData,
+            teacher_id: liveClass.teacher_id || user.id,
+            version: (version || 0) + 1
+        });
 
-    if (error) throw new Error(error.message);
+    if (liveClass.id && version) {
+        query = query.eq('id', liveClass.id).eq('version', version);
+    }
+
+    const { data, error } = await query.select().single();
+
+    if (error) {
+        if (liveClass.id && version && error.code === 'PGRST116') {
+            throw new Error('Conflict detected: Live class has been updated by another user.');
+        }
+        throw new Error(error.message);
+    }
     return { success: true, data };
 }
 
@@ -458,13 +646,26 @@ export async function saveUser(userData: Partial<User>) {
     // Users can update their own profile, or admins can update anyone
     if (user.role !== 'admin' && user.id !== userData.id) throw new Error('Forbidden');
 
-    const { data, error } = await withSession(supabase.from('users'), user.sessionId as string)
-        .update(userData)
-        .eq('id', userData.id)
-        .select()
-        .single();
+    const { version, ...cleanUserData } = userData;
+    let query = withSession(supabase.from('users'), user.sessionId as string)
+        .update({
+            ...cleanUserData,
+            version: (version || 1) + 1
+        })
+        .eq('id', userData.id);
 
-    if (error) throw new Error(error.message);
+    if (version) {
+        query = query.eq('version', version);
+    }
+
+    const { data, error } = await query.select().single();
+
+    if (error) {
+        if (version && error.code === 'PGRST116') {
+            throw new Error('Conflict detected: User profile has been updated by another user.');
+        }
+        throw new Error(error.message);
+    }
     revalidatePath('/admin/users');
     return { success: true, data };
 }
@@ -519,23 +720,6 @@ export async function createBroadcast(broadcast: Record<string, unknown>) {
     return { success: true };
 }
 
-export async function createSystemLog(log: Record<string, unknown>) {
-    const user = await getVerifiedUser();
-
-    // System logs can be created by admins, or by users reporting anti-cheat violations
-    const isAntiCheat = log.category === 'anti-cheat';
-    if (user.role !== 'admin' && !isAntiCheat) throw new Error('Forbidden');
-
-    const { error } = await withSession(supabase.from('system_logs'), user.sessionId as string)
-        .insert([{
-            ...log,
-            user_id: log.user_id || user.id
-        }]);
-
-    if (error) throw new Error(error.message);
-    return { success: true };
-}
-
 // 18. Quiz Submission
 export async function submitQuiz(quizId: string, submissionData: Partial<QuizSubmission>) {
     const user = await getVerifiedUser();
@@ -568,7 +752,7 @@ export async function submitQuiz(quizId: string, submissionData: Partial<QuizSub
       supabase.from('quiz_submissions'),
       user.sessionId as string
     )
-      .insert([{
+      .upsert({
         quiz_id: quizId,
         student_id: user.id,
         answers,
@@ -579,9 +763,17 @@ export async function submitQuiz(quizId: string, submissionData: Partial<QuizSub
         time_spent: submissionData.time_spent || 0,
         violation_count: submissionData.violation_count || 0,
         started_at: submissionData.started_at || new Date().toISOString()
-      }]);
+      }, { onConflict: 'quiz_id, student_id' });
 
     if (error) throw new Error(error.message);
+
+    await createSystemLog({
+        level: 'info',
+        category: 'academic',
+        message: `Quiz submitted: ${quizId} with score ${calculatedScore}%`,
+        user_id: user.id
+    });
+
     revalidatePath('/student/quizzes');
     return { success: true, score: calculatedScore };
 }

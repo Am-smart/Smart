@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS users (
   notification_preferences JSONB DEFAULT '{"email": true, "push": true, "inApp": true}'::jsonb,
   xp INTEGER DEFAULT 0,
   level INTEGER DEFAULT 1,
+  version INTEGER DEFAULT 1,
   metadata JSONB DEFAULT '{}'::jsonb
 );
 
@@ -47,6 +48,7 @@ CREATE TABLE IF NOT EXISTS courses (
   status VARCHAR(50) DEFAULT 'draft' CHECK (status IN ('draft', 'published', 'archived')),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  version INTEGER DEFAULT 1,
   metadata JSONB DEFAULT '{}'::jsonb
 );
 
@@ -57,6 +59,7 @@ CREATE TABLE IF NOT EXISTS lessons (
   content TEXT,
   video_url TEXT,
   order_index INTEGER DEFAULT 0,
+  version INTEGER DEFAULT 1,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -87,7 +90,8 @@ CREATE TABLE IF NOT EXISTS assignments (
   attachments JSONB DEFAULT '[]'::jsonb,
   status VARCHAR(50) DEFAULT 'draft' CHECK (status IN ('draft', 'published', 'archived')),
   anti_cheat_enabled BOOLEAN DEFAULT FALSE,
-  regrade_requests_enabled BOOLEAN DEFAULT TRUE
+  regrade_requests_enabled BOOLEAN DEFAULT TRUE,
+  version INTEGER DEFAULT 1
 );
 
 CREATE TABLE IF NOT EXISTS submissions (
@@ -109,6 +113,7 @@ CREATE TABLE IF NOT EXISTS submissions (
   graded_at TIMESTAMP WITH TIME ZONE,
   status VARCHAR(50) DEFAULT 'submitted' CHECK (status IN ('draft', 'submitted', 'graded', 'returned')),
   violation_count INTEGER DEFAULT 0,
+  version INTEGER DEFAULT 1,
   UNIQUE(assignment_id, student_id)
 );
 
@@ -127,6 +132,7 @@ CREATE TABLE IF NOT EXISTS live_classes (
   metadata JSONB DEFAULT '{}'::jsonb,
   status VARCHAR(50) DEFAULT 'scheduled' CHECK (status IN ('scheduled', 'live', 'completed', 'cancelled')),
   actual_end_at TIMESTAMP WITH TIME ZONE,
+  version INTEGER DEFAULT 1,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -158,7 +164,8 @@ CREATE TABLE IF NOT EXISTS quizzes (
   start_at TIMESTAMP WITH TIME ZONE,
   end_at TIMESTAMP WITH TIME ZONE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  version INTEGER DEFAULT 1
 );
 
 CREATE TABLE IF NOT EXISTS quiz_submissions (
@@ -173,7 +180,9 @@ CREATE TABLE IF NOT EXISTS quiz_submissions (
   time_spent INTEGER DEFAULT 0,
   started_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   submitted_at TIMESTAMP WITH TIME ZONE,
-  violation_count INTEGER DEFAULT 0
+  violation_count INTEGER DEFAULT 0,
+  version INTEGER DEFAULT 1,
+  UNIQUE(quiz_id, student_id)
 );
 
 CREATE TABLE IF NOT EXISTS materials (
@@ -184,6 +193,7 @@ CREATE TABLE IF NOT EXISTS materials (
   description TEXT,
   file_url TEXT,
   file_type VARCHAR(50),
+  version INTEGER DEFAULT 1,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -248,6 +258,7 @@ CREATE TABLE IF NOT EXISTS planner (
   due_date TIMESTAMP WITH TIME ZONE,
   priority VARCHAR(20) DEFAULT 'medium' CHECK (priority IN ('low', 'medium', 'high')),
   completed BOOLEAN DEFAULT FALSE,
+  version INTEGER DEFAULT 1,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -266,6 +277,7 @@ CREATE TABLE IF NOT EXISTS badges (
   description TEXT,
   icon_url TEXT,
   xp_required INTEGER DEFAULT 0,
+  version INTEGER DEFAULT 1,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -342,6 +354,41 @@ BEGIN
 
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'submissions' AND column_name = 'file_url') THEN
         ALTER TABLE submissions ADD COLUMN file_url TEXT;
+    END IF;
+
+    -- Conflict Detection (Versioning)
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'version') THEN
+        ALTER TABLE users ADD COLUMN version INTEGER DEFAULT 1;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'courses' AND column_name = 'version') THEN
+        ALTER TABLE courses ADD COLUMN version INTEGER DEFAULT 1;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'assignments' AND column_name = 'version') THEN
+        ALTER TABLE assignments ADD COLUMN version INTEGER DEFAULT 1;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'quizzes' AND column_name = 'version') THEN
+        ALTER TABLE quizzes ADD COLUMN version INTEGER DEFAULT 1;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'submissions' AND column_name = 'version') THEN
+        ALTER TABLE submissions ADD COLUMN version INTEGER DEFAULT 1;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'quiz_submissions' AND column_name = 'version') THEN
+        ALTER TABLE quiz_submissions ADD COLUMN version INTEGER DEFAULT 1;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'planner' AND column_name = 'version') THEN
+        ALTER TABLE planner ADD COLUMN version INTEGER DEFAULT 1;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'lessons' AND column_name = 'version') THEN
+        ALTER TABLE lessons ADD COLUMN version INTEGER DEFAULT 1;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'live_classes' AND column_name = 'version') THEN
+        ALTER TABLE live_classes ADD COLUMN version INTEGER DEFAULT 1;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'materials' AND column_name = 'version') THEN
+        ALTER TABLE materials ADD COLUMN version INTEGER DEFAULT 1;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'badges' AND column_name = 'version') THEN
+        ALTER TABLE badges ADD COLUMN version INTEGER DEFAULT 1;
     END IF;
 END $$;
 

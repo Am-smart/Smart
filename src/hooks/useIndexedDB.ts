@@ -168,8 +168,14 @@ export const useIndexedDB = () => {
         if (success && item.id) {
           await removeFromQueue(item.id);
         }
-      } catch (err) {
+      } catch (err: unknown) {
         console.error('Sync failed for item:', item, err);
+        const error = err as Error;
+        // If conflict detected or another terminal error, remove from queue to prevent stuck sync
+        if ((error.message.includes('Conflict detected') || error.message.includes('Forbidden') || error.message.includes('Unauthorized')) && item.id) {
+          console.warn('Terminal error during sync, removing item from queue:', item, error.message);
+          await removeFromQueue(item.id);
+        }
       }
     }
   }, [isOnline, db, getQueue, removeFromQueue]);

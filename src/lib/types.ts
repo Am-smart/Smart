@@ -19,6 +19,7 @@ export interface User {
   locked_until?: string | null;
   reset_request?: Record<string, unknown> | null;
   notification_preferences?: Record<string, boolean>;
+  version?: number;
 }
 
 export interface Course {
@@ -30,6 +31,7 @@ export interface Course {
   teacher_id: string;
   thumbnail_url?: string;
   updated_at?: string;
+  version?: number;
   metadata?: Record<string, unknown>;
 }
 
@@ -50,6 +52,7 @@ export interface Lesson {
   content: string;
   video_url?: string;
   order_index: number;
+  version?: number;
   created_at?: string;
   updated_at?: string;
 }
@@ -66,6 +69,7 @@ export interface Assignment {
   allow_late_submissions: boolean;
   anti_cheat_enabled: boolean;
   regrade_requests_enabled: boolean;
+  version?: number;
   questions: AssignmentQuestion[];
   attachments?: Record<string, unknown>[];
   courses?: Course;
@@ -90,6 +94,7 @@ export interface Quiz {
   passing_score: number;
   anti_cheat_enabled: boolean;
   shuffle_questions: boolean;
+  version?: number;
   start_at?: string;
   end_at?: string;
   questions: QuizQuestion[];
@@ -120,6 +125,7 @@ export interface Submission {
   final_grade?: number;
   feedback?: string;
   violation_count?: number;
+  version?: number;
   regrade_request?: string;
   assignments?: Assignment;
   graded_at?: string;
@@ -141,6 +147,7 @@ export interface QuizSubmission {
   status: 'draft' | 'submitted';
   time_spent: number;
   violation_count?: number;
+  version?: number;
   quizzes?: Quiz;
 }
 
@@ -187,6 +194,7 @@ export interface LiveClass {
   end_at: string;
   actual_end_at?: string | null;
   status: 'scheduled' | 'live' | 'ended';
+  version?: number;
 }
 
 export interface Attendance {
@@ -207,6 +215,7 @@ export interface PlannerItem {
   due_date: string;
   priority: 'low' | 'medium' | 'high';
   completed: boolean;
+  version?: number;
   created_at: string;
 }
 
@@ -215,6 +224,7 @@ export interface Badge {
   title: string;
   description: string;
   icon_url: string;
+  version?: number;
 }
 
 export interface UserBadge {
@@ -231,6 +241,7 @@ export interface Material {
   title: string;
   description?: string;
   file_url: string;
+  version?: number;
   created_at: string;
 }
 
