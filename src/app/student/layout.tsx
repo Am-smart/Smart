@@ -13,10 +13,6 @@ import dynamic from 'next/dynamic';
 
 const StudyTimer = dynamic(() => import("@/components/student/StudyTimer").then(m => m.StudyTimer), { ssr: false });
 
-interface ResetRequest {
-    status: string;
-}
-
 function StudentLayoutContent({
   children,
 }: {
@@ -88,6 +84,8 @@ function StudentLayoutContent({
   if (authLoading || !user || role !== 'student') {
     return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
   }
+
+  const isResetApproved = user.reset_request && (user.reset_request as Record<string, unknown>).status === 'approved';
 
   return (
     <div className="student-dashboard">

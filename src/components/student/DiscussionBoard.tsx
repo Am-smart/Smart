@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useSupabase } from '@/hooks/useSupabase';
 import { Discussion } from '@/lib/types';
 import { MessageSquare, Send, Trash2 } from 'lucide-react';
+import { saveDiscussionPost, deleteDiscussionPost } from '@/lib/data-actions';
 
 interface DiscussionBoardProps {
   courseId?: string;
@@ -31,21 +32,25 @@ export const DiscussionBoard: React.FC<DiscussionBoardProps> = ({ courseId, user
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!message.trim()) return;
-    const { error } = await client.from('discussions').insert([{
-      course_id: courseId || null,
-      user_id: userId,
-      content: message,
-      created_at: new Date().toISOString()
-    }]);
-    if (!error) {
+    try {
+      await saveDiscussionPost({
+        course_id: courseId || undefined,
+        content: message
+      });
       setMessage('');
       fetchDiscussions();
+    } catch (err) {
+      console.error('Failed to post message:', err);
     }
   };
 
   const handleDelete = async (id: string) => {
-      await client.from('discussions').delete().eq('id', id);
-      fetchDiscussions();
+      try {
+        await deleteDiscussionPost(id);
+        fetchDiscussions();
+      } catch (err) {
+        console.error('Failed to delete message:', err);
+      }
   };
 
   return (

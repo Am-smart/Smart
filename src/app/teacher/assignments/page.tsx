@@ -7,10 +7,11 @@ import { AssignmentEditor } from "@/components/teacher/AssignmentEditor";
 import { Assignment, Course } from '@/lib/types';
 import { Trash2, Edit } from 'lucide-react';
 import { useAppContext } from '@/components/AppContext';
+import { deleteAssignment } from '@/lib/data-actions';
 
 export default function AssignmentsPage() {
   const { user } = useAuth();
-  const { client, getCourses, getAssignments } = useSupabase();
+  const { getCourses, getAssignments } = useSupabase();
   const { addToast } = useAppContext();
   const [courses, setCourses] = useState<Course[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
@@ -32,8 +33,7 @@ export default function AssignmentsPage() {
   const handleDelete = async (id: string) => {
       if (!confirm('Are you sure you want to delete this assignment?')) return;
       try {
-          const { error } = await client.from('assignments').delete().eq('id', id);
-          if (error) throw error;
+          await deleteAssignment(id);
           addToast('Assignment deleted successfully', 'success');
           fetchData();
       } catch (err: unknown) {

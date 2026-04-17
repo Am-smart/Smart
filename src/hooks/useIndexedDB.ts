@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase, withSession } from '@/lib/supabase';
-import { Enrollment, Submission, QuizSubmission, Course, Assignment, Quiz, User } from '@/lib/types';
+import { Enrollment, Submission, QuizSubmission, Course, Assignment, Quiz, User, PlannerItem, Discussion } from '@/lib/types';
+import * as actions from '@/lib/data-actions';
 
 const DB_NAME = 'smartlms-offline-v3';
 const DB_VERSION = 3;
@@ -119,45 +120,48 @@ export const useIndexedDB = () => {
         let success = false;
         switch (item.type) {
           case 'ENROLL':
-            const { error: enrollError } = await withSession(supabase.from('enrollments'), item.sessionId).upsert(item.payload as Partial<Enrollment>, { onConflict: 'course_id,student_id' });
-            if (!enrollError) success = true;
+            const { course_id } = item.payload as { course_id: string };
+            const enrollRes = await actions.enrollInCourse(course_id);
+            if (enrollRes.success) success = true;
             break;
           case 'SUBMISSION':
-            const { error: subError } = await withSession(supabase.from('submissions'), item.sessionId).upsert(item.payload as Partial<Submission>, { onConflict: 'assignment_id,student_id' });
-            if (!subError) success = true;
+            const { assignment_id, ...subContent } = item.payload as Partial<Submission> & { assignment_id: string };
+            const subRes = await actions.submitAssignment(assignment_id, subContent);
+            if (subRes.success) success = true;
             break;
           case 'QUIZ_SUBMISSION':
-            const { error: quizError } = await withSession(supabase.from('quiz_submissions'), item.sessionId).upsert(item.payload as Partial<QuizSubmission>, { onConflict: 'quiz_id,student_id' });
-            if (!quizError) success = true;
+            const { quiz_id, ...quizContent } = item.payload as Partial<QuizSubmission> & { quiz_id: string };
+            const quizRes = await actions.submitQuiz(quiz_id, quizContent);
+            if (quizRes.success) success = true;
             break;
           case 'PROFILE_UPDATE':
-            const { error: profError } = await withSession(supabase.from('users'), item.sessionId).update(item.payload as Partial<User>).eq('id', (item.payload as { id: string }).id);
-            if (!profError) success = true;
+            const profRes = await actions.saveUser(item.payload as Partial<User>);
+            if (profRes.success) success = true;
             break;
           case 'COURSE_SAVE':
-            const { error: cError } = await withSession(supabase.from('courses'), item.sessionId).upsert(item.payload as Partial<Course>, { onConflict: 'id' });
-            if (!cError) success = true;
+            const courseRes = await actions.saveCourse(item.payload as Partial<Course>);
+            if (courseRes.success) success = true;
             break;
           case 'ASSIGNMENT_SAVE':
-            const { error: aError } = await withSession(supabase.from('assignments'), item.sessionId).upsert(item.payload as Partial<Assignment>, { onConflict: 'id' });
-            if (!aError) success = true;
+            const assignRes = await actions.saveAssignment(item.payload as Partial<Assignment>);
+            if (assignRes.success) success = true;
             break;
           case 'QUIZ_SAVE':
-            const { error: qError } = await withSession(supabase.from('quizzes'), item.sessionId).upsert(item.payload as Partial<Quiz>, { onConflict: 'id' });
-            if (!qError) success = true;
+            const qRes = await actions.saveQuiz(item.payload as Partial<Quiz>);
+            if (qRes.success) success = true;
             break;
           case 'DISCUSSION_POST':
-            const { error: dError } = await withSession(supabase.from('discussions'), item.sessionId).insert([item.payload]);
-            if (!dError) success = true;
+            const dRes = await actions.saveDiscussionPost(item.payload as Partial<Discussion>);
+            if (dRes.success) success = true;
             break;
           case 'PLANNER_UPDATE':
-            const { error: pError } = await withSession(supabase.from('planner'), item.sessionId).upsert(item.payload as Record<string, unknown>, { onConflict: 'id' });
-            if (!pError) success = true;
+            const pRes = await actions.savePlannerItem(item.payload as Partial<PlannerItem>);
+            if (pRes.success) success = true;
             break;
           case 'SETTING_UPDATE':
             const { p_key, p_value } = item.payload as { p_key: string, p_value: unknown };
-            const { error: sError } = await withSession(supabase, item.sessionId).rpc('update_setting', { p_key, p_value });
-            if (!sError) success = true;
+            const sRes = await actions.updateSetting(p_key, p_value);
+            if (sRes.success) success = true;
             break;
         }
 

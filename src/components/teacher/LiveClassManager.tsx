@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { useSupabase } from '@/hooks/useSupabase';
 import { LiveClass, Course } from '@/lib/types';
 import { Video, Calendar, Clock, Trash2, Play, Square, ExternalLink } from 'lucide-react';
 import { useAppContext } from '@/components/AppContext';
+import { saveLiveClass, deleteLiveClass } from '@/lib/data-actions';
 
 interface LiveClassManagerProps {
     teacherId: string;
@@ -12,7 +12,6 @@ interface LiveClassManagerProps {
 }
 
 export const LiveClassManager: React.FC<LiveClassManagerProps> = ({ teacherId, liveClasses, courses, onRefresh }) => {
-    const { client } = useSupabase();
     const { addToast } = useAppContext();
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [formData, setFormData] = useState({
@@ -27,14 +26,13 @@ export const LiveClassManager: React.FC<LiveClassManagerProps> = ({ teacherId, l
         e.preventDefault();
         try {
             const roomName = formData.room_name || `room_${Math.random().toString(36).substr(2, 9)}`;
-            const { error } = await client.from('live_classes').insert([{
+            await saveLiveClass({
                 ...formData,
                 teacher_id: teacherId,
                 status: 'scheduled',
                 room_name: roomName,
                 meeting_url: `https://meet.jit.si/${roomName}`
-            }]);
-            if (error) throw error;
+            });
             addToast('Live class scheduled!', 'success');
             setIsFormOpen(false);
             onRefresh();
@@ -46,26 +44,34 @@ export const LiveClassManager: React.FC<LiveClassManagerProps> = ({ teacherId, l
 
     const handleDelete = async (id: string) => {
         if (!confirm('Cancel this class?')) return;
-        const { error } = await client.from('live_classes').delete().eq('id', id);
-        if (!error) {
+        try {
+            await deleteLiveClass(id);
             addToast('Class cancelled.', 'info');
             onRefresh();
+        } catch (err) {
+            console.error('Cancel failed:', err);
+            addToast('Failed to cancel class.', 'error');
         }
     };
 
     const toggleStatus = async (lc: LiveClass) => {
         const newStatus = lc.status === 'live' ? 'ended' : 'live';
-        const { error } = await client.from('live_classes').update({
-            status: newStatus,
-            actual_end_at: newStatus === 'ended' ? new Date().toISOString() : null
-        }).eq('id', lc.id);
+        try {
+            await saveLiveClass({
+                id: lc.id,
+                status: newStatus,
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                actual_end_at: newStatus === 'ended' ? new Date().toISOString() : (null as any)
+            });
 
-        if (!error) {
             addToast(`Class ${newStatus === 'live' ? 'is now LIVE!' : 'has ended.'}`, 'success');
             onRefresh();
             if (newStatus === 'live' && lc.meeting_url) {
                 window.open(lc.meeting_url, '_blank');
             }
+        } catch (err) {
+            console.error('Status toggle failed:', err);
+            addToast('Failed to update class status.', 'error');
         }
     };
 

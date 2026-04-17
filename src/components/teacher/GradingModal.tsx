@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Submission } from '@/lib/types';
-import { useSupabase } from '@/hooks/useSupabase';
 import { useAppContext } from '@/components/AppContext';
+import { gradeSubmission } from '@/lib/data-actions';
 
 interface GradingModalProps {
     submission: Submission;
@@ -10,7 +10,6 @@ interface GradingModalProps {
 }
 
 export const GradingModal: React.FC<GradingModalProps> = ({ submission, onSave, onCancel }) => {
-    const { client } = useSupabase();
     const { addToast } = useAppContext();
     const [formData, setFormData] = useState({
         grade: submission.grade?.toString() || '',
@@ -23,16 +22,11 @@ export const GradingModal: React.FC<GradingModalProps> = ({ submission, onSave, 
         e.preventDefault();
         setIsSaving(true);
         try {
-            const final_grade = Math.round((Number(formData.grade) / formData.points_possible) * 100);
-            const { error } = await client.from('submissions').update({
-                grade: Number(formData.grade),
-                final_grade,
-                feedback: formData.feedback,
-                status: 'graded',
-                graded_at: new Date().toISOString()
-            }).eq('id', submission.id);
+            await gradeSubmission(submission.id, {
+                score: Number(formData.grade),
+                feedback: formData.feedback
+            });
 
-            if (error) throw error;
             addToast('Grade saved successfully!', 'success');
             onSave();
         } catch (err) {

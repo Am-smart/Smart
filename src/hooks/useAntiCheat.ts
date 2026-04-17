@@ -1,10 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useSupabase } from './useSupabase';
 import { useAuth } from '@/components/auth/AuthContext';
+import { createSystemLog } from '@/lib/data-actions';
 
 export const useAntiCheat = (enabled: boolean = false, assessmentTitle: string = 'Assessment') => {
   const [violationCount, setViolationCount] = useState(0);
-  const { client } = useSupabase();
   const { user } = useAuth();
 
   const reportViolation = useCallback(async (type: string) => {
@@ -12,15 +11,19 @@ export const useAntiCheat = (enabled: boolean = false, assessmentTitle: string =
     console.warn(`Anti-Cheat Violation: ${type}`);
 
     if (user && enabled) {
-        await client.from('system_logs').insert([{
-            category: 'anti-cheat',
-            level: 'warning',
-            message: `User ${user.email} attempted ${type} during ${assessmentTitle}`,
-            user_id: user.id,
-            metadata: { type, assessmentTitle, timestamp: new Date().toISOString() }
-        }]);
+        try {
+            await createSystemLog({
+                category: 'anti-cheat',
+                level: 'warning',
+                message: `User ${user.email} attempted ${type} during ${assessmentTitle}`,
+                user_id: user.id,
+                metadata: { type, assessmentTitle, timestamp: new Date().toISOString() }
+            });
+        } catch (err) {
+            console.error('Failed to log anti-cheat violation:', err);
+        }
     }
-  }, [user, client, enabled, assessmentTitle]);
+  }, [user, enabled, assessmentTitle]);
 
   useEffect(() => {
     if (!enabled) return;

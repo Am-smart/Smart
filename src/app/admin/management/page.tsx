@@ -4,24 +4,22 @@ import React from 'react';
 import { SystemHealth, SystemInfo } from "@/components/admin/SystemMisc";
 import { Shield, Settings, Database } from 'lucide-react';
 import { useAppContext } from '@/components/AppContext';
-import { useSupabase } from '@/hooks/useSupabase';
+import { createSystemLog } from '@/lib/data-actions';
 
 export default function ManagementPage() {
     const { addToast } = useAppContext();
-    const { client } = useSupabase();
 
     const handleAction = async (action: string) => {
         const confirmAction = confirm(`Are you sure you want to perform: ${action}?`);
         if (confirmAction) {
             try {
                 // Real implementation: Log the action to system_logs
-                const { error } = await client.from('system_logs').insert({
+                await createSystemLog({
                     category: 'management',
                     level: 'info',
                     message: `Admin performed management action: ${action}`,
                     metadata: { action }
                 });
-                if (error) throw error;
                 addToast(`${action} completed successfully.`, 'success');
             } catch (err) {
                 console.error('Action failed:', err);

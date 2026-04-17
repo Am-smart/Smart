@@ -185,6 +185,7 @@ export interface LiveClass {
   meeting_url?: string;
   start_at: string;
   end_at: string;
+  actual_end_at?: string | null;
   status: 'scheduled' | 'live' | 'ended';
 }
 

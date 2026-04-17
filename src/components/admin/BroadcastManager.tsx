@@ -1,14 +1,13 @@
 import React, { useState } from 'react';
-import { useSupabase } from '@/hooks/useSupabase';
 import { Course } from '@/lib/types';
 import { useAppContext } from '@/components/AppContext';
+import { createBroadcast } from '@/lib/data-actions';
 
 interface BroadcastManagerProps {
     initialCourses: Course[];
 }
 
 export const BroadcastManager: React.FC<BroadcastManagerProps> = ({ initialCourses }) => {
-    const { client } = useSupabase();
     const { addToast } = useAppContext();
     const [title, setTitle] = useState('');
     const [message, setMessage] = useState('');
@@ -22,15 +21,12 @@ export const BroadcastManager: React.FC<BroadcastManagerProps> = ({ initialCours
 
         setIsSending(true);
         try {
-            const { error } = await client.from('broadcasts').insert([{
+            await createBroadcast({
                 course_id: selectedCourseId === 'all' ? null : selectedCourseId,
                 target_role: targetRole === 'all' ? null : targetRole,
                 title,
-                message,
-                created_at: new Date().toISOString()
-            }]);
-
-            if (error) throw error;
+                message
+            });
 
             setTitle('');
             setMessage('');

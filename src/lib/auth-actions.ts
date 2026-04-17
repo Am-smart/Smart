@@ -192,6 +192,17 @@ export async function updatePassword(currentPass: string, newPass: string) {
     return data;
 }
 
+export async function requestPasswordReset(email: string, reason: string, riskLevel: string) {
+    const { data, error } = await supabase.rpc('request_password_reset', {
+        p_email: email,
+        p_reason: reason,
+        p_risk_level: riskLevel
+    });
+
+    if (error) throw error;
+    return data;
+}
+
 export async function updatePreferences(preferences: object) {
     const session = await getSession();
     if (!session || !session.sessionId) return { success: false, error: 'Unauthorized' };

@@ -7,10 +7,11 @@ import { CourseManager } from "@/components/teacher/CourseManager";
 import { CourseEditor } from "@/components/teacher/CourseEditor";
 import { LessonEditor } from "@/components/teacher/LessonEditor";
 import { Course } from '@/lib/types';
+import { deleteCourse } from '@/lib/data-actions';
 
 export default function CoursesPage() {
   const { user } = useAuth();
-  const { client, getCourses } = useSupabase();
+  const { getCourses } = useSupabase();
   const [courses, setCourses] = useState<Course[]>([]);
   const [editingCourse, setEditingCourse] = useState<Course | null>(null);
   const [activeLessonCourse, setActiveLessonCourse] = useState<Course | null>(null);
@@ -45,7 +46,7 @@ export default function CoursesPage() {
           onEdit={setEditingCourse}
           onDelete={async (id) => {
               if (!confirm('Are you sure you want to delete this course and all its lessons?')) return;
-              await client.from('courses').delete().eq('id', id);
+              await deleteCourse(id);
               fetchCourses();
           }}
           onCreate={() => setIsAdding(true)}

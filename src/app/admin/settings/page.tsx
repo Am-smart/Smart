@@ -5,6 +5,7 @@ import { useAuth } from '@/components/auth/AuthContext';
 import { Settings, Shield, Bell, Save } from 'lucide-react';
 import { useAppContext } from '@/components/AppContext';
 import { useSupabase } from '@/hooks/useSupabase';
+import { updateSetting } from '@/lib/data-actions';
 
 export default function AdminSettingsPage() {
     const { user } = useAuth();
@@ -32,11 +33,7 @@ export default function AdminSettingsPage() {
     const handleSave = async (key: string, value: unknown) => {
         setIsSaving(true);
         try {
-            const { error } = await client.rpc('update_setting', {
-                p_key: key,
-                p_value: value
-            });
-            if (error) throw error;
+            await updateSetting(key, value);
             addToast('Settings saved successfully!', 'success');
         } catch (err) {
             console.error('Save failed:', err);

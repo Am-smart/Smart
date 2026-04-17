@@ -5,6 +5,7 @@ import { useSupabase } from '@/hooks/useSupabase';
 import { UserManagement } from "@/components/admin/UserManagement";
 import { UserEditor } from "@/components/admin/UserEditor";
 import { User } from '@/lib/types';
+import { saveUser, deleteUser } from '@/lib/data-actions';
 
 export default function UsersPage() {
   const { client } = useSupabase();
@@ -37,12 +38,12 @@ export default function UsersPage() {
         onEdit={setEditingUser}
         onDelete={async (id) => {
             if (!confirm('Are you sure you want to delete this user?')) return;
-            await client.from('users').delete().eq('id', id);
+            await deleteUser(id);
             fetchUsers();
         }}
         onUpdate={async (id, updates) => {
-            const { error } = await client.from('users').update(updates).eq('id', id);
-            if (!error) fetchUsers();
+            const res = await saveUser({ ...updates, id });
+            if (res.success) fetchUsers();
         }}
         onAdd={() => setIsAdding(true)}
     />

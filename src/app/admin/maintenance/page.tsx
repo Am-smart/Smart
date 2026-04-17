@@ -5,6 +5,7 @@ import { useSupabase } from '@/hooks/useSupabase';
 import { MaintenancePanel } from "@/components/admin/MaintenancePanel";
 import { BroadcastManager } from "@/components/admin/BroadcastManager";
 import { Course, Maintenance } from '@/lib/types';
+import { updateMaintenance } from '@/lib/data-actions';
 
 export default function MaintenancePage() {
   const { client, getMaintenance } = useSupabase();
@@ -28,7 +29,7 @@ export default function MaintenancePage() {
             maintenance={maintenance}
             onToggle={async (enabled) => {
                 if (maintenance?.id) {
-                    await client.from('maintenance').update({ enabled }).eq('id', maintenance.id);
+                    await updateMaintenance({ id: maintenance.id, enabled });
                     fetchData();
                 }
             }}

@@ -2,12 +2,11 @@
 
 import React from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
-import { useSupabase } from '@/hooks/useSupabase';
 import { TeacherSettings } from "@/components/teacher/TeacherSettings";
+import { saveUser } from '@/lib/data-actions';
 
 export default function SettingsPage() {
   const { user } = useAuth();
-  const { client } = useSupabase();
 
   if (!user) return null;
 
@@ -15,7 +14,7 @@ export default function SettingsPage() {
     <TeacherSettings
         user={user}
         onUpdate={async (u) => {
-            await client.from('users').update(u).eq('id', user.id);
+            await saveUser({ ...u, id: user.id });
         }}
     />
   );
