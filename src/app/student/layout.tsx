@@ -6,18 +6,23 @@ import { useAppContext } from '@/components/AppContext';
 import { useSupabase } from '@/hooks/useSupabase';
 import { StudentSidebar } from "@/components/StudentSidebar";
 import { StudentHeader } from "@/components/StudentHeader";
+import { ForcePasswordChange } from "@/components/auth/ForcePasswordChange";
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { User, Enrollment, Assignment, Submission, Course } from '@/lib/types';
 import dynamic from 'next/dynamic';
 
 const StudyTimer = dynamic(() => import("@/components/student/StudyTimer").then(m => m.StudyTimer), { ssr: false });
 
+interface ResetRequest {
+    status: string;
+}
+
 function StudentLayoutContent({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const { user, role, logout, isLoading: authLoading } = useAuth();
+  const { user, role, logout, isLoading: authLoading, updateProfile } = useAuth();
   const { notifications } = useAppContext();
   const { client, getEnrollments } = useSupabase();
   const [stats, setStats] = useState({ courses: 0, dueSoon: 0, badges: 0, unreadNotifications: 0 });
@@ -86,6 +91,10 @@ function StudentLayoutContent({
 
   return (
     <div className="student-dashboard">
+      {isResetApproved && (
+          <ForcePasswordChange onSuccess={() => updateProfile({ reset_request: null })} />
+      )}
+
       <div className="flex">
         <StudentSidebar
           activePage={activePage === 'student' ? 'dashboard' : activePage}

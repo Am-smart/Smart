@@ -4,8 +4,8 @@ import { cookies } from 'next/headers';
 import { signData, verifyToken } from './crypto';
 import { supabase } from './supabase';
 import { User } from './types';
-import { validateEmail, validatePassword, validateFullName, validatePhone, normalizeEmail, normalizeInput } from './validation';
-import { isRateLimited, recordAttempt, resetRateLimit, getRemainingAttempts } from './rate-limit';
+import { validateEmail, normalizeEmail, normalizeInput } from './validation';
+import { isRateLimited, recordAttempt, resetRateLimit } from './rate-limit';
 
 const SESSION_COOKIE = 'app-user-session';
 
