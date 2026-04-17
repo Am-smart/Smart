@@ -54,14 +54,16 @@ export async function enrollInCourse(courseId: string) {
 // 2. Submission Actions
 export async function submitAssignment(assignmentId: string, content: Partial<Submission>) {
   const user = await getVerifiedUser();
-  const { error } = await withSession(supabase.from('submissions'), user.sessionId as string)
+  const { data, error } = await withSession(supabase.from('submissions'), user.sessionId as string)
     .upsert({
       assignment_id: assignmentId,
       student_id: user.id,
       ...content,
       submitted_at: new Date().toISOString(),
       status: 'submitted'
-    }, { onConflict: 'assignment_id, student_id' });
+    }, { onConflict: 'assignment_id, student_id' })
+    .select()
+    .single();
 
   if (error) throw new Error(error.message);
 
@@ -73,7 +75,7 @@ export async function submitAssignment(assignmentId: string, content: Partial<Su
   });
 
   revalidatePath('/student/assignments');
-  return { success: true };
+  return { success: true, data };
 }
 
 // 3. Teacher Actions: Grading
