@@ -5,10 +5,13 @@ import { useAuth } from '@/components/auth/AuthContext';
 import { useSupabase } from '@/hooks/useSupabase';
 import { QuizEditor } from "@/components/teacher/QuizEditor";
 import { Quiz, Course } from '@/lib/types';
+import { Trash2, Edit } from 'lucide-react';
+import { useAppContext } from '@/components/AppContext';
 
 export default function QuizzesPage() {
   const { user } = useAuth();
-  const { getCourses, getQuizzes } = useSupabase();
+  const { client, getCourses, getQuizzes } = useSupabase();
+  const { addToast } = useAppContext();
   const [courses, setCourses] = useState<Course[]>([]);
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [editingQuiz, setEditingQuiz] = useState<Quiz | null>(null);
@@ -26,6 +29,19 @@ export default function QuizzesPage() {
     fetchData();
   }, [fetchData]);
 
+  const handleDelete = async (id: string) => {
+      if (!confirm('Are you sure you want to delete this quiz?')) return;
+      try {
+          const { error } = await client.from('quizzes').delete().eq('id', id);
+          if (error) throw error;
+          addToast('Quiz deleted successfully', 'success');
+          fetchData();
+      } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : 'Failed to delete quiz';
+          addToast(msg, 'error');
+      }
+  };
+
   if (isAdding || editingQuiz) {
       return (
           <QuizEditor
@@ -41,20 +57,35 @@ export default function QuizzesPage() {
   return (
     <div className="space-y-6">
         <div className="flex justify-between items-center">
-            <h2 className="text-2xl font-bold">Quizzes</h2>
+            <h2 className="text-2xl font-bold text-slate-900">Quizzes</h2>
             <button onClick={() => setIsAdding(true)} className="btn-primary">Create Quiz</button>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {quizzes.map(q => (
-                <div key={q.id} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-                    <h3 className="font-bold text-lg mb-2">{q.title}</h3>
-                    <p className="text-slate-500 text-sm mb-4 line-clamp-2">{q.description}</p>
-                    <div className="flex justify-between items-center">
-                        <span className="text-xs font-bold px-2 py-1 bg-blue-50 text-blue-600 rounded uppercase">{q.status}</span>
-                        <button onClick={() => setEditingQuiz(q)} className="text-blue-600 font-bold text-sm">Edit</button>
-                    </div>
+            {quizzes.length === 0 ? (
+                <div className="col-span-full py-12 bg-white rounded-2xl border-2 border-dashed border-slate-100 flex flex-col items-center justify-center text-slate-500 italic">
+                    No quizzes created yet.
                 </div>
-            ))}
+            ) : (
+                quizzes.map(q => (
+                    <div key={q.id} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow">
+                        <h3 className="font-bold text-lg mb-2 text-slate-900 line-clamp-1">{q.title}</h3>
+                        <p className="text-slate-500 text-sm mb-4 line-clamp-2 min-h-[40px]">{q.description}</p>
+                        <div className="flex justify-between items-center pt-4 border-t">
+                            <span className={`text-[10px] font-bold px-2 py-1 rounded uppercase ${q.status === 'published' ? 'bg-green-50 text-green-600' : 'bg-slate-50 text-slate-500'}`}>
+                                {q.status}
+                            </span>
+                            <div className="flex gap-2">
+                                <button onClick={() => setEditingQuiz(q)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors">
+                                    <Edit size={16} />
+                                </button>
+                                <button onClick={() => handleDelete(q.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+                                    <Trash2 size={16} />
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                ))
+            )}
         </div>
     </div>
   );

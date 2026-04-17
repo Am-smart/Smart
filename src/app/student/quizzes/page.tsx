@@ -6,11 +6,13 @@ import { useSupabase } from '@/hooks/useSupabase';
 import { QuizzesList } from "@/components/student/QuizzesList";
 import { Quiz, QuizSubmission } from '@/lib/types';
 import dynamic from 'next/dynamic';
+import { useAppContext } from '@/components/AppContext';
 
 const QuizView = dynamic(() => import("@/components/student/QuizView").then(m => m.QuizView), { ssr: false });
 
 export default function QuizzesPage() {
   const { user } = useAuth();
+  const { addToast } = useAppContext();
   const { client, getQuizzes, getEnrollments } = useSupabase();
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [submissions, setSubmissions] = useState<QuizSubmission[]>([]);
@@ -33,6 +35,13 @@ export default function QuizzesPage() {
     fetchData();
   }, [fetchData]);
 
+  const handleViewResults = (quizId: string, submissionId: string) => {
+      const sub = submissions.find(s => s.id === submissionId);
+      if (sub) {
+          addToast(`QUIZ RESULT: ${sub.score}% | Completed on: ${new Date(sub.submitted_at).toLocaleDateString()}`, 'info', 6000);
+      }
+  };
+
   return (
     <>
       {activeQuiz && (
@@ -50,7 +59,7 @@ export default function QuizzesPage() {
               const q = quizzes.find(item => item.id === quizId);
               if (q) setActiveQuiz(q);
           }}
-          onViewResults={() => {}}
+          onViewResults={handleViewResults}
       />
     </>
   );

@@ -43,6 +43,17 @@ export interface Enrollment {
   users?: User;
 }
 
+export interface Lesson {
+  id: string;
+  course_id: string;
+  title: string;
+  content: string;
+  video_url?: string;
+  order_index: number;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface Assignment {
   id: string;
   course_id: string;

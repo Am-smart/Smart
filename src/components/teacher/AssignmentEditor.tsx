@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Assignment, Course, AssignmentQuestion } from '@/lib/types';
 import { useSupabase } from '@/hooks/useSupabase';
 import { useAppContext } from '@/components/AppContext';
+import { Plus } from 'lucide-react';
 
 interface AssignmentEditorProps {
     teacherId: string;
@@ -19,13 +20,19 @@ export const AssignmentEditor: React.FC<AssignmentEditorProps> = ({ teacherId, a
         description: assignment?.description || '',
         course_id: assignment?.course_id || (courses.length > 0 ? courses[0].id : ''),
         due_date: assignment?.due_date ? new Date(assignment.due_date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-        points_possible: assignment?.points_possible || 100,
+        points_possible: assignment?.points_possible || 0,
         status: assignment?.status || 'draft',
         anti_cheat_enabled: assignment?.anti_cheat_enabled || false,
         regrade_requests_enabled: assignment?.regrade_requests_enabled !== false,
         questions: assignment?.questions || []
     });
     const [isSaving, setIsSaving] = useState(false);
+
+    // Auto-calculate points_possible
+    useEffect(() => {
+        const total = formData.questions.reduce((sum, q) => sum + (q.points || 0), 0);
+        setFormData(prev => ({ ...prev, points_possible: total }));
+    }, [formData.questions]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -45,6 +52,13 @@ export const AssignmentEditor: React.FC<AssignmentEditorProps> = ({ teacherId, a
         } finally {
             setIsSaving(false);
         }
+    };
+
+    const addStep = () => {
+        setFormData({
+            ...formData,
+            questions: [...formData.questions, { text: '', type: 'essay', points: 10 }]
+        });
     };
 
     return (
@@ -77,8 +91,8 @@ export const AssignmentEditor: React.FC<AssignmentEditorProps> = ({ teacherId, a
                     </div>
                     <div className="grid grid-cols-2 gap-6">
                         <div>
-                            <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">Points Possible</label>
-                            <input type="number" required value={formData.points_possible} onChange={e => setFormData({...formData, points_possible: Number(e.target.value)})} className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all" />
+                            <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">Points Possible (Auto-calculated)</label>
+                            <input type="number" readOnly value={formData.points_possible} className="w-full p-4 rounded-xl border-2 border-slate-50 bg-slate-50 text-slate-500 outline-none transition-all font-bold" />
                         </div>
                         <div>
                             <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">Status</label>
@@ -102,12 +116,6 @@ export const AssignmentEditor: React.FC<AssignmentEditorProps> = ({ teacherId, a
                     <div className="space-y-6 pt-8 border-t">
                         <div className="flex justify-between items-center">
                             <h3 className="text-xl font-bold text-slate-900">Task Questions / Steps</h3>
-                            <button type="button" onClick={() => {
-                                setFormData({
-                                    ...formData,
-                                    questions: [...formData.questions, { text: '', type: 'essay', points: 10 }]
-                                });
-                            }} className="btn-secondary py-2 px-6">+ Add Step</button>
                         </div>
                         {formData.questions.map((q, index) => (
                             <div key={index} className="p-6 bg-slate-50 rounded-2xl border-2 border-slate-100 space-y-4">
@@ -154,6 +162,10 @@ export const AssignmentEditor: React.FC<AssignmentEditorProps> = ({ teacherId, a
                                 }} className="text-red-500 text-[10px] font-bold uppercase tracking-widest">Remove Step</button>
                             </div>
                         ))}
+
+                        <button type="button" onClick={addStep} className="w-full py-4 border-2 border-dashed border-slate-200 rounded-2xl text-slate-400 hover:border-blue-400 hover:text-blue-500 transition-all font-bold flex items-center justify-center gap-2">
+                            <Plus size={18} /> Add Step
+                        </button>
                     </div>
                     <footer className="pt-8 border-t flex justify-between gap-4">
                         <button type="button" onClick={onCancel} className="btn-secondary flex-1 py-4">Discard</button>
