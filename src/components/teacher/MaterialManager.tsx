@@ -3,6 +3,7 @@ import { useSupabase } from '@/hooks/useSupabase';
 import { Course, Material } from '@/lib/types';
 import { useAppContext } from '@/components/AppContext';
 import { saveMaterial, deleteMaterial, uploadFile } from '@/lib/data-actions';
+import { FileUpload } from '@/components/ui/FileUpload';
 
 interface MaterialManagerProps {
     initialMaterials: Material[];
@@ -14,38 +15,35 @@ export const MaterialManager: React.FC<MaterialManagerProps> = ({ initialMateria
     const { client } = useSupabase();
     const { addToast } = useAppContext();
     const [selectedCourseId, setSelectedCourseId] = useState('');
-    const [isUploading, setIsUploading] = useState(false);
 
-    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file || !selectedCourseId) return;
+    const performUpload = async (file: File, category: 'materials' | 'submissions' | 'thumbnails') => {
+        const { filePath } = await uploadFile(file.name, category);
+        const { error: uploadError } = await client.storage
+            .from('lms-files')
+            .upload(filePath, file);
 
-        setIsUploading(true);
+        if (uploadError) throw uploadError;
+
+        const { data: publicUrl } = client.storage
+            .from('lms-files')
+            .getPublicUrl(filePath);
+
+        return { url: publicUrl.publicUrl };
+    };
+
+    const handleUploadComplete = async (url: string, fileName: string) => {
+        if (!selectedCourseId) return;
         try {
-            const { filePath } = await uploadFile(file.name, 'materials');
-
-            const { error: uploadError } = await client.storage
-                .from('lms-files')
-                .upload(filePath, file);
-
-            if (uploadError) throw uploadError;
-
-            const { data: publicUrl } = client.storage
-                .from('lms-files')
-                .getPublicUrl(filePath);
-
             await saveMaterial({
                 course_id: selectedCourseId,
-                title: file.name,
-                file_url: publicUrl.publicUrl
+                title: fileName,
+                file_url: url
             });
             onRefresh();
             addToast('Material uploaded successfully!', 'success');
         } catch (err) {
-            console.error('Upload failed:', err);
-            addToast('File upload failed.', 'error');
-        } finally {
-            setIsUploading(false);
+            console.error('Failed to save material:', err);
+            addToast('Failed to save material information.', 'error');
         }
     };
 
@@ -63,17 +61,32 @@ export const MaterialManager: React.FC<MaterialManagerProps> = ({ initialMateria
 
     return (
         <div className="space-y-12">
-            <header className="flex justify-between items-center mb-8">
-                <h2 className="text-2xl font-bold text-slate-900">Course Materials</h2>
-                <div className="flex gap-4">
-                    <select value={selectedCourseId} onChange={e => setSelectedCourseId(e.target.value)} className="p-3 rounded-xl border border-slate-200 outline-none focus:border-blue-500">
+            <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
+                <div>
+                    <h2 className="text-2xl font-bold text-slate-900">Course Materials</h2>
+                    <p className="text-sm text-slate-500 font-medium">Manage PDFs, lecture notes, and study guides.</p>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
+                    <select
+                        value={selectedCourseId}
+                        onChange={e => setSelectedCourseId(e.target.value)}
+                        className="p-3 rounded-xl border border-slate-200 outline-none focus:border-blue-500 bg-white min-w-[200px]"
+                    >
                         <option value="">Select Course to Upload</option>
                         {courses.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
                     </select>
-                    <label className={`btn-primary px-8 py-3 cursor-pointer ${!selectedCourseId || isUploading ? 'opacity-50 pointer-events-none' : ''}`}>
-                        <input type="file" className="hidden" onChange={handleFileUpload} disabled={!selectedCourseId || isUploading} />
-                        {isUploading ? 'Uploading...' : 'Upload Material'}
-                    </label>
+
+                    {selectedCourseId && (
+                        <div className="w-full sm:w-64">
+                            <FileUpload
+                                category="materials"
+                                uploadFn={performUpload}
+                                onUploadComplete={handleUploadComplete}
+                                label="Upload Material"
+                                className="!min-h-0"
+                            />
+                        </div>
+                    )}
                 </div>
             </header>
 

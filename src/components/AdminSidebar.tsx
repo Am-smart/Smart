@@ -8,7 +8,8 @@ import {
   ShieldCheck,
   Activity,
   Settings,
-  Info
+  Info,
+  CircleHelp
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -28,6 +29,7 @@ export const AdminSidebar: React.FC<SidebarProps> = ({ activePage, onNavigate, i
     { id: 'health', label: 'System Health', icon: <Activity size={20} /> },
     { id: 'management', label: 'System Management', icon: <Settings size={20} /> },
     { id: 'settings', label: 'Admin Settings', icon: <Settings size={20} /> },
+    { id: 'help', label: 'Help', icon: <CircleHelp size={20} /> },
     { id: 'system', label: 'System Info', icon: <Info size={20} /> },
   ];
 
