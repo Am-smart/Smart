@@ -1,4 +1,5 @@
 -- New function: approve_password_reset
+DROP FUNCTION IF EXISTS approve_password_reset(p_user_id UUID, p_temp_password TEXT);
 CREATE OR REPLACE FUNCTION approve_password_reset(p_user_id UUID, p_temp_password TEXT)
 RETURNS JSONB AS $$
 DECLARE
@@ -22,6 +23,7 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- New function: deny_password_reset
+DROP FUNCTION IF EXISTS deny_password_reset(p_user_id UUID, p_reason TEXT);
 CREATE OR REPLACE FUNCTION deny_password_reset(p_user_id UUID, p_reason TEXT)
 RETURNS JSONB AS $$
 BEGIN
@@ -38,6 +40,7 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Enhanced request_password_reset
+DROP FUNCTION IF EXISTS request_password_reset(p_email VARCHAR, p_reason TEXT, p_risk_level TEXT);
 CREATE OR REPLACE FUNCTION request_password_reset(p_email VARCHAR, p_reason TEXT, p_risk_level TEXT DEFAULT 'medium')
 RETURNS JSONB AS $$
 DECLARE
@@ -74,6 +77,7 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Modified register_user to check reset status
+DROP FUNCTION IF EXISTS register_user(p_full_name VARCHAR, p_email VARCHAR, p_password VARCHAR, p_phone VARCHAR, p_role VARCHAR);
 CREATE OR REPLACE FUNCTION register_user(p_full_name VARCHAR, p_email VARCHAR, p_password VARCHAR, p_phone VARCHAR, p_role VARCHAR)
 RETURNS JSONB AS $$
 DECLARE
@@ -123,6 +127,7 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Modified authenticate_user to return reset info ONLY on failure
+DROP FUNCTION IF EXISTS authenticate_user(p_email VARCHAR, p_password VARCHAR);
 CREATE OR REPLACE FUNCTION authenticate_user(p_email VARCHAR, p_password VARCHAR)
 RETURNS JSONB AS $$
 DECLARE

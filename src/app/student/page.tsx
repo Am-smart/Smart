@@ -14,29 +14,40 @@ export default function StudentDashboard() {
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [stats, setStats] = useState({ courses: 0, dueSoon: 0, xp: 0 });
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     if (!user) return;
-    const [myEnrollments, allAssignments, mySubmissions] = await Promise.all([
-      client.from('enrollments').select('*, courses(*)').eq('student_id', user.id).then(r => r.data || []),
-      client.from('assignments').select('*, courses(*)').eq('status', 'published').then(r => r.data || []),
-      client.from('submissions').select('*').eq('student_id', user.id).then(r => r.data || [])
-    ]);
+    setIsLoading(true);
+    setError(null);
+    try {
+        const [myEnrollments, allAssignments, mySubmissions] = await Promise.all([
+          client.from('enrollments').select('*, courses(*)').eq('student_id', user.id).then(r => r.data || []),
+          client.from('assignments').select('*, courses(*)').eq('status', 'published').then(r => r.data || []),
+          client.from('submissions').select('*').eq('student_id', user.id).then(r => r.data || [])
+        ]);
 
-    const enrolledIds = myEnrollments.map((e: Enrollment) => e.course_id);
-    const pendingAssignments = allAssignments.filter((a: Assignment) =>
-        enrolledIds.includes(a.course_id) &&
-        (!a.due_date || new Date(a.due_date as string) > new Date()) &&
-        !mySubmissions.some((s: { assignment_id: string }) => s.assignment_id === a.id)
-    );
+        const enrolledIds = myEnrollments.map((e: Enrollment) => e.course_id);
+        const pendingAssignments = allAssignments.filter((a: Assignment) =>
+            enrolledIds.includes(a.course_id) &&
+            (!a.due_date || new Date(a.due_date as string) > new Date()) &&
+            !mySubmissions.some((s: { assignment_id: string }) => s.assignment_id === a.id)
+        );
 
-    setEnrollments(myEnrollments);
-    setAssignments(pendingAssignments);
-    setStats({
-      courses: myEnrollments.length,
-      dueSoon: pendingAssignments.length,
-      xp: user.xp || 0
-    });
+        setEnrollments(myEnrollments);
+        setAssignments(pendingAssignments);
+        setStats({
+          courses: myEnrollments.length,
+          dueSoon: pendingAssignments.length,
+          xp: user.xp || 0
+        });
+    } catch (err) {
+        console.error('Failed to fetch dashboard data:', err);
+        setError('Failed to load dashboard data. Please try again.');
+    } finally {
+        setIsLoading(false);
+    }
   }, [user, client]);
 
   useEffect(() => {
@@ -44,6 +55,31 @@ export default function StudentDashboard() {
   }, [fetchData]);
 
   if (!user) return null;
+
+  if (isLoading) {
+    return (
+        <div className="space-y-8 animate-pulse">
+            <div className="h-64 bg-slate-100 rounded-3xl"></div>
+            <div className="h-8 w-64 bg-slate-100 rounded-xl"></div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {[1,2,3].map(i => <div key={i} className="h-32 bg-slate-100 rounded-2xl"></div>)}
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {[1,2].map(i => <div key={i} className="h-80 bg-slate-100 rounded-2xl"></div>)}
+            </div>
+        </div>
+    );
+  }
+
+  if (error) {
+    return (
+        <div className="py-20 text-center space-y-4">
+            <div className="text-4xl">⚠️</div>
+            <h3 className="text-xl font-bold text-slate-900">{error}</h3>
+            <button onClick={fetchData} className="btn-primary px-8">Try Again</button>
+        </div>
+    );
+  }
 
   return (
     <div className="space-y-8">

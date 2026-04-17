@@ -13,20 +13,29 @@ export const AdminAnalytics: React.FC = () => {
             sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
             const [u, s, c, lc, qs, g] = await Promise.all([
-                client.from('users').select('id', { count: 'exact', head: true }),
-                client.from('sessions').select('id', { count: 'exact', head: true }).gt('expires_at', new Date().toISOString()),
-                client.from('courses').select('id', { count: 'exact', head: true }),
-                client.from('lesson_completions').select('id', { count: 'exact', head: true }),
+                client.from('users').select('*', { count: 'exact', head: true }),
+                client.from('sessions').select('*', { count: 'exact', head: true }).gt('expires_at', new Date().toISOString()),
+                client.from('courses').select('*', { count: 'exact', head: true }),
+                client.from('lesson_completions').select('*', { count: 'exact', head: true }),
                 client.from('quiz_submissions').select('score, quiz_id').gte('score', 60),
                 client.from('users').select('created_at').gte('created_at', sevenDaysAgo.toISOString())
             ]);
 
-            // Simple growth calculation: group recent users by day
+            // Improved growth calculation: group users by last 7 days
             const dailyGrowth = new Array(7).fill(0);
+            const now = new Date();
+
             g.data?.forEach(user => {
-                const day = new Date(user.created_at).getDay();
-                dailyGrowth[day]++;
+                const createdDate = new Date(user.created_at);
+                const diffTime = Math.abs(now.getTime() - createdDate.getTime());
+                const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+                if (diffDays < 7) {
+                    // diffDays 0 is today (last bar), diffDays 6 is 6 days ago (first bar)
+                    dailyGrowth[6 - diffDays]++;
+                }
             });
+
             // Normalize for display (max height 100)
             const max = Math.max(...dailyGrowth, 1);
             setGrowth(dailyGrowth.map(v => (v / max) * 100));
@@ -58,8 +67,8 @@ export const AdminAnalytics: React.FC = () => {
                             ))}
                         </div>
                         <div className="flex justify-between text-[10px] text-slate-400 font-bold px-2">
-                            <span>MON</span>
-                            <span>SUN</span>
+                            <span>{new Date(Date.now() - 6 * 24 * 60 * 60 * 1000).toLocaleDateString([], {weekday: 'short'}).toUpperCase()}</span>
+                            <span>TODAY</span>
                         </div>
                     </div>
                     <div className="text-4xl font-black text-slate-900 mt-2">{counts.users}</div>
@@ -112,7 +121,7 @@ export const SystemHealth: React.FC = () => {
     useEffect(() => {
         const checkLatency = async () => {
             const start = performance.now();
-            await client.from('users').select('id', { count: 'exact', head: true });
+            await client.from('users').select('*', { count: 'exact', head: true });
             const end = performance.now();
             setLatency(Math.round(end - start));
         };
@@ -168,7 +177,7 @@ export const SystemInfo: React.FC = () => {
     useEffect(() => {
         const fetchTotalRecords = async () => {
             const tables = ['users', 'courses', 'lessons', 'enrollments', 'assignments', 'submissions', 'quizzes', 'quiz_submissions', 'discussions', 'notifications', 'system_logs'];
-            const counts = await Promise.all(tables.map(t => client.from(t).select('id', { count: 'exact', head: true })));
+            const counts = await Promise.all(tables.map(t => client.from(t).select('*', { count: 'exact', head: true })));
             const total = counts.reduce((acc, c) => acc + (c.count || 0), 0);
             setTotalRecords(total);
         };
