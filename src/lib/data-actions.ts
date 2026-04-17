@@ -14,10 +14,8 @@ async function getVerifiedUser() {
 export async function createSystemLog(log: Record<string, unknown>) {
     const user = await getVerifiedUser();
 
-    // System logs can be created by admins, or by users reporting anti-cheat violations
-    const isAntiCheat = log.category === 'anti-cheat';
-    if (user.role !== 'admin' && !isAntiCheat) throw new Error('Forbidden');
-
+    // Allow all authenticated users to create log entries for audit trails.
+    // Read access is still restricted to admins at the database level.
     const { error } = await withSession(supabase.from('system_logs'), user.sessionId as string)
         .insert([{
             ...log,
