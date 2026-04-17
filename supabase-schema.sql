@@ -499,6 +499,11 @@ BEGIN
   END IF;
 
   -- Successful login
+  -- One-time temp password usage: If login with temp pass succeeds, remove it from reset_request
+  IF v_user.reset_request->>'status' = 'approved' THEN
+     UPDATE users SET reset_request = reset_request - 'temp_password' WHERE id = v_user.id;
+  END IF;
+
   UPDATE users SET last_login = v_now, failed_attempts = 0, locked_until = NULL WHERE id = v_user.id;
   INSERT INTO sessions (user_id, expires_at) VALUES (v_user.id, v_now + INTERVAL '7 days') RETURNING id INTO v_session_id;
 
@@ -519,6 +524,7 @@ DECLARE
 BEGIN
   v_caller_role := COALESCE(current_app_role(), 'public');
 
+  -- Check if email already exists and provide detailed feedback on reset status
   SELECT * INTO v_user FROM users WHERE email = p_email;
   IF v_user.id IS NOT NULL THEN
     IF v_user.reset_request IS NOT NULL THEN
@@ -568,6 +574,7 @@ BEGIN
     RETURN jsonb_build_object('success', false, 'error', 'No account found with this email.');
   END IF;
 
+  -- Check existing reset requests
   IF v_user.reset_request IS NOT NULL THEN
      IF v_user.reset_request->>'status' = 'pending' THEN
         RETURN jsonb_build_object('success', false, 'error', 'A request is already under review for this account.');
