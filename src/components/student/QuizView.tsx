@@ -102,13 +102,18 @@ export const QuizView: React.FC<QuizViewProps> = ({ quiz, user, onComplete, onCa
     }
   }, [quiz, user, answers, isSubmitting, result, isOnline, addToQueue, setCache, timeLeft, startedAt, addToast]);
 
-  // Anti-cheat prevention: Auto-submit if violation threshold reached
+  // Anti-cheat: Soft-flagging only (No hard lock/auto-submit per requirements)
   useEffect(() => {
+    if (quiz.anti_cheat_enabled && violationCount > 0) {
+        addToast(`Security Warning: Violation detected (${violationCount}). This assessment has been flagged for review.`, 'info');
+    }
+    /* Hard enforcement disabled:
     if (quiz.anti_cheat_enabled && violationCount >= 5 && !isSubmitting && !result) {
         addToast('Security Threshold Reached: Assessment locked and auto-submitted due to multiple violations.', 'error', 10000);
         handleSubmit(false);
     }
-  }, [violationCount, quiz.anti_cheat_enabled, isSubmitting, result, handleSubmit, addToast]);
+    */
+  }, [violationCount, quiz.anti_cheat_enabled, addToast]);
 
   useEffect(() => {
     if (timeLeft === null) return;
@@ -172,9 +177,11 @@ export const QuizView: React.FC<QuizViewProps> = ({ quiz, user, onComplete, onCa
         </header>
 
         {quiz.anti_cheat_enabled && (
-            <div className="mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-center gap-3 text-amber-800 text-xs md:text-sm font-medium">
-                <span className="text-xl">🛡️</span>
-                Anti-cheat protection is active. Your actions are being monitored.
+            <div className={`mb-6 p-4 rounded-xl flex items-center gap-3 text-xs md:text-sm font-medium border ${violationCount > 0 ? 'bg-red-50 border-red-200 text-red-800' : 'bg-amber-50 border-amber-200 text-amber-800'}`}>
+                <span className="text-xl">{violationCount > 0 ? '⚠️' : '🛡️'}</span>
+                {violationCount > 0
+                    ? `SECURITY FLAG: ${violationCount} violation(s) detected. This attempt is marked for review.`
+                    : 'Anti-cheat protection is active. Your actions are being monitored.'}
             </div>
         )}
 

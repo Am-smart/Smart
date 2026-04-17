@@ -25,8 +25,12 @@ export const AssignmentForm: React.FC<AssignmentFormProps> = ({ assignment, user
 
   const { violationCount } = useAntiCheat(assignment.anti_cheat_enabled, assignment.title);
 
-  // Anti-cheat prevention
+  // Anti-cheat: Soft-flagging only (No hard lock/auto-submit per requirements)
   React.useEffect(() => {
+    if (assignment.anti_cheat_enabled && violationCount > 0) {
+        addToast(`Security Warning: Violation detected (${violationCount}). This submission has been flagged for review.`, 'info');
+    }
+    /* Hard enforcement disabled:
     if (assignment.anti_cheat_enabled && violationCount >= 5 && !isSubmitting) {
         addToast('Security Threshold Reached: Assignment locked and auto-submitted due to multiple violations.', 'error', 10000);
         handleSubmit();
