@@ -740,11 +740,28 @@ export async function submitQuiz(quizId: string, submissionData: Partial<QuizSub
       supabase.from('quizzes'),
       user.sessionId as string
     )
-      .select('questions, passing_score')
+      .select('questions, passing_score, attempts_allowed')
       .eq('id', quizId)
       .single();
 
     if (quizError || !quiz) throw new Error('Quiz not found');
+
+    // Get current attempt count
+    const { data: existingSubmissions } = await withSession(
+        supabase.from('quiz_submissions'),
+        user.sessionId as string
+    )
+    .select('attempt_number')
+    .eq('quiz_id', quizId)
+    .eq('student_id', user.id)
+    .order('attempt_number', { ascending: false });
+
+    const currentAttempts = existingSubmissions?.length || 0;
+    if (quiz.attempts_allowed > 0 && currentAttempts >= quiz.attempts_allowed) {
+        throw new Error(`Maximum attempts (${quiz.attempts_allowed}) reached for this quiz.`);
+    }
+
+    const nextAttempt = currentAttempts + 1;
 
     const answers = (submissionData.answers as Record<string, string>) || {};
     const questions = (quiz.questions as { id: string; correct_answer: string; points?: number }[]) || [];
@@ -763,9 +780,10 @@ export async function submitQuiz(quizId: string, submissionData: Partial<QuizSub
       supabase.from('quiz_submissions'),
       user.sessionId as string
     )
-      .upsert({
+      .insert({
         quiz_id: quizId,
         student_id: user.id,
+        attempt_number: nextAttempt,
         answers,
         score: calculatedScore,
         total_points: totalPoints,
@@ -774,7 +792,7 @@ export async function submitQuiz(quizId: string, submissionData: Partial<QuizSub
         time_spent: submissionData.time_spent || 0,
         violation_count: submissionData.violation_count || 0,
         started_at: submissionData.started_at || new Date().toISOString()
-      }, { onConflict: 'quiz_id, student_id' });
+      });
 
     if (error) throw new Error(error.message);
 
@@ -834,8 +852,12 @@ export async function getRoleCount(): Promise<{ teachers: number; admins: number
     const { data, error } = await supabase.rpc('get_role_counts');
 
     if (error) {
-      throw new Error(error.message);
+      console.error('getRoleCount RPC error:', error);
+      // If RPC fails (e.g. not created yet), fallback to a basic query if possible or return defaults
+      return { teachers: 0, admins: 0, total: 0 };
     }
+
+    if (!data) return { teachers: 0, admins: 0, total: 0 };
 
     return data as { teachers: number; admins: number; total: number };
   } catch (error) {
@@ -848,4 +870,19 @@ export async function updateProfile(updates: Partial<User>) {
     const user = await getVerifiedUser();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return saveUser({ ...updates, id: user.id } as any);
+}
+
+// 19. File Upload Utility (Server-side metadata/logging, client does the actual heavy lifting to Supabase Storage)
+export async function uploadFile(fileName: string, category: 'materials' | 'submissions' | 'thumbnails') {
+    const user = await getVerifiedUser();
+    const filePath = `${category}/${user.id}/${Date.now()}_${fileName}`;
+
+    await createSystemLog({
+        level: 'info',
+        category: 'management',
+        message: `File upload initiated: ${fileName} in category ${category}`,
+        user_id: user.id
+    });
+
+    return { filePath };
 }

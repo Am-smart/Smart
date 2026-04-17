@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Assignment, Course, AssignmentQuestion } from '@/lib/types';
 import { useAppContext } from '@/components/AppContext';
-import { Plus } from 'lucide-react';
-import { saveAssignment } from '@/lib/data-actions';
+import { Plus, Paperclip } from 'lucide-react';
+import { saveAssignment, uploadFile } from '@/lib/data-actions';
+import { useSupabase } from '@/hooks/useSupabase';
 
 interface AssignmentEditorProps {
     teacherId: string;
@@ -14,6 +15,7 @@ interface AssignmentEditorProps {
 
 export const AssignmentEditor: React.FC<AssignmentEditorProps> = ({ teacherId, assignment, courses, onSave, onCancel }) => {
     const { addToast } = useAppContext();
+    const { client } = useSupabase();
     const [formData, setFormData] = useState({
         title: assignment?.title || '',
         description: assignment?.description || '',
@@ -23,9 +25,11 @@ export const AssignmentEditor: React.FC<AssignmentEditorProps> = ({ teacherId, a
         status: assignment?.status || 'draft',
         anti_cheat_enabled: assignment?.anti_cheat_enabled || false,
         regrade_requests_enabled: assignment?.regrade_requests_enabled !== false,
-        questions: assignment?.questions || []
+        questions: assignment?.questions || [],
+        attachments: assignment?.attachments || []
     });
     const [isSaving, setIsSaving] = useState(false);
+    const [isUploading, setIsUploading] = useState(false);
 
     // Auto-calculate points_possible
     useEffect(() => {
@@ -55,6 +59,36 @@ export const AssignmentEditor: React.FC<AssignmentEditorProps> = ({ teacherId, a
             ...formData,
             questions: [...formData.questions, { text: '', type: 'essay', points: 10 }]
         });
+    };
+
+    const handleAttachmentUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setIsUploading(true);
+        try {
+            const { filePath } = await uploadFile(file.name, 'materials');
+            const { error: uploadError } = await client.storage
+                .from('lms-files')
+                .upload(filePath, file);
+
+            if (uploadError) throw uploadError;
+
+            const { data: publicUrl } = client.storage
+                .from('lms-files')
+                .getPublicUrl(filePath);
+
+            setFormData(prev => ({
+                ...prev,
+                attachments: [...(prev.attachments || []), { name: file.name, url: publicUrl.publicUrl, type: file.type }]
+            }));
+            addToast('Attachment uploaded!', 'success');
+        } catch (err) {
+            console.error('Attachment upload failed:', err);
+            addToast('Upload failed', 'error');
+        } finally {
+            setIsUploading(false);
+        }
     };
 
     return (
@@ -98,6 +132,26 @@ export const AssignmentEditor: React.FC<AssignmentEditorProps> = ({ teacherId, a
                             </select>
                         </div>
                     </div>
+                    <div className="space-y-4">
+                        <label className="block text-sm font-bold text-slate-700 uppercase tracking-wide">Attachments (Reference Materials)</label>
+                        <div className="flex flex-wrap gap-2">
+                            {formData.attachments?.map((att: Record<string, unknown>, idx: number) => (
+                                <div key={idx} className="flex items-center gap-2 bg-slate-100 px-3 py-1 rounded-full text-xs font-medium">
+                                    <span className="truncate max-w-[150px]">{att.name as string}</span>
+                                    <button type="button" onClick={() => {
+                                        const updated = [...(formData.attachments || [])];
+                                        updated.splice(idx, 1);
+                                        setFormData({ ...formData, attachments: updated });
+                                    }} className="text-red-500 font-bold hover:bg-red-100 rounded-full w-4 h-4 flex items-center justify-center">×</button>
+                                </div>
+                            ))}
+                            <label className={`flex items-center gap-2 bg-blue-50 text-blue-600 px-3 py-1 rounded-full text-xs font-bold cursor-pointer hover:bg-blue-100 transition-colors ${isUploading ? 'opacity-50 pointer-events-none' : ''}`}>
+                                <input type="file" className="hidden" onChange={handleAttachmentUpload} disabled={isUploading} />
+                                <Paperclip size={12} /> {isUploading ? 'Uploading...' : 'Add Attachment'}
+                            </label>
+                        </div>
+                    </div>
+
                     <div className="grid grid-cols-2 gap-4">
                         <div className="flex items-center gap-3 p-4 bg-amber-50 rounded-xl border border-amber-100">
                             <input type="checkbox" id="antiCheat" checked={formData.anti_cheat_enabled} onChange={e => setFormData({...formData, anti_cheat_enabled: e.target.checked})} className="w-5 h-5 text-blue-600" />

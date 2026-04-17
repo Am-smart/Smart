@@ -184,7 +184,8 @@ CREATE TABLE IF NOT EXISTS quiz_submissions (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   violation_count INTEGER DEFAULT 0,
   version INTEGER DEFAULT 1,
-  UNIQUE(quiz_id, student_id)
+  attempt_number INTEGER DEFAULT 1,
+  UNIQUE(quiz_id, student_id, attempt_number)
 );
 
 CREATE TABLE IF NOT EXISTS materials (
@@ -415,6 +416,14 @@ BEGIN
     END IF;
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'badges' AND column_name = 'updated_at') THEN
         ALTER TABLE badges ADD COLUMN updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
+    END IF;
+
+    -- Quiz Attempts Migration
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'quiz_submissions' AND column_name = 'attempt_number') THEN
+        ALTER TABLE quiz_submissions ADD COLUMN attempt_number INTEGER DEFAULT 1;
+        -- Drop old unique constraint if it exists (names vary, but let's try standard ones)
+        ALTER TABLE quiz_submissions DROP CONSTRAINT IF EXISTS quiz_submissions_quiz_id_student_id_key;
+        ALTER TABLE quiz_submissions ADD CONSTRAINT quiz_submissions_attempt_unique UNIQUE(quiz_id, student_id, attempt_number);
     END IF;
 END $$;
 
@@ -741,6 +750,22 @@ BEGIN
   END IF;
 
   RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE OR REPLACE FUNCTION get_role_counts()
+RETURNS JSONB AS $$
+DECLARE
+  v_teachers INTEGER;
+  v_admins INTEGER;
+BEGIN
+  SELECT COUNT(*) INTO v_teachers FROM users WHERE role = 'teacher';
+  SELECT COUNT(*) INTO v_admins FROM users WHERE role = 'admin';
+  RETURN jsonb_build_object(
+    'teachers', v_teachers,
+    'admins', v_admins,
+    'total', v_teachers + v_admins
+  );
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 

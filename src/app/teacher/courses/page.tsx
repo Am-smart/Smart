@@ -28,19 +28,17 @@ export default function CoursesPage() {
     fetchCourses();
   }, [fetchCourses]);
 
-  if (isAdding || editingCourse) {
-      return (
-          <CourseEditor
-              teacherId={user!.id}
-              course={editingCourse || undefined}
-              onSave={() => { setEditingCourse(null); setIsAdding(false); fetchCourses(); }}
-              onCancel={() => { setEditingCourse(null); setIsAdding(false); }}
-          />
-      );
-  }
-
   return (
     <div className="relative">
+      {(isAdding || editingCourse) && (
+        <CourseEditor
+            teacherId={user!.id}
+            course={editingCourse || undefined}
+            onSave={() => { setEditingCourse(null); setIsAdding(false); fetchCourses(); }}
+            onCancel={() => { setEditingCourse(null); setIsAdding(false); }}
+        />
+      )}
+
       <CourseManager
           courses={courses}
           onEdit={setEditingCourse}

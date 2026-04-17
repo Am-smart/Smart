@@ -144,7 +144,8 @@ export interface QuizSubmission {
   answers: Record<string, unknown>;
   score: number;
   total_points: number;
-  status: 'draft' | 'submitted';
+  status: 'in progress' | 'submitted';
+  attempt_number?: number;
   time_spent: number;
   violation_count?: number;
   version?: number;
@@ -193,7 +194,7 @@ export interface LiveClass {
   start_at: string;
   end_at: string;
   actual_end_at?: string | null;
-  status: 'scheduled' | 'live' | 'ended';
+  status: 'scheduled' | 'live' | 'completed' | 'cancelled';
   version?: number;
 }
 

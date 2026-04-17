@@ -15,6 +15,7 @@ interface QuizViewProps {
 export const QuizView: React.FC<QuizViewProps> = ({ quiz, user, onComplete, onCancel }) => {
   const { addToast } = useAppContext();
   const [answers, setAnswers] = useState<Record<string, string>>({});
+  const [questions, setQuestions] = useState(quiz.questions || []);
   const [timeLeft, setTimeLeft] = useState<number | null>(quiz.time_limit ? quiz.time_limit * 60 : null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [result, setResult] = useState<{ score: number; passed: boolean; isTimeout?: boolean } | null>(null);
@@ -22,6 +23,16 @@ export const QuizView: React.FC<QuizViewProps> = ({ quiz, user, onComplete, onCa
   const [startedAt] = useState(new Date().toISOString());
 
   useAntiCheat(quiz.anti_cheat_enabled, quiz.title);
+
+  // Handle Shuffling
+  useEffect(() => {
+    if (quiz.shuffle_questions && quiz.questions) {
+        const shuffled = [...quiz.questions].sort(() => Math.random() - 0.5);
+        setQuestions(shuffled);
+    } else {
+        setQuestions(quiz.questions || []);
+    }
+  }, [quiz.shuffle_questions, quiz.questions]);
 
   // Load saved progress from IndexedDB
   useEffect(() => {
@@ -160,7 +171,7 @@ export const QuizView: React.FC<QuizViewProps> = ({ quiz, user, onComplete, onCa
         )}
 
         <div className="space-y-10 md:space-y-12">
-          {(quiz.questions || []).map((q, index: number) => (
+          {questions.map((q, index: number) => (
             <div key={q.id} className="quiz-question">
               <h3 className="text-lg font-bold mb-4 flex items-start gap-2">
                 <span className="text-blue-600 shrink-0">{index + 1}.</span>
@@ -197,7 +208,7 @@ export const QuizView: React.FC<QuizViewProps> = ({ quiz, user, onComplete, onCa
 
         <div className="mt-12 pt-8 border-t flex flex-col md:flex-row justify-between items-center gap-6">
             <p className="text-slate-500 text-sm font-medium">
-                {Object.keys(answers).length} of {quiz.questions?.length || 0} answered
+                {Object.keys(answers).length} of {questions.length} answered
             </p>
             <button
                 onClick={() => handleSubmit(false)}
