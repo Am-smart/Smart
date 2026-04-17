@@ -1073,7 +1073,7 @@ CREATE POLICY "Admins have full access to discussions" ON discussions
 -- NOTIFICATIONS
 DROP POLICY IF EXISTS "Users can manage their own notifications" ON notifications;
 CREATE POLICY "Users can manage their own notifications" ON notifications
-  FOR ALL TO anon USING (user_id = current_app_user());
+  FOR ALL TO anon USING (user_id = current_app_user()) WITH CHECK (user_id = current_app_user());
 
 -- PLANNER
 DROP POLICY IF EXISTS "Users can manage their own planner items" ON planner;
