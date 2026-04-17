@@ -35,8 +35,7 @@ export const AssignmentForm: React.FC<AssignmentFormProps> = ({ assignment, user
         addToast('Security Threshold Reached: Assignment locked and auto-submitted due to multiple violations.', 'error', 10000);
         handleSubmit();
     }
-    */
-  }, [violationCount, assignment.anti_cheat_enabled, addToast, isSubmitting]);
+  }, [violationCount, assignment.anti_cheat_enabled, isSubmitting, addToast]);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, idx?: number) => {
     const file = e.target.files?.[0];
