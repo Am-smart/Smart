@@ -51,6 +51,7 @@ export interface Lesson {
   title: string;
   content: string;
   video_url?: string;
+  status: 'draft' | 'published' | 'archived';
   order_index: number;
   version?: number;
   created_at?: string;
@@ -246,6 +247,7 @@ export interface Material {
   title: string;
   description?: string;
   file_url: string;
+  status: 'draft' | 'published' | 'archived';
   version?: number;
   created_at: string;
 }

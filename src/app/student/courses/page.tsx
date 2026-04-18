@@ -43,7 +43,7 @@ function CatalogContent() {
         const c = courses.find(item => item.id === courseIdParam);
         if (c) {
             setActiveCourse(c);
-            client.from('lessons').select('*').eq('course_id', c.id).order('order_index', { ascending: true })
+            client.from('lessons').select('*').eq('course_id', c.id).eq('status', 'published').order('order_index', { ascending: true })
                 .then(({ data }) => setLessons((data as Lesson[]) || []));
         }
     } else {

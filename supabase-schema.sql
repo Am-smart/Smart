@@ -60,6 +60,7 @@ CREATE TABLE IF NOT EXISTS lessons (
   content TEXT,
   video_url TEXT,
   order_index INTEGER DEFAULT 0,
+  status VARCHAR(50) DEFAULT 'draft' CHECK (status IN ('draft', 'published', 'archived')),
   version INTEGER DEFAULT 1,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -197,6 +198,7 @@ CREATE TABLE IF NOT EXISTS materials (
   description TEXT,
   file_url TEXT,
   file_type VARCHAR(50),
+  status VARCHAR(50) DEFAULT 'draft' CHECK (status IN ('draft', 'published', 'archived')),
   version INTEGER DEFAULT 1,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -633,21 +635,35 @@ BEGIN
         RETURN jsonb_build_object('success', false, 'error', 'Unauthorized: Only admins can perform this action');
     END IF;
 
-    v_hashed_password := CASE WHEN p_password IS NOT NULL AND p_password != '' THEN crypt(p_password, gen_salt('bf', 10)) ELSE NULL END;
-
-    UPDATE users
-    SET
-        full_name = COALESCE(p_full_name, full_name),
-        email = COALESCE(p_email, email),
-        password = COALESCE(v_hashed_password, password),
-        phone = COALESCE(p_phone, phone),
-        role = COALESCE(p_role, role),
-        xp = COALESCE(p_xp, xp),
-        active = COALESCE(p_active, active),
-        flagged = COALESCE(p_flagged, flagged),
-        version = version + 1,
-        updated_at = NOW()
-    WHERE id = p_user_id;
+    IF p_password IS NOT NULL AND p_password != '' THEN
+        v_hashed_password := crypt(p_password, gen_salt('bf', 10));
+        UPDATE users
+        SET
+            full_name = p_full_name,
+            email = p_email,
+            password = v_hashed_password,
+            phone = p_phone,
+            role = p_role,
+            xp = p_xp,
+            active = p_active,
+            flagged = p_flagged,
+            version = version + 1,
+            updated_at = NOW()
+        WHERE id = p_user_id;
+    ELSE
+        UPDATE users
+        SET
+            full_name = p_full_name,
+            email = p_email,
+            phone = p_phone,
+            role = p_role,
+            xp = p_xp,
+            active = p_active,
+            flagged = p_flagged,
+            version = version + 1,
+            updated_at = NOW()
+        WHERE id = p_user_id;
+    END IF;
 
     RETURN jsonb_build_object('success', true);
 END;
@@ -1044,7 +1060,7 @@ CREATE POLICY "Teachers can manage lessons for their courses" ON lessons
 
 DROP POLICY IF EXISTS "Students can view lessons for enrolled courses" ON lessons;
 CREATE POLICY "Students can view lessons for enrolled courses" ON lessons
-  FOR SELECT TO anon USING (check_is_enrolled(course_id));
+  FOR SELECT TO anon USING (check_is_enrolled(course_id) AND status = 'published');
 
 DROP POLICY IF EXISTS "Admins have full access to lessons" ON lessons;
 CREATE POLICY "Admins have full access to lessons" ON lessons
@@ -1057,7 +1073,7 @@ CREATE POLICY "Teachers can manage materials for their courses" ON materials
 
 DROP POLICY IF EXISTS "Students can view materials for enrolled courses" ON materials;
 CREATE POLICY "Students can view materials for enrolled courses" ON materials
-  FOR SELECT TO anon USING (check_is_enrolled(course_id));
+  FOR SELECT TO anon USING (check_is_enrolled(course_id) AND status = 'published');
 
 DROP POLICY IF EXISTS "Admins have full access to materials" ON materials;
 CREATE POLICY "Admins have full access to materials" ON materials

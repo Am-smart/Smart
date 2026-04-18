@@ -16,7 +16,7 @@ export const LessonEditor: React.FC<LessonEditorProps> = ({ course, onClose }) =
     const [lessons, setLessons] = useState<Lesson[]>([]);
     const [isAdding, setIsAdding] = useState(false);
     const [editingLesson, setEditingLesson] = useState<Lesson | null>(null);
-    const [formData, setFormData] = useState({ title: '', content: '', video_url: '' });
+    const [formData, setFormData] = useState({ title: '', content: '', video_url: '', status: 'draft' as Lesson['status'] });
 
     const fetchLessons = useCallback(async () => {
         const { data } = await client.from('lessons').select('*').eq('course_id', course.id).order('order_index', { ascending: true });
@@ -45,7 +45,7 @@ export const LessonEditor: React.FC<LessonEditorProps> = ({ course, onClose }) =
             }
             setIsAdding(false);
             setEditingLesson(null);
-            setFormData({ title: '', content: '', video_url: '' });
+            setFormData({ title: '', content: '', video_url: '', status: 'draft' });
             fetchLessons();
         } catch (err: unknown) {
             const msg = err instanceof Error ? err.message : 'Failed to save lesson';
@@ -67,7 +67,12 @@ export const LessonEditor: React.FC<LessonEditorProps> = ({ course, onClose }) =
 
     const startEdit = (lesson: Lesson) => {
         setEditingLesson(lesson);
-        setFormData({ title: lesson.title, content: lesson.content, video_url: lesson.video_url || '' });
+        setFormData({
+            title: lesson.title,
+            content: lesson.content,
+            video_url: lesson.video_url || '',
+            status: lesson.status || 'draft'
+        });
         setIsAdding(true);
     };
 
@@ -86,7 +91,7 @@ export const LessonEditor: React.FC<LessonEditorProps> = ({ course, onClose }) =
                     <div className="flex justify-between items-center">
                         <h3 className="font-bold text-slate-900">Course Content ({lessons.length} Lessons)</h3>
                         {!isAdding && (
-                            <button onClick={() => { setIsAdding(true); setEditingLesson(null); setFormData({ title: '', content: '', video_url: '' }); }} className="btn-secondary py-2 px-4 text-xs flex items-center gap-2">
+                            <button onClick={() => { setIsAdding(true); setEditingLesson(null); setFormData({ title: '', content: '', video_url: '', status: 'draft' }); }} className="btn-secondary py-2 px-4 text-xs flex items-center gap-2">
                                 <Plus size={16} /> Add Lesson
                             </button>
                         )}
@@ -95,9 +100,20 @@ export const LessonEditor: React.FC<LessonEditorProps> = ({ course, onClose }) =
                     {isAdding && (
                         <form onSubmit={handleSubmit} className="p-6 bg-blue-50/50 rounded-2xl border-2 border-blue-100 space-y-4 animate-in slide-in-from-top-2">
                             <div className="grid grid-cols-2 gap-4">
-                                <div className="col-span-2">
+                                <div className="col-span-1">
                                     <label className="block text-[10px] font-bold uppercase text-slate-500 mb-2">Lesson Title</label>
                                     <input type="text" required value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} className="input-custom bg-white" placeholder="Introduction to..." />
+                                </div>
+                                <div className="col-span-1">
+                                    <label className="block text-[10px] font-bold uppercase text-slate-500 mb-2">Status</label>
+                                    <select
+                                        value={formData.status}
+                                        onChange={e => setFormData({...formData, status: e.target.value as Lesson['status']})}
+                                        className="input-custom bg-white"
+                                    >
+                                        <option value="draft">Draft</option>
+                                        <option value="published">Published</option>
+                                    </select>
                                 </div>
                                 <div className="col-span-2">
                                     <label className="block text-[10px] font-bold uppercase text-slate-500 mb-2">Video URL (Optional)</label>
@@ -123,7 +139,12 @@ export const LessonEditor: React.FC<LessonEditorProps> = ({ course, onClose }) =
                                 <div className="text-slate-300 group-hover:text-blue-400"><GripVertical size={20} /></div>
                                 <div className="w-8 h-8 bg-slate-50 rounded-lg flex items-center justify-center font-bold text-slate-400 text-xs">{idx + 1}</div>
                                 <div className="flex-1">
-                                    <h4 className="font-bold text-slate-900">{lesson.title}</h4>
+                                    <div className="flex items-center gap-2">
+                                        <h4 className="font-bold text-slate-900">{lesson.title}</h4>
+                                        <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-tighter ${lesson.status === 'published' ? 'bg-green-500 text-white' : 'bg-slate-400 text-white'}`}>
+                                            {lesson.status || 'draft'}
+                                        </span>
+                                    </div>
                                     <p className="text-[10px] text-slate-500 font-medium truncate max-w-md">{lesson.content}</p>
                                 </div>
                                 <div className="flex gap-2">
