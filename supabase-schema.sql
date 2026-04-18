@@ -635,21 +635,35 @@ BEGIN
         RETURN jsonb_build_object('success', false, 'error', 'Unauthorized: Only admins can perform this action');
     END IF;
 
-    v_hashed_password := CASE WHEN p_password IS NOT NULL AND p_password != '' THEN crypt(p_password, gen_salt('bf', 10)) ELSE NULL END;
-
-    UPDATE users
-    SET
-        full_name = COALESCE(p_full_name, full_name),
-        email = COALESCE(p_email, email),
-        password = COALESCE(v_hashed_password, password),
-        phone = COALESCE(p_phone, phone),
-        role = COALESCE(p_role, role),
-        xp = COALESCE(p_xp, xp),
-        active = COALESCE(p_active, active),
-        flagged = COALESCE(p_flagged, flagged),
-        version = version + 1,
-        updated_at = NOW()
-    WHERE id = p_user_id;
+    IF p_password IS NOT NULL AND p_password != '' THEN
+        v_hashed_password := crypt(p_password, gen_salt('bf', 10));
+        UPDATE users
+        SET
+            full_name = p_full_name,
+            email = p_email,
+            password = v_hashed_password,
+            phone = p_phone,
+            role = p_role,
+            xp = p_xp,
+            active = p_active,
+            flagged = p_flagged,
+            version = version + 1,
+            updated_at = NOW()
+        WHERE id = p_user_id;
+    ELSE
+        UPDATE users
+        SET
+            full_name = p_full_name,
+            email = p_email,
+            phone = p_phone,
+            role = p_role,
+            xp = p_xp,
+            active = p_active,
+            flagged = p_flagged,
+            version = version + 1,
+            updated_at = NOW()
+        WHERE id = p_user_id;
+    END IF;
 
     RETURN jsonb_build_object('success', true);
 END;
