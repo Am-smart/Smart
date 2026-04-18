@@ -18,7 +18,7 @@ export default function StudentManagementPage() {
     setCourses(myCourses);
     const courseIds = myCourses.map(c => c.id);
     if (courseIds.length > 0) {
-        const { data } = await client.from('enrollments').select('*, courses(*), users:users(*)').in('course_id', courseIds);
+        const { data } = await client.from('enrollments').select('*, courses(*), users!student_id(*)').in('course_id', courseIds);
         setEnrollments(data || []);
     }
   }, [user, client, getCourses]);

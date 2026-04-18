@@ -207,6 +207,7 @@ export async function saveLesson(lesson: Partial<Lesson>) {
   let query = withSession(supabase.from('lessons'), user.sessionId as string)
     .upsert({
       ...lessonData,
+      status: lesson.status || 'draft',
       updated_at: new Date().toISOString(),
       version: (version || 0) + 1
     });
@@ -510,6 +511,7 @@ export async function saveMaterial(material: Partial<Material>) {
         .upsert({
             ...materialData,
             teacher_id: material.teacher_id || user.id,
+            status: material.status || 'draft',
             version: (version || 0) + 1
         });
 

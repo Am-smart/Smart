@@ -30,10 +30,14 @@ export const UserEditor: React.FC<UserEditorProps> = ({ user, onSave, onCancel }
                 // Update User
                 const userData = {
                     id: user.id,
+                    email: formData.email,
                     full_name: formData.full_name,
                     phone: formData.phone,
                     role: formData.role as User['role'],
+                    password: formData.password || undefined,
                     xp: formData.xp,
+                    active: user.active,
+                    flagged: user.flagged,
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     reset_request: null as any, // Invalidate reset request on edit
                 };

@@ -15,6 +15,7 @@ export const MaterialManager: React.FC<MaterialManagerProps> = ({ initialMateria
     const { client } = useSupabase();
     const { addToast } = useAppContext();
     const [selectedCourseId, setSelectedCourseId] = useState('');
+    const [uploadStatus, setUploadStatus] = useState<'draft' | 'published'>('draft');
 
     const performUpload = async (file: File, category: 'materials' | 'submissions' | 'thumbnails') => {
         const { filePath } = await uploadFile(file.name, category);
@@ -37,7 +38,8 @@ export const MaterialManager: React.FC<MaterialManagerProps> = ({ initialMateria
             await saveMaterial({
                 course_id: selectedCourseId,
                 title: fileName,
-                file_url: url
+                file_url: url,
+                status: uploadStatus
             });
             onRefresh();
             addToast('Material uploaded successfully!', 'success');
@@ -77,6 +79,17 @@ export const MaterialManager: React.FC<MaterialManagerProps> = ({ initialMateria
                     </select>
 
                     {selectedCourseId && (
+                        <select
+                            value={uploadStatus}
+                            onChange={e => setUploadStatus(e.target.value as 'draft' | 'published')}
+                            className="p-3 rounded-xl border border-slate-200 outline-none focus:border-blue-500 bg-white"
+                        >
+                            <option value="draft">Upload as Draft</option>
+                            <option value="published">Upload as Published</option>
+                        </select>
+                    )}
+
+                    {selectedCourseId && (
                         <div className="w-full sm:w-64">
                             <FileUpload
                                 category="materials"
@@ -99,9 +112,12 @@ export const MaterialManager: React.FC<MaterialManagerProps> = ({ initialMateria
                     </div>
                 ) : (
                     initialMaterials.map(mat => (
-                        <div key={mat.id} className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 flex flex-col gap-4">
+                        <div key={mat.id} className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 flex flex-col gap-4 relative">
+                            <div className={`absolute top-4 left-4 px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-tighter ${mat.status === 'published' ? 'bg-green-500 text-white' : 'bg-slate-400 text-white'}`}>
+                                {mat.status || 'draft'}
+                            </div>
                             <div className="flex justify-between items-start">
-                                <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center text-2xl font-bold">📄</div>
+                                <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center text-2xl font-bold mt-4">📄</div>
                                 <button onClick={() => handleDelete(mat.id, mat.title)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors">🗑️</button>
                             </div>
                             <div>
