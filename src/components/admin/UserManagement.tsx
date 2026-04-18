@@ -35,8 +35,10 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, onAdd, on
                     {users.map(u => (
                         <tr key={u.id} className="hover:bg-slate-50 transition-colors">
                             <td className="px-6 py-4">
-                                <div className="font-bold text-slate-900">{u.full_name}</div>
-                                <div className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-0.5">{u.id}</div>
+                                <div className="font-bold text-slate-900 flex items-center gap-2">
+                                    {u.full_name}
+                                    <span className="text-[9px] font-mono text-slate-300 select-all" title={u.id}>({u.id.substring(0,8)}...)</span>
+                                </div>
                                 <div className="flex gap-2 mt-2">
                                     <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-tighter ${u.role === 'admin' ? 'bg-red-500 text-white' : u.role === 'teacher' ? 'bg-blue-600 text-white' : 'bg-slate-800 text-white'}`}>
                                         {u.role}
