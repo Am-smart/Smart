@@ -99,9 +99,9 @@ export const MaterialManager: React.FC<MaterialManagerProps> = ({ initialMateria
                     </div>
                 ) : (
                     initialMaterials.map(mat => (
-                        <div key={mat.id} className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 flex flex-col gap-4">
+                        <div key={mat.id} className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 flex flex-col gap-4 relative">
                             <div className="flex justify-between items-start">
-                                <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center text-2xl font-bold">📄</div>
+                                <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center text-2xl font-bold mt-4">📄</div>
                                 <button onClick={() => handleDelete(mat.id, mat.title)} className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors">🗑️</button>
                             </div>
                             <div>

@@ -21,7 +21,8 @@ export default function TeacherLayout({
   const router = useRouter();
   const pathname = usePathname();
 
-  const isResetApproved = user?.reset_request && (user.reset_request as unknown as ResetRequest).status === 'approved';
+  const resetStatus = (user?.reset_request as unknown as ResetRequest | null)?.status;
+  const isResetApproved = resetStatus === 'approved' || resetStatus === 'approved_used';
 
   useEffect(() => {
     if (!authLoading) {

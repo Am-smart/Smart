@@ -15,7 +15,11 @@ export default function MaterialsPage() {
     if (user) {
         getEnrollments(user.id).then(e => {
             const enrolledIds = e.map(item => item.course_id);
-            client.from('materials').select('*').in('course_id', enrolledIds).then(r => setMaterials(r.data || []));
+            if (enrolledIds.length > 0) {
+                client.from('materials').select('*').in('course_id', enrolledIds).then(r => setMaterials(r.data || []));
+            } else {
+                setMaterials([]);
+            }
         });
     }
   }, [user, client, getEnrollments]);

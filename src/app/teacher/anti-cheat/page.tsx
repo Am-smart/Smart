@@ -26,10 +26,10 @@ export default function AntiCheatPage() {
                 const quizIds = (quizRes.data || []).map(q => q.id);
 
                 if (asgnIds.length > 0) {
-                    client.from('submissions').select('*, assignments(*)').in('assignment_id', asgnIds).then(r => setSubmissions(r.data || []));
+                    client.from('submissions').select('*, assignments(*), users(full_name)').in('assignment_id', asgnIds).then(r => setSubmissions(r.data || []));
                 }
                 if (quizIds.length > 0) {
-                    client.from('quiz_submissions').select('*, quizzes(*)').in('quiz_id', quizIds).then(r => setQuizSubmissions(r.data || []));
+                    client.from('quiz_submissions').select('*, quizzes(*), users(full_name)').in('quiz_id', quizIds).then(r => setQuizSubmissions(r.data || []));
                 }
             }
         });
