@@ -28,13 +28,33 @@ export const PasswordReset: React.FC<PasswordResetProps> = ({ users, onRefresh }
         return req && req.status === 'pending';
     });
 
+    const generateSecurePassword = () => {
+        const upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
+        const lower = "abcdefghijkmnopqrstuvwxyz";
+        const nums = "23456789";
+        const spec = "!@#$%^&*";
+        const all = upper + lower + nums + spec;
+
+        let pwd = "";
+        pwd += upper[Math.floor(Math.random() * upper.length)];
+        pwd += lower[Math.floor(Math.random() * lower.length)];
+        pwd += nums[Math.floor(Math.random() * nums.length)];
+        pwd += spec[Math.floor(Math.random() * spec.length)];
+
+        for (let i = 0; i < 4; i++) {
+            pwd += all[Math.floor(Math.random() * all.length)];
+        }
+
+        return pwd.split('').sort(() => 0.5 - Math.random()).join('');
+    };
+
     const handleApprove = async (userId: string) => {
         const user = users.find(u => u.id === userId);
         if (!user) return;
 
         setIsProcessing(true);
         try {
-            const tempPass = Math.floor(10000 + Math.random() * 90000).toString();
+            const tempPass = generateSecurePassword();
             const res = await approveResetRequest(userId, tempPass);
 
             if (res.success) {

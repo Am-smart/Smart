@@ -14,7 +14,8 @@ export const AntiCheatRecord: React.FC<AntiCheatRecordProps> = ({ submissions, q
         title: s.assignments?.title || 'Unknown',
         violations: s.violation_count || 0,
         status: s.status,
-        submittedAt: s.submitted_at
+        submittedAt: s.submitted_at,
+        student: s.users?.full_name
     })),
     ...quizSubmissions.map(s => ({
         id: s.id,
@@ -22,7 +23,8 @@ export const AntiCheatRecord: React.FC<AntiCheatRecordProps> = ({ submissions, q
         title: s.quizzes?.title || 'Unknown',
         violations: s.violation_count || 0,
         status: s.status,
-        submittedAt: s.submitted_at
+        submittedAt: s.submitted_at,
+        student: s.users?.full_name
     }))
   ].filter(s => s.status === 'submitted' || s.status === 'graded');
 
@@ -40,6 +42,7 @@ export const AntiCheatRecord: React.FC<AntiCheatRecordProps> = ({ submissions, q
           <thead>
             <tr className="bg-slate-50 text-slate-500 text-xs font-bold uppercase tracking-wider border-b border-slate-100">
               <th className="px-6 py-4">Assessment</th>
+              <th className="px-6 py-4">Student</th>
               <th className="px-6 py-4">Type</th>
               <th className="px-6 py-4">Violations</th>
               <th className="px-6 py-4">Status</th>
@@ -49,13 +52,16 @@ export const AntiCheatRecord: React.FC<AntiCheatRecordProps> = ({ submissions, q
           <tbody className="divide-y divide-slate-100">
             {allAssessments.length === 0 ? (
               <tr>
-                <td colSpan={5} className="px-6 py-8 text-center text-slate-500 italic">No assessment submissions found.</td>
+                <td colSpan={6} className="px-6 py-8 text-center text-slate-500 italic">No assessment submissions found.</td>
               </tr>
             ) : (
               allAssessments.map(record => (
                 <tr key={`${record.type}-${record.id}`} className="hover:bg-slate-50 transition-colors">
                   <td className="px-6 py-4">
                     <div className="font-semibold text-slate-900">{record.title}</div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="text-sm text-slate-600">{record.student || 'N/A'}</div>
                   </td>
                   <td className="px-6 py-4">
                     <span className="text-xs font-medium text-slate-500 px-2 py-1 bg-slate-100 rounded-md">{record.type}</span>

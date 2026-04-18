@@ -85,7 +85,8 @@ function StudentLayoutContent({
     return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
   }
 
-  const isResetApproved = user.reset_request && (user.reset_request as Record<string, unknown>).status === 'approved';
+  const resetStatus = (user.reset_request as Record<string, unknown> | null)?.status;
+  const isResetApproved = resetStatus === 'approved' || resetStatus === 'approved_used';
 
   return (
     <div className="student-dashboard">

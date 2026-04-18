@@ -143,6 +143,7 @@ export async function saveCourse(course: Partial<Course>) {
     .upsert({
       ...courseData,
       teacher_id: course.teacher_id || user.id,
+      status: course.status || 'draft',
       updated_at: new Date().toISOString(),
       version: (version || 0) + 1
     });
@@ -163,7 +164,7 @@ export async function saveCourse(course: Partial<Course>) {
   await createSystemLog({
     level: 'info',
     category: 'management',
-    message: `Course ${course.id ? 'updated' : 'created'}: ${course.title}`,
+    message: `Course ${course.id ? 'updated' : 'created'}: ${course.title} [Status: ${data.status}]`,
     user_id: user.id
   });
 
@@ -206,12 +207,16 @@ export async function saveLesson(lesson: Partial<Lesson>) {
   let query = withSession(supabase.from('lessons'), user.sessionId as string)
     .upsert({
       ...lessonData,
+      status: lesson.status || 'draft',
       updated_at: new Date().toISOString(),
       version: (version || 0) + 1
     });
 
-  if (lesson.id && version) {
-    query = query.eq('id', lesson.id).eq('version', version);
+  if (lesson.id) {
+    query = query.eq('id', lesson.id);
+  }
+  if (version) {
+    query = query.eq('version', version);
   }
 
   const { data, error } = await query.select().single();
@@ -252,6 +257,7 @@ export async function saveAssignment(assignment: Partial<Assignment>) {
     .upsert({
       ...assignmentData,
       teacher_id: assignment.teacher_id || user.id,
+      status: assignment.status || 'draft',
       version: (version || 0) + 1
     });
 
@@ -271,7 +277,7 @@ export async function saveAssignment(assignment: Partial<Assignment>) {
   await createSystemLog({
     level: 'info',
     category: 'academic',
-    message: `Assignment ${assignment.id ? 'updated' : 'created'}: ${assignment.title}`,
+    message: `Assignment ${assignment.id ? 'updated' : 'created'}: ${assignment.title} [Status: ${data.status}]`,
     user_id: user.id
   });
 
@@ -315,6 +321,7 @@ export async function saveQuiz(quiz: Partial<Quiz>) {
     .upsert({
       ...quizData,
       teacher_id: quiz.teacher_id || user.id,
+      status: quiz.status || 'draft',
       version: (version || 0) + 1
     });
 
@@ -334,7 +341,7 @@ export async function saveQuiz(quiz: Partial<Quiz>) {
   await createSystemLog({
     level: 'info',
     category: 'academic',
-    message: `Quiz ${quiz.id ? 'updated' : 'created'}: ${quiz.title}`,
+    message: `Quiz ${quiz.id ? 'updated' : 'created'}: ${quiz.title} [Status: ${data.status}]`,
     user_id: user.id
   });
 
@@ -376,8 +383,11 @@ export async function savePlannerItem(item: Partial<PlannerItem>) {
       version: (version || 0) + 1
     });
 
-  if (item.id && version) {
-    query = query.eq('id', item.id).eq('version', version);
+  if (item.id) {
+    query = query.eq('id', item.id);
+  }
+  if (version) {
+    query = query.eq('version', version);
   }
 
   const { data, error } = await query.select().single();
@@ -413,8 +423,11 @@ export async function saveDiscussionPost(post: Partial<Discussion>) {
       version: (version || 0) + 1
     });
 
-  if (post.id && version) {
-    query = query.eq('id', post.id).eq('version', version);
+  if (post.id) {
+    query = query.eq('id', post.id);
+  }
+  if (version) {
+    query = query.eq('version', version);
   }
 
   const { data, error } = await query.select().single();
@@ -498,11 +511,15 @@ export async function saveMaterial(material: Partial<Material>) {
         .upsert({
             ...materialData,
             teacher_id: material.teacher_id || user.id,
+            status: material.status || 'draft',
             version: (version || 0) + 1
         });
 
-    if (material.id && version) {
-        query = query.eq('id', material.id).eq('version', version);
+    if (material.id) {
+        query = query.eq('id', material.id);
+    }
+    if (version) {
+        query = query.eq('version', version);
     }
 
     const { data, error } = await query.select().single();
@@ -570,8 +587,11 @@ export async function saveBadge(badge: Partial<Badge>) {
             version: (version || 0) + 1
         });
 
-    if (badge.id && version) {
-        query = query.eq('id', badge.id).eq('version', version);
+    if (badge.id) {
+        query = query.eq('id', badge.id);
+    }
+    if (version) {
+        query = query.eq('version', version);
     }
 
     const { data, error } = await query.select().single();
@@ -621,11 +641,15 @@ export async function saveLiveClass(liveClass: Partial<LiveClass>) {
         .upsert({
             ...liveClassData,
             teacher_id: liveClass.teacher_id || user.id,
+            status: liveClass.status || 'scheduled',
             version: (version || 0) + 1
         });
 
-    if (liveClass.id && version) {
-        query = query.eq('id', liveClass.id).eq('version', version);
+    if (liveClass.id) {
+        query = query.eq('id', liveClass.id);
+    }
+    if (version) {
+        query = query.eq('version', version);
     }
 
     const { data, error } = await query.select().single();
@@ -657,13 +681,42 @@ export async function saveUser(userData: Partial<User>) {
     // Users can update their own profile, or admins can update anyone
     if (user.role !== 'admin' && user.id !== userData.id) throw new Error('Forbidden');
 
-    const { version, ...cleanUserData } = userData;
+    // Admin-specific flow using RPC to handle password hashing and higher-level field updates
+    if (user.role === 'admin') {
+        const { error } = await withSession(supabase, user.sessionId as string)
+            .rpc('admin_update_user_v2', {
+                p_user_id: userData.id,
+                p_full_name: userData.full_name,
+                p_email: userData.email,
+                p_password: userData.password || '',
+                p_phone: userData.phone,
+                p_role: userData.role,
+                p_xp: userData.xp || 0,
+                p_active: userData.active !== false,
+                p_flagged: userData.flagged || false
+            });
+
+        if (error) throw new Error(error.message);
+        revalidatePath('/admin/users');
+        return { success: true };
+    }
+
+    // Standard user profile update (limited fields)
+    const { version, id, ...cleanUserData } = userData;
+    // Remove sensitive or admin-only fields if they leaked in
+    const fieldsToDelete = ['password', 'role', 'active', 'flagged'] as const;
+    fieldsToDelete.forEach(field => {
+        if (field in cleanUserData) {
+            delete (cleanUserData as unknown as Record<string, unknown>)[field];
+        }
+    });
+
     let query = withSession(supabase.from('users'), user.sessionId as string)
         .update({
             ...cleanUserData,
             version: (version || 1) + 1
         })
-        .eq('id', userData.id);
+        .eq('id', id);
 
     if (version) {
         query = query.eq('version', version);

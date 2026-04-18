@@ -60,6 +60,7 @@ CREATE TABLE IF NOT EXISTS lessons (
   content TEXT,
   video_url TEXT,
   order_index INTEGER DEFAULT 0,
+  status VARCHAR(50) DEFAULT 'draft' CHECK (status IN ('draft', 'published', 'archived')),
   version INTEGER DEFAULT 1,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -197,6 +198,7 @@ CREATE TABLE IF NOT EXISTS materials (
   description TEXT,
   file_url TEXT,
   file_type VARCHAR(50),
+  status VARCHAR(50) DEFAULT 'draft' CHECK (status IN ('draft', 'published', 'archived')),
   version INTEGER DEFAULT 1,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -319,7 +321,7 @@ CREATE TABLE IF NOT EXISTS system_logs (
   category VARCHAR(50),
   message TEXT,
   metadata JSONB DEFAULT '{}'::jsonb,
-  user_id UUID,
+  user_id UUID REFERENCES users(id) ON DELETE SET NULL,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -479,6 +481,11 @@ BEGIN
     RETURN jsonb_build_object('success', false, 'error', 'Account locked until ' || to_char(v_user.locked_until, 'HH24:MI:SS'));
   END IF;
 
+  -- Block users who used their temp pass but haven't changed it
+  IF v_user.reset_request->>'status' = 'approved_used' THEN
+     RETURN jsonb_build_object('success', false, 'error', 'Your session has expired. You must change your password using the secure prompt provided during your first login.');
+  END IF;
+
   -- Verify password
   IF v_user.password IS NULL OR crypt(p_password, v_user.password) != v_user.password THEN
     -- PASSWORD FAILED: Check if there is reset info to show
@@ -499,9 +506,15 @@ BEGIN
   END IF;
 
   -- Successful login
-  -- One-time temp password usage: If login with temp pass succeeds, remove it from reset_request
+  -- One-time temp password usage: If login with temp pass succeeds, mark it as used
   IF v_user.reset_request->>'status' = 'approved' THEN
-     UPDATE users SET reset_request = reset_request - 'temp_password' WHERE id = v_user.id;
+     -- Enforce expiration
+     IF (v_user.reset_request->>'expires_at')::timestamp with time zone < v_now THEN
+        RETURN jsonb_build_object('success', false, 'error', 'Temporary password has expired. Please request a new one.');
+     END IF;
+     UPDATE users
+     SET reset_request = jsonb_set(reset_request, '{status}', '"approved_used"') - 'temp_password'
+     WHERE id = v_user.id;
   END IF;
 
   UPDATE users SET last_login = v_now, failed_attempts = 0, locked_until = NULL WHERE id = v_user.id;
@@ -597,6 +610,48 @@ BEGIN
   WHERE id = v_user.id;
 
   RETURN jsonb_build_object('success', true);
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP FUNCTION IF EXISTS admin_update_user_v2(p_user_id UUID, p_full_name VARCHAR, p_email VARCHAR, p_password VARCHAR, p_phone VARCHAR, p_role VARCHAR, p_xp INTEGER, p_active BOOLEAN, p_flagged BOOLEAN);
+CREATE OR REPLACE FUNCTION admin_update_user_v2(
+    p_user_id UUID,
+    p_full_name VARCHAR DEFAULT NULL,
+    p_email VARCHAR DEFAULT NULL,
+    p_password VARCHAR DEFAULT NULL,
+    p_phone VARCHAR DEFAULT NULL,
+    p_role VARCHAR DEFAULT NULL,
+    p_xp INTEGER DEFAULT NULL,
+    p_active BOOLEAN DEFAULT NULL,
+    p_flagged BOOLEAN DEFAULT NULL
+)
+RETURNS JSONB AS $$
+DECLARE
+    v_hashed_password TEXT;
+    v_caller_role TEXT;
+BEGIN
+    v_caller_role := current_app_role();
+    IF v_caller_role != 'admin' THEN
+        RETURN jsonb_build_object('success', false, 'error', 'Unauthorized: Only admins can perform this action');
+    END IF;
+
+    v_hashed_password := CASE WHEN p_password IS NOT NULL AND p_password != '' THEN crypt(p_password, gen_salt('bf', 10)) ELSE NULL END;
+
+    UPDATE users
+    SET
+        full_name = COALESCE(p_full_name, full_name),
+        email = COALESCE(p_email, email),
+        password = COALESCE(v_hashed_password, password),
+        phone = COALESCE(p_phone, phone),
+        role = COALESCE(p_role, role),
+        xp = COALESCE(p_xp, xp),
+        active = COALESCE(p_active, active),
+        flagged = COALESCE(p_flagged, flagged),
+        version = version + 1,
+        updated_at = NOW()
+    WHERE id = p_user_id;
+
+    RETURN jsonb_build_object('success', true);
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
@@ -723,7 +778,7 @@ BEGIN
   INSERT INTO notifications (user_id, title, message, link, type)
   VALUES (target_id, n_title, n_msg, n_link, n_type);
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 DROP FUNCTION IF EXISTS broadcast_data(n_course_id UUID, n_role VARCHAR, n_title TEXT, n_msg TEXT, n_link TEXT, n_type TEXT, n_expires_in INTERVAL);
 CREATE OR REPLACE FUNCTION broadcast_data(n_course_id UUID, n_role VARCHAR, n_title TEXT, n_msg TEXT, n_link TEXT DEFAULT NULL, n_type TEXT DEFAULT 'system', n_expires_in INTERVAL DEFAULT INTERVAL '30 days')
@@ -732,9 +787,37 @@ BEGIN
   INSERT INTO broadcasts (course_id, target_role, title, message, link, type, expires_at)
   VALUES (n_course_id, n_role, n_title, n_msg, n_link, n_type, NOW() + n_expires_in);
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- 8. Triggers
+
+-- Protect Grades
+CREATE OR REPLACE FUNCTION tr_check_grade_protection() RETURNS TRIGGER AS $$
+BEGIN
+    IF current_app_role() = 'student' THEN
+        -- Prevent students from changing grade-related fields
+        IF TG_TABLE_NAME = 'submissions' THEN
+            IF (NEW.grade IS DISTINCT FROM OLD.grade) OR
+               (NEW.final_grade IS DISTINCT FROM OLD.final_grade) OR
+               (NEW.graded_at IS DISTINCT FROM OLD.graded_at) THEN
+                RAISE EXCEPTION 'Students are not authorized to modify grades.';
+            END IF;
+        ELSIF TG_TABLE_NAME = 'quiz_submissions' THEN
+            IF (NEW.score IS DISTINCT FROM OLD.score) OR
+               (NEW.total_points IS DISTINCT FROM OLD.total_points) THEN
+                RAISE EXCEPTION 'Students are not authorized to modify assessment scores.';
+            END IF;
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS tr_protect_asgn_grades ON submissions;
+CREATE TRIGGER tr_protect_asgn_grades BEFORE UPDATE ON submissions FOR EACH ROW EXECUTE PROCEDURE tr_check_grade_protection();
+
+DROP TRIGGER IF EXISTS tr_protect_quiz_scores ON quiz_submissions;
+CREATE TRIGGER tr_protect_quiz_scores BEFORE UPDATE ON quiz_submissions FOR EACH ROW EXECUTE PROCEDURE tr_check_grade_protection();
 
 -- Auto Flag for Lockouts
 CREATE OR REPLACE FUNCTION tr_check_lockouts_flag() RETURNS TRIGGER AS $$
@@ -744,7 +827,7 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 DROP TRIGGER IF EXISTS tr_users_lockout_flag ON users;
 CREATE TRIGGER tr_users_lockout_flag BEFORE UPDATE ON users FOR EACH ROW EXECUTE PROCEDURE tr_check_lockouts_flag();
@@ -763,7 +846,7 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 DROP TRIGGER IF EXISTS tr_live_class_event ON live_classes;
 CREATE TRIGGER tr_live_class_event AFTER INSERT OR UPDATE ON live_classes FOR EACH ROW EXECUTE PROCEDURE tr_notify_live_class();
@@ -776,7 +859,7 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 DROP TRIGGER IF EXISTS tr_assignment_published ON assignments;
 CREATE TRIGGER tr_assignment_published AFTER INSERT OR UPDATE ON assignments FOR EACH ROW EXECUTE PROCEDURE tr_notify_assignment();
@@ -789,7 +872,7 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 DROP TRIGGER IF EXISTS tr_quiz_published ON quizzes;
 CREATE TRIGGER tr_quiz_published AFTER INSERT OR UPDATE ON quizzes FOR EACH ROW EXECUTE PROCEDURE tr_notify_quiz();
@@ -807,7 +890,7 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 DROP TRIGGER IF EXISTS tr_submission_received ON submissions;
 CREATE TRIGGER tr_submission_received AFTER INSERT OR UPDATE ON submissions FOR EACH ROW EXECUTE PROCEDURE tr_notify_submission();
@@ -820,7 +903,7 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 DROP TRIGGER IF EXISTS tr_grade_posted ON submissions;
 CREATE TRIGGER tr_grade_posted AFTER INSERT OR UPDATE ON submissions FOR EACH ROW EXECUTE PROCEDURE tr_notify_grade();
@@ -963,7 +1046,7 @@ CREATE POLICY "Teachers can manage lessons for their courses" ON lessons
 
 DROP POLICY IF EXISTS "Students can view lessons for enrolled courses" ON lessons;
 CREATE POLICY "Students can view lessons for enrolled courses" ON lessons
-  FOR SELECT TO anon USING (check_is_enrolled(course_id));
+  FOR SELECT TO anon USING (check_is_enrolled(course_id) AND status = 'published');
 
 DROP POLICY IF EXISTS "Admins have full access to lessons" ON lessons;
 CREATE POLICY "Admins have full access to lessons" ON lessons
@@ -976,7 +1059,7 @@ CREATE POLICY "Teachers can manage materials for their courses" ON materials
 
 DROP POLICY IF EXISTS "Students can view materials for enrolled courses" ON materials;
 CREATE POLICY "Students can view materials for enrolled courses" ON materials
-  FOR SELECT TO anon USING (check_is_enrolled(course_id));
+  FOR SELECT TO anon USING (check_is_enrolled(course_id) AND status = 'published');
 
 DROP POLICY IF EXISTS "Admins have full access to materials" ON materials;
 CREATE POLICY "Admins have full access to materials" ON materials
@@ -987,6 +1070,10 @@ DROP POLICY IF EXISTS "Students can enroll themselves" ON enrollments;
 CREATE POLICY "Students can enroll themselves" ON enrollments
   FOR INSERT TO anon WITH CHECK (student_id = current_app_user());
 
+DROP POLICY IF EXISTS "Students can update their own progress" ON enrollments;
+CREATE POLICY "Students can update their own progress" ON enrollments
+  FOR UPDATE TO anon USING (student_id = current_app_user()) WITH CHECK (student_id = current_app_user());
+
 DROP POLICY IF EXISTS "Users can view their own enrollments" ON enrollments;
 CREATE POLICY "Users can view their own enrollments" ON enrollments
   FOR SELECT TO anon USING (student_id = current_app_user());
@@ -994,6 +1081,10 @@ CREATE POLICY "Users can view their own enrollments" ON enrollments
 DROP POLICY IF EXISTS "Teachers can view enrollments for their courses" ON enrollments;
 CREATE POLICY "Teachers can view enrollments for their courses" ON enrollments
   FOR SELECT TO anon USING (check_is_course_teacher(course_id));
+
+DROP POLICY IF EXISTS "Teachers can manage enrollments for their courses" ON enrollments;
+CREATE POLICY "Teachers can manage enrollments for their courses" ON enrollments
+  FOR DELETE TO anon USING (check_is_course_teacher(course_id));
 
 DROP POLICY IF EXISTS "Admins have full access to enrollments" ON enrollments;
 CREATE POLICY "Admins have full access to enrollments" ON enrollments
@@ -1153,13 +1244,13 @@ DROP POLICY IF EXISTS "Everyone can view user badges" ON user_badges;
 CREATE POLICY "Everyone can view user badges" ON user_badges
   FOR SELECT TO anon USING (TRUE);
 
-DROP POLICY IF EXISTS "Admins can manage badges" ON badges;
-CREATE POLICY "Admins can manage badges" ON badges
-  FOR ALL TO anon USING (current_app_role() = 'admin');
+DROP POLICY IF EXISTS "Admins and Teachers can manage badges" ON badges;
+CREATE POLICY "Admins and Teachers can manage badges" ON badges
+  FOR ALL TO anon USING (current_app_role() IN ('admin', 'teacher'));
 
-DROP POLICY IF EXISTS "Teachers and Admins can assign badges" ON user_badges;
-CREATE POLICY "Teachers and Admins can assign badges" ON user_badges
-  FOR INSERT TO anon WITH CHECK (current_app_role() IN ('teacher', 'admin'));
+DROP POLICY IF EXISTS "Teachers and Admins can manage user badges" ON user_badges;
+CREATE POLICY "Teachers and Admins can manage user badges" ON user_badges
+  FOR ALL TO anon USING (current_app_role() IN ('teacher', 'admin'));
 
 -- SYSTEM LOGS
 DROP POLICY IF EXISTS "Authenticated users can insert system logs" ON system_logs;
