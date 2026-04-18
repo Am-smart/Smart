@@ -16,7 +16,7 @@ export default function MaterialsPage() {
         getEnrollments(user.id).then(e => {
             const enrolledIds = e.map(item => item.course_id);
             if (enrolledIds.length > 0) {
-                client.from('materials').select('*').in('course_id', enrolledIds).eq('status', 'published').then(r => setMaterials(r.data || []));
+                client.from('materials').select('*').in('course_id', enrolledIds).then(r => setMaterials(r.data || []));
             } else {
                 setMaterials([]);
             }

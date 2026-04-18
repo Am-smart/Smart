@@ -90,7 +90,7 @@ CREATE TABLE IF NOT EXISTS assignments (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   questions JSONB DEFAULT '[]'::jsonb,
   attachments JSONB DEFAULT '[]'::jsonb,
-  status VARCHAR(50) DEFAULT 'draft' CHECK (status IN ('draft', 'published', 'archived')),
+  status VARCHAR(50) DEFAULT 'draft' CHECK (status IN ('draft', 'published')),
   anti_cheat_enabled BOOLEAN DEFAULT FALSE,
   regrade_requests_enabled BOOLEAN DEFAULT TRUE,
   version INTEGER DEFAULT 1
@@ -162,7 +162,7 @@ CREATE TABLE IF NOT EXISTS quizzes (
   passing_score INTEGER DEFAULT 60,
   questions JSONB DEFAULT '[]'::jsonb,
   shuffle_questions BOOLEAN DEFAULT FALSE,
-  status VARCHAR(50) DEFAULT 'draft' CHECK (status IN ('draft', 'published', 'archived')),
+  status VARCHAR(50) DEFAULT 'draft' CHECK (status IN ('draft', 'published')),
   anti_cheat_enabled BOOLEAN DEFAULT FALSE,
   start_at TIMESTAMP WITH TIME ZONE,
   end_at TIMESTAMP WITH TIME ZONE,

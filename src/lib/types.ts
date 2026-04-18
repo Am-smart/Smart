@@ -65,7 +65,7 @@ export interface Assignment {
   title: string;
   description?: string;
   due_date: string;
-  status: 'draft' | 'published' | 'archived';
+  status: 'draft' | 'published';
   points_possible: number;
   allow_late_submissions: boolean;
   anti_cheat_enabled: boolean;
@@ -89,7 +89,7 @@ export interface Quiz {
   teacher_id: string;
   title: string;
   description?: string;
-  status: 'draft' | 'published' | 'archived';
+  status: 'draft' | 'published';
   attempts_allowed: number;
   time_limit: number;
   passing_score: number;
