@@ -715,29 +715,28 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- 7. Notifications & Broadcasting (Security Definer for Trigger Access)
-DROP FUNCTION IF EXISTS notify_user(target_id UUID, n_title TEXT, n_msg TEXT, n_link TEXT, n_type TEXT) CASCADE;
+-- 7. Notifications & Broadcasting
+DROP FUNCTION IF EXISTS notify_user(target_id UUID, n_title TEXT, n_msg TEXT, n_link TEXT, n_type TEXT);
 CREATE OR REPLACE FUNCTION notify_user(target_id UUID, n_title TEXT, n_msg TEXT, n_link TEXT DEFAULT NULL, n_type TEXT DEFAULT 'system')
 RETURNS VOID AS $$
 BEGIN
   INSERT INTO notifications (user_id, title, message, link, type)
   VALUES (target_id, n_title, n_msg, n_link, n_type);
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql;
 
-DROP FUNCTION IF EXISTS broadcast_data(n_course_id UUID, n_role VARCHAR, n_title TEXT, n_msg TEXT, n_link TEXT, n_type TEXT, n_expires_in INTERVAL) CASCADE;
+DROP FUNCTION IF EXISTS broadcast_data(n_course_id UUID, n_role VARCHAR, n_title TEXT, n_msg TEXT, n_link TEXT, n_type TEXT, n_expires_in INTERVAL);
 CREATE OR REPLACE FUNCTION broadcast_data(n_course_id UUID, n_role VARCHAR, n_title TEXT, n_msg TEXT, n_link TEXT DEFAULT NULL, n_type TEXT DEFAULT 'system', n_expires_in INTERVAL DEFAULT INTERVAL '30 days')
 RETURNS VOID AS $$
 BEGIN
   INSERT INTO broadcasts (course_id, target_role, title, message, link, type, expires_at)
   VALUES (n_course_id, n_role, n_title, n_msg, n_link, n_type, NOW() + n_expires_in);
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql;
 
 -- 8. Triggers
 
 -- Auto Flag for Lockouts
-DROP FUNCTION IF EXISTS tr_check_lockouts_flag() CASCADE;
 CREATE OR REPLACE FUNCTION tr_check_lockouts_flag() RETURNS TRIGGER AS $$
 BEGIN
   IF NEW.lockouts >= 3 AND OLD.lockouts < 3 THEN
@@ -751,7 +750,6 @@ DROP TRIGGER IF EXISTS tr_users_lockout_flag ON users;
 CREATE TRIGGER tr_users_lockout_flag BEFORE UPDATE ON users FOR EACH ROW EXECUTE PROCEDURE tr_check_lockouts_flag();
 
 -- Notify Live Class
-DROP FUNCTION IF EXISTS tr_notify_live_class() CASCADE;
 CREATE OR REPLACE FUNCTION tr_notify_live_class() RETURNS TRIGGER AS $$
 BEGIN
   IF (NEW.status = 'live' AND (OLD.status IS NULL OR OLD.status != 'live')) THEN
@@ -765,13 +763,12 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql;
 
 DROP TRIGGER IF EXISTS tr_live_class_event ON live_classes;
 CREATE TRIGGER tr_live_class_event AFTER INSERT OR UPDATE ON live_classes FOR EACH ROW EXECUTE PROCEDURE tr_notify_live_class();
 
 -- Notify Assignment
-DROP FUNCTION IF EXISTS tr_notify_assignment() CASCADE;
 CREATE OR REPLACE FUNCTION tr_notify_assignment() RETURNS TRIGGER AS $$
 BEGIN
   IF (NEW.status = 'published' AND (OLD.status IS NULL OR OLD.status != 'published')) THEN
@@ -779,13 +776,12 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql;
 
 DROP TRIGGER IF EXISTS tr_assignment_published ON assignments;
 CREATE TRIGGER tr_assignment_published AFTER INSERT OR UPDATE ON assignments FOR EACH ROW EXECUTE PROCEDURE tr_notify_assignment();
 
 -- Notify Quiz
-DROP FUNCTION IF EXISTS tr_notify_quiz() CASCADE;
 CREATE OR REPLACE FUNCTION tr_notify_quiz() RETURNS TRIGGER AS $$
 BEGIN
   IF (NEW.status = 'published' AND (OLD.status IS NULL OR OLD.status != 'published')) THEN
@@ -793,13 +789,12 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql;
 
 DROP TRIGGER IF EXISTS tr_quiz_published ON quizzes;
 CREATE TRIGGER tr_quiz_published AFTER INSERT OR UPDATE ON quizzes FOR EACH ROW EXECUTE PROCEDURE tr_notify_quiz();
 
 -- Notify Submission
-DROP FUNCTION IF EXISTS tr_notify_submission() CASCADE;
 CREATE OR REPLACE FUNCTION tr_notify_submission() RETURNS TRIGGER AS $$
 DECLARE
   v_teacher_id UUID;
@@ -812,13 +807,12 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql;
 
 DROP TRIGGER IF EXISTS tr_submission_received ON submissions;
 CREATE TRIGGER tr_submission_received AFTER INSERT OR UPDATE ON submissions FOR EACH ROW EXECUTE PROCEDURE tr_notify_submission();
 
 -- Notify Grade
-DROP FUNCTION IF EXISTS tr_notify_grade() CASCADE;
 CREATE OR REPLACE FUNCTION tr_notify_grade() RETURNS TRIGGER AS $$
 BEGIN
   IF (NEW.status = 'graded' AND (OLD.status IS NULL OR OLD.status != 'graded')) THEN
@@ -826,7 +820,7 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql;
 
 DROP TRIGGER IF EXISTS tr_grade_posted ON submissions;
 CREATE TRIGGER tr_grade_posted AFTER INSERT OR UPDATE ON submissions FOR EACH ROW EXECUTE PROCEDURE tr_notify_grade();
@@ -1001,10 +995,6 @@ DROP POLICY IF EXISTS "Teachers can view enrollments for their courses" ON enrol
 CREATE POLICY "Teachers can view enrollments for their courses" ON enrollments
   FOR SELECT TO anon USING (check_is_course_teacher(course_id));
 
-DROP POLICY IF EXISTS "Students can update their own enrollment progress" ON enrollments;
-CREATE POLICY "Students can update their own enrollment progress" ON enrollments
-  FOR UPDATE TO anon USING (student_id = current_app_user()) WITH CHECK (student_id = current_app_user());
-
 DROP POLICY IF EXISTS "Admins have full access to enrollments" ON enrollments;
 CREATE POLICY "Admins have full access to enrollments" ON enrollments
   FOR ALL TO anon USING (current_app_role() = 'admin');
@@ -1083,11 +1073,7 @@ CREATE POLICY "Admins have full access to discussions" ON discussions
 -- NOTIFICATIONS
 DROP POLICY IF EXISTS "Users can manage their own notifications" ON notifications;
 CREATE POLICY "Users can manage their own notifications" ON notifications
-  FOR ALL TO anon USING (user_id = current_app_user());
-
-DROP POLICY IF EXISTS "System can insert notifications" ON notifications;
-CREATE POLICY "System can insert notifications" ON notifications
-  FOR INSERT TO anon WITH CHECK (TRUE);
+  FOR ALL TO anon USING (user_id = current_app_user()) WITH CHECK (user_id = current_app_user());
 
 -- PLANNER
 DROP POLICY IF EXISTS "Users can manage their own planner items" ON planner;
@@ -1108,12 +1094,6 @@ CREATE POLICY "Students can manage their own lesson completions" ON lesson_compl
 DROP POLICY IF EXISTS "Students can manage their own attendance" ON attendance;
 CREATE POLICY "Students can manage their own attendance" ON attendance
   FOR ALL TO anon USING (student_id = current_app_user()) WITH CHECK (student_id = current_app_user());
-
-DROP POLICY IF EXISTS "Teachers can view attendance for their classes" ON attendance;
-CREATE POLICY "Teachers can view attendance for their classes" ON attendance
-  FOR SELECT TO anon USING (
-    EXISTS (SELECT 1 FROM live_classes WHERE id = attendance.live_class_id AND check_is_course_teacher(course_id))
-  );
 
 -- LIVE CLASSES
 DROP POLICY IF EXISTS "Teachers can manage live classes for their courses" ON live_classes;
@@ -1137,14 +1117,6 @@ CREATE POLICY "Users can manage their own sessions" ON sessions
 DROP POLICY IF EXISTS "Everyone can view broadcasts" ON broadcasts;
 CREATE POLICY "Everyone can view broadcasts" ON broadcasts
   FOR SELECT TO anon USING (TRUE);
-
-DROP POLICY IF EXISTS "System can insert broadcasts" ON broadcasts;
-CREATE POLICY "System can insert broadcasts" ON broadcasts
-  FOR INSERT TO anon WITH CHECK (TRUE);
-
-DROP POLICY IF EXISTS "Teachers can manage broadcasts for their courses" ON broadcasts;
-CREATE POLICY "Teachers can manage broadcasts for their courses" ON broadcasts
-  FOR ALL TO anon USING (check_is_course_teacher(course_id));
 
 DROP POLICY IF EXISTS "Admins can manage broadcasts" ON broadcasts;
 CREATE POLICY "Admins can manage broadcasts" ON broadcasts
@@ -1185,9 +1157,9 @@ DROP POLICY IF EXISTS "Admins can manage badges" ON badges;
 CREATE POLICY "Admins can manage badges" ON badges
   FOR ALL TO anon USING (current_app_role() = 'admin');
 
-DROP POLICY IF EXISTS "Teachers can manage assigned badges" ON user_badges;
-CREATE POLICY "Teachers can manage assigned badges" ON user_badges
-  FOR ALL TO anon USING (current_app_role() = 'teacher');
+DROP POLICY IF EXISTS "Teachers and Admins can assign badges" ON user_badges;
+CREATE POLICY "Teachers and Admins can assign badges" ON user_badges
+  FOR INSERT TO anon WITH CHECK (current_app_role() IN ('teacher', 'admin'));
 
 -- SYSTEM LOGS
 DROP POLICY IF EXISTS "Authenticated users can insert system logs" ON system_logs;
