@@ -333,18 +333,34 @@ CREATE TABLE IF NOT EXISTS settings (
 DO $$
 BEGIN
     -- Anti-cheat and violation tracking
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'assignments' AND column_name = 'anti_cheat_enabled') THEN ALTER TABLE assignments ADD COLUMN anti_cheat_enabled BOOLEAN DEFAULT FALSE; END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'quizzes' AND column_name = 'anti_cheat_enabled') THEN ALTER TABLE quizzes ADD COLUMN anti_cheat_enabled BOOLEAN DEFAULT FALSE; END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'submissions' AND column_name = 'violation_count') THEN ALTER TABLE submissions ADD COLUMN violation_count INTEGER DEFAULT 0; END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'quiz_submissions' AND column_name = 'violation_count') THEN ALTER TABLE quiz_submissions ADD COLUMN violation_count INTEGER DEFAULT 0; END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'assignments' AND column_name = 'anti_cheat_enabled') THEN
+        ALTER TABLE assignments ADD COLUMN anti_cheat_enabled BOOLEAN DEFAULT FALSE;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'quizzes' AND column_name = 'anti_cheat_enabled') THEN
+        ALTER TABLE quizzes ADD COLUMN anti_cheat_enabled BOOLEAN DEFAULT FALSE;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'submissions' AND column_name = 'violation_count') THEN
+        ALTER TABLE submissions ADD COLUMN violation_count INTEGER DEFAULT 0;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'quiz_submissions' AND column_name = 'violation_count') THEN
+        ALTER TABLE quiz_submissions ADD COLUMN violation_count INTEGER DEFAULT 0;
+    END IF;
 
     -- Course Metadata
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'courses' AND column_name = 'category') THEN ALTER TABLE courses ADD COLUMN category VARCHAR(100); END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'courses' AND column_name = 'thumbnail_url') THEN ALTER TABLE courses ADD COLUMN thumbnail_url TEXT; END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'courses' AND column_name = 'category') THEN
+        ALTER TABLE courses ADD COLUMN category VARCHAR(100);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'courses' AND column_name = 'thumbnail_url') THEN
+        ALTER TABLE courses ADD COLUMN thumbnail_url TEXT;
+    END IF;
 
     -- Submission Details
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'submissions' AND column_name = 'submission_text') THEN ALTER TABLE submissions ADD COLUMN submission_text TEXT; END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'submissions' AND column_name = 'file_url') THEN ALTER TABLE submissions ADD COLUMN file_url TEXT; END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'submissions' AND column_name = 'submission_text') THEN
+        ALTER TABLE submissions ADD COLUMN submission_text TEXT;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'submissions' AND column_name = 'file_url') THEN
+        ALTER TABLE submissions ADD COLUMN file_url TEXT;
+    END IF;
 
     -- Conflict Detection (Versioning)
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'users' AND column_name = 'version') THEN ALTER TABLE users ADD COLUMN version INTEGER DEFAULT 1; END IF;
@@ -437,7 +453,7 @@ END;
 $$ LANGUAGE plpgsql STABLE SECURITY DEFINER;
 
 -- Authentication RPC
-DROP FUNCTION IF EXISTS authenticate_user(p_email VARCHAR, p_password VARCHAR) CASCADE;
+DROP FUNCTION IF EXISTS authenticate_user(p_email VARCHAR, p_password VARCHAR);
 CREATE OR REPLACE FUNCTION authenticate_user(p_email VARCHAR, p_password VARCHAR)
 RETURNS JSONB AS $$
 DECLARE
@@ -496,7 +512,7 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- User Registration RPC
-DROP FUNCTION IF EXISTS register_user(p_full_name VARCHAR, p_email VARCHAR, p_password VARCHAR, p_phone VARCHAR, p_role VARCHAR) CASCADE;
+DROP FUNCTION IF EXISTS register_user(p_full_name VARCHAR, p_email VARCHAR, p_password VARCHAR, p_phone VARCHAR, p_role VARCHAR);
 CREATE OR REPLACE FUNCTION register_user(p_full_name VARCHAR, p_email VARCHAR, p_password VARCHAR, p_phone VARCHAR, p_role VARCHAR)
 RETURNS JSONB AS $$
 DECLARE
@@ -508,6 +524,7 @@ DECLARE
 BEGIN
   v_caller_role := COALESCE(current_app_role(), 'public');
 
+  -- Check if email already exists and provide detailed feedback on reset status
   SELECT * INTO v_user FROM users WHERE email = p_email;
   IF v_user.id IS NOT NULL THEN
     IF v_user.reset_request IS NOT NULL THEN
@@ -546,7 +563,7 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Password Reset Management
-DROP FUNCTION IF EXISTS request_password_reset(p_email VARCHAR, p_reason TEXT, p_risk_level TEXT) CASCADE;
+DROP FUNCTION IF EXISTS request_password_reset(p_email VARCHAR, p_reason TEXT, p_risk_level TEXT);
 CREATE OR REPLACE FUNCTION request_password_reset(p_email VARCHAR, p_reason TEXT, p_risk_level TEXT DEFAULT 'medium')
 RETURNS JSONB AS $$
 DECLARE
@@ -557,6 +574,7 @@ BEGIN
     RETURN jsonb_build_object('success', false, 'error', 'No account found with this email.');
   END IF;
 
+  -- Check existing reset requests
   IF v_user.reset_request IS NOT NULL THEN
      IF v_user.reset_request->>'status' = 'pending' THEN
         RETURN jsonb_build_object('success', false, 'error', 'A request is already under review for this account.');
@@ -582,7 +600,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
-DROP FUNCTION IF EXISTS approve_password_reset(p_user_id UUID, p_temp_password TEXT) CASCADE;
+DROP FUNCTION IF EXISTS approve_password_reset(p_user_id UUID, p_temp_password TEXT);
 CREATE OR REPLACE FUNCTION approve_password_reset(p_user_id UUID, p_temp_password TEXT)
 RETURNS JSONB AS $$
 DECLARE
@@ -605,7 +623,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
-DROP FUNCTION IF EXISTS deny_password_reset(p_user_id UUID, p_reason TEXT) CASCADE;
+DROP FUNCTION IF EXISTS deny_password_reset(p_user_id UUID, p_reason TEXT);
 CREATE OR REPLACE FUNCTION deny_password_reset(p_user_id UUID, p_reason TEXT)
 RETURNS JSONB AS $$
 BEGIN
@@ -622,7 +640,7 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Other Helpers
-DROP FUNCTION IF EXISTS update_setting(p_key VARCHAR, p_value JSONB) CASCADE;
+DROP FUNCTION IF EXISTS update_setting(p_key VARCHAR, p_value JSONB);
 CREATE OR REPLACE FUNCTION update_setting(p_key VARCHAR, p_value JSONB)
 RETURNS VOID AS $$
 BEGIN
@@ -633,7 +651,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
-DROP FUNCTION IF EXISTS update_user_password(p_current_password VARCHAR, p_new_password VARCHAR) CASCADE;
+DROP FUNCTION IF EXISTS update_user_password(p_current_password VARCHAR, p_new_password VARCHAR);
 CREATE OR REPLACE FUNCTION update_user_password(p_current_password VARCHAR, p_new_password VARCHAR)
 RETURNS JSONB AS $$
 DECLARE
@@ -661,7 +679,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
-DROP FUNCTION IF EXISTS update_user_preferences(p_preferences JSONB) CASCADE;
+DROP FUNCTION IF EXISTS update_user_preferences(p_preferences JSONB);
 CREATE OR REPLACE FUNCTION update_user_preferences(p_preferences JSONB)
 RETURNS JSONB AS $$
 DECLARE
@@ -680,7 +698,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
-DROP FUNCTION IF EXISTS get_role_counts() CASCADE;
+DROP FUNCTION IF EXISTS get_role_counts();
 CREATE OR REPLACE FUNCTION get_role_counts()
 RETURNS JSONB AS $$
 DECLARE
@@ -697,29 +715,28 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- 7. Notifications & Broadcasting (Security Definer for Trigger Access)
-DROP FUNCTION IF EXISTS notify_user(target_id UUID, n_title TEXT, n_msg TEXT, n_link TEXT, n_type TEXT) CASCADE;
+-- 7. Notifications & Broadcasting
+DROP FUNCTION IF EXISTS notify_user(target_id UUID, n_title TEXT, n_msg TEXT, n_link TEXT, n_type TEXT);
 CREATE OR REPLACE FUNCTION notify_user(target_id UUID, n_title TEXT, n_msg TEXT, n_link TEXT DEFAULT NULL, n_type TEXT DEFAULT 'system')
 RETURNS VOID AS $$
 BEGIN
   INSERT INTO notifications (user_id, title, message, link, type)
   VALUES (target_id, n_title, n_msg, n_link, n_type);
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql;
 
-DROP FUNCTION IF EXISTS broadcast_data(n_course_id UUID, n_role VARCHAR, n_title TEXT, n_msg TEXT, n_link TEXT, n_type TEXT, n_expires_in INTERVAL) CASCADE;
+DROP FUNCTION IF EXISTS broadcast_data(n_course_id UUID, n_role VARCHAR, n_title TEXT, n_msg TEXT, n_link TEXT, n_type TEXT, n_expires_in INTERVAL);
 CREATE OR REPLACE FUNCTION broadcast_data(n_course_id UUID, n_role VARCHAR, n_title TEXT, n_msg TEXT, n_link TEXT DEFAULT NULL, n_type TEXT DEFAULT 'system', n_expires_in INTERVAL DEFAULT INTERVAL '30 days')
 RETURNS VOID AS $$
 BEGIN
   INSERT INTO broadcasts (course_id, target_role, title, message, link, type, expires_at)
   VALUES (n_course_id, n_role, n_title, n_msg, n_link, n_type, NOW() + n_expires_in);
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql;
 
 -- 8. Triggers
 
 -- Auto Flag for Lockouts
-DROP FUNCTION IF EXISTS tr_check_lockouts_flag() CASCADE;
 CREATE OR REPLACE FUNCTION tr_check_lockouts_flag() RETURNS TRIGGER AS $$
 BEGIN
   IF NEW.lockouts >= 3 AND OLD.lockouts < 3 THEN
@@ -727,13 +744,12 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql;
 
 DROP TRIGGER IF EXISTS tr_users_lockout_flag ON users;
 CREATE TRIGGER tr_users_lockout_flag BEFORE UPDATE ON users FOR EACH ROW EXECUTE PROCEDURE tr_check_lockouts_flag();
 
 -- Notify Live Class
-DROP FUNCTION IF EXISTS tr_notify_live_class() CASCADE;
 CREATE OR REPLACE FUNCTION tr_notify_live_class() RETURNS TRIGGER AS $$
 BEGIN
   IF (NEW.status = 'live' AND (OLD.status IS NULL OR OLD.status != 'live')) THEN
@@ -747,13 +763,12 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql;
 
 DROP TRIGGER IF EXISTS tr_live_class_event ON live_classes;
 CREATE TRIGGER tr_live_class_event AFTER INSERT OR UPDATE ON live_classes FOR EACH ROW EXECUTE PROCEDURE tr_notify_live_class();
 
 -- Notify Assignment
-DROP FUNCTION IF EXISTS tr_notify_assignment() CASCADE;
 CREATE OR REPLACE FUNCTION tr_notify_assignment() RETURNS TRIGGER AS $$
 BEGIN
   IF (NEW.status = 'published' AND (OLD.status IS NULL OR OLD.status != 'published')) THEN
@@ -761,13 +776,12 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql;
 
 DROP TRIGGER IF EXISTS tr_assignment_published ON assignments;
 CREATE TRIGGER tr_assignment_published AFTER INSERT OR UPDATE ON assignments FOR EACH ROW EXECUTE PROCEDURE tr_notify_assignment();
 
 -- Notify Quiz
-DROP FUNCTION IF EXISTS tr_notify_quiz() CASCADE;
 CREATE OR REPLACE FUNCTION tr_notify_quiz() RETURNS TRIGGER AS $$
 BEGIN
   IF (NEW.status = 'published' AND (OLD.status IS NULL OR OLD.status != 'published')) THEN
@@ -775,13 +789,12 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql;
 
 DROP TRIGGER IF EXISTS tr_quiz_published ON quizzes;
 CREATE TRIGGER tr_quiz_published AFTER INSERT OR UPDATE ON quizzes FOR EACH ROW EXECUTE PROCEDURE tr_notify_quiz();
 
 -- Notify Submission
-DROP FUNCTION IF EXISTS tr_notify_submission() CASCADE;
 CREATE OR REPLACE FUNCTION tr_notify_submission() RETURNS TRIGGER AS $$
 DECLARE
   v_teacher_id UUID;
@@ -794,13 +807,12 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql;
 
 DROP TRIGGER IF EXISTS tr_submission_received ON submissions;
 CREATE TRIGGER tr_submission_received AFTER INSERT OR UPDATE ON submissions FOR EACH ROW EXECUTE PROCEDURE tr_notify_submission();
 
 -- Notify Grade
-DROP FUNCTION IF EXISTS tr_notify_grade() CASCADE;
 CREATE OR REPLACE FUNCTION tr_notify_grade() RETURNS TRIGGER AS $$
 BEGIN
   IF (NEW.status = 'graded' AND (OLD.status IS NULL OR OLD.status != 'graded')) THEN
@@ -808,7 +820,7 @@ BEGIN
   END IF;
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql;
 
 DROP TRIGGER IF EXISTS tr_grade_posted ON submissions;
 CREATE TRIGGER tr_grade_posted AFTER INSERT OR UPDATE ON submissions FOR EACH ROW EXECUTE PROCEDURE tr_notify_grade();
@@ -892,9 +904,9 @@ ALTER TABLE lesson_completions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE system_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE settings ENABLE ROW LEVEL SECURITY;
 
--- Grant permissions for PostgREST access
-GRANT ALL ON ALL TABLES IN SCHEMA public TO anon, authenticated;
-GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon, authenticated;
+-- Grant permissions to anonymous role for PostgREST access
+GRANT ALL ON ALL TABLES IN SCHEMA public TO anon;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon;
 
 -- RLS Helper Functions (Avoid recursion)
 CREATE OR REPLACE FUNCTION check_is_course_teacher(p_course_id UUID) RETURNS BOOLEAN AS $$
@@ -922,137 +934,133 @@ $$ LANGUAGE sql STABLE SECURITY DEFINER;
 -- USERS
 DROP POLICY IF EXISTS "Users can view and update their own profile" ON users;
 CREATE POLICY "Users can view and update their own profile" ON users
-  FOR ALL TO public USING (id = current_app_user()) WITH CHECK (id = current_app_user());
+  FOR ALL TO anon USING (id = current_app_user()) WITH CHECK (id = current_app_user());
 
 DROP POLICY IF EXISTS "Admins have full access to users" ON users;
 CREATE POLICY "Admins have full access to users" ON users
-  FOR ALL TO public USING (current_app_role() = 'admin');
+  FOR ALL TO anon USING (current_app_role() = 'admin');
 
 -- COURSES
 DROP POLICY IF EXISTS "Teachers can manage their own courses" ON courses;
 CREATE POLICY "Teachers can manage their own courses" ON courses
-  FOR ALL TO public USING (teacher_id = current_app_user()) WITH CHECK (teacher_id = current_app_user());
+  FOR ALL TO anon USING (teacher_id = current_app_user()) WITH CHECK (teacher_id = current_app_user());
 
 DROP POLICY IF EXISTS "Students can view published or enrolled courses" ON courses;
 CREATE POLICY "Students can view published or enrolled courses" ON courses
-  FOR SELECT TO public USING (
+  FOR SELECT TO anon USING (
     status = 'published' OR
     check_is_enrolled(id)
   );
 
 DROP POLICY IF EXISTS "Admins have full access to courses" ON courses;
 CREATE POLICY "Admins have full access to courses" ON courses
-  FOR ALL TO public USING (current_app_role() = 'admin');
+  FOR ALL TO anon USING (current_app_role() = 'admin');
 
 -- LESSONS
 DROP POLICY IF EXISTS "Teachers can manage lessons for their courses" ON lessons;
 CREATE POLICY "Teachers can manage lessons for their courses" ON lessons
-  FOR ALL TO public USING (check_is_course_teacher(course_id));
+  FOR ALL TO anon USING (check_is_course_teacher(course_id));
 
 DROP POLICY IF EXISTS "Students can view lessons for enrolled courses" ON lessons;
 CREATE POLICY "Students can view lessons for enrolled courses" ON lessons
-  FOR SELECT TO public USING (check_is_enrolled(course_id));
+  FOR SELECT TO anon USING (check_is_enrolled(course_id));
 
 DROP POLICY IF EXISTS "Admins have full access to lessons" ON lessons;
 CREATE POLICY "Admins have full access to lessons" ON lessons
-  FOR ALL TO public USING (current_app_role() = 'admin');
+  FOR ALL TO anon USING (current_app_role() = 'admin');
 
 -- MATERIALS
 DROP POLICY IF EXISTS "Teachers can manage materials for their courses" ON materials;
 CREATE POLICY "Teachers can manage materials for their courses" ON materials
-  FOR ALL TO public USING (check_is_course_teacher(course_id));
+  FOR ALL TO anon USING (check_is_course_teacher(course_id));
 
 DROP POLICY IF EXISTS "Students can view materials for enrolled courses" ON materials;
 CREATE POLICY "Students can view materials for enrolled courses" ON materials
-  FOR SELECT TO public USING (check_is_enrolled(course_id));
+  FOR SELECT TO anon USING (check_is_enrolled(course_id));
 
 DROP POLICY IF EXISTS "Admins have full access to materials" ON materials;
 CREATE POLICY "Admins have full access to materials" ON materials
-  FOR ALL TO public USING (current_app_role() = 'admin');
+  FOR ALL TO anon USING (current_app_role() = 'admin');
 
 -- ENROLLMENTS
 DROP POLICY IF EXISTS "Students can enroll themselves" ON enrollments;
 CREATE POLICY "Students can enroll themselves" ON enrollments
-  FOR INSERT TO public WITH CHECK (student_id = current_app_user());
+  FOR INSERT TO anon WITH CHECK (student_id = current_app_user());
 
 DROP POLICY IF EXISTS "Users can view their own enrollments" ON enrollments;
 CREATE POLICY "Users can view their own enrollments" ON enrollments
-  FOR SELECT TO public USING (student_id = current_app_user());
+  FOR SELECT TO anon USING (student_id = current_app_user());
 
 DROP POLICY IF EXISTS "Teachers can view enrollments for their courses" ON enrollments;
 CREATE POLICY "Teachers can view enrollments for their courses" ON enrollments
-  FOR SELECT TO public USING (check_is_course_teacher(course_id));
-
-DROP POLICY IF EXISTS "Students can update their own enrollment progress" ON enrollments;
-CREATE POLICY "Students can update their own enrollment progress" ON enrollments
-  FOR UPDATE TO public USING (student_id = current_app_user()) WITH CHECK (student_id = current_app_user());
+  FOR SELECT TO anon USING (check_is_course_teacher(course_id));
 
 DROP POLICY IF EXISTS "Admins have full access to enrollments" ON enrollments;
 CREATE POLICY "Admins have full access to enrollments" ON enrollments
-  FOR ALL TO public USING (current_app_role() = 'admin');
+  FOR ALL TO anon USING (current_app_role() = 'admin');
 
 -- ASSIGNMENTS
 DROP POLICY IF EXISTS "Teachers can manage assignments for their courses" ON assignments;
 CREATE POLICY "Teachers can manage assignments for their courses" ON assignments
-  FOR ALL TO public USING (check_is_course_teacher(course_id));
+  FOR ALL TO anon USING (check_is_course_teacher(course_id));
 
 DROP POLICY IF EXISTS "Students can view assignments for enrolled courses" ON assignments;
 CREATE POLICY "Students can view assignments for enrolled courses" ON assignments
-  FOR SELECT TO public USING (check_is_enrolled(course_id) AND status = 'published');
+  FOR SELECT TO anon USING (check_is_enrolled(course_id) AND status = 'published');
 
 DROP POLICY IF EXISTS "Admins have full access to assignments" ON assignments;
 CREATE POLICY "Admins have full access to assignments" ON assignments
-  FOR ALL TO public USING (current_app_role() = 'admin');
+  FOR ALL TO anon USING (current_app_role() = 'admin');
 
 -- SUBMISSIONS
 DROP POLICY IF EXISTS "Students can manage their own submissions" ON submissions;
 CREATE POLICY "Students can manage their own submissions" ON submissions
-  FOR ALL TO public USING (student_id = current_app_user()) WITH CHECK (student_id = current_app_user());
+  FOR ALL TO anon USING (student_id = current_app_user()) WITH CHECK (student_id = current_app_user());
 
 DROP POLICY IF EXISTS "Teachers can view and grade submissions for their courses" ON submissions;
 CREATE POLICY "Teachers can view and grade submissions for their courses" ON submissions
-  FOR ALL TO public USING (check_assignment_course_teacher(assignment_id));
+  FOR ALL TO anon USING (check_assignment_course_teacher(assignment_id));
 
 DROP POLICY IF EXISTS "Admins have full access to submissions" ON submissions;
 CREATE POLICY "Admins have full access to submissions" ON submissions
-  FOR ALL TO public USING (current_app_role() = 'admin');
+  FOR ALL TO anon USING (current_app_role() = 'admin');
 
 -- QUIZZES
 DROP POLICY IF EXISTS "Teachers can manage quizzes for their courses" ON quizzes;
 CREATE POLICY "Teachers can manage quizzes for their courses" ON quizzes
-  FOR ALL TO public USING (check_is_course_teacher(course_id));
+  FOR ALL TO anon USING (check_is_course_teacher(course_id));
 
 DROP POLICY IF EXISTS "Students can view quizzes for enrolled courses" ON quizzes;
 CREATE POLICY "Students can view quizzes for enrolled courses" ON quizzes
-  FOR SELECT TO public USING (check_is_enrolled(course_id) AND status = 'published');
+  FOR SELECT TO anon USING (check_is_enrolled(course_id) AND status = 'published');
 
 DROP POLICY IF EXISTS "Admins have full access to quizzes" ON quizzes;
 CREATE POLICY "Admins have full access to quizzes" ON quizzes
-  FOR ALL TO public USING (current_app_role() = 'admin');
+  FOR ALL TO anon USING (current_app_role() = 'admin');
 
 -- QUIZ SUBMISSIONS
 DROP POLICY IF EXISTS "Students can manage their own quiz submissions" ON quiz_submissions;
 CREATE POLICY "Students can manage their own quiz submissions" ON quiz_submissions
-  FOR ALL TO public USING (student_id = current_app_user()) WITH CHECK (student_id = current_app_user());
+  FOR ALL TO anon USING (student_id = current_app_user()) WITH CHECK (student_id = current_app_user());
 
 DROP POLICY IF EXISTS "Teachers can view quiz submissions for their courses" ON quiz_submissions;
 CREATE POLICY "Teachers can view quiz submissions for their courses" ON quiz_submissions
-  FOR SELECT TO public USING (
+  FOR SELECT TO anon USING (
     EXISTS (SELECT 1 FROM quizzes WHERE id = quiz_submissions.quiz_id AND check_is_course_teacher(course_id))
   );
 
 DROP POLICY IF EXISTS "Admins have full access to quiz submissions" ON quiz_submissions;
 CREATE POLICY "Admins have full access to quiz submissions" ON quiz_submissions
-  FOR ALL TO public USING (current_app_role() = 'admin');
+  FOR ALL TO anon USING (current_app_role() = 'admin');
 
 -- DISCUSSIONS
 DROP POLICY IF EXISTS "Users can manage their own discussion posts" ON discussions;
 CREATE POLICY "Users can manage their own discussion posts" ON discussions
-  FOR ALL TO public USING (user_id = current_app_user()) WITH CHECK (user_id = current_app_user());
+  FOR ALL TO anon USING (user_id = current_app_user()) WITH CHECK (user_id = current_app_user());
 
 DROP POLICY IF EXISTS "Users can view discussions for enrolled courses" ON discussions;
 CREATE POLICY "Users can view discussions for enrolled courses" ON discussions
-  FOR SELECT TO public USING (
+  FOR SELECT TO anon USING (
     course_id IS NULL OR
     check_is_enrolled(course_id) OR
     check_is_course_teacher(course_id)
@@ -1060,134 +1068,116 @@ CREATE POLICY "Users can view discussions for enrolled courses" ON discussions
 
 DROP POLICY IF EXISTS "Admins have full access to discussions" ON discussions;
 CREATE POLICY "Admins have full access to discussions" ON discussions
-  FOR ALL TO public USING (current_app_role() = 'admin');
+  FOR ALL TO anon USING (current_app_role() = 'admin');
 
 -- NOTIFICATIONS
 DROP POLICY IF EXISTS "Users can manage their own notifications" ON notifications;
 CREATE POLICY "Users can manage their own notifications" ON notifications
-  FOR ALL TO public USING (user_id = current_app_user());
-
-DROP POLICY IF EXISTS "Anyone can insert notifications" ON notifications;
-CREATE POLICY "Anyone can insert notifications" ON notifications
-  FOR INSERT TO public WITH CHECK (TRUE);
+  FOR ALL TO anon USING (user_id = current_app_user()) WITH CHECK (user_id = current_app_user());
 
 -- PLANNER
 DROP POLICY IF EXISTS "Users can manage their own planner items" ON planner;
 CREATE POLICY "Users can manage their own planner items" ON planner
-  FOR ALL TO public USING (user_id = current_app_user()) WITH CHECK (user_id = current_app_user());
+  FOR ALL TO anon USING (user_id = current_app_user()) WITH CHECK (user_id = current_app_user());
 
 -- STUDY SESSIONS
 DROP POLICY IF EXISTS "Users can manage their own study sessions" ON study_sessions;
 CREATE POLICY "Users can manage their own study sessions" ON study_sessions
-  FOR ALL TO public USING (user_id = current_app_user()) WITH CHECK (user_id = current_app_user());
+  FOR ALL TO anon USING (user_id = current_app_user()) WITH CHECK (user_id = current_app_user());
 
 -- LESSON COMPLETIONS
 DROP POLICY IF EXISTS "Students can manage their own lesson completions" ON lesson_completions;
 CREATE POLICY "Students can manage their own lesson completions" ON lesson_completions
-  FOR ALL TO public USING (student_id = current_app_user()) WITH CHECK (student_id = current_app_user());
+  FOR ALL TO anon USING (student_id = current_app_user()) WITH CHECK (student_id = current_app_user());
 
 -- ATTENDANCE
 DROP POLICY IF EXISTS "Students can manage their own attendance" ON attendance;
 CREATE POLICY "Students can manage their own attendance" ON attendance
-  FOR ALL TO public USING (student_id = current_app_user()) WITH CHECK (student_id = current_app_user());
-
-DROP POLICY IF EXISTS "Teachers can view attendance for their classes" ON attendance;
-CREATE POLICY "Teachers can view attendance for their classes" ON attendance
-  FOR SELECT TO public USING (
-    EXISTS (SELECT 1 FROM live_classes WHERE id = attendance.live_class_id AND check_is_course_teacher(course_id))
-  );
+  FOR ALL TO anon USING (student_id = current_app_user()) WITH CHECK (student_id = current_app_user());
 
 -- LIVE CLASSES
 DROP POLICY IF EXISTS "Teachers can manage live classes for their courses" ON live_classes;
 CREATE POLICY "Teachers can manage live classes for their courses" ON live_classes
-  FOR ALL TO public USING (check_is_course_teacher(course_id));
+  FOR ALL TO anon USING (check_is_course_teacher(course_id));
 
 DROP POLICY IF EXISTS "Students can view live classes for enrolled courses" ON live_classes;
 CREATE POLICY "Students can view live classes for enrolled courses" ON live_classes
-  FOR SELECT TO public USING (check_is_enrolled(course_id));
+  FOR SELECT TO anon USING (check_is_enrolled(course_id));
 
 DROP POLICY IF EXISTS "Admins have full access to live classes" ON live_classes;
 CREATE POLICY "Admins have full access to live classes" ON live_classes
-  FOR ALL TO public USING (current_app_role() = 'admin');
+  FOR ALL TO anon USING (current_app_role() = 'admin');
 
 -- SESSIONS
 DROP POLICY IF EXISTS "Users can manage their own sessions" ON sessions;
 CREATE POLICY "Users can manage their own sessions" ON sessions
-  FOR ALL TO public USING (user_id = current_app_user()) WITH CHECK (user_id = current_app_user());
+  FOR ALL TO anon USING (user_id = current_app_user()) WITH CHECK (user_id = current_app_user());
 
 -- BROADCASTS
 DROP POLICY IF EXISTS "Everyone can view broadcasts" ON broadcasts;
 CREATE POLICY "Everyone can view broadcasts" ON broadcasts
-  FOR SELECT TO public USING (TRUE);
-
-DROP POLICY IF EXISTS "Anyone can insert broadcasts" ON broadcasts;
-CREATE POLICY "Anyone can insert broadcasts" ON broadcasts
-  FOR INSERT TO public WITH CHECK (TRUE);
-
-DROP POLICY IF EXISTS "Teachers can manage broadcasts for their courses" ON broadcasts;
-CREATE POLICY "Teachers can manage broadcasts for their courses" ON broadcasts
-  FOR ALL TO public USING (check_is_course_teacher(course_id));
+  FOR SELECT TO anon USING (TRUE);
 
 DROP POLICY IF EXISTS "Admins can manage broadcasts" ON broadcasts;
 CREATE POLICY "Admins can manage broadcasts" ON broadcasts
-  FOR ALL TO public USING (current_app_role() = 'admin');
+  FOR ALL TO anon USING (current_app_role() = 'admin');
 
 -- MAINTENANCE
 DROP POLICY IF EXISTS "Everyone can view maintenance status" ON maintenance;
 CREATE POLICY "Everyone can view maintenance status" ON maintenance
-  FOR SELECT TO public USING (TRUE);
+  FOR SELECT TO anon USING (TRUE);
 
 DROP POLICY IF EXISTS "Admins can manage maintenance" ON maintenance;
 CREATE POLICY "Admins can manage maintenance" ON maintenance
-  FOR ALL TO public USING (current_app_role() = 'admin');
+  FOR ALL TO anon USING (current_app_role() = 'admin');
 
 -- CERTIFICATES
 DROP POLICY IF EXISTS "Users can view their own certificates" ON certificates;
 CREATE POLICY "Users can view their own certificates" ON certificates
-  FOR SELECT TO public USING (student_id = current_app_user());
+  FOR SELECT TO anon USING (student_id = current_app_user());
 
 DROP POLICY IF EXISTS "Teachers can manage certificates for their courses" ON certificates;
 CREATE POLICY "Teachers can manage certificates for their courses" ON certificates
-  FOR ALL TO public USING (check_is_course_teacher(course_id));
+  FOR ALL TO anon USING (check_is_course_teacher(course_id));
 
 DROP POLICY IF EXISTS "Admins have full access to certificates" ON certificates;
 CREATE POLICY "Admins have full access to certificates" ON certificates
-  FOR ALL TO public USING (current_app_role() = 'admin');
+  FOR ALL TO anon USING (current_app_role() = 'admin');
 
 -- BADGES & USER BADGES
 DROP POLICY IF EXISTS "Everyone can view badges" ON badges;
 CREATE POLICY "Everyone can view badges" ON badges
-  FOR SELECT TO public USING (TRUE);
+  FOR SELECT TO anon USING (TRUE);
 
 DROP POLICY IF EXISTS "Everyone can view user badges" ON user_badges;
 CREATE POLICY "Everyone can view user badges" ON user_badges
-  FOR SELECT TO public USING (TRUE);
+  FOR SELECT TO anon USING (TRUE);
 
 DROP POLICY IF EXISTS "Admins can manage badges" ON badges;
 CREATE POLICY "Admins can manage badges" ON badges
-  FOR ALL TO public USING (current_app_role() = 'admin');
+  FOR ALL TO anon USING (current_app_role() = 'admin');
 
-DROP POLICY IF EXISTS "Teachers and Admins can manage assigned badges" ON user_badges;
-CREATE POLICY "Teachers and Admins can manage assigned badges" ON user_badges
-  FOR ALL TO public USING (current_app_role() IN ('teacher', 'admin'));
+DROP POLICY IF EXISTS "Teachers and Admins can assign badges" ON user_badges;
+CREATE POLICY "Teachers and Admins can assign badges" ON user_badges
+  FOR INSERT TO anon WITH CHECK (current_app_role() IN ('teacher', 'admin'));
 
 -- SYSTEM LOGS
 DROP POLICY IF EXISTS "Authenticated users can insert system logs" ON system_logs;
 CREATE POLICY "Authenticated users can insert system logs" ON system_logs
-  FOR INSERT TO public WITH CHECK (current_app_user() IS NOT NULL);
+  FOR INSERT TO anon WITH CHECK (current_app_user() IS NOT NULL);
 
 DROP POLICY IF EXISTS "Only admins can view system logs" ON system_logs;
 CREATE POLICY "Only admins can view system logs" ON system_logs
-  FOR SELECT TO public USING (current_app_role() = 'admin');
+  FOR SELECT TO anon USING (current_app_role() = 'admin');
 
 -- SETTINGS
 DROP POLICY IF EXISTS "Admins can manage settings" ON settings;
 CREATE POLICY "Admins can manage settings" ON settings
-  FOR ALL TO public USING (current_app_role() = 'admin');
+  FOR ALL TO anon USING (current_app_role() = 'admin');
 
 DROP POLICY IF EXISTS "Everyone can view certain settings" ON settings;
 CREATE POLICY "Everyone can view certain settings" ON settings
-  FOR SELECT TO public USING (TRUE);
+  FOR SELECT TO anon USING (TRUE);
 
 -- 11. Initial Data
 INSERT INTO maintenance (enabled, schedules)
