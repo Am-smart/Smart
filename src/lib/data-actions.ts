@@ -77,7 +77,7 @@ export async function submitAssignment(assignmentId: string, content: Partial<Su
 }
 
 // 3. Teacher Actions: Grading
-export async function gradeSubmission(submissionId: string, gradeData: { score: number; feedback: string; version?: number }) {
+export async function gradeSubmission(submissionId: string, gradeData: { score: number; feedback: string; version?: number; late_penalty_applied?: number; final_grade?: number }) {
   const user = await getVerifiedUser();
   if (user.role !== 'teacher' && user.role !== 'admin') throw new Error('Forbidden');
 

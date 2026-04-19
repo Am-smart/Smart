@@ -24,6 +24,8 @@ export const AssignmentEditor: React.FC<AssignmentEditorProps> = ({ teacherId, a
         due_date: assignment?.due_date ? new Date(assignment.due_date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
         points_possible: assignment?.points_possible || 0,
         status: assignment?.status || 'draft',
+        allow_late_submissions: assignment?.allow_late_submissions !== false,
+        late_penalty_per_day: assignment?.late_penalty_per_day || 0,
         anti_cheat_enabled: assignment?.anti_cheat_enabled || false,
         regrade_requests_enabled: assignment?.regrade_requests_enabled !== false,
         questions: assignment?.questions || [],
@@ -166,6 +168,26 @@ export const AssignmentEditor: React.FC<AssignmentEditorProps> = ({ teacherId, a
                             <input type="checkbox" id="regradeEnabled" checked={formData.regrade_requests_enabled} onChange={e => setFormData({...formData, regrade_requests_enabled: e.target.checked})} className="w-5 h-5 text-blue-600" />
                             <label htmlFor="regradeEnabled" className="text-sm font-bold text-blue-900 cursor-pointer">Regrade Requests</label>
                         </div>
+                    </div>
+
+                    <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100 space-y-4">
+                        <div className="flex items-center gap-3">
+                            <input type="checkbox" id="allowLate" checked={formData.allow_late_submissions} onChange={e => setFormData({...formData, allow_late_submissions: e.target.checked})} className="w-5 h-5 text-blue-600" />
+                            <label htmlFor="allowLate" className="text-sm font-bold text-slate-700 cursor-pointer">Allow Late Submissions</label>
+                        </div>
+
+                        {formData.allow_late_submissions && (
+                            <div>
+                                <label className="block text-[10px] font-bold uppercase text-slate-400 mb-2">Penalty Per Day (%)</label>
+                                <input
+                                    type="number" min="0" max="100"
+                                    value={formData.late_penalty_per_day}
+                                    onChange={e => setFormData({...formData, late_penalty_per_day: Number(e.target.value)})}
+                                    className="w-full p-3 rounded-xl border border-slate-200 focus:border-blue-500 outline-none transition-all text-sm"
+                                    placeholder="e.g. 5"
+                                />
+                            </div>
+                        )}
                     </div>
 
                     <div className="space-y-6 pt-8 border-t">

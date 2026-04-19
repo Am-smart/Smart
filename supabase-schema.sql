@@ -351,6 +351,12 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'assignments' AND column_name = 'start_at') THEN
         ALTER TABLE assignments ADD COLUMN start_at TIMESTAMP WITH TIME ZONE;
     END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'quizzes' AND column_name = 'start_at') THEN
+        ALTER TABLE quizzes ADD COLUMN start_at TIMESTAMP WITH TIME ZONE;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'quizzes' AND column_name = 'end_at') THEN
+        ALTER TABLE quizzes ADD COLUMN end_at TIMESTAMP WITH TIME ZONE;
+    END IF;
 
     -- Course Metadata
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'courses' AND column_name = 'category') THEN
@@ -1030,6 +1036,22 @@ CREATE OR REPLACE FUNCTION check_assignment_course_teacher(p_assignment_id UUID)
   );
 $$ LANGUAGE sql STABLE SECURITY DEFINER;
 
+CREATE OR REPLACE FUNCTION check_assignment_submission_allowed(p_assignment_id UUID) RETURNS BOOLEAN AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM assignments
+    WHERE id = p_assignment_id
+    AND (allow_late_submissions = TRUE OR due_date IS NULL OR due_date >= NOW())
+  );
+$$ LANGUAGE sql STABLE SECURITY DEFINER;
+
+CREATE OR REPLACE FUNCTION check_quiz_submission_allowed(p_quiz_id UUID) RETURNS BOOLEAN AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM quizzes
+    WHERE id = p_quiz_id
+    AND (end_at IS NULL OR end_at >= NOW())
+  );
+$$ LANGUAGE sql STABLE SECURITY DEFINER;
+
 -- RLS Policies
 
 -- USERS
@@ -1128,7 +1150,12 @@ CREATE POLICY "Admins have full access to assignments" ON assignments
 -- SUBMISSIONS
 DROP POLICY IF EXISTS "Students can manage their own submissions" ON submissions;
 CREATE POLICY "Students can manage their own submissions" ON submissions
-  FOR ALL TO anon USING (student_id = current_app_user()) WITH CHECK (student_id = current_app_user());
+  FOR ALL TO anon
+  USING (student_id = current_app_user())
+  WITH CHECK (
+    student_id = current_app_user() AND
+    (current_app_role() != 'student' OR check_assignment_submission_allowed(assignment_id))
+  );
 
 DROP POLICY IF EXISTS "Teachers can view and grade submissions for their courses" ON submissions;
 CREATE POLICY "Teachers can view and grade submissions for their courses" ON submissions
@@ -1158,7 +1185,12 @@ CREATE POLICY "Admins have full access to quizzes" ON quizzes
 -- QUIZ SUBMISSIONS
 DROP POLICY IF EXISTS "Students can manage their own quiz submissions" ON quiz_submissions;
 CREATE POLICY "Students can manage their own quiz submissions" ON quiz_submissions
-  FOR ALL TO anon USING (student_id = current_app_user()) WITH CHECK (student_id = current_app_user());
+  FOR ALL TO anon
+  USING (student_id = current_app_user())
+  WITH CHECK (
+    student_id = current_app_user() AND
+    (current_app_role() != 'student' OR check_quiz_submission_allowed(quiz_id))
+  );
 
 DROP POLICY IF EXISTS "Teachers can view quiz submissions for their courses" ON quiz_submissions;
 CREATE POLICY "Teachers can view quiz submissions for their courses" ON quiz_submissions
@@ -1178,6 +1210,7 @@ CREATE POLICY "Users can manage their own discussion posts" ON discussions
 DROP POLICY IF EXISTS "Users can view discussions for enrolled courses" ON discussions;
 CREATE POLICY "Users can view discussions for enrolled courses" ON discussions
   FOR SELECT TO anon USING (
+    current_app_role() = 'admin' OR
     course_id IS NULL OR
     check_is_enrolled(course_id) OR
     check_is_course_teacher(course_id)
@@ -1191,6 +1224,10 @@ CREATE POLICY "Admins have full access to discussions" ON discussions
 DROP POLICY IF EXISTS "Users can manage their own notifications" ON notifications;
 CREATE POLICY "Users can manage their own notifications" ON notifications
   FOR ALL TO anon USING (user_id = current_app_user()) WITH CHECK (user_id = current_app_user());
+
+DROP POLICY IF EXISTS "Admins can view all notifications" ON notifications;
+CREATE POLICY "Admins can view all notifications" ON notifications
+  FOR SELECT TO anon USING (current_app_role() = 'admin');
 
 -- PLANNER
 DROP POLICY IF EXISTS "Users can manage their own planner items" ON planner;

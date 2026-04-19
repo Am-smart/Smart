@@ -70,6 +70,7 @@ export interface Assignment {
   allow_late_submissions: boolean;
   anti_cheat_enabled: boolean;
   regrade_requests_enabled: boolean;
+  late_penalty_per_day?: number;
   version?: number;
   questions: AssignmentQuestion[];
   attachments?: Record<string, unknown>[];
