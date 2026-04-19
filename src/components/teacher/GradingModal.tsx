@@ -11,6 +11,14 @@ interface GradingModalProps {
 
 export const GradingModal: React.FC<GradingModalProps> = ({ submission, onSave, onCancel }) => {
     const { addToast } = useAppContext();
+
+    const dueDate = submission.assignments?.due_date ? new Date(submission.assignments.due_date) : null;
+    const submittedAt = new Date(submission.submitted_at);
+    const isLate = dueDate && submittedAt > dueDate;
+    const daysLate = isLate ? Math.ceil((submittedAt.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24)) : 0;
+    const penaltyPerDay = submission.assignments?.late_penalty_per_day || 0;
+    const calculatedPenalty = isLate ? daysLate * penaltyPerDay : 0;
+
     const [formData, setFormData] = useState({
         grade: submission.grade?.toString() || '',
         feedback: submission.feedback || '',
@@ -18,13 +26,18 @@ export const GradingModal: React.FC<GradingModalProps> = ({ submission, onSave, 
     });
     const [isSaving, setIsSaving] = useState(false);
 
+    const rawPercentage = formData.grade ? Math.round((Number(formData.grade) / formData.points_possible) * 100) : 0;
+    const finalGrade = Math.max(0, rawPercentage - calculatedPenalty);
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsSaving(true);
         try {
             await gradeSubmission(submission.id, {
                 score: Number(formData.grade),
-                feedback: formData.feedback
+                feedback: formData.feedback,
+                late_penalty_applied: calculatedPenalty,
+                final_grade: finalGrade
             });
 
             addToast('Grade saved successfully!', 'success');
@@ -81,7 +94,7 @@ export const GradingModal: React.FC<GradingModalProps> = ({ submission, onSave, 
                             <div className="text-sm text-amber-900 leading-relaxed italic">&ldquo;{submission.regrade_request}&rdquo;</div>
                         </div>
                     )}
-                    <div className="grid grid-cols-2 gap-6 items-end">
+                    <div className="grid grid-cols-2 gap-6 items-start">
                         <div>
                             <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">Points Earned</label>
                             <div className="flex items-center gap-3">
@@ -95,10 +108,26 @@ export const GradingModal: React.FC<GradingModalProps> = ({ submission, onSave, 
                                 <span className="text-lg font-bold text-slate-400">/ {formData.points_possible}</span>
                             </div>
                         </div>
-                        <div>
-                            <div className="text-sm font-bold text-blue-600 mb-2">Calculated Percentage</div>
-                            <div className="text-2xl font-black text-slate-900">
-                                {formData.grade ? Math.round((Number(formData.grade) / formData.points_possible) * 100) : 0}%
+                        <div className="space-y-4">
+                            <div>
+                                <div className="text-sm font-bold text-blue-600 mb-1 uppercase tracking-tighter">Raw Percentage</div>
+                                <div className="text-xl font-bold text-slate-500">
+                                    {rawPercentage}%
+                                </div>
+                            </div>
+
+                            {isLate && (
+                                <div className="p-3 bg-red-50 rounded-xl border border-red-100">
+                                    <div className="text-[10px] font-bold text-red-600 uppercase">Late Submission ({daysLate} days)</div>
+                                    <div className="text-lg font-black text-red-700">-{calculatedPenalty}%</div>
+                                </div>
+                            )}
+
+                            <div>
+                                <div className="text-sm font-bold text-slate-900 mb-1 uppercase tracking-tighter">Final Grade</div>
+                                <div className="text-3xl font-black text-blue-600">
+                                    {finalGrade}%
+                                </div>
                             </div>
                         </div>
                     </div>

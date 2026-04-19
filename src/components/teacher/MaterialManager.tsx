@@ -15,7 +15,6 @@ export const MaterialManager: React.FC<MaterialManagerProps> = ({ initialMateria
     const { client } = useSupabase();
     const { addToast } = useAppContext();
     const [selectedCourseId, setSelectedCourseId] = useState('');
-    const [uploadStatus, setUploadStatus] = useState<'draft' | 'published'>('draft');
 
     const performUpload = async (file: File, category: 'materials' | 'submissions' | 'thumbnails') => {
         const { filePath } = await uploadFile(file.name, category);
@@ -38,8 +37,7 @@ export const MaterialManager: React.FC<MaterialManagerProps> = ({ initialMateria
             await saveMaterial({
                 course_id: selectedCourseId,
                 title: fileName,
-                file_url: url,
-                status: uploadStatus
+                file_url: url
             });
             onRefresh();
             addToast('Material uploaded successfully!', 'success');
@@ -78,16 +76,6 @@ export const MaterialManager: React.FC<MaterialManagerProps> = ({ initialMateria
                         {courses.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
                     </select>
 
-                    {selectedCourseId && (
-                        <select
-                            value={uploadStatus}
-                            onChange={e => setUploadStatus(e.target.value as 'draft' | 'published')}
-                            className="p-3 rounded-xl border border-slate-200 outline-none focus:border-blue-500 bg-white"
-                        >
-                            <option value="draft">Upload as Draft</option>
-                            <option value="published">Upload as Published</option>
-                        </select>
-                    )}
 
                     {selectedCourseId && (
                         <div className="w-full sm:w-64">

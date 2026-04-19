@@ -77,7 +77,7 @@ export async function submitAssignment(assignmentId: string, content: Partial<Su
 }
 
 // 3. Teacher Actions: Grading
-export async function gradeSubmission(submissionId: string, gradeData: { score: number; feedback: string; version?: number }) {
+export async function gradeSubmission(submissionId: string, gradeData: { score: number; feedback: string; version?: number; late_penalty_applied?: number; final_grade?: number }) {
   const user = await getVerifiedUser();
   if (user.role !== 'teacher' && user.role !== 'admin') throw new Error('Forbidden');
 
@@ -207,7 +207,6 @@ export async function saveLesson(lesson: Partial<Lesson>) {
   let query = withSession(supabase.from('lessons'), user.sessionId as string)
     .upsert({
       ...lessonData,
-      status: lesson.status || 'draft',
       updated_at: new Date().toISOString(),
       version: (version || 0) + 1
     });
@@ -511,7 +510,6 @@ export async function saveMaterial(material: Partial<Material>) {
         .upsert({
             ...materialData,
             teacher_id: material.teacher_id || user.id,
-            status: material.status || 'draft',
             version: (version || 0) + 1
         });
 

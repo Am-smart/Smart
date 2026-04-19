@@ -60,7 +60,6 @@ CREATE TABLE IF NOT EXISTS lessons (
   content TEXT,
   video_url TEXT,
   order_index INTEGER DEFAULT 0,
-  status VARCHAR(50) DEFAULT 'draft' CHECK (status IN ('draft', 'published', 'archived')),
   version INTEGER DEFAULT 1,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -81,6 +80,7 @@ CREATE TABLE IF NOT EXISTS assignments (
   title VARCHAR(255) NOT NULL,
   description TEXT,
   teacher_id UUID REFERENCES users(id) ON UPDATE CASCADE ON DELETE SET NULL,
+  start_at TIMESTAMP WITH TIME ZONE,
   due_date TIMESTAMP WITH TIME ZONE,
   points_possible INTEGER DEFAULT 100,
   allow_late_submissions BOOLEAN DEFAULT TRUE,
@@ -198,7 +198,6 @@ CREATE TABLE IF NOT EXISTS materials (
   description TEXT,
   file_url TEXT,
   file_type VARCHAR(50),
-  status VARCHAR(50) DEFAULT 'draft' CHECK (status IN ('draft', 'published', 'archived')),
   version INTEGER DEFAULT 1,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
@@ -346,6 +345,17 @@ BEGIN
     END IF;
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'quiz_submissions' AND column_name = 'violation_count') THEN
         ALTER TABLE quiz_submissions ADD COLUMN violation_count INTEGER DEFAULT 0;
+    END IF;
+
+    -- Scheduling
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'assignments' AND column_name = 'start_at') THEN
+        ALTER TABLE assignments ADD COLUMN start_at TIMESTAMP WITH TIME ZONE;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'quizzes' AND column_name = 'start_at') THEN
+        ALTER TABLE quizzes ADD COLUMN start_at TIMESTAMP WITH TIME ZONE;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'quizzes' AND column_name = 'end_at') THEN
+        ALTER TABLE quizzes ADD COLUMN end_at TIMESTAMP WITH TIME ZONE;
     END IF;
 
     -- Course Metadata
@@ -1026,6 +1036,22 @@ CREATE OR REPLACE FUNCTION check_assignment_course_teacher(p_assignment_id UUID)
   );
 $$ LANGUAGE sql STABLE SECURITY DEFINER;
 
+CREATE OR REPLACE FUNCTION check_assignment_submission_allowed(p_assignment_id UUID) RETURNS BOOLEAN AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM assignments
+    WHERE id = p_assignment_id
+    AND (allow_late_submissions = TRUE OR due_date IS NULL OR due_date >= NOW())
+  );
+$$ LANGUAGE sql STABLE SECURITY DEFINER;
+
+CREATE OR REPLACE FUNCTION check_quiz_submission_allowed(p_quiz_id UUID) RETURNS BOOLEAN AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM quizzes
+    WHERE id = p_quiz_id
+    AND (end_at IS NULL OR end_at >= NOW())
+  );
+$$ LANGUAGE sql STABLE SECURITY DEFINER;
+
 -- RLS Policies
 
 -- USERS
@@ -1060,7 +1086,7 @@ CREATE POLICY "Teachers can manage lessons for their courses" ON lessons
 
 DROP POLICY IF EXISTS "Students can view lessons for enrolled courses" ON lessons;
 CREATE POLICY "Students can view lessons for enrolled courses" ON lessons
-  FOR SELECT TO anon USING (check_is_enrolled(course_id) AND status = 'published');
+  FOR SELECT TO anon USING (check_is_enrolled(course_id));
 
 DROP POLICY IF EXISTS "Admins have full access to lessons" ON lessons;
 CREATE POLICY "Admins have full access to lessons" ON lessons
@@ -1073,7 +1099,7 @@ CREATE POLICY "Teachers can manage materials for their courses" ON materials
 
 DROP POLICY IF EXISTS "Students can view materials for enrolled courses" ON materials;
 CREATE POLICY "Students can view materials for enrolled courses" ON materials
-  FOR SELECT TO anon USING (check_is_enrolled(course_id) AND status = 'published');
+  FOR SELECT TO anon USING (check_is_enrolled(course_id));
 
 DROP POLICY IF EXISTS "Admins have full access to materials" ON materials;
 CREATE POLICY "Admins have full access to materials" ON materials
@@ -1111,7 +1137,11 @@ CREATE POLICY "Teachers can manage assignments for their courses" ON assignments
 
 DROP POLICY IF EXISTS "Students can view assignments for enrolled courses" ON assignments;
 CREATE POLICY "Students can view assignments for enrolled courses" ON assignments
-  FOR SELECT TO anon USING (check_is_enrolled(course_id) AND status = 'published');
+  FOR SELECT TO anon USING (
+    check_is_enrolled(course_id) AND
+    status = 'published' AND
+    (start_at IS NULL OR start_at <= NOW())
+  );
 
 DROP POLICY IF EXISTS "Admins have full access to assignments" ON assignments;
 CREATE POLICY "Admins have full access to assignments" ON assignments
@@ -1120,7 +1150,12 @@ CREATE POLICY "Admins have full access to assignments" ON assignments
 -- SUBMISSIONS
 DROP POLICY IF EXISTS "Students can manage their own submissions" ON submissions;
 CREATE POLICY "Students can manage their own submissions" ON submissions
-  FOR ALL TO anon USING (student_id = current_app_user()) WITH CHECK (student_id = current_app_user());
+  FOR ALL TO anon
+  USING (student_id = current_app_user())
+  WITH CHECK (
+    student_id = current_app_user() AND
+    (current_app_role() != 'student' OR check_assignment_submission_allowed(assignment_id))
+  );
 
 DROP POLICY IF EXISTS "Teachers can view and grade submissions for their courses" ON submissions;
 CREATE POLICY "Teachers can view and grade submissions for their courses" ON submissions
@@ -1137,7 +1172,11 @@ CREATE POLICY "Teachers can manage quizzes for their courses" ON quizzes
 
 DROP POLICY IF EXISTS "Students can view quizzes for enrolled courses" ON quizzes;
 CREATE POLICY "Students can view quizzes for enrolled courses" ON quizzes
-  FOR SELECT TO anon USING (check_is_enrolled(course_id) AND status = 'published');
+  FOR SELECT TO anon USING (
+    check_is_enrolled(course_id) AND
+    status = 'published' AND
+    (start_at IS NULL OR start_at <= NOW())
+  );
 
 DROP POLICY IF EXISTS "Admins have full access to quizzes" ON quizzes;
 CREATE POLICY "Admins have full access to quizzes" ON quizzes
@@ -1146,7 +1185,12 @@ CREATE POLICY "Admins have full access to quizzes" ON quizzes
 -- QUIZ SUBMISSIONS
 DROP POLICY IF EXISTS "Students can manage their own quiz submissions" ON quiz_submissions;
 CREATE POLICY "Students can manage their own quiz submissions" ON quiz_submissions
-  FOR ALL TO anon USING (student_id = current_app_user()) WITH CHECK (student_id = current_app_user());
+  FOR ALL TO anon
+  USING (student_id = current_app_user())
+  WITH CHECK (
+    student_id = current_app_user() AND
+    (current_app_role() != 'student' OR check_quiz_submission_allowed(quiz_id))
+  );
 
 DROP POLICY IF EXISTS "Teachers can view quiz submissions for their courses" ON quiz_submissions;
 CREATE POLICY "Teachers can view quiz submissions for their courses" ON quiz_submissions
@@ -1166,6 +1210,7 @@ CREATE POLICY "Users can manage their own discussion posts" ON discussions
 DROP POLICY IF EXISTS "Users can view discussions for enrolled courses" ON discussions;
 CREATE POLICY "Users can view discussions for enrolled courses" ON discussions
   FOR SELECT TO anon USING (
+    current_app_role() = 'admin' OR
     course_id IS NULL OR
     check_is_enrolled(course_id) OR
     check_is_course_teacher(course_id)
@@ -1179,6 +1224,10 @@ CREATE POLICY "Admins have full access to discussions" ON discussions
 DROP POLICY IF EXISTS "Users can manage their own notifications" ON notifications;
 CREATE POLICY "Users can manage their own notifications" ON notifications
   FOR ALL TO anon USING (user_id = current_app_user()) WITH CHECK (user_id = current_app_user());
+
+DROP POLICY IF EXISTS "Admins can view all notifications" ON notifications;
+CREATE POLICY "Admins can view all notifications" ON notifications
+  FOR SELECT TO anon USING (current_app_role() = 'admin');
 
 -- PLANNER
 DROP POLICY IF EXISTS "Users can manage their own planner items" ON planner;

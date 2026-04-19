@@ -67,9 +67,9 @@ export const AssignmentForm: React.FC<AssignmentFormProps> = ({ assignment, user
         };
 
         if (isOnline) {
-            await submitAssignment(assignment.id, payload);
+            const res = await submitAssignment(assignment.id, payload);
             addToast('Assignment submitted successfully!', 'success');
-            onComplete(Math.random().toString()); // Placeholder as submitAssignment doesn't return ID yet
+            onComplete(res.data?.id || Math.random().toString());
         } else {
             await addToQueue('SUBMISSION', payload, user.sessionId);
             addToast('Offline: Submission queued for synchronization.', 'info');

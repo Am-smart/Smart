@@ -24,8 +24,10 @@ export const ForcePasswordChange: React.FC<ForcePasswordChangeProps> = ({ onSucc
             addToast('Passwords do not match', 'error');
             return;
         }
-        if (formData.new_password.length < 8) {
-            addToast('Password must be at least 8 characters', 'error');
+
+        const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+        if (!passwordRegex.test(formData.new_password)) {
+            addToast('Password must be at least 8 characters and include uppercase, lowercase, number, and special character.', 'error');
             return;
         }
 
