@@ -20,6 +20,8 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({ teacherId, quiz, courses
         course_id: quiz?.course_id || (courses.length > 0 ? courses[0].id : ''),
         time_limit: quiz?.time_limit || 30,
         attempts_allowed: quiz?.attempts_allowed || 1,
+        start_at: quiz?.start_at ? new Date(quiz.start_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+        end_at: quiz?.end_at ? new Date(quiz.end_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
         status: quiz?.status || 'draft',
         anti_cheat_enabled: quiz?.anti_cheat_enabled || false,
         questions: (quiz?.questions as QuizQuestion[]) || []
@@ -87,6 +89,17 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({ teacherId, quiz, courses
                             <select value={formData.course_id} onChange={e => setFormData({...formData, course_id: e.target.value})} className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all">
                                 {courses.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
                             </select>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-6">
+                        <div>
+                            <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">Start Date</label>
+                            <input type="date" required value={formData.start_at} onChange={e => setFormData({...formData, start_at: e.target.value})} className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all" />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">End Date</label>
+                            <input type="date" required value={formData.end_at} onChange={e => setFormData({...formData, end_at: e.target.value})} className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all" />
                         </div>
                     </div>
                     <div className="grid grid-cols-3 gap-6">

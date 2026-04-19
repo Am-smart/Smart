@@ -20,6 +20,7 @@ export const AssignmentEditor: React.FC<AssignmentEditorProps> = ({ teacherId, a
         title: assignment?.title || '',
         description: assignment?.description || '',
         course_id: assignment?.course_id || (courses.length > 0 ? courses[0].id : ''),
+        start_at: assignment?.start_at ? new Date(assignment.start_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
         due_date: assignment?.due_date ? new Date(assignment.due_date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
         points_possible: assignment?.points_possible || 0,
         status: assignment?.status || 'draft',
@@ -113,6 +114,10 @@ export const AssignmentEditor: React.FC<AssignmentEditorProps> = ({ teacherId, a
                             <select value={formData.course_id} onChange={e => setFormData({...formData, course_id: e.target.value})} className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all">
                                 {courses.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
                             </select>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">Start Date</label>
+                            <input type="date" required value={formData.start_at} onChange={e => setFormData({...formData, start_at: e.target.value})} className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all" />
                         </div>
                         <div>
                             <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">Due Date</label>
