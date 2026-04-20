@@ -36,12 +36,3 @@
  POST /student/help 200 in 143ms
  GET / 200 in 138ms
  GET / 200 in 74ms
- ✓ Compiled in 7.4s (365 modules)
- ✓ Compiled in 678ms (365 modules)
- ✓ Compiled in 2.7s (365 modules)
- ✓ Compiled in 486ms (365 modules)
- ✓ Compiled in 254ms (365 modules)
- ✓ Compiled in 193ms (365 modules)
- ✓ Compiled in 218ms (365 modules)
- ✓ Compiled in 233ms (365 modules)
- ✓ Compiled in 307ms (365 modules)
