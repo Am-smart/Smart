@@ -7,6 +7,7 @@ import { AssignmentsList } from "@/components/student/AssignmentsList";
 import { Assignment, Submission } from '@/lib/types';
 import dynamic from 'next/dynamic';
 import { useAppContext } from '@/components/AppContext';
+import { FeedbackModal } from '@/components/student/FeedbackModal';
 import { requestRegrade } from '@/lib/data-actions';
 
 const AssignmentForm = dynamic(() => import("@/components/student/AssignmentForm").then(m => m.AssignmentForm), { ssr: false });
@@ -18,6 +19,7 @@ export default function AssignmentsPage() {
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [activeAssignment, setActiveAssignment] = useState<Assignment | null>(null);
+  const [feedbackView, setFeedbackView] = useState<{ assignment: Assignment, submission: Submission } | null>(null);
 
   const fetchData = useCallback(async () => {
     if (!user) return;
@@ -48,6 +50,13 @@ export default function AssignmentsPage() {
             />
         </div>
       )}
+      {feedbackView && (
+          <FeedbackModal
+              assignment={feedbackView.assignment}
+              submission={feedbackView.submission}
+              onClose={() => setFeedbackView(null)}
+          />
+      )}
       <AssignmentsList
           assignments={assignments}
           submissions={submissions}
@@ -55,7 +64,7 @@ export default function AssignmentsPage() {
           onViewFeedback={(a) => {
               const sub = submissions.find(s => s.assignment_id === a.id);
               if (sub) {
-                  addToast(`GRADE: ${sub.final_grade}% | Feedback: ${sub.feedback || 'No feedback yet.'}`, 'info', 5000);
+                  setFeedbackView({ assignment: a, submission: sub });
               }
           }}
           onRegradeRequest={async (a, reason) => {

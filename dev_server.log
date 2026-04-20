@@ -7,9 +7,41 @@
    - Network:      http://192.168.0.2:3000
 
  ✓ Starting...
- ✓ Ready in 2s
+ ✓ Ready in 2.5s
  ○ Compiling / ...
- ✓ Compiled / in 11.8s (872 modules)
- GET / 200 in 14135ms
- POST / 200 in 332ms
- POST / 200 in 45ms
+ ✓ Compiled / in 9.4s (872 modules)
+ HEAD / 200 in 10884ms
+ ✓ Compiled in 602ms (311 modules)
+ ✓ Compiled in 252ms (311 modules)
+ ○ Compiling /_not-found ...
+ ✓ Compiled /_not-found in 728ms (840 modules)
+ GET /login 404 in 1414ms
+ POST /login 404 in 215ms
+ POST /login 404 in 21ms
+ ○ Compiling /student/analytics ...
+ ✓ Compiled /student/analytics in 1263ms (932 modules)
+ GET /student/analytics 200 in 2245ms
+ POST /student/analytics 200 in 388ms
+ ✓ Compiled / in 303ms (600 modules)
+ POST /student/analytics 200 in 808ms
+ GET / 200 in 884ms
+ GET / 200 in 90ms
+ GET /teacher/analytics 404 in 391ms
+ POST /teacher/analytics 404 in 41ms
+ POST /teacher/analytics 404 in 32ms
+ ○ Compiling /student/help ...
+ ✓ Compiled /student/help in 621ms (968 modules)
+ GET /student/help 200 in 1137ms
+ POST /student/help 200 in 140ms
+ POST /student/help 200 in 143ms
+ GET / 200 in 138ms
+ GET / 200 in 74ms
+ ✓ Compiled in 7.4s (365 modules)
+ ✓ Compiled in 678ms (365 modules)
+ ✓ Compiled in 2.7s (365 modules)
+ ✓ Compiled in 486ms (365 modules)
+ ✓ Compiled in 254ms (365 modules)
+ ✓ Compiled in 193ms (365 modules)
+ ✓ Compiled in 218ms (365 modules)
+ ✓ Compiled in 233ms (365 modules)
+ ✓ Compiled in 307ms (365 modules)
