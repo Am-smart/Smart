@@ -32,17 +32,19 @@ export const PasswordReset: React.FC<PasswordResetProps> = ({ users, onRefresh }
         const upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
         const lower = "abcdefghijkmnopqrstuvwxyz";
         const nums = "23456789";
-        const spec = "!@#$%^&*";
-        const all = upper + lower + nums + spec;
+        const allowedSpec = "@$!%*?&";
+
+        const alphaNum = upper + lower + nums;
 
         let pwd = "";
         pwd += upper[Math.floor(Math.random() * upper.length)];
         pwd += lower[Math.floor(Math.random() * lower.length)];
         pwd += nums[Math.floor(Math.random() * nums.length)];
-        pwd += spec[Math.floor(Math.random() * spec.length)];
+        pwd += allowedSpec[Math.floor(Math.random() * allowedSpec.length)];
 
+        // Add 4 more alphanumeric characters to reach length 8
         for (let i = 0; i < 4; i++) {
-            pwd += all[Math.floor(Math.random() * all.length)];
+            pwd += alphaNum[Math.floor(Math.random() * alphaNum.length)];
         }
 
         return pwd.split('').sort(() => 0.5 - Math.random()).join('');
