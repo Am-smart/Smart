@@ -25,11 +25,20 @@ export const AssignmentForm: React.FC<AssignmentFormProps> = ({ assignment, user
 
   const { violationCount } = useAntiCheat(assignment.anti_cheat_enabled, assignment.title);
 
-  // Anti-cheat: Soft-flagging only (No hard lock/auto-submit per requirements)
+  // Anti-cheat: Feedback and detection
   React.useEffect(() => {
     if (assignment.anti_cheat_enabled && violationCount > 0) {
         addToast(`Security Warning: Violation detected (${violationCount}). This submission has been flagged for review.`, 'info');
     }
+
+    const handleViolation = (e: Event) => {
+        const detail = (e as CustomEvent).detail;
+        if (assignment.anti_cheat_enabled && detail) {
+            addToast(`Anti-Cheat Alert: ${detail.type} detected!`, 'error');
+        }
+    };
+    window.addEventListener('anti-cheat-violation', handleViolation);
+    return () => window.removeEventListener('anti-cheat-violation', handleViolation);
   }, [violationCount, assignment.anti_cheat_enabled, addToast]);
 
   const performUpload = async (file: File, category: 'materials' | 'submissions' | 'thumbnails') => {
@@ -118,6 +127,13 @@ export const AssignmentForm: React.FC<AssignmentFormProps> = ({ assignment, user
                       className="w-full h-32 p-4 rounded-xl border-2 border-slate-200 focus:border-blue-500 outline-none transition-all resize-none text-sm"
                       value={answers[idx] || ''}
                       onChange={(e) => setAnswers({ ...answers, [idx]: e.target.value })}
+                      onPaste={(e) => {
+                          if (assignment.anti_cheat_enabled) {
+                              e.preventDefault();
+                              const event = new CustomEvent('anti-cheat-violation', { detail: { type: 'pasted-content' } });
+                              window.dispatchEvent(event);
+                          }
+                      }}
                     />
                   )}
 
@@ -150,6 +166,13 @@ export const AssignmentForm: React.FC<AssignmentFormProps> = ({ assignment, user
                     onChange={(e) => setSubmissionText(e.target.value)}
                     placeholder="Provide any final details for your submission..."
                     className="w-full h-40 p-4 rounded-xl md:rounded-2xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all resize-none text-sm text-slate-700"
+                    onPaste={(e) => {
+                        if (assignment.anti_cheat_enabled) {
+                            e.preventDefault();
+                            const event = new CustomEvent('anti-cheat-violation', { detail: { type: 'pasted-content' } });
+                            window.dispatchEvent(event);
+                        }
+                    }}
                   />
               </div>
             </div>
@@ -162,6 +185,13 @@ export const AssignmentForm: React.FC<AssignmentFormProps> = ({ assignment, user
                     onChange={(e) => setSubmissionText(e.target.value)}
                     placeholder="Type your answer here..."
                     className="w-full h-40 p-4 rounded-xl md:rounded-2xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all resize-none text-sm text-slate-700"
+                    onPaste={(e) => {
+                        if (assignment.anti_cheat_enabled) {
+                            e.preventDefault();
+                            const event = new CustomEvent('anti-cheat-violation', { detail: { type: 'pasted-content' } });
+                            window.dispatchEvent(event);
+                        }
+                    }}
                 />
               </div>
 

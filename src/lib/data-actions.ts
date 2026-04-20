@@ -11,18 +11,9 @@ async function getVerifiedUser() {
   return session;
 }
 
-export async function createSystemLog(log: Record<string, unknown>) {
-    const user = await getVerifiedUser();
-
-    // Allow all authenticated users to create log entries for audit trails.
-    // Read access is still restricted to admins at the database level.
-    const { error } = await withSession(supabase.from('system_logs'), user.sessionId as string)
-        .insert([{
-            ...log,
-            user_id: log.user_id || user.id
-        }]);
-
-    if (error) throw new Error(error.message);
+export async function createSystemLog(_log: Record<string, unknown>) {
+    // Disabled as per security and privacy requirements
+    void _log;
     return { success: true };
 }
 
