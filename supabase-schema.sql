@@ -106,7 +106,7 @@ CREATE TABLE IF NOT EXISTS submissions (
   file_url TEXT,
   answers JSONB DEFAULT '{}'::jsonb,
   question_scores JSONB DEFAULT '{}'::jsonb,
-  question_feedback JSONB DEFAULT '{}'::jsonb,
+  response_feedback JSONB DEFAULT '{}'::jsonb,
   late_penalty_applied INTEGER DEFAULT 0,
   attachments JSONB DEFAULT '[]'::jsonb,
   grade INTEGER,
@@ -347,8 +347,8 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'quiz_submissions' AND column_name = 'violation_count') THEN
         ALTER TABLE quiz_submissions ADD COLUMN violation_count INTEGER DEFAULT 0;
     END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'submissions' AND column_name = 'question_feedback') THEN
-        ALTER TABLE submissions ADD COLUMN question_feedback JSONB DEFAULT '{}'::jsonb;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'submissions' AND column_name = 'response_feedback') THEN
+        ALTER TABLE submissions ADD COLUMN response_feedback JSONB DEFAULT '{}'::jsonb;
     END IF;
 
     -- Scheduling

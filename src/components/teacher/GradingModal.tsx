@@ -42,7 +42,7 @@ export const GradingModal: React.FC<GradingModalProps> = ({ submission, onSave, 
                 feedback: formData.feedback,
                 late_penalty_applied: calculatedPenalty,
                 final_grade: finalGrade,
-                question_feedback: formData.question_feedback
+                response_feedback: formData.response_feedback
             };
 
             if (submission.regrade_request && regradeStatus === 'resolved') {
@@ -92,15 +92,15 @@ export const GradingModal: React.FC<GradingModalProps> = ({ submission, onSave, 
                                         </div>
 
                                         <div className="pt-2 border-t border-blue-100/50">
-                                            <label className="text-[10px] font-bold text-blue-400 uppercase tracking-widest block mb-1">Feedback for this step</label>
+                                            <label className="text-[10px] font-bold text-blue-400 uppercase tracking-widest block mb-1">Response Feedback</label>
                                             <input
                                                 type="text"
-                                                value={formData.question_feedback[idx] || ''}
+                                                value={formData.response_feedback[idx] || ''}
                                                 onChange={(e) => setFormData({
                                                     ...formData,
-                                                    question_feedback: { ...formData.question_feedback, [idx]: e.target.value }
+                                                    response_feedback: { ...formData.response_feedback, [idx]: e.target.value }
                                                 })}
-                                                placeholder="Optional feedback..."
+                                                placeholder="Provide feedback on this specific response..."
                                                 className="w-full bg-white/80 border-none rounded-lg p-2 text-xs focus:ring-1 focus:ring-blue-400 outline-none"
                                             />
                                         </div>
