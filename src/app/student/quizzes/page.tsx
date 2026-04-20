@@ -6,17 +6,17 @@ import { useSupabase } from '@/hooks/useSupabase';
 import { QuizzesList } from "@/components/student/QuizzesList";
 import { Quiz, QuizSubmission } from '@/lib/types';
 import dynamic from 'next/dynamic';
-import { useAppContext } from '@/components/AppContext';
+import { QuizResultModal } from '@/components/student/QuizResultModal';
 
 const QuizView = dynamic(() => import("@/components/student/QuizView").then(m => m.QuizView), { ssr: false });
 
 export default function QuizzesPage() {
   const { user } = useAuth();
-  const { addToast } = useAppContext();
   const { client, getQuizzes, getEnrollments } = useSupabase();
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [submissions, setSubmissions] = useState<QuizSubmission[]>([]);
   const [activeQuiz, setActiveQuiz] = useState<Quiz | null>(null);
+  const [viewingResult, setViewingResult] = useState<{ quiz: Quiz, submission: QuizSubmission } | null>(null);
 
   const fetchData = useCallback(async () => {
     if (!user) return;
@@ -36,9 +36,10 @@ export default function QuizzesPage() {
   }, [fetchData]);
 
   const handleViewResults = (quizId: string, submissionId: string) => {
+      const quiz = quizzes.find(q => q.id === quizId);
       const sub = submissions.find(s => s.id === submissionId);
-      if (sub) {
-          addToast(`QUIZ RESULT: ${sub.score}% | Completed on: ${new Date(sub.submitted_at).toLocaleDateString()}`, 'info', 6000);
+      if (quiz && sub) {
+          setViewingResult({ quiz, submission: sub });
       }
   };
 
@@ -51,6 +52,13 @@ export default function QuizzesPage() {
             onComplete={() => { setActiveQuiz(null); fetchData(); }}
             onCancel={() => setActiveQuiz(null)}
         />
+      )}
+      {viewingResult && (
+          <QuizResultModal
+              quiz={viewingResult.quiz}
+              submission={viewingResult.submission}
+              onClose={() => setViewingResult(null)}
+          />
       )}
       <QuizzesList
           quizzes={quizzes}

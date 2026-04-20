@@ -10,6 +10,10 @@ export const useAntiCheat = (enabled: boolean = false, assessmentTitle: string =
     setViolationCount(prev => prev + 1);
     console.warn(`Anti-Cheat Violation: ${type}`);
 
+    // Trigger local feedback if possible (context would be better but hook can emit events)
+    const event = new CustomEvent('anti-cheat-violation', { detail: { type } });
+    window.dispatchEvent(event);
+
     if (user && enabled) {
         try {
             await createSystemLog({
