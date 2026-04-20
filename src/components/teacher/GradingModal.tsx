@@ -24,7 +24,7 @@ export const GradingModal: React.FC<GradingModalProps> = ({ submission, onSave, 
         feedback: submission.feedback || '',
         points_possible: submission.assignments?.points_possible || 100,
         regrade_feedback: '',
-        question_feedback: (submission.question_feedback as Record<string, string>) || {}
+        response_feedback: (submission.response_feedback as Record<string, string>) || {}
     });
     const [isSaving, setIsSaving] = useState(false);
     const [regradeStatus, setRegradeStatus] = useState<'pending' | 'resolved'>(submission.regrade_request ? 'pending' : 'resolved');
@@ -68,7 +68,7 @@ export const GradingModal: React.FC<GradingModalProps> = ({ submission, onSave, 
                 <header className="p-8 border-b bg-slate-50 flex justify-between items-center">
                     <div>
                         <h2 className="text-2xl font-bold text-slate-900">Grade Submission</h2>
-                        <div className="text-xs text-slate-500 font-medium mt-1">Student: {submission.users?.full_name || submission.student_id}</div>
+                        <div className="text-xs text-slate-500 font-medium mt-1">Student: {submission.users?.full_name || 'Anonymous Student'}</div>
                     </div>
                     <button onClick={onCancel} className="p-2 hover:bg-slate-200 rounded-full transition-colors">✕</button>
                 </header>

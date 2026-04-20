@@ -118,6 +118,19 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({ teacherId, quiz, courses
                                 <option value="published">Published</option>
                             </select>
                         </div>
+                        <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-xl border-2 border-slate-100">
+                            <input
+                                type="checkbox"
+                                id="anti_cheat"
+                                checked={formData.anti_cheat_enabled}
+                                onChange={e => setFormData({...formData, anti_cheat_enabled: e.target.checked})}
+                                className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                            />
+                            <div>
+                                <label htmlFor="anti_cheat" className="block text-sm font-bold text-slate-700 uppercase tracking-wide">Enable Anti-Cheat</label>
+                                <p className="text-[10px] text-slate-500 font-medium">Monitor and auto-submit on violations</p>
+                            </div>
+                        </div>
                     </div>
 
                     <div className="space-y-8 pt-8 border-t">

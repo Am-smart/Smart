@@ -11,18 +11,9 @@ async function getVerifiedUser() {
   return session;
 }
 
-export async function createSystemLog(log: Record<string, unknown>) {
-    const user = await getVerifiedUser();
-
-    // Allow all authenticated users to create log entries for audit trails.
-    // Read access is still restricted to admins at the database level.
-    const { error } = await withSession(supabase.from('system_logs'), user.sessionId as string)
-        .insert([{
-            ...log,
-            user_id: log.user_id || user.id
-        }]);
-
-    if (error) throw new Error(error.message);
+export async function createSystemLog(_log: Record<string, unknown>) {
+    // Disabled as per security and privacy requirements
+    void _log;
     return { success: true };
 }
 
@@ -634,17 +625,22 @@ export async function saveLiveClass(liveClass: Partial<LiveClass>) {
     const user = await getVerifiedUser();
     if (user.role !== 'teacher' && user.role !== 'admin') throw new Error('Forbidden');
 
-    const { version, ...liveClassData } = liveClass;
+    const { version, id, ...liveClassData } = liveClass;
+
+    // Clean data to prevent UUID syntax errors from empty strings
+    const cleanedId = id && id.trim() !== "" ? id : undefined;
+
     let query = withSession(supabase.from('live_classes'), user.sessionId as string)
         .upsert({
             ...liveClassData,
+            ...(cleanedId ? { id: cleanedId } : {}),
             teacher_id: liveClass.teacher_id || user.id,
             status: liveClass.status || 'scheduled',
             version: (version || 0) + 1
         });
 
-    if (liveClass.id) {
-        query = query.eq('id', liveClass.id);
+    if (cleanedId) {
+        query = query.eq('id', cleanedId);
     }
     if (version) {
         query = query.eq('version', version);

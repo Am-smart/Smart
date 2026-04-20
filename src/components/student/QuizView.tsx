@@ -24,6 +24,17 @@ export const QuizView: React.FC<QuizViewProps> = ({ quiz, user, onComplete, onCa
 
   const { violationCount } = useAntiCheat(quiz.anti_cheat_enabled, quiz.title);
 
+  useEffect(() => {
+    const handleViolation = (e: Event) => {
+        const detail = (e as CustomEvent).detail;
+        if (quiz.anti_cheat_enabled && detail) {
+            addToast(`Anti-Cheat Alert: ${detail.type} detected!`, 'error');
+        }
+    };
+    window.addEventListener('anti-cheat-violation', handleViolation);
+    return () => window.removeEventListener('anti-cheat-violation', handleViolation);
+  }, [quiz.anti_cheat_enabled, addToast]);
+
   // Handle Shuffling
   useEffect(() => {
     if (quiz.shuffle_questions && quiz.questions) {
@@ -102,18 +113,17 @@ export const QuizView: React.FC<QuizViewProps> = ({ quiz, user, onComplete, onCa
     }
   }, [quiz, user, answers, isSubmitting, result, isOnline, addToQueue, setCache, timeLeft, startedAt, addToast]);
 
-  // Anti-cheat: Soft-flagging only (No hard lock/auto-submit per requirements)
+  // Anti-cheat: Hard enforcement when enabled
   useEffect(() => {
     if (quiz.anti_cheat_enabled && violationCount > 0) {
         addToast(`Security Warning: Violation detected (${violationCount}). This assessment has been flagged for review.`, 'info');
     }
-    /* Hard enforcement disabled:
+
     if (quiz.anti_cheat_enabled && violationCount >= 5 && !isSubmitting && !result) {
         addToast('Security Threshold Reached: Assessment locked and auto-submitted due to multiple violations.', 'error', 10000);
         handleSubmit(false);
     }
-    */
-  }, [violationCount, quiz.anti_cheat_enabled, addToast]);
+  }, [violationCount, quiz.anti_cheat_enabled, addToast, isSubmitting, result, handleSubmit]);
 
   useEffect(() => {
     if (timeLeft === null) return;
@@ -200,6 +210,13 @@ export const QuizView: React.FC<QuizViewProps> = ({ quiz, user, onComplete, onCa
                     onChange={(e) => handleAnswerChange(q.id, e.target.value)}
                     placeholder="Type your answer here..."
                     className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all text-sm"
+                    onPaste={(e) => {
+                        if (quiz.anti_cheat_enabled) {
+                            e.preventDefault();
+                            const event = new CustomEvent('anti-cheat-violation', { detail: { type: 'pasted-content' } });
+                            window.dispatchEvent(event);
+                        }
+                    }}
                   />
                 ) : (
                   (q.options || []).map((opt: string) => (
