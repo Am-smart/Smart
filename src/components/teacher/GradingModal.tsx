@@ -22,9 +22,12 @@ export const GradingModal: React.FC<GradingModalProps> = ({ submission, onSave, 
     const [formData, setFormData] = useState({
         grade: submission.grade?.toString() || '',
         feedback: submission.feedback || '',
-        points_possible: submission.assignments?.points_possible || 100
+        points_possible: submission.assignments?.points_possible || 100,
+        regrade_feedback: '',
+        question_feedback: (submission.question_feedback as Record<string, string>) || {}
     });
     const [isSaving, setIsSaving] = useState(false);
+    const [regradeStatus, setRegradeStatus] = useState<'pending' | 'resolved'>(submission.regrade_request ? 'pending' : 'resolved');
 
     const rawPercentage = formData.grade ? Math.round((Number(formData.grade) / formData.points_possible) * 100) : 0;
     const finalGrade = Math.max(0, rawPercentage - calculatedPenalty);
@@ -33,12 +36,21 @@ export const GradingModal: React.FC<GradingModalProps> = ({ submission, onSave, 
         e.preventDefault();
         setIsSaving(true);
         try {
-            await gradeSubmission(submission.id, {
+            const gradeData: Partial<Submission> = {
                 score: Number(formData.grade),
+                grade: Number(formData.grade),
                 feedback: formData.feedback,
                 late_penalty_applied: calculatedPenalty,
-                final_grade: finalGrade
-            });
+                final_grade: finalGrade,
+                question_feedback: formData.question_feedback
+            };
+
+            if (submission.regrade_request && regradeStatus === 'resolved') {
+                gradeData.regrade_request = null;
+                gradeData.feedback = `${formData.feedback}\n\n[Regrade Response]: ${formData.regrade_feedback}`;
+            }
+
+            await gradeSubmission(submission.id, gradeData);
 
             addToast('Grade saved successfully!', 'success');
             onSave();
@@ -67,14 +79,30 @@ export const GradingModal: React.FC<GradingModalProps> = ({ submission, onSave, 
                         {submission.answers && Object.keys(submission.answers).length > 0 ? (
                             <div className="space-y-4">
                                 {submission.assignments?.questions.map((q, idx) => (
-                                    <div key={idx} className="bg-white/50 p-3 rounded-lg">
-                                        <div className="text-xs font-bold text-slate-500 uppercase mb-1">Step {idx + 1}: {q.text}</div>
-                                        <div className="text-sm text-slate-800">
-                                            {q.type === 'file' ? (
-                                                <a href={submission.answers?.[idx] as string} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">View Uploaded File</a>
-                                            ) : (
-                                                (submission.answers?.[idx] as string) || <span className="italic text-slate-400">No response</span>
-                                            )}
+                                    <div key={idx} className="bg-white/50 p-4 rounded-xl space-y-3">
+                                        <div>
+                                            <div className="text-xs font-bold text-slate-500 uppercase mb-1">Step {idx + 1}: {q.text}</div>
+                                            <div className="text-sm text-slate-800">
+                                                {q.type === 'file' ? (
+                                                    <a href={submission.answers?.[idx] as string} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-bold">View Uploaded File</a>
+                                                ) : (
+                                                    (submission.answers?.[idx] as string) || <span className="italic text-slate-400">No response</span>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        <div className="pt-2 border-t border-blue-100/50">
+                                            <label className="text-[10px] font-bold text-blue-400 uppercase tracking-widest block mb-1">Feedback for this step</label>
+                                            <input
+                                                type="text"
+                                                value={formData.question_feedback[idx] || ''}
+                                                onChange={(e) => setFormData({
+                                                    ...formData,
+                                                    question_feedback: { ...formData.question_feedback, [idx]: e.target.value }
+                                                })}
+                                                placeholder="Optional feedback..."
+                                                className="w-full bg-white/80 border-none rounded-lg p-2 text-xs focus:ring-1 focus:ring-blue-400 outline-none"
+                                            />
                                         </div>
                                     </div>
                                 ))}
@@ -89,9 +117,31 @@ export const GradingModal: React.FC<GradingModalProps> = ({ submission, onSave, 
                     </div>
 
                     {submission.regrade_request && (
-                        <div className="bg-amber-50 p-6 rounded-2xl border border-amber-100">
-                            <h4 className="text-sm font-bold text-amber-700 uppercase mb-2">Regrade Request</h4>
+                        <div className="bg-amber-50 p-6 rounded-2xl border border-amber-100 space-y-4">
+                            <div className="flex justify-between items-center">
+                                <h4 className="text-sm font-bold text-amber-700 uppercase">Regrade Request</h4>
+                                <select
+                                    value={regradeStatus}
+                                    onChange={(e) => setRegradeStatus(e.target.value as 'pending' | 'resolved')}
+                                    className="text-xs font-bold p-1 rounded border border-amber-200 bg-white"
+                                >
+                                    <option value="pending">Keep Pending</option>
+                                    <option value="resolved">Mark Resolved</option>
+                                </select>
+                            </div>
                             <div className="text-sm text-amber-900 leading-relaxed italic">&ldquo;{submission.regrade_request}&rdquo;</div>
+
+                            {regradeStatus === 'resolved' && (
+                                <div className="space-y-2 animate-in slide-in-from-top-2">
+                                    <label className="block text-[10px] font-bold text-amber-600 uppercase">Regrade Response</label>
+                                    <textarea
+                                        value={formData.regrade_feedback}
+                                        onChange={(e) => setFormData({...formData, regrade_feedback: e.target.value})}
+                                        placeholder="Explain your decision..."
+                                        className="w-full p-3 text-sm rounded-xl border border-amber-200 focus:border-amber-500 outline-none transition-all resize-none"
+                                    />
+                                </div>
+                            )}
                         </div>
                     )}
                     <div className="grid grid-cols-2 gap-6 items-start">

@@ -25,6 +25,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const { user } = useAuth();
   const { setCache, getCache, isOnline, pullData } = useIndexedDB();
   const [maintenance, setMaintenance] = useState<Maintenance>({ id: "system-config", enabled: false, schedules: [] });
+  const [isCurrentlyInMaintenance, setIsCurrentlyInMaintenance] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
@@ -53,6 +54,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (isOnline) {
         const m = await getMaintenance();
         setMaintenance(m);
+
+        // Auto-check schedule
+        const now = new Date();
+        const isInSchedule = m.schedules?.some(s => {
+            const start = new Date(s.start_at);
+            const end = new Date(s.end_at);
+            return now >= start && now <= end;
+        });
+
+        setIsCurrentlyInMaintenance(m.enabled || !!isInSchedule);
         await setCache('maintenance', m);
       }
     } catch (err) {
@@ -209,14 +220,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const toggleSidebar = useCallback(() => setIsSidebarOpen(prev => !prev), []);
 
   const value = useMemo(() => ({
-    maintenance,
+    maintenance: { ...maintenance, enabled: isCurrentlyInMaintenance },
     notifications,
     isSidebarOpen,
     toggleSidebar,
     fetchNotifications,
     isOnline,
     addToast
-  }), [maintenance, notifications, isSidebarOpen, toggleSidebar, fetchNotifications, isOnline, addToast]);
+  }), [maintenance, notifications, isSidebarOpen, toggleSidebar, fetchNotifications, isOnline, addToast, isCurrentlyInMaintenance]);
 
   return (
     <AppContext.Provider value={value}>

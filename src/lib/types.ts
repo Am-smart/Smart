@@ -124,8 +124,10 @@ export interface Submission {
   answers?: Record<string, unknown>;
   status: 'draft' | 'submitted' | 'graded' | 'returned';
   grade?: number;
+  score?: number;
   final_grade?: number;
   feedback?: string;
+  question_feedback?: Record<string, string>;
   violation_count?: number;
   version?: number;
   regrade_request?: string;
