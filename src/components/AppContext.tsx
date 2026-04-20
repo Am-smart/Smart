@@ -215,7 +215,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (cleanup) cleanup();
       clearTimeout(debounceTimer);
     };
-  }, [user, isOnline, fetchNotifications]);
+  }, [user, isOnline, fetchNotifications, addToast]);
 
   const toggleSidebar = useCallback(() => setIsSidebarOpen(prev => !prev), []);
 

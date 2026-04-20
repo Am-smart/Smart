@@ -52,7 +52,7 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({ assignment, submis
                              <div className="space-y-4">
                                 {assignment.questions.map((q, idx) => {
                                     const answer = submission.answers?.[idx];
-                                    const feedback = submission.question_feedback?.[idx];
+                                    const feedback = submission.response_feedback?.[idx];
                                     return (
                                         <div key={idx} className="border border-slate-100 rounded-2xl p-6 space-y-4 hover:border-slate-200 transition-colors">
                                             <div className="flex justify-between items-start gap-4">

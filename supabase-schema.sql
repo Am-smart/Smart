@@ -1256,7 +1256,9 @@ CREATE POLICY "Students can manage their own attendance" ON attendance
 -- LIVE CLASSES
 DROP POLICY IF EXISTS "Teachers can manage live classes for their courses" ON live_classes;
 CREATE POLICY "Teachers can manage live classes for their courses" ON live_classes
-  FOR ALL TO anon USING (check_is_course_teacher(course_id));
+  FOR ALL TO anon
+  USING (check_is_course_teacher(course_id))
+  WITH CHECK (check_is_course_teacher(course_id));
 
 DROP POLICY IF EXISTS "Students can view live classes for enrolled courses" ON live_classes;
 CREATE POLICY "Students can view live classes for enrolled courses" ON live_classes

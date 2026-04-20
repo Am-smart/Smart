@@ -634,17 +634,22 @@ export async function saveLiveClass(liveClass: Partial<LiveClass>) {
     const user = await getVerifiedUser();
     if (user.role !== 'teacher' && user.role !== 'admin') throw new Error('Forbidden');
 
-    const { version, ...liveClassData } = liveClass;
+    const { version, id, ...liveClassData } = liveClass;
+
+    // Clean data to prevent UUID syntax errors from empty strings
+    const cleanedId = id && id.trim() !== "" ? id : undefined;
+
     let query = withSession(supabase.from('live_classes'), user.sessionId as string)
         .upsert({
             ...liveClassData,
+            ...(cleanedId ? { id: cleanedId } : {}),
             teacher_id: liveClass.teacher_id || user.id,
             status: liveClass.status || 'scheduled',
             version: (version || 0) + 1
         });
 
-    if (liveClass.id) {
-        query = query.eq('id', liveClass.id);
+    if (cleanedId) {
+        query = query.eq('id', cleanedId);
     }
     if (version) {
         query = query.eq('version', version);
