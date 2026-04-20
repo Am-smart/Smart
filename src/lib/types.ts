@@ -124,11 +124,14 @@ export interface Submission {
   answers?: Record<string, unknown>;
   status: 'draft' | 'submitted' | 'graded' | 'returned';
   grade?: number;
+  score?: number;
   final_grade?: number;
   feedback?: string;
+  response_feedback?: Record<string, string>;
+  late_penalty_applied?: number;
   violation_count?: number;
   version?: number;
-  regrade_request?: string;
+  regrade_request?: string | null;
   assignments?: Assignment;
   graded_at?: string;
   users?: {
@@ -172,6 +175,7 @@ export interface Notification {
 export interface Maintenance {
   id: string;
   enabled: boolean;
+  message?: string;
   schedules: MaintenanceSchedule[];
 }
 
