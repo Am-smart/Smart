@@ -102,18 +102,17 @@ export const QuizView: React.FC<QuizViewProps> = ({ quiz, user, onComplete, onCa
     }
   }, [quiz, user, answers, isSubmitting, result, isOnline, addToQueue, setCache, timeLeft, startedAt, addToast]);
 
-  // Anti-cheat: Soft-flagging only (No hard lock/auto-submit per requirements)
+  // Anti-cheat: Hard enforcement when enabled
   useEffect(() => {
     if (quiz.anti_cheat_enabled && violationCount > 0) {
         addToast(`Security Warning: Violation detected (${violationCount}). This assessment has been flagged for review.`, 'info');
     }
-    /* Hard enforcement disabled:
+
     if (quiz.anti_cheat_enabled && violationCount >= 5 && !isSubmitting && !result) {
         addToast('Security Threshold Reached: Assessment locked and auto-submitted due to multiple violations.', 'error', 10000);
         handleSubmit(false);
     }
-    */
-  }, [violationCount, quiz.anti_cheat_enabled, addToast]);
+  }, [violationCount, quiz.anti_cheat_enabled, addToast, isSubmitting, result, handleSubmit]);
 
   useEffect(() => {
     if (timeLeft === null) return;
