@@ -24,7 +24,7 @@ export const GradingModal: React.FC<GradingModalProps> = ({ submission, onSave, 
         feedback: submission.feedback || '',
         points_possible: submission.assignments?.points_possible || 100,
         regrade_feedback: '',
-        question_feedback: (submission.question_feedback as Record<string, string>) || {}
+        response_feedback: (submission.response_feedback as Record<string, string>) || {}
     });
     const [isSaving, setIsSaving] = useState(false);
     const [regradeStatus, setRegradeStatus] = useState<'pending' | 'resolved'>(submission.regrade_request ? 'pending' : 'resolved');
