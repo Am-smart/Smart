@@ -21,8 +21,8 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, onAdd, on
             <h2 className="text-2xl font-bold">User Management</h2>
             <button onClick={onAdd} className="btn-primary py-2 px-6">Add User</button>
         </div>
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
-            <table className="w-full text-left">
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden overflow-x-auto">
+            <table className="w-full text-left min-w-[800px]">
                 <thead>
                     <tr className="bg-slate-50 text-slate-500 text-xs font-bold uppercase tracking-wider border-b border-slate-100">
                         <th className="px-6 py-4">Name</th>

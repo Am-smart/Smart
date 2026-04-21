@@ -72,8 +72,8 @@ export const GradingModal: React.FC<GradingModalProps> = ({ submission, onSave, 
                     </div>
                     <button onClick={onCancel} className="p-2 hover:bg-slate-200 rounded-full transition-colors">✕</button>
                 </header>
-                <form onSubmit={handleSubmit} className="p-8 space-y-6 overflow-y-auto max-h-[70vh]">
-                    <div className="bg-blue-50 p-6 rounded-2xl border border-blue-100 space-y-4">
+                <form onSubmit={handleSubmit} className="p-4 md:p-8 space-y-6 overflow-y-auto max-h-[70vh]">
+                    <div className="bg-blue-50 p-4 md:p-6 rounded-2xl border border-blue-100 space-y-4">
                         <h4 className="text-sm font-bold text-blue-700 uppercase mb-2">Student Submission</h4>
 
                         {submission.answers && Object.keys(submission.answers).length > 0 ? (
@@ -144,7 +144,7 @@ export const GradingModal: React.FC<GradingModalProps> = ({ submission, onSave, 
                             )}
                         </div>
                     )}
-                    <div className="grid grid-cols-2 gap-6 items-start">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
                         <div>
                             <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">Points Earned</label>
                             <div className="flex items-center gap-3">
@@ -152,13 +152,13 @@ export const GradingModal: React.FC<GradingModalProps> = ({ submission, onSave, 
                                     type="number" required min="0" max={formData.points_possible}
                                     value={formData.grade}
                                     onChange={(e) => setFormData(prev => ({ ...prev, grade: e.target.value }))}
-                                    className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all"
+                                    className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all text-sm"
                                     placeholder="0"
                                 />
                                 <span className="text-lg font-bold text-slate-400">/ {formData.points_possible}</span>
                             </div>
                         </div>
-                        <div className="space-y-4">
+                        <div className="space-y-4 grid grid-cols-2 md:block gap-4">
                             <div>
                                 <div className="text-sm font-bold text-blue-600 mb-1 uppercase tracking-tighter">Raw Percentage</div>
                                 <div className="text-xl font-bold text-slate-500">

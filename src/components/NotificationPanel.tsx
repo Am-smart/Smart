@@ -27,14 +27,14 @@ const parseDeepLink = (link?: string): { path: string; params?: Record<string, s
     if (link.includes(':')) {
       const [type, id] = link.split(':');
       const routes: Record<string, string> = {
-        course: `/student/courses/${id}`,
-        assignment: `/student/assignments/${id}`,
-        quiz: `/student/quizzes/${id}`,
-        discussion: `/student/discussions/${id}`,
-        material: `/student/materials/${id}`,
-        live: `/student/live/${id}`,
-        grading: `/teacher/grading/${id}`,
-        students: `/teacher/students/${id}`,
+        course: `/student/courses?id=${id}`,
+        assignment: `/student/assignments?id=${id}`,
+        quiz: `/student/quizzes?id=${id}`,
+        discussion: `/student/discussions?id=${id}`,
+        material: `/student/materials?id=${id}`,
+        live: `/student/live?id=${id}`,
+        grading: `/teacher/grading?id=${id}`,
+        students: `/teacher/students?id=${id}`,
         badge: `/student/achievements?badge=${id}`,
       };
 

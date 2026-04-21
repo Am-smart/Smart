@@ -76,8 +76,8 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ initialEnr
                 </div>
             )}
 
-            <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
-                <table className="w-full text-left">
+            <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden overflow-x-auto">
+                <table className="w-full text-left min-w-[700px]">
                     <thead>
                         <tr className="bg-slate-50 text-slate-500 text-[10px] font-bold uppercase tracking-widest border-b border-slate-100">
                             <th className="px-6 py-4">Student</th>
