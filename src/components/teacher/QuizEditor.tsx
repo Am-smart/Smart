@@ -27,6 +27,7 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({ teacherId, quiz, courses
         anti_cheat_enabled: quiz?.anti_cheat_enabled || false,
         auto_submit_enabled: quiz?.auto_submit_enabled || false,
         hard_enforcement: quiz?.hard_enforcement || false,
+        shuffle_questions: quiz?.shuffle_questions || false,
         questions: (quiz?.questions as QuizQuestion[]) || []
     });
     const [isSaving, setIsSaving] = useState(false);
@@ -159,6 +160,19 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({ teacherId, quiz, courses
                                 <div>
                                     <label htmlFor="hard_enforcement" className="block text-sm font-bold text-red-700 uppercase tracking-wide text-red-700">Hard Enforcement</label>
                                     <p className="text-[10px] text-red-500 font-medium">Force submit on 5 violations</p>
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-4 p-4 bg-purple-50 rounded-xl border-2 border-purple-100">
+                                <input
+                                    type="checkbox"
+                                    id="shuffle_questions"
+                                    checked={formData.shuffle_questions}
+                                    onChange={e => setFormData({...formData, shuffle_questions: e.target.checked})}
+                                    className="w-5 h-5 rounded border-slate-300 text-purple-600 focus:ring-purple-500"
+                                />
+                                <div>
+                                    <label htmlFor="shuffle_questions" className="block text-sm font-bold text-purple-700 uppercase tracking-wide">Shuffle</label>
+                                    <p className="text-[10px] text-purple-500 font-medium">Randomize order</p>
                                 </div>
                             </div>
                         </div>

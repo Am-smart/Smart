@@ -36,6 +36,24 @@ export class AssessmentDomain {
     }
   }
 
+  static prepareAssignment(assignment: Partial<Assignment>, teacherId: string): Partial<Assignment> {
+    return {
+      ...assignment,
+      teacher_id: assignment.teacher_id || teacherId,
+      status: assignment.status || 'draft',
+      allowed_extensions: assignment.allowed_extensions || ['pdf', 'doc', 'docx', 'zip', 'jpg', 'png']
+    };
+  }
+
+  static prepareQuiz(quiz: Partial<Quiz>, teacherId: string): Partial<Quiz> {
+    return {
+      ...quiz,
+      teacher_id: quiz.teacher_id || teacherId,
+      status: quiz.status || 'draft',
+      shuffle_questions: quiz.shuffle_questions || false
+    };
+  }
+
   static prepareSubmission(studentId: string, assignmentId: string, content: Partial<Submission>): Partial<Submission> {
     return {
       ...content,

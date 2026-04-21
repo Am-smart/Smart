@@ -17,13 +17,8 @@ export class CourseService {
   }
 
   async saveCourse(currentUser: User, course: Partial<Course>, sessionId: string): Promise<Course> {
-    if (course.id) {
-      const existingCourse = await this.courseRepo.findById(course.id, sessionId);
-      if (!existingCourse) throw new Error('Course not found');
-      if (!rbac.canManageCourse(currentUser, existingCourse)) throw new Error('Forbidden');
-    } else {
-      if (!rbac.can(currentUser, 'course:create')) throw new Error('Forbidden');
-    }
+    CourseDomain.validate(course);
+    const courseToSave = CourseDomain.create(course, currentUser.id);
 
     CourseDomain.validate(course);
     const courseToSave = CourseDomain.create(course, currentUser.id);
@@ -31,11 +26,7 @@ export class CourseService {
     return this.courseRepo.upsert(courseToSave, sessionId);
   }
 
-  async deleteCourse(currentUser: User, courseId: string, sessionId: string): Promise<void> {
-    const existingCourse = await this.courseRepo.findById(courseId, sessionId);
-    if (!existingCourse) throw new Error('Course not found');
-    if (!rbac.canManageCourse(currentUser, existingCourse)) throw new Error('Forbidden');
-
+  async deleteCourse(courseId: string, sessionId: string): Promise<void> {
     await this.courseRepo.delete(courseId, sessionId);
   }
 }

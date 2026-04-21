@@ -19,19 +19,25 @@ export const LiveClassManager: React.FC<LiveClassManagerProps> = ({ teacherId, l
         course_id: courses[0]?.id || '',
         start_at: '',
         end_at: '',
-        room_name: ''
+        room_name: '',
+        description: '',
+        recurring_config: ''
     });
 
     const handleCreate = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
             const roomName = formData.room_name || `room_${Math.random().toString(36).substr(2, 9)}`;
+            let recurring = {};
+            try { if (formData.recurring_config) recurring = JSON.parse(formData.recurring_config); } catch (e) {}
+
             await saveLiveClass({
                 ...formData,
                 teacher_id: teacherId,
                 status: 'scheduled',
                 room_name: roomName,
-                meeting_url: `https://meet.jit.si/${roomName}`
+                meeting_url: `https://meet.jit.si/${roomName}`,
+                recurring_config: recurring
             });
             addToast('Live class scheduled!', 'success');
             setIsFormOpen(false);
@@ -93,6 +99,10 @@ export const LiveClassManager: React.FC<LiveClassManagerProps> = ({ teacherId, l
                             <label className="block text-[10px] font-bold uppercase text-slate-500 mb-2 tracking-widest">Class Title</label>
                             <input type="text" required value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} className="input-custom" placeholder="e.g. Weekly Q&A Session" />
                         </div>
+                        <div className="md:col-span-2">
+                            <label className="block text-[10px] font-bold uppercase text-slate-500 mb-2 tracking-widest">Description</label>
+                            <textarea value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} className="input-custom h-20" placeholder="Session agenda..." />
+                        </div>
                         <div>
                             <label className="block text-[10px] font-bold uppercase text-slate-500 mb-2 tracking-widest">Course</label>
                             <select value={formData.course_id} onChange={e => setFormData({...formData, course_id: e.target.value})} className="input-custom">
@@ -110,6 +120,10 @@ export const LiveClassManager: React.FC<LiveClassManagerProps> = ({ teacherId, l
                         <div>
                             <label className="block text-[10px] font-bold uppercase text-slate-500 mb-2 tracking-widest">End Time</label>
                             <input type="datetime-local" required value={formData.end_at} onChange={e => setFormData({...formData, end_at: e.target.value})} className="input-custom" />
+                        </div>
+                        <div className="md:col-span-2">
+                            <label className="block text-[10px] font-bold uppercase text-slate-500 mb-2 tracking-widest">Recurring Config (JSON)</label>
+                            <input type="text" value={formData.recurring_config} onChange={e => setFormData({...formData, recurring_config: e.target.value})} className="input-custom" placeholder='{"frequency": "weekly"}' />
                         </div>
                         <div className="md:col-span-2 flex justify-end gap-4 mt-4">
                             <button type="button" onClick={() => setIsFormOpen(false)} className="btn-secondary">Cancel</button>

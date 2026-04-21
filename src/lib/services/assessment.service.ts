@@ -18,22 +18,11 @@ export class AssessmentService {
   }
 
   async saveAssignment(currentUser: User, assignment: Partial<Assignment>, sessionId: string): Promise<Assignment> {
-    if (!rbac.can(currentUser, 'assignment:manage')) throw new Error('Forbidden');
-    if (!assignment.title) throw new Error('Assignment title is required');
-    if (!assignment.course_id) throw new Error('Course ID is required');
-
-    return this.assignmentRepo.upsert({
-        ...assignment,
-        teacher_id: assignment.teacher_id || currentUser.id,
-        status: assignment.status || 'draft'
-    }, sessionId);
+    const assignmentToSave = AssessmentDomain.prepareAssignment(assignment, currentUser.id);
+    return this.assignmentRepo.upsert(assignmentToSave, sessionId);
   }
 
-  async deleteAssignment(currentUser: User, assignmentId: string, sessionId: string): Promise<void> {
-    const existing = await this.assignmentRepo.findById(assignmentId, sessionId);
-    if (!existing) throw new Error('Assignment not found');
-    if (!rbac.isOwner(currentUser, { teacher_id: existing.teacher_id })) throw new Error('Forbidden');
-
+  async deleteAssignment(assignmentId: string, sessionId: string): Promise<void> {
     await this.assignmentRepo.delete(assignmentId, sessionId);
   }
 
@@ -43,22 +32,11 @@ export class AssessmentService {
   }
 
   async saveQuiz(currentUser: User, quiz: Partial<Quiz>, sessionId: string): Promise<Quiz> {
-    if (!rbac.can(currentUser, 'quiz:manage')) throw new Error('Forbidden');
-    if (!quiz.title) throw new Error('Quiz title is required');
-    if (!quiz.course_id) throw new Error('Course ID is required');
-
-    return this.quizRepo.upsert({
-        ...quiz,
-        teacher_id: quiz.teacher_id || currentUser.id,
-        status: quiz.status || 'draft'
-    }, sessionId);
+    const quizToSave = AssessmentDomain.prepareQuiz(quiz, currentUser.id);
+    return this.quizRepo.upsert(quizToSave, sessionId);
   }
 
-  async deleteQuiz(currentUser: User, quizId: string, sessionId: string): Promise<void> {
-    const existing = await this.quizRepo.findById(quizId, sessionId);
-    if (!existing) throw new Error('Quiz not found');
-    if (!rbac.isOwner(currentUser, { teacher_id: existing.teacher_id })) throw new Error('Forbidden');
-
+  async deleteQuiz(quizId: string, sessionId: string): Promise<void> {
     await this.quizRepo.delete(quizId, sessionId);
   }
 
@@ -72,11 +50,7 @@ export class AssessmentService {
     return this.submissionRepo.upsert(submissionToSave, sessionId);
   }
 
-  async gradeSubmission(currentUser: User, submissionId: string, gradeData: Partial<Submission>, sessionId: string): Promise<Submission> {
-    if (!rbac.can(currentUser, 'assignment:grade')) throw new Error('Forbidden');
-    const existing = await this.submissionRepo.findById(submissionId, sessionId);
-    if (!existing) throw new Error('Submission not found');
-
+  async gradeSubmission(submissionId: string, gradeData: Partial<Submission>, sessionId: string): Promise<Submission> {
     return this.submissionRepo.upsert({
       ...gradeData,
       id: submissionId,
