@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
 import { useAppContext } from '@/components/AppContext';
-import { useSupabase } from '@/hooks/useSupabase';
+import { getEnrollments, getAssignments, getSubmissions, getUserBadges } from '@/lib/data-actions';
 import { StudentSidebar } from "@/components/StudentSidebar";
 import { StudentHeader } from "@/components/StudentHeader";
 import { ForcePasswordChange } from "@/components/auth/ForcePasswordChange";
@@ -20,7 +20,6 @@ function StudentLayoutContent({
 }) {
   const { user, role, logout, isLoading: authLoading, updateProfile } = useAuth();
   const { notifications } = useAppContext();
-  const { client, getEnrollments } = useSupabase();
   const [stats, setStats] = useState({ courses: 0, dueSoon: 0, badges: 0, unreadNotifications: 0 });
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -39,9 +38,9 @@ function StudentLayoutContent({
     try {
       const [myEnrollments, allAssignments, mySubmissions, myBadges] = await Promise.all([
         getEnrollments(u.id),
-        client.from('assignments').select('*').eq('status', 'published').then(r => r.data || []),
-        client.from('submissions').select('*').eq('student_id', u.id).then(r => r.data || []),
-        client.from('user_badges').select('*').eq('user_id', u.id).then(r => r.data || [])
+        getAssignments(),
+        getSubmissions(undefined, u.id),
+        getUserBadges(u.id)
       ]);
 
       setEnrollments(myEnrollments);
@@ -55,7 +54,7 @@ function StudentLayoutContent({
     } catch (err) {
       console.error('Failed to fetch stats:', err);
     }
-  }, [client, getEnrollments]);
+  }, []);
 
   useEffect(() => {
     if (!authLoading) {

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
-import { useSupabase } from '@/hooks/useSupabase';
+import { getEnrollments, getQuizzes, getQuizSubmissions } from '@/lib/data-actions';
 import { QuizzesList } from "@/components/student/QuizzesList";
 import { Quiz, QuizSubmission } from '@/lib/types';
 import dynamic from 'next/dynamic';
@@ -12,7 +12,6 @@ const QuizView = dynamic(() => import("@/components/student/QuizView").then(m =>
 
 export default function QuizzesPage() {
   const { user } = useAuth();
-  const { client, getQuizzes, getEnrollments } = useSupabase();
   const [quizzes, setQuizzes] = useState<Quiz[]>([]);
   const [submissions, setSubmissions] = useState<QuizSubmission[]>([]);
   const [activeQuiz, setActiveQuiz] = useState<Quiz | null>(null);
@@ -23,13 +22,13 @@ export default function QuizzesPage() {
     const [myEnrollments, allQuizzes, mySubmissions] = await Promise.all([
       getEnrollments(user.id),
       getQuizzes(),
-      client.from('quiz_submissions').select('*, quizzes(*)').eq('student_id', user.id).then(r => r.data || [])
+      getQuizSubmissions(undefined, user.id)
     ]);
 
     const enrolledIds = myEnrollments.map(e => e.course_id);
     setQuizzes(allQuizzes.filter(q => enrolledIds.includes(q.course_id) && q.status === 'published'));
     setSubmissions(mySubmissions);
-  }, [user, client, getQuizzes, getEnrollments]);
+  }, [user]);
 
   useEffect(() => {
     fetchData();

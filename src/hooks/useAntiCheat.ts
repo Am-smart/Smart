@@ -1,30 +1,42 @@
-import { useState, useEffect, useCallback } from 'react';
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
-import { createSystemLog } from '@/lib/data-actions';
+import { logAntiCheatViolation } from '@/lib/data-actions';
 
+/**
+ * Advanced Anti-Cheat Hook - Production Ready
+ * Integrated with server-side logging and browser event blocking.
+ */
 export const useAntiCheat = (enabled: boolean = false, assessmentTitle: string = 'Assessment') => {
   const [violationCount, setViolationCount] = useState(0);
   const { user } = useAuth();
+  const lastViolationTime = useRef<Record<string, number>>({});
+  const MIN_VIOLATION_INTERVAL = 2000; // 2 seconds rate limiting
+  const wasFocused = useRef(true);
+  const focusLossTimer = useRef<NodeJS.Timeout | null>(null);
+  const tabChannel = useRef<BroadcastChannel | null>(null);
 
-  const reportViolation = useCallback(async (type: string) => {
+  const reportViolation = useCallback(async (type: string, metadata: Record<string, unknown> = {}) => {
+    const now = Date.now();
+    if (now - (lastViolationTime.current[type] || 0) < MIN_VIOLATION_INTERVAL) return;
+
+    lastViolationTime.current[type] = now;
     setViolationCount(prev => prev + 1);
-    console.warn(`Anti-Cheat Violation: ${type}`);
 
-    // Trigger local feedback if possible (context would be better but hook can emit events)
-    const event = new CustomEvent('anti-cheat-violation', { detail: { type } });
-    window.dispatchEvent(event);
+    console.warn(`[Anti-Cheat] Violation: ${type}`, metadata);
+
+    // Local event for UI feedback
+    window.dispatchEvent(new CustomEvent('anti-cheat-violation', { detail: { type, metadata } }));
 
     if (user && enabled) {
         try {
-            await createSystemLog({
-                category: 'anti-cheat',
-                level: 'warning',
-                message: `User ${user.email} attempted ${type} during ${assessmentTitle}`,
-                user_id: user.id,
-                metadata: { type, assessmentTitle, timestamp: new Date().toISOString() }
+            await logAntiCheatViolation({
+                type,
+                assessmentTitle,
+                metadata: { ...metadata, timestamp: new Date().toISOString() }
             });
         } catch (err) {
-            console.error('Failed to log anti-cheat violation:', err);
+            console.error('Failed to log anti-cheat violation to server:', err);
         }
     }
   }, [user, enabled, assessmentTitle]);
@@ -32,123 +44,116 @@ export const useAntiCheat = (enabled: boolean = false, assessmentTitle: string =
   useEffect(() => {
     if (!enabled) return;
 
-    // 1. Tab Switching & Visibility
+    // 1. Tab Switching & Multi-tab Detection
     const handleVisibilityChange = () => {
       if (document.hidden) {
-        reportViolation('tab-switch');
+        focusLossTimer.current = setTimeout(() => {
+          reportViolation('TAB_SWITCH', { duration: 'threshold_exceeded' });
+        }, 3000);
+      } else if (focusLossTimer.current) {
+        clearTimeout(focusLossTimer.current);
       }
     };
 
     const handleBlur = () => {
-      reportViolation('window-blur');
+      if (!wasFocused.current) return;
+      wasFocused.current = false;
+      focusLossTimer.current = setTimeout(() => {
+        reportViolation('WINDOW_BLUR');
+      }, 3000);
     };
 
-    // 2. Right-click
-    const handleContextMenu = (e: MouseEvent) => {
-      e.preventDefault();
-      reportViolation('right-click');
+    const handleFocus = () => {
+      wasFocused.current = true;
+      if (focusLossTimer.current) clearTimeout(focusLossTimer.current);
     };
 
-    // 3. Keyboard Shortcuts (DevTools, View Source, Clipboard)
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Clipboard
-      if ((e.ctrlKey || e.metaKey) && (e.key === 'c' || e.key === 'v' || e.key === 'x')) {
-        e.preventDefault();
-        reportViolation('clipboard-shortcut');
-      }
-      // F12
-      if (e.key === 'F12') {
-          e.preventDefault();
-          reportViolation('devtools-shortcut-f12');
-      }
-      // DevTools (Ctrl+Shift+I/J/C)
-      if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'C')) {
-          e.preventDefault();
-          reportViolation('devtools-shortcut-combo');
-      }
-      // View Source (Ctrl+U)
-      if ((e.ctrlKey || e.metaKey) && e.key === 'u') {
-          e.preventDefault();
-          reportViolation('view-source-shortcut');
-      }
-    };
-
-    // 4. Copy/Paste/Cut Events
-    const handleClipboard = (e: Event) => {
-        e.preventDefault();
-        reportViolation(`clipboard-${e.type}`);
-    };
-
-    // 5. Drag & Drop
-    const handleDrag = (e: DragEvent) => {
-        e.preventDefault();
-        reportViolation('drag-drop-attempt');
-    };
-
-    // 6. Text Selection (CSS + JS fallback)
-    const handleSelectStart = (e: Event) => {
-        e.preventDefault();
-        reportViolation('text-selection-attempt');
-    };
-
-    // 7. Long Press (Mobile)
-    const handleTouchStart = (e: TouchEvent) => {
-        if (e.touches.length > 1) {
-            reportViolation('multi-touch-gesture');
+    // Multi-tab lock via BroadcastChannel
+    try {
+      tabChannel.current = new BroadcastChannel('anticheat_tab');
+      const tabId = Date.now().toString();
+      tabChannel.current.onmessage = (e) => {
+        if (e.data === 'PING') tabChannel.current?.postMessage(`PONG_${tabId}`);
+        else if (e.data.startsWith('PONG_') && e.data !== `PONG_${tabId}`) {
+          reportViolation('MULTIPLE_TABS_DETECTED');
         }
-    };
+      };
+      const pingInterval = setInterval(() => tabChannel.current?.postMessage('PING'), 5000);
 
-    // 8. DevTools Detection (Heuristic)
-    let devtoolsOpen = false;
-    const threshold = 160;
-    const checkDevTools = () => {
-        const widthThreshold = window.outerWidth - window.innerWidth > threshold;
-        const heightThreshold = window.outerHeight - window.innerHeight > threshold;
-        if ((widthThreshold || heightThreshold) && !devtoolsOpen) {
-            devtoolsOpen = true;
-            reportViolation('devtools-detected');
+      // 2. Event Blocking (Clipboard, Context Menu, Drag)
+      const preventDefault = (e: Event) => {
+        e.preventDefault();
+        reportViolation(`${e.type.toUpperCase()}_ATTEMPT`);
+      };
+
+      const handleKeyDown = (e: KeyboardEvent) => {
+        const ctrl = e.ctrlKey || e.metaKey;
+        const shift = e.shiftKey;
+        const alt = e.altKey;
+
+        // DevTools
+        if (e.key === 'F12' || (ctrl && shift && ['I', 'J', 'C'].includes(e.key.toUpperCase())) || (ctrl && alt && e.key.toUpperCase() === 'U')) {
+          e.preventDefault();
+          reportViolation('DEVTOOLS_SHORTCUT');
         }
-    };
+        // Clipboard
+        if (ctrl && ['C', 'V', 'X'].includes(e.key.toUpperCase())) {
+          e.preventDefault();
+          reportViolation('CLIPBOARD_SHORTCUT');
+        }
+        // Print Screen
+        if (e.key === 'PrintScreen') {
+          e.preventDefault();
+          reportViolation('SCREENSHOT_ATTEMPT');
+        }
+      };
 
-    window.addEventListener('visibilitychange', handleVisibilityChange);
-    window.addEventListener('blur', handleBlur);
-    window.addEventListener('contextmenu', handleContextMenu);
-    window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('copy', handleClipboard);
-    window.addEventListener('paste', handleClipboard);
-    window.addEventListener('cut', handleClipboard);
-    window.addEventListener('dragstart', handleDrag);
-    window.addEventListener('drop', handleDrag);
-    window.addEventListener('selectstart', handleSelectStart);
-    window.addEventListener('touchstart', handleTouchStart);
-    const interval = setInterval(checkDevTools, 1000);
+      // 3. DevTools Heuristics (Window resizing)
+      const threshold = 160;
+      const checkDevTools = () => {
+        const widthDiff = Math.abs(window.outerWidth - window.innerWidth);
+        const heightDiff = Math.abs(window.outerHeight - window.innerHeight);
+        if (widthDiff > threshold || heightDiff > threshold) {
+          reportViolation('DEVTOOLS_OPENED_RESIZE');
+        }
+      };
+      const resizeInterval = setInterval(checkDevTools, 2000);
 
-    // Block text selection via CSS
-    document.body.style.userSelect = 'none';
-    document.body.style.webkitUserSelect = 'none';
+      window.addEventListener('visibilitychange', handleVisibilityChange);
+      window.addEventListener('blur', handleBlur);
+      window.addEventListener('focus', handleFocus);
+      window.addEventListener('contextmenu', preventDefault);
+      window.addEventListener('copy', preventDefault);
+      window.addEventListener('paste', preventDefault);
+      window.addEventListener('cut', preventDefault);
+      window.addEventListener('dragstart', preventDefault);
+      window.addEventListener('drop', preventDefault);
+      window.addEventListener('keydown', handleKeyDown);
 
-    // Allow text selection in inputs and textareas
-    const style = document.createElement('style');
-    style.innerHTML = 'input, textarea { user-select: text !important; -webkit-user-select: text !important; }';
-    document.head.appendChild(style);
+      // Block selection via CSS
+      document.body.style.userSelect = 'none';
+      document.body.style.webkitUserSelect = 'none';
 
-    return () => {
-        document.head.removeChild(style);
-      window.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('blur', handleBlur);
-      window.removeEventListener('contextmenu', handleContextMenu);
-      window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('copy', handleClipboard);
-      window.removeEventListener('paste', handleClipboard);
-      window.removeEventListener('cut', handleClipboard);
-      window.removeEventListener('dragstart', handleDrag);
-      window.removeEventListener('drop', handleDrag);
-      window.removeEventListener('selectstart', handleSelectStart);
-      window.removeEventListener('touchstart', handleTouchStart);
-      clearInterval(interval);
-      document.body.style.userSelect = 'auto';
-      document.body.style.webkitUserSelect = 'auto';
-    };
+      return () => {
+        clearInterval(pingInterval);
+        clearInterval(resizeInterval);
+        tabChannel.current?.close();
+        window.removeEventListener('visibilitychange', handleVisibilityChange);
+        window.removeEventListener('blur', handleBlur);
+        window.removeEventListener('focus', handleFocus);
+        window.removeEventListener('contextmenu', preventDefault);
+        window.removeEventListener('copy', preventDefault);
+        window.removeEventListener('paste', preventDefault);
+        window.removeEventListener('cut', preventDefault);
+        window.removeEventListener('dragstart', preventDefault);
+        window.removeEventListener('drop', preventDefault);
+        window.removeEventListener('keydown', handleKeyDown);
+        document.body.style.userSelect = 'auto';
+        document.body.style.webkitUserSelect = 'auto';
+      };
+    } catch (err) {
+      console.warn('Anti-Cheat: Initialization fallback mode', err);
+    }
   }, [enabled, reportViolation]);
 
   return { violationCount, resetViolations: () => setViolationCount(0) };

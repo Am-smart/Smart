@@ -1,12 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useSupabase } from '@/hooks/useSupabase';
 import { Badge, User } from '@/lib/types';
 import { Plus, Trash2, Award } from 'lucide-react';
 import { useAppContext } from '@/components/AppContext';
-import { saveBadge, deleteBadge, assignBadge } from '@/lib/data-actions';
+import { saveBadge, deleteBadge, assignBadge, getBadges, getUsers } from '@/lib/data-actions';
 
 export const BadgeManager: React.FC = () => {
-    const { client } = useSupabase();
     const { addToast } = useAppContext();
     const [badges, setBadges] = useState<Badge[]>([]);
     const [students, setStudents] = useState<User[]>([]);
@@ -14,13 +12,13 @@ export const BadgeManager: React.FC = () => {
     const [formData, setFormData] = useState({ title: '', description: '', icon_url: '🏆' });
 
     const fetchData = useCallback(async () => {
-        const [badgeRes, studentRes] = await Promise.all([
-            client.from('badges').select('*'),
-            client.from('users').select('*').eq('role', 'student')
+        const [badgeData, userData] = await Promise.all([
+            getBadges(),
+            getUsers()
         ]);
-        setBadges(badgeRes.data || []);
-        setStudents(studentRes.data || []);
-    }, [client]);
+        setBadges(badgeData || []);
+        setStudents(userData.filter(u => u.role === 'student') || []);
+    }, []);
 
     useEffect(() => { fetchData(); }, [fetchData]);
 

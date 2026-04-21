@@ -1,20 +1,43 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use server";
 
 import { supabase, withSession } from './supabase';
 import { getSession } from './auth-actions';
 import { revalidatePath } from 'next/cache';
-import { Submission, QuizSubmission, Course, Lesson, Assignment, Quiz, PlannerItem, Discussion, StudySession, Material, User, Certificate, Badge, UserBadge, LiveClass, Maintenance } from './types';
+import { Submission, QuizSubmission, Course, Lesson, Assignment, Quiz, QuizQuestion, PlannerItem, Discussion, StudySession, Material, User, Certificate, Enrollment, Badge, UserBadge, LiveClass, Maintenance } from './types';
+import { calculateQuizScore } from './scoring-util';
 
 async function getVerifiedUser() {
   const session = await getSession();
-  if (!session || !session.sessionId) throw new Error('Unauthorized');
+  if (!session || !session.sessionId as unknown as string) throw new Error('Unauthorized');
   return session;
 }
 
-export async function createSystemLog(_log: Record<string, unknown>) {
-    // Disabled as per security and privacy requirements
-    void _log;
-    return { success: true };
+export async function getCurrentUser() {
+  const session = await getVerifiedUser();
+  const { data, error } = await withSession(supabase.from('users'), session.sessionId as unknown as string as string)
+    .select('*')
+    .eq('id', session.id)
+    .single();
+
+  if (error) throw new Error(error.message);
+  return { ...data, sessionId: session.sessionId as unknown as string } as User;
+}
+
+export async function createSystemLog(log: Record<string, unknown>) {
+    // Re-enabled only for anti-cheat logging as per requirements
+    if (log.category !== 'anti-cheat') {
+        return { success: true };
+    }
+
+    const session = await getSession();
+    const { error } = await supabase.from('system_logs').insert({
+        ...log,
+        user_id: session?.id
+    });
+
+    if (error) console.error('Failed to create system log:', error);
+    return { success: !error };
 }
 
 // 1. Enrollment Actions
@@ -811,17 +834,9 @@ export async function submitQuiz(quizId: string, submissionData: Partial<QuizSub
     const nextAttempt = currentAttempts + 1;
 
     const answers = (submissionData.answers as Record<string, string>) || {};
-    const questions = (quiz.questions as { id: string; correct_answer: string; points?: number }[]) || [];
-    let correct = 0;
+    const questions = (quiz.questions as QuizQuestion[]) || [];
 
-    questions.forEach((q) => {
-        if (answers[q.id] === q.correct_answer) {
-            correct++;
-        }
-    });
-
-    const calculatedScore = questions.length > 0 ? Math.round((correct / questions.length) * 100) : 0;
-    const totalPoints = questions.reduce((acc, q) => acc + (q.points || 0), 0);
+    const { score: calculatedScore, totalPoints } = calculateQuizScore(questions, answers);
 
     const { error } = await withSession(
       supabase.from('quiz_submissions'),
@@ -988,4 +1003,259 @@ export async function uploadFile(fileName: string, category: 'materials' | 'subm
     });
 
     return { filePath };
+}
+
+// 22. Get Actions
+export async function getAssignments(teacherId?: string, courseId?: string) {
+    const user = await getVerifiedUser();
+    let query = withSession(supabase.from('assignments'), user.sessionId as string).select('*, courses(*)');
+    if (teacherId) query = query.eq('teacher_id', teacherId);
+    if (courseId) query = query.eq('course_id', courseId);
+    const { data, error } = await query;
+    if (error) throw new Error(error.message);
+    return data as Assignment[];
+}
+
+export async function getQuizzes(courseId?: string, teacherId?: string) {
+    const user = await getVerifiedUser();
+    let query = withSession(supabase.from('quizzes'), user.sessionId as string).select('*, courses(*)');
+    if (courseId) query = query.eq('course_id', courseId);
+    if (teacherId) query = query.eq('teacher_id', teacherId);
+    const { data, error } = await query;
+    if (error) throw new Error(error.message);
+    return data as Quiz[];
+}
+
+export async function getSubmissions(assignmentId?: string, studentId?: string) {
+    const user = await getVerifiedUser();
+    let query = withSession(supabase.from('submissions'), user.sessionId as string).select('*, assignments(*), users(*)');
+    if (assignmentId) query = query.eq('assignment_id', assignmentId);
+    if (studentId) query = query.eq('student_id', studentId);
+    const { data, error } = await query;
+    if (error) throw new Error(error.message);
+    return data as Submission[];
+}
+
+export async function getEnrollments(studentId?: string, courseIds?: string[]) {
+    const user = await getVerifiedUser();
+    let query = withSession(supabase.from('enrollments'), user.sessionId as string)
+        .select('*, courses(*), users!student_id(*)');
+
+    if (studentId) {
+        query = query.eq('student_id', studentId);
+    }
+
+    if (courseIds && courseIds.length > 0) {
+        query = query.in('course_id', courseIds);
+    }
+
+    const { data, error } = await query;
+    if (error) throw new Error(error.message);
+    return data as Enrollment[];
+}
+
+export async function getCourses(teacherId?: string) {
+    const session = await getSession();
+    let query = supabase.from('courses').select('*');
+    if (session?.sessionId) {
+        query = withSession(query, session.sessionId as unknown as string);
+    }
+
+    if (teacherId) query = query.eq('teacher_id', teacherId);
+    const { data, error } = await query;
+    if (error) throw new Error(error.message);
+    return data as Course[];
+}
+
+export async function getCourse(id: string) {
+    const user = await getVerifiedUser();
+    const { data, error } = await withSession(supabase.from('courses'), user.sessionId as string)
+        .select('*')
+        .eq('id', id)
+        .single();
+    if (error) throw new Error(error.message);
+    return data as Course;
+}
+
+export async function getLessons(courseId: string) {
+    const user = await getVerifiedUser();
+    const { data, error } = await withSession(supabase.from('lessons'), user.sessionId as string)
+        .select('*')
+        .eq('course_id', courseId)
+        .order('order_index', { ascending: true });
+    if (error) throw new Error(error.message);
+    return data as Lesson[];
+}
+
+export async function getMaterials(courseId?: string) {
+    const user = await getVerifiedUser();
+    let query = withSession(supabase.from('materials'), user.sessionId as string).select('*, courses(*)');
+    if (courseId) query = query.eq('course_id', courseId);
+    const { data, error } = await query;
+    if (error) throw new Error(error.message);
+    return data as Material[];
+}
+
+export async function getLiveClasses(courseId?: string, teacherId?: string) {
+    const user = await getVerifiedUser();
+    let query = withSession(supabase.from('live_classes'), user.sessionId as string).select('*, courses(*)');
+    if (courseId) query = query.eq('course_id', courseId);
+    if (teacherId) query = query.eq('teacher_id', teacherId);
+    const { data, error } = await query;
+    if (error) throw new Error(error.message);
+    return data as LiveClass[];
+}
+
+export async function getNotifications(userId: string) {
+    const user = await getVerifiedUser();
+    const { data, error } = await withSession(supabase.from('notifications'), user.sessionId as string)
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+    if (error) throw new Error(error.message);
+    return data as Notification[];
+}
+
+export async function getMaintenance() {
+    const session = await getSession();
+    let query = supabase.from('maintenance').select('*');
+    if (session?.sessionId) {
+        query = withSession(query, session.sessionId as unknown as string);
+    }
+
+    const { data, error } = await query.maybeSingle();
+    if (error && error.code !== 'PGRST116') throw new Error(error.message);
+    return data as Maintenance || { enabled: false, schedules: [] };
+}
+
+export async function getPlannerItems(userId: string) {
+    const user = await getVerifiedUser();
+    const { data, error } = await withSession(supabase.from('planner'), user.sessionId as string)
+        .select('*')
+        .eq('user_id', userId);
+    if (error) throw new Error(error.message);
+    return data as PlannerItem[];
+}
+
+export async function getDiscussions(courseId: string) {
+    const user = await getVerifiedUser();
+    const { data, error } = await withSession(supabase.from('discussions'), user.sessionId as string)
+        .select('*, users(full_name, email)')
+        .eq('course_id', courseId)
+        .order('created_at', { ascending: true });
+    if (error) throw new Error(error.message);
+    return data as Discussion[];
+}
+
+export async function getSystemLogs(limit = 100) {
+    const user = await getVerifiedUser();
+    if (user.role !== 'admin') throw new Error('Forbidden');
+    const { data, error } = await withSession(supabase.from('system_logs'), user.sessionId as string)
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(limit);
+    if (error) throw new Error(error.message);
+    return data;
+}
+
+export async function getUserBadges(userId: string) {
+    const user = await getVerifiedUser();
+    const { data, error } = await withSession(supabase.from('user_badges'), user.sessionId as string)
+        .select('*, badges(*)')
+        .eq('user_id', userId);
+    if (error) throw new Error(error.message);
+    return data;
+}
+
+export async function getCertificates(userId: string) {
+    const user = await getVerifiedUser();
+    const { data, error } = await withSession(supabase.from('certificates'), user.sessionId as string)
+        .select('*, courses(title)')
+        .eq('student_id', userId);
+    if (error) throw new Error(error.message);
+    return data;
+}
+
+export async function getQuizSubmissions(quizId?: string, studentId?: string) {
+    const user = await getVerifiedUser();
+    let query = withSession(supabase.from('quiz_submissions'), user.sessionId as string).select('*, quizzes(*), users(*)');
+    if (quizId) query = query.eq('quiz_id', quizId);
+    if (studentId) query = query.eq('student_id', studentId);
+    const { data, error } = await query;
+    if (error) throw new Error(error.message);
+    return data as QuizSubmission[];
+}
+
+export async function getBadges() {
+    await getVerifiedUser();
+    const { data, error } = await supabase.from('badges').select('*');
+    if (error) throw new Error(error.message);
+    return data as Badge[];
+}
+
+export async function getSettings() {
+    const user = await getVerifiedUser();
+    const { data, error } = await withSession(supabase.from('settings'), user.sessionId as string).select('*');
+    if (error) throw new Error(error.message);
+    return data;
+}
+
+export async function getUsers() {
+    const user = await getVerifiedUser();
+    if (user.role !== 'admin') throw new Error('Forbidden');
+    const { data, error } = await withSession(supabase.from('users'), user.sessionId as string).select('*');
+    if (error) throw new Error(error.message);
+    return data as User[];
+}
+
+export async function notifyUser(params: { target_id: string, n_title: string, n_msg: string, n_link?: string, n_type?: string }) {
+    const user = await getVerifiedUser();
+    if (user.role !== 'admin' && user.role !== 'teacher') throw new Error('Forbidden');
+    const { data, error } = await withSession(supabase, user.sessionId as string).rpc('notify_user', params);
+    if (error) throw new Error(error.message);
+    return data;
+}
+
+export async function updateSystemLog(id: string, updates: Record<string, unknown>) {
+    const user = await getVerifiedUser();
+    if (user.role !== 'admin') throw new Error('Forbidden');
+    const { data, error } = await withSession(supabase.from('system_logs'), user.sessionId as string)
+        .update(updates)
+        .eq('id', id)
+        .select()
+        .single();
+    if (error) throw new Error(error.message);
+    return data;
+}
+
+export async function getLessonCompletions(userId?: string) {
+    const user = await getVerifiedUser();
+    let query = withSession(supabase.from('lesson_completions'), user.sessionId as string).select('*');
+    if (userId) query = query.eq('student_id', userId);
+    const { data, error } = await query;
+    if (error) throw new Error(error.message);
+    return data;
+}
+
+export async function getSessions() {
+    const user = await getVerifiedUser();
+    if (user.role !== 'admin') throw new Error('Forbidden');
+    const { data, error } = await withSession(supabase.from('sessions'), user.sessionId as string).select('*');
+    if (error) throw new Error(error.message);
+    return data;
+}
+
+export async function logAntiCheatViolation(violation: { type: string; assessmentTitle: string; metadata?: Record<string, unknown> }) {
+    const user = await getVerifiedUser();
+
+    // Basic server-side verification: check if assessment exists and anti-cheat is enabled
+    // This is a placeholder for more complex logic if needed
+
+    return await createSystemLog({
+        category: 'anti-cheat',
+        level: 'warning',
+        message: `User ${user.email} attempted ${violation.type} during ${violation.assessmentTitle}`,
+        user_id: user.id,
+        metadata: { ...violation.metadata, type: violation.type, assessmentTitle: violation.assessmentTitle, timestamp: new Date().toISOString() }
+    });
 }

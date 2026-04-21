@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useSupabase } from '@/hooks/useSupabase';
 import { Course, Lesson } from '@/lib/types';
 import { Plus, Trash2, GripVertical, Save, X, Edit2 } from 'lucide-react';
 import { useAppContext } from '@/components/AppContext';
-import { saveLesson, deleteLesson } from '@/lib/data-actions';
+import { saveLesson, deleteLesson, getLessons } from '@/lib/data-actions';
 
 interface LessonEditorProps {
     course: Course;
@@ -11,7 +10,6 @@ interface LessonEditorProps {
 }
 
 export const LessonEditor: React.FC<LessonEditorProps> = ({ course, onClose }) => {
-    const { client } = useSupabase();
     const { addToast } = useAppContext();
     const [lessons, setLessons] = useState<Lesson[]>([]);
     const [isAdding, setIsAdding] = useState(false);
@@ -19,9 +17,9 @@ export const LessonEditor: React.FC<LessonEditorProps> = ({ course, onClose }) =
     const [formData, setFormData] = useState({ title: '', content: '', video_url: '' });
 
     const fetchLessons = useCallback(async () => {
-        const { data } = await client.from('lessons').select('*').eq('course_id', course.id).order('order_index', { ascending: true });
+        const data = await getLessons(course.id);
         setLessons((data as Lesson[]) || []);
-    }, [client, course.id]);
+    }, [course.id]);
 
     useEffect(() => { fetchLessons(); }, [fetchLessons]);
 

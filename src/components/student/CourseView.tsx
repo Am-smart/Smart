@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Course, Lesson } from '@/lib/types';
 import { ArrowLeft, BookOpen, Video, FileText, ChevronRight, CheckCircle } from 'lucide-react';
-import { markLessonComplete } from '@/lib/data-actions';
+import { markLessonComplete, getLessonCompletions } from '@/lib/data-actions';
 import { useAppContext } from '@/components/AppContext';
-import { useSupabase } from '@/hooks/useSupabase';
+import { useAuth } from '@/components/auth/AuthContext';
 
 interface CourseViewProps {
     course: Course;
@@ -13,18 +13,20 @@ interface CourseViewProps {
 
 export const CourseView: React.FC<CourseViewProps> = ({ course, lessons, onBack }) => {
     const { addToast } = useAppContext();
-    const { client } = useSupabase();
+    const { user } = useAuth();
     const [activeLesson, setActiveLesson] = useState<Lesson | null>(lessons[0] || null);
     const [completions, setCompletions] = useState<string[]>([]);
     const [isUpdating, setIsUpdating] = useState(false);
 
     useEffect(() => {
         const fetchCompletions = async () => {
-            const { data } = await client.from('lesson_completions').select('lesson_id');
-            if (data) setCompletions(data.map(c => c.lesson_id));
+            if (user) {
+                const data = await getLessonCompletions(user.id);
+                if (data) setCompletions((data as unknown as Record<string, unknown>[]).map((c) => (c.lesson_id as string)));
+            }
         };
         fetchCompletions();
-    }, [client]);
+    }, [user]);
 
     const handleMarkComplete = async () => {
         if (!activeLesson || isUpdating) return;

@@ -1,9 +1,10 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useAuth } from '@/components/auth/AuthContext';
 import { useCallback, useMemo } from 'react';
 import { supabase, withSession } from '@/lib/supabase';
 import { User, Course, Enrollment, Assignment, Quiz, Discussion, Notification, Maintenance } from '@/lib/types';
 import { useIndexedDB } from './useIndexedDB';
-import { saveUser as saveUserAction, enrollInCourse as enrollInCourseAction } from '@/lib/data-actions';
+import * as actions from '@/lib/data-actions';
 
 export const useSupabase = () => {
   const { user } = useAuth();
@@ -18,17 +19,14 @@ export const useSupabase = () => {
       return adminCached?.find(u => u.id === id) || null;
     }
 
-    const { data, error } = await withSession(supabase.from('users'), user?.sessionId)
-      .select('*')
-      .eq('id', id)
-      .maybeSingle();
-    if (error) throw error;
+    const users = await actions.getUsers();
+    const data = users.find(u => u.id === id) || null;
     if (data && data.id === user?.id) await setCache('current_user', data);
     return data;
-  }, [user?.sessionId, user?.id, isOnline, getCache, setCache]);
+  }, [user?.id, isOnline, getCache, setCache]);
 
   const saveUser = useCallback(async (u: Partial<User>): Promise<User> => {
-    const res = await saveUserAction(u);
+    const res = await actions.saveUser(u);
     if (!res.success) throw new Error('Failed to save user');
     return res.data as User;
   }, []);
@@ -41,18 +39,12 @@ export const useSupabase = () => {
       return cached || [];
     }
 
-    let query = withSession(supabase.from('courses'), user?.sessionId).select('*');
-    if (teacherId) {
-      query = query.eq('teacher_id', teacherId);
-    }
-    const { data, error } = await query;
-    if (error) throw error;
-
+    const data = await actions.getCourses(teacherId);
     const key = teacherId ? 'teacher_courses' : 'all_courses';
     if (data) await setCache(key, data);
 
     return data || [];
-  }, [user?.sessionId, isOnline, getCache, setCache]);
+  }, [isOnline, getCache, setCache]);
 
   // Enrollment operations
   const getEnrollments = useCallback(async (studentId: string): Promise<Enrollment[]> => {
@@ -61,16 +53,13 @@ export const useSupabase = () => {
       return cached || [];
     }
 
-    const { data, error } = await withSession(supabase.from('enrollments'), user?.sessionId)
-      .select('*, courses(*)')
-      .eq('student_id', studentId);
-    if (error) throw error;
+    const data = await actions.getEnrollments(studentId);
     if (data) await setCache('my_enrollments', data);
     return data || [];
-  }, [user?.sessionId, isOnline, getCache, setCache]);
+  }, [isOnline, getCache, setCache]);
 
   const enrollInCourse = useCallback(async (courseId: string): Promise<Enrollment> => {
-    const res = await enrollInCourseAction(courseId);
+    const res = await actions.enrollInCourse(courseId);
     if (!res.success) throw new Error('Failed to enroll in course');
     return { course_id: courseId, student_id: user?.id || '' } as Enrollment;
   }, [user?.id]);
@@ -84,17 +73,12 @@ export const useSupabase = () => {
       return cached || [];
     }
 
-    let query = withSession(supabase.from('assignments'), user?.sessionId).select('*, courses(*)');
-    if (teacherId) query = query.eq('teacher_id', teacherId);
-    if (courseId) query = query.eq('course_id', courseId);
-    const { data, error } = await query;
-    if (error) throw error;
-
+    const data = await actions.getAssignments(teacherId, courseId);
     const key = teacherId ? 'teacher_assignments' : 'all_assignments';
     if (data) await setCache(key, data);
 
     return data || [];
-  }, [user?.sessionId, isOnline, getCache, setCache]);
+  }, [isOnline, getCache, setCache]);
 
   // Quiz operations
   const getQuizzes = useCallback(async (courseId?: string, teacherId?: string): Promise<Quiz[]> => {
@@ -105,46 +89,27 @@ export const useSupabase = () => {
       return cached || [];
     }
 
-    let query = withSession(supabase.from('quizzes'), user?.sessionId).select('*, courses(*)');
-    if (courseId) query = query.eq('course_id', courseId);
-    if (teacherId) query = query.eq('teacher_id', teacherId);
-    const { data, error } = await query;
-    if (error) throw error;
-
+    const data = await actions.getQuizzes(courseId, teacherId);
     const key = teacherId ? 'teacher_quizzes' : 'all_quizzes';
     if (data) await setCache(key, data);
 
     return data || [];
-  }, [user?.sessionId, isOnline, getCache, setCache]);
+  }, [isOnline, getCache, setCache]);
 
   // Discussion operations
   const getDiscussions = useCallback(async (courseId: string): Promise<Discussion[]> => {
-    const { data, error } = await withSession(supabase.from('discussions'), user?.sessionId)
-      .select('*, users(full_name, email)')
-      .eq('course_id', courseId)
-      .order('created_at', { ascending: true });
-    if (error) throw error;
-    return data || [];
-  }, [user?.sessionId]);
+    return await actions.getDiscussions(courseId);
+  }, []);
 
   // Notification operations
   const getNotifications = useCallback(async (userId: string): Promise<Notification[]> => {
-    const { data, error } = await withSession(supabase.from('notifications'), user?.sessionId)
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false });
-    if (error) throw error;
-    return data || [];
-  }, [user?.sessionId]);
+    return await actions.getNotifications(userId) as any;
+  }, []);
 
   // Maintenance operations
   const getMaintenance = useCallback(async (): Promise<Maintenance> => {
-    const { data, error } = await withSession(supabase.from('maintenance'), user?.sessionId)
-      .select('*')
-      .maybeSingle();
-    if (error && error.code !== 'PGRST116') throw error;
-    return data || { enabled: false, schedules: [] };
-  }, [user?.sessionId]);
+    return await actions.getMaintenance() as any;
+  }, []);
 
   const proxiedClient = useMemo(() => {
     return new Proxy(supabase, {

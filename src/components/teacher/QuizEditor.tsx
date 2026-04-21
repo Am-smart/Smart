@@ -24,6 +24,8 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({ teacherId, quiz, courses
         end_at: quiz?.end_at ? new Date(quiz.end_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
         status: quiz?.status || 'draft',
         anti_cheat_enabled: quiz?.anti_cheat_enabled || false,
+        auto_submit_enabled: quiz?.auto_submit_enabled || false,
+        hard_enforcement: quiz?.hard_enforcement || false,
         questions: (quiz?.questions as QuizQuestion[]) || []
     });
     const [isSaving, setIsSaving] = useState(false);
@@ -127,8 +129,34 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({ teacherId, quiz, courses
                                 className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
                             />
                             <div>
-                                <label htmlFor="anti_cheat" className="block text-sm font-bold text-slate-700 uppercase tracking-wide">Enable Anti-Cheat</label>
-                                <p className="text-[10px] text-slate-500 font-medium">Monitor and auto-submit on violations</p>
+                                <label htmlFor="anti_cheat" className="block text-sm font-bold text-slate-700 uppercase tracking-wide">Anti-Cheat</label>
+                                <p className="text-[10px] text-slate-500 font-medium">Monitor actions</p>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-xl border-2 border-slate-100">
+                            <input
+                                type="checkbox"
+                                id="auto_submit"
+                                checked={formData.auto_submit_enabled}
+                                onChange={e => setFormData({...formData, auto_submit_enabled: e.target.checked})}
+                                className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                            />
+                            <div>
+                                <label htmlFor="auto_submit" className="block text-sm font-bold text-slate-700 uppercase tracking-wide">Auto-Submit</label>
+                                <p className="text-[10px] text-slate-500 font-medium">Auto submit on exit</p>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-4 p-4 bg-red-50 rounded-xl border-2 border-red-100">
+                            <input
+                                type="checkbox"
+                                id="hard_enforcement"
+                                checked={formData.hard_enforcement}
+                                onChange={e => setFormData({...formData, hard_enforcement: e.target.checked})}
+                                className="w-5 h-5 rounded border-slate-300 text-red-600 focus:ring-red-500"
+                            />
+                            <div>
+                                <label htmlFor="hard_enforcement" className="block text-sm font-bold text-red-700 uppercase tracking-wide text-red-700">Hard Enforcement</label>
+                                <p className="text-[10px] text-red-500 font-medium">Force submit on 5 violations</p>
                             </div>
                         </div>
                     </div>

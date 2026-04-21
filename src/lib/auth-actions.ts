@@ -15,21 +15,27 @@ const SESSION_COOKIE = 'app-user-session';
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function normalizeAuthResult(data: any) {
-    if (!data) return { user: null, session_id: null };
+    if (!data) return { user: null, session_id: null, error: 'No response from server' };
 
-    if (data.user) {
-        return { user: data.user, session_id: data.session_id };
+    // Standard structure from updated RPCs
+    if (data.success === true) {
+        return { user: data.user, session_id: data.session_id, error: null };
     }
 
-    if (Array.isArray(data) && data.length > 0) {
-        return { user: data[0], session_id: null };
+    if (data.success === false) {
+        return { user: null, session_id: null, error: data.error || 'Authentication failed' };
+    }
+
+    // Fallbacks for older RPCs or unexpected formats
+    if (data.user) {
+        return { user: data.user, session_id: data.session_id, error: null };
     }
 
     if (data.id && data.email) {
-        return { user: data, session_id: null };
+        return { user: data, session_id: null, error: null };
     }
 
-    return { user: null, session_id: null };
+    return { user: null, session_id: null, error: 'Invalid response format' };
 }
 
 async function ensureSession(userId: string, existingSessionId?: string | null): Promise<string> {
@@ -68,29 +74,24 @@ export async function login(email: string, password: string) {
     return { success: false, error: `Too many login attempts. Please try again later.` };
   }
 
-  const { data: rawData, error } = await supabase.rpc('authenticate_user', {
+  const { data: rawData, error: rpcError } = await supabase.rpc('authenticate_user', {
     p_email: normalizedEmail,
     p_password: password
   });
 
-  if (error || !rawData) {
-    console.error('Login RPC failed:', error || 'No data returned');
+  if (rpcError) {
+    console.error('Login RPC failed:', rpcError);
     return { success: false, error: 'Authentication service unavailable' };
   }
 
-  // Handle structured response from the enhanced authenticate_user RPC
-  if (rawData.success === false) {
-    const errorMessage = rawData.error || 'Invalid email or password';
-    
-    // Track attempts
-    if (errorMessage === 'Invalid email or password') {
+  const { user, session_id, error: authError } = normalizeAuthResult(rawData);
+
+  if (authError) {
+    if (authError === 'Invalid email or password') {
         recordAttempt(normalizedEmail);
     }
-    
-    return { success: false, error: errorMessage };
+    return { success: false, error: authError };
   }
-
-  const { user, session_id } = normalizeAuthResult(rawData);
 
   if (!user) {
     return { success: false, error: 'Invalid response from authentication server' };
@@ -124,7 +125,7 @@ export async function signup(userData: Partial<User>) {
 
   const normalizedEmail = normalizeEmail(userData.email);
 
-  const { data: rawData, error } = await supabase.rpc('register_user', {
+  const { data: rawData, error: rpcError } = await supabase.rpc('register_user', {
       p_full_name: normalizeInput(userData.full_name),
       p_email: normalizedEmail,
       p_password: userData.password,
@@ -132,15 +133,15 @@ export async function signup(userData: Partial<User>) {
       p_role: userData.role || 'student'
   });
 
-  if (error || !rawData) {
+  if (rpcError) {
     return { success: false, error: 'Signup service unavailable' };
   }
 
-  if (rawData.success === false) {
-    return { success: false, error: rawData.error || 'Signup failed' };
-  }
+  const { user, session_id, error: authError } = normalizeAuthResult(rawData);
 
-  const { user, session_id } = normalizeAuthResult(rawData);
+  if (authError) {
+    return { success: false, error: authError };
+  }
 
   try {
       const finalSessionId = await ensureSession(user.id, session_id);

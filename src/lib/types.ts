@@ -69,6 +69,8 @@ export interface Assignment {
   points_possible: number;
   allow_late_submissions: boolean;
   anti_cheat_enabled: boolean;
+  auto_submit_enabled: boolean;
+  hard_enforcement: boolean;
   regrade_requests_enabled: boolean;
   late_penalty_per_day?: number;
   version?: number;
@@ -95,6 +97,8 @@ export interface Quiz {
   time_limit: number;
   passing_score: number;
   anti_cheat_enabled: boolean;
+  auto_submit_enabled: boolean;
+  hard_enforcement: boolean;
   shuffle_questions: boolean;
   version?: number;
   start_at?: string;

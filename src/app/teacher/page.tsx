@@ -2,11 +2,10 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
-import { useSupabase } from '@/hooks/useSupabase';
+import { getCourses, getSubmissions, getLiveClasses } from '@/lib/data-actions';
 
 export default function TeacherDashboard() {
   const { user } = useAuth();
-  const { client } = useSupabase();
   const [stats, setStats] = useState({ courses: 0, pendingGrading: 0, liveClasses: 0 });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -16,27 +15,18 @@ export default function TeacherDashboard() {
     setIsLoading(true);
     setError(null);
     try {
-        const { data: myCourses } = await client.from('courses').select('id').eq('teacher_id', user.id);
-        const courseIds = (myCourses || []).map(c => c.id);
-
-        let assignmentIds: string[] = [];
-        if (courseIds.length > 0) {
-            const { data: myAsgns } = await client.from('assignments').select('id').in('course_id', courseIds);
-            assignmentIds = (myAsgns || []).map(a => a.id);
-        }
-
-        const [courses, pending, live] = await Promise.all([
-          client.from('courses').select('*', { count: 'exact', head: true }).eq('teacher_id', user.id),
-          assignmentIds.length > 0
-            ? client.from('submissions').select('*', { count: 'exact', head: true }).eq('status', 'submitted').in('assignment_id', assignmentIds)
-            : Promise.resolve({ count: 0, error: null }),
-          client.from('live_classes').select('*', { count: 'exact', head: true }).eq('teacher_id', user.id)
+        const [myCourses, allSubmissions, myLiveClasses] = await Promise.all([
+            getCourses(user.id),
+            getSubmissions(),
+            getLiveClasses(undefined, user.id)
         ]);
 
+        const pendingSubmissions = allSubmissions.filter(s => s.status === 'submitted');
+
         setStats({
-          courses: courses.count || 0,
-          pendingGrading: pending.count || 0,
-          liveClasses: live.count || 0
+          courses: myCourses.length,
+          pendingGrading: pendingSubmissions.length,
+          liveClasses: myLiveClasses.length
         });
     } catch (err) {
         console.error('Failed to fetch teacher data:', err);
@@ -44,7 +34,7 @@ export default function TeacherDashboard() {
     } finally {
         setIsLoading(false);
     }
-  }, [user, client]);
+  }, [user]);
 
   useEffect(() => {
     fetchData();

@@ -2,13 +2,12 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
-import { useSupabase } from '@/hooks/useSupabase';
+import { getEnrollments, getMaterials } from '@/lib/data-actions';
 import { MaterialsList } from "@/components/student/MaterialsList";
 import { Material } from '@/lib/types';
 
 export default function MaterialsPage() {
   const { user } = useAuth();
-  const { client, getEnrollments } = useSupabase();
   const [materials, setMaterials] = useState<Material[]>([]);
 
   useEffect(() => {
@@ -16,13 +15,15 @@ export default function MaterialsPage() {
         getEnrollments(user.id).then(e => {
             const enrolledIds = e.map(item => item.course_id);
             if (enrolledIds.length > 0) {
-                client.from('materials').select('*').in('course_id', enrolledIds).then(r => setMaterials(r.data || []));
+                getMaterials().then(allMaterials => {
+                    setMaterials(allMaterials.filter(m => enrolledIds.includes(m.course_id)));
+                });
             } else {
                 setMaterials([]);
             }
         });
     }
-  }, [user, client, getEnrollments]);
+  }, [user]);
 
   return <MaterialsList materials={materials} />;
 }

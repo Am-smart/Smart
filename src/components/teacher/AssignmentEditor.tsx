@@ -27,6 +27,8 @@ export const AssignmentEditor: React.FC<AssignmentEditorProps> = ({ teacherId, a
         allow_late_submissions: assignment?.allow_late_submissions !== false,
         late_penalty_per_day: assignment?.late_penalty_per_day || 0,
         anti_cheat_enabled: assignment?.anti_cheat_enabled || false,
+        auto_submit_enabled: assignment?.auto_submit_enabled || false,
+        hard_enforcement: assignment?.hard_enforcement || false,
         regrade_requests_enabled: assignment?.regrade_requests_enabled !== false,
         questions: assignment?.questions || [],
         attachments: assignment?.attachments || []
@@ -167,6 +169,14 @@ export const AssignmentEditor: React.FC<AssignmentEditorProps> = ({ teacherId, a
                         <div className="flex items-center gap-3 p-4 bg-blue-50 rounded-xl border border-blue-100">
                             <input type="checkbox" id="regradeEnabled" checked={formData.regrade_requests_enabled} onChange={e => setFormData({...formData, regrade_requests_enabled: e.target.checked})} className="w-5 h-5 text-blue-600" />
                             <label htmlFor="regradeEnabled" className="text-sm font-bold text-blue-900 cursor-pointer">Regrade Requests</label>
+                        </div>
+                        <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-xl border border-slate-100">
+                            <input type="checkbox" id="autoSubmit" checked={formData.auto_submit_enabled} onChange={e => setFormData({...formData, auto_submit_enabled: e.target.checked})} className="w-5 h-5 text-blue-600" />
+                            <label htmlFor="autoSubmit" className="text-sm font-bold text-slate-700 cursor-pointer">Auto-Submit</label>
+                        </div>
+                        <div className="flex items-center gap-3 p-4 bg-red-50 rounded-xl border border-red-100">
+                            <input type="checkbox" id="hardEnforce" checked={formData.hard_enforcement} onChange={e => setFormData({...formData, hard_enforcement: e.target.checked})} className="w-5 h-5 text-red-600" />
+                            <label htmlFor="hardEnforce" className="text-sm font-bold text-red-900 cursor-pointer">Hard Enforce</label>
                         </div>
                     </div>
 

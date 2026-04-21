@@ -1,16 +1,16 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { useSupabase } from '@/hooks/useSupabase';
+import { getSystemLogs } from '@/lib/data-actions';
 import { SystemInfo } from "@/components/admin/SystemMisc";
 
 export default function SystemPage() {
-  const { client } = useSupabase();
   const [logs, setLogs] = useState<{id: string, created_at: string, message: string}[]>([]);
 
   useEffect(() => {
-    client.from('system_logs').select('*').order('created_at', { ascending: false }).limit(50).then(r => setLogs(r.data || []));
-  }, [client]);
+    getSystemLogs(50).then(data => setLogs((data as any) || []));
+  }, []);
 
   return (
     <div className="space-y-8">

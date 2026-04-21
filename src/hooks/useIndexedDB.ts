@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from 'react';
-import { supabase, withSession } from '@/lib/supabase';
 import { Submission, QuizSubmission, Course, Assignment, Quiz, User, PlannerItem, Discussion } from '@/lib/types';
 import * as actions from '@/lib/data-actions';
 
@@ -195,54 +194,54 @@ export const useIndexedDB = () => {
     try {
         if (role === 'student') {
             const [courses, enrollments, assignments, quizzes, materials, planner, liveClasses, discussions, completions] = await Promise.all([
-                withSession(supabase.from('courses'), sessionId).select('*').eq('status', 'published'),
-                withSession(supabase.from('enrollments'), sessionId).select('*, courses(*)').eq('student_id', userId),
-                withSession(supabase.from('assignments'), sessionId).select('*, courses(*)').eq('status', 'published'),
-                withSession(supabase.from('quizzes'), sessionId).select('*, courses(*)').eq('status', 'published'),
-                withSession(supabase.from('materials'), sessionId).select('*, courses(*)'),
-                withSession(supabase.from('planner'), sessionId).select('*').eq('user_id', userId),
-                withSession(supabase.from('live_classes'), sessionId).select('*, courses(*)'),
-                withSession(supabase.from('discussions'), sessionId).select('*, users(full_name)').order('created_at', { ascending: false }).limit(100),
-                withSession(supabase.from('lesson_completions'), sessionId).select('*').eq('student_id', userId)
+                actions.getCourses(),
+                actions.getEnrollments(userId),
+                actions.getAssignments(),
+                actions.getQuizzes(),
+                actions.getMaterials(),
+                actions.getPlannerItems(userId),
+                actions.getLiveClasses(),
+                actions.getDiscussions('global'), // Or relevant course id if context exists
+                actions.getLessonCompletions(userId)
             ]);
 
-            if (courses.data) await setCache('all_courses', courses.data);
-            if (enrollments.data) await setCache('my_enrollments', enrollments.data);
-            if (assignments.data) await setCache('all_assignments', assignments.data);
-            if (quizzes.data) await setCache('all_quizzes', quizzes.data);
-            if (materials.data) await setCache('all_materials', materials.data);
-            if (planner.data) await setCache('planner_items', planner.data);
-            if (liveClasses.data) await setCache('all_live_classes', liveClasses.data);
-            if (discussions.data) await setCache('recent_discussions', discussions.data);
-            if (completions.data) await setCache('lesson_completions', completions.data);
+            if (courses) await setCache('all_courses', courses);
+            if (enrollments) await setCache('my_enrollments', enrollments);
+            if (assignments) await setCache('all_assignments', assignments);
+            if (quizzes) await setCache('all_quizzes', quizzes);
+            if (materials) await setCache('all_materials', materials);
+            if (planner) await setCache('planner_items', planner);
+            if (liveClasses) await setCache('all_live_classes', liveClasses);
+            if (discussions) await setCache('recent_discussions', discussions);
+            if (completions) await setCache('lesson_completions', completions);
         } else if (role === 'teacher') {
              const [courses, assignments, quizzes, materials, submissions, liveClasses] = await Promise.all([
-                withSession(supabase.from('courses'), sessionId).select('*').eq('teacher_id', userId),
-                withSession(supabase.from('assignments'), sessionId).select('*, courses(*)').eq('teacher_id', userId),
-                withSession(supabase.from('quizzes'), sessionId).select('*, courses(*)').eq('teacher_id', userId),
-                withSession(supabase.from('materials'), sessionId).select('*').eq('teacher_id', userId),
-                withSession(supabase.from('submissions'), sessionId).select('*, assignments(*), users(*)'),
-                withSession(supabase.from('live_classes'), sessionId).select('*').eq('teacher_id', userId)
+                actions.getCourses(userId),
+                actions.getAssignments(userId),
+                actions.getQuizzes(undefined, userId),
+                actions.getMaterials(),
+                actions.getSubmissions(),
+                actions.getLiveClasses(undefined, userId)
             ]);
 
-            if (courses.data) await setCache('teacher_courses', courses.data);
-            if (assignments.data) await setCache('teacher_assignments', assignments.data);
-            if (quizzes.data) await setCache('teacher_quizzes', quizzes.data);
-            if (materials.data) await setCache('teacher_materials', materials.data);
-            if (submissions.data) await setCache('teacher_submissions', submissions.data);
-            if (liveClasses.data) await setCache('teacher_live_classes', liveClasses.data);
+            if (courses) await setCache('teacher_courses', courses);
+            if (assignments) await setCache('teacher_assignments', assignments);
+            if (quizzes) await setCache('teacher_quizzes', quizzes);
+            if (materials) await setCache('teacher_materials', materials);
+            if (submissions) await setCache('teacher_submissions', submissions);
+            if (liveClasses) await setCache('teacher_live_classes', liveClasses);
         } else if (role === 'admin') {
             const [users, courses, logs, settings] = await Promise.all([
-                withSession(supabase.from('users'), sessionId).select('*'),
-                withSession(supabase.from('courses'), sessionId).select('*'),
-                withSession(supabase.from('system_logs'), sessionId).select('*').limit(100),
-                withSession(supabase.from('settings'), sessionId).select('*')
+                actions.getUsers(),
+                actions.getCourses(),
+                actions.getSystemLogs(100),
+                actions.getSettings()
             ]);
 
-            if (users.data) await setCache('admin_users', users.data);
-            if (courses.data) await setCache('admin_courses', courses.data);
-            if (logs.data) await setCache('admin_logs', logs.data);
-            if (settings.data) await setCache('admin_settings', settings.data);
+            if (users) await setCache('admin_users', users);
+            if (courses) await setCache('admin_courses', courses);
+            if (logs) await setCache('admin_logs', logs);
+            if (settings) await setCache('admin_settings', settings);
         }
     } catch (err) {
         console.error('Data pull failed:', err);
