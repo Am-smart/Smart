@@ -20,6 +20,7 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({ teacherId, quiz, courses
         course_id: quiz?.course_id || (courses.length > 0 ? courses[0].id : ''),
         time_limit: quiz?.time_limit || 30,
         attempts_allowed: quiz?.attempts_allowed || 1,
+        passing_score: quiz?.passing_score || 60,
         start_at: quiz?.start_at ? new Date(quiz.start_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
         end_at: quiz?.end_at ? new Date(quiz.end_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
         status: quiz?.status || 'draft',

@@ -24,7 +24,8 @@ export const GradingModal: React.FC<GradingModalProps> = ({ submission, onSave, 
         feedback: submission.feedback || '',
         points_possible: submission.assignments?.points_possible || 100,
         regrade_feedback: '',
-        response_feedback: (submission.response_feedback as Record<string, string>) || {}
+        response_feedback: (submission.response_feedback as Record<string, string>) || {},
+        question_scores: (submission.question_scores as Record<string, number>) || {}
     });
     const [isSaving, setIsSaving] = useState(false);
     const [regradeStatus, setRegradeStatus] = useState<'pending' | 'resolved'>(submission.regrade_request ? 'pending' : 'resolved');
@@ -42,7 +43,8 @@ export const GradingModal: React.FC<GradingModalProps> = ({ submission, onSave, 
                 feedback: formData.feedback,
                 late_penalty_applied: calculatedPenalty,
                 final_grade: finalGrade,
-                response_feedback: formData.response_feedback
+                response_feedback: formData.response_feedback,
+                question_scores: formData.question_scores
             };
 
             if (submission.regrade_request && regradeStatus === 'resolved') {
@@ -79,9 +81,9 @@ export const GradingModal: React.FC<GradingModalProps> = ({ submission, onSave, 
                         {submission.answers && Object.keys(submission.answers).length > 0 ? (
                             <div className="space-y-4">
                                 {submission.assignments?.questions.map((q, idx) => (
-                                    <div key={idx} className="bg-white/50 p-4 rounded-xl space-y-3">
+                                    <div key={idx} className="bg-white p-5 rounded-2xl shadow-sm border border-blue-100/50 space-y-4">
                                         <div>
-                                            <div className="text-xs font-bold text-slate-500 uppercase mb-1">Step {idx + 1}: {q.text}</div>
+                                            <div className="text-[10px] font-black text-blue-500 uppercase tracking-widest mb-2">Step {idx + 1}: {q.text}</div>
                                             <div className="text-sm text-slate-800">
                                                 {q.type === 'file' ? (
                                                     <a href={submission.answers?.[idx] as string} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-bold">View Uploaded File</a>
@@ -91,18 +93,42 @@ export const GradingModal: React.FC<GradingModalProps> = ({ submission, onSave, 
                                             </div>
                                         </div>
 
-                                        <div className="pt-2 border-t border-blue-100/50">
-                                            <label className="text-[10px] font-bold text-blue-400 uppercase tracking-widest block mb-1">Response Feedback</label>
-                                            <input
-                                                type="text"
-                                                value={formData.response_feedback[idx] || ''}
-                                                onChange={(e) => setFormData({
-                                                    ...formData,
-                                                    response_feedback: { ...formData.response_feedback, [idx]: e.target.value }
-                                                })}
-                                                placeholder="Provide feedback on this specific response..."
-                                                className="w-full bg-white/80 border-none rounded-lg p-2 text-xs focus:ring-1 focus:ring-blue-400 outline-none"
-                                            />
+                                        <div className="pt-2 border-t border-blue-100/50 flex gap-4">
+                                            <div className="flex-1">
+                                                <label className="text-[10px] font-bold text-blue-400 uppercase tracking-widest block mb-1">Response Feedback</label>
+                                                <input
+                                                    type="text"
+                                                    value={formData.response_feedback[idx] || ''}
+                                                    onChange={(e) => setFormData({
+                                                        ...formData,
+                                                        response_feedback: { ...formData.response_feedback, [idx]: e.target.value }
+                                                    })}
+                                                    placeholder="Provide feedback on this specific response..."
+                                                    className="w-full bg-white/80 border-none rounded-lg p-2 text-xs focus:ring-1 focus:ring-blue-400 outline-none"
+                                                />
+                                            </div>
+                                            <div className="w-24">
+                                                <label className="text-[10px] font-bold text-blue-400 uppercase tracking-widest block mb-1">Score</label>
+                                                <div className="flex items-center gap-1">
+                                                    <input
+                                                        type="number"
+                                                        value={formData.question_scores[idx] ?? ''}
+                                                        onChange={(e) => {
+                                                            const val = e.target.value === '' ? 0 : Number(e.target.value);
+                                                            const newScores = { ...formData.question_scores, [idx]: val };
+                                                            const total = Object.values(newScores).reduce((a: number, b) => a + (b as number), 0);
+                                                            setFormData({
+                                                                ...formData,
+                                                                question_scores: newScores,
+                                                                grade: total.toString()
+                                                            });
+                                                        }}
+                                                        className="w-full bg-white/80 border-none rounded-lg p-2 text-xs focus:ring-1 focus:ring-blue-400 outline-none font-bold"
+                                                        placeholder="0"
+                                                    />
+                                                    <span className="text-[10px] font-bold text-slate-400">/ {q.points}</span>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 ))}

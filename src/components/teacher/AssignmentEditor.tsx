@@ -172,7 +172,7 @@ export const AssignmentEditor: React.FC<AssignmentEditorProps> = ({ teacherId, a
                             </div>
                         )}
                     </div>
-                    <div className="grid grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
                             <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">Points Possible (Auto-calculated)</label>
                             <input type="number" readOnly value={formData.points_possible} className="w-full p-4 rounded-xl border-2 border-slate-50 bg-slate-50 text-slate-500 outline-none transition-all font-bold" />
