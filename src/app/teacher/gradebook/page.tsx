@@ -61,7 +61,7 @@ export default function GradeBookPage() {
             </div>
         </div>
         <div className="overflow-x-auto">
-            <table className="w-full text-left min-w-[700px]">
+            <table className="w-full text-left">
                 <thead className="bg-slate-50 text-slate-500 text-[10px] uppercase font-black tracking-widest">
                     <tr>
                         <th className="px-8 py-5">Student</th>
