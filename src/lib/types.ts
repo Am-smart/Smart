@@ -150,6 +150,7 @@ export interface Submission {
   version?: number;
   assignments?: Assignment;
   users?: {
+    id: string;
     full_name: string;
     email: string;
   };
@@ -173,6 +174,7 @@ export interface QuizSubmission {
   attempt_number?: number;
   quizzes?: Quiz;
   users?: {
+    id: string;
     full_name: string;
     email: string;
   };
@@ -353,6 +355,10 @@ export interface SystemLog {
   metadata?: Record<string, unknown>;
   user_id?: string;
   created_at?: string;
+  users?: {
+    full_name: string;
+    email: string;
+  };
 }
 
 export interface Setting {

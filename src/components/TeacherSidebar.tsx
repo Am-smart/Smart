@@ -26,6 +26,9 @@ interface SidebarProps {
 }
 
 export const TeacherSidebar: React.FC<SidebarProps> = ({ activePage, onNavigate, isOpen, onClose }) => {
+  // Normalize activePage for sidebar highlighting (handle sub-routes or detail views if any)
+  const normalizedActivePage = activePage.split('/')[0];
+
   const menuItems: SidebarItem[] = [
     { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={20} /> },
     { id: 'courses', label: 'Courses', icon: <BookOpen size={20} /> },
@@ -47,7 +50,7 @@ export const TeacherSidebar: React.FC<SidebarProps> = ({ activePage, onNavigate,
   return (
     <Sidebar
         title="SmartLMS"
-        activePage={activePage}
+        activePage={normalizedActivePage}
         onNavigate={onNavigate}
         isOpen={isOpen}
         onClose={onClose}

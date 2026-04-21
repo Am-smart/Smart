@@ -31,19 +31,21 @@ export default function UsersPage() {
   }
 
   return (
-    <UserManagement
-        users={users}
-        onEdit={setEditingUser}
-        onDelete={async (id) => {
-            if (!confirm('Are you sure you want to delete this user?')) return;
-            await deleteUser(id);
-            fetchUsers();
-        }}
-        onUpdate={async (id, updates) => {
-            const res = await saveUser({ ...updates, id });
-            if (res.success) fetchUsers();
-        }}
-        onAdd={() => setIsAdding(true)}
-    />
+    <div className="space-y-6">
+        <UserManagement
+            users={users}
+            onEdit={setEditingUser}
+            onDelete={async (id) => {
+                if (!confirm('Are you sure you want to delete this user?')) return;
+                await deleteUser(id);
+                fetchUsers();
+            }}
+            onUpdate={async (id, updates) => {
+                const res = await saveUser({ ...updates, id });
+                if (res.success) fetchUsers();
+            }}
+            onAdd={() => setIsAdding(true)}
+        />
+    </div>
   );
 }
