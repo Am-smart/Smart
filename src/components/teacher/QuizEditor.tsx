@@ -20,6 +20,7 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({ teacherId, quiz, courses
         course_id: quiz?.course_id || (courses.length > 0 ? courses[0].id : ''),
         time_limit: quiz?.time_limit || 30,
         attempts_allowed: quiz?.attempts_allowed || 1,
+        passing_score: quiz?.passing_score || 60,
         start_at: quiz?.start_at ? new Date(quiz.start_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
         end_at: quiz?.end_at ? new Date(quiz.end_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
         status: quiz?.status || 'draft',
@@ -80,8 +81,8 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({ teacherId, quiz, courses
                     <h2 className="text-2xl font-bold text-slate-900">{quiz?.id ? 'Edit Quiz' : 'Create New Quiz'}</h2>
                     <button onClick={onCancel} className="p-2 hover:bg-slate-200 rounded-full transition-colors">✕</button>
                 </header>
-                <form onSubmit={handleSubmit} className="p-8 space-y-6 overflow-y-auto flex-1">
-                    <div className="grid grid-cols-2 gap-6">
+                <form onSubmit={handleSubmit} className="p-4 md:p-8 space-y-6 overflow-y-auto flex-1">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
                             <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">Quiz Title</label>
                             <input type="text" required value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all" />
@@ -94,7 +95,7 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({ teacherId, quiz, courses
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
                             <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">Start Date</label>
                             <input type="date" required value={formData.start_at} onChange={e => setFormData({...formData, start_at: e.target.value})} className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all" />
@@ -104,7 +105,7 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({ teacherId, quiz, courses
                             <input type="date" required value={formData.end_at} onChange={e => setFormData({...formData, end_at: e.target.value})} className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all" />
                         </div>
                     </div>
-                    <div className="grid grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
                         <div>
                             <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">Time Limit (mins)</label>
                             <input type="number" required value={formData.time_limit} onChange={e => setFormData({...formData, time_limit: Number(e.target.value)})} className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all" />
@@ -114,49 +115,55 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({ teacherId, quiz, courses
                             <input type="number" required value={formData.attempts_allowed} onChange={e => setFormData({...formData, attempts_allowed: Number(e.target.value)})} className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all" />
                         </div>
                         <div>
+                            <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">Passing Score (%)</label>
+                            <input type="number" required min="0" max="100" value={formData.passing_score} onChange={e => setFormData({...formData, passing_score: Number(e.target.value)})} className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all" />
+                        </div>
+                        <div className="sm:col-span-2 md:col-span-1">
                             <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">Status</label>
                             <select value={formData.status} onChange={e => setFormData({...formData, status: e.target.value as Quiz['status']})} className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all">
                                 <option value="draft">Draft</option>
                                 <option value="published">Published</option>
                             </select>
                         </div>
-                        <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-xl border-2 border-slate-100">
-                            <input
-                                type="checkbox"
-                                id="anti_cheat"
-                                checked={formData.anti_cheat_enabled}
-                                onChange={e => setFormData({...formData, anti_cheat_enabled: e.target.checked})}
-                                className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                            />
-                            <div>
-                                <label htmlFor="anti_cheat" className="block text-sm font-bold text-slate-700 uppercase tracking-wide">Anti-Cheat</label>
-                                <p className="text-[10px] text-slate-500 font-medium">Monitor actions</p>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 md:col-span-3">
+                            <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-xl border-2 border-slate-100">
+                                <input
+                                    type="checkbox"
+                                    id="anti_cheat"
+                                    checked={formData.anti_cheat_enabled}
+                                    onChange={e => setFormData({...formData, anti_cheat_enabled: e.target.checked})}
+                                    className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                                />
+                                <div>
+                                    <label htmlFor="anti_cheat" className="block text-sm font-bold text-slate-700 uppercase tracking-wide">Anti-Cheat</label>
+                                    <p className="text-[10px] text-slate-500 font-medium">Monitor actions</p>
+                                </div>
                             </div>
-                        </div>
-                        <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-xl border-2 border-slate-100">
-                            <input
-                                type="checkbox"
-                                id="auto_submit"
-                                checked={formData.auto_submit_enabled}
-                                onChange={e => setFormData({...formData, auto_submit_enabled: e.target.checked})}
-                                className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                            />
-                            <div>
-                                <label htmlFor="auto_submit" className="block text-sm font-bold text-slate-700 uppercase tracking-wide">Auto-Submit</label>
-                                <p className="text-[10px] text-slate-500 font-medium">Auto submit on exit</p>
+                            <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-xl border-2 border-slate-100">
+                                <input
+                                    type="checkbox"
+                                    id="auto_submit"
+                                    checked={formData.auto_submit_enabled}
+                                    onChange={e => setFormData({...formData, auto_submit_enabled: e.target.checked})}
+                                    className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                                />
+                                <div>
+                                    <label htmlFor="auto_submit" className="block text-sm font-bold text-slate-700 uppercase tracking-wide">Auto-Submit</label>
+                                    <p className="text-[10px] text-slate-500 font-medium">Auto submit on exit</p>
+                                </div>
                             </div>
-                        </div>
-                        <div className="flex items-center gap-4 p-4 bg-red-50 rounded-xl border-2 border-red-100">
-                            <input
-                                type="checkbox"
-                                id="hard_enforcement"
-                                checked={formData.hard_enforcement}
-                                onChange={e => setFormData({...formData, hard_enforcement: e.target.checked})}
-                                className="w-5 h-5 rounded border-slate-300 text-red-600 focus:ring-red-500"
-                            />
-                            <div>
-                                <label htmlFor="hard_enforcement" className="block text-sm font-bold text-red-700 uppercase tracking-wide text-red-700">Hard Enforcement</label>
-                                <p className="text-[10px] text-red-500 font-medium">Force submit on 5 violations</p>
+                            <div className="flex items-center gap-4 p-4 bg-red-50 rounded-xl border-2 border-red-100">
+                                <input
+                                    type="checkbox"
+                                    id="hard_enforcement"
+                                    checked={formData.hard_enforcement}
+                                    onChange={e => setFormData({...formData, hard_enforcement: e.target.checked})}
+                                    className="w-5 h-5 rounded border-slate-300 text-red-600 focus:ring-red-500"
+                                />
+                                <div>
+                                    <label htmlFor="hard_enforcement" className="block text-sm font-bold text-red-700 uppercase tracking-wide text-red-700">Hard Enforcement</label>
+                                    <p className="text-[10px] text-red-500 font-medium">Force submit on 5 violations</p>
+                                </div>
                             </div>
                         </div>
                     </div>

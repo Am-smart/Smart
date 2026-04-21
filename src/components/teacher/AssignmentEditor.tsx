@@ -112,23 +112,46 @@ export const AssignmentEditor: React.FC<AssignmentEditorProps> = ({ teacherId, a
                         <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">Description</label>
                         <textarea required value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} className="w-full h-32 p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all resize-none" />
                     </div>
-                    <div className="grid grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
                             <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">Course</label>
                             <select value={formData.course_id} onChange={e => setFormData({...formData, course_id: e.target.value})} className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all">
                                 {courses.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
                             </select>
                         </div>
-                        <div>
-                            <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">Start Date</label>
-                            <input type="date" required value={formData.start_at} onChange={e => setFormData({...formData, start_at: e.target.value})} className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all" />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">Due Date</label>
-                            <input type="date" required value={formData.due_date} onChange={e => setFormData({...formData, due_date: e.target.value})} className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all" />
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">Start Date</label>
+                                <input type="date" required value={formData.start_at} onChange={e => setFormData({...formData, start_at: e.target.value})} className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all" />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">Due Date</label>
+                                <input type="date" required value={formData.due_date} onChange={e => setFormData({...formData, due_date: e.target.value})} className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all" />
+                            </div>
                         </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-6">
+
+                    <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 space-y-4">
+                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Late Submission Settings</h4>
+                        <div className="flex items-center gap-3">
+                            <input type="checkbox" id="allowLate" checked={formData.allow_late_submissions} onChange={e => setFormData({...formData, allow_late_submissions: e.target.checked})} className="w-5 h-5 text-blue-600 rounded" />
+                            <label htmlFor="allowLate" className="text-sm font-bold text-slate-700 cursor-pointer">Allow Late Submissions</label>
+                        </div>
+
+                        {formData.allow_late_submissions && (
+                            <div className="animate-in slide-in-from-top-2 duration-200">
+                                <label className="block text-[10px] font-bold uppercase text-slate-400 mb-2">Penalty Per Day (%)</label>
+                                <input
+                                    type="number" min="0" max="100"
+                                    value={formData.late_penalty_per_day}
+                                    onChange={e => setFormData({...formData, late_penalty_per_day: Number(e.target.value)})}
+                                    className="w-full p-3 rounded-xl border border-slate-200 focus:border-blue-500 outline-none transition-all text-sm"
+                                    placeholder="e.g. 5"
+                                />
+                            </div>
+                        )}
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
                             <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">Points Possible (Auto-calculated)</label>
                             <input type="number" readOnly value={formData.points_possible} className="w-full p-4 rounded-xl border-2 border-slate-50 bg-slate-50 text-slate-500 outline-none transition-all font-bold" />
@@ -161,7 +184,7 @@ export const AssignmentEditor: React.FC<AssignmentEditorProps> = ({ teacherId, a
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="flex items-center gap-3 p-4 bg-amber-50 rounded-xl border border-amber-100">
                             <input type="checkbox" id="antiCheat" checked={formData.anti_cheat_enabled} onChange={e => setFormData({...formData, anti_cheat_enabled: e.target.checked})} className="w-5 h-5 text-blue-600" />
                             <label htmlFor="antiCheat" className="text-sm font-bold text-amber-900 cursor-pointer">Anti-Cheat</label>
@@ -180,25 +203,6 @@ export const AssignmentEditor: React.FC<AssignmentEditorProps> = ({ teacherId, a
                         </div>
                     </div>
 
-                    <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100 space-y-4">
-                        <div className="flex items-center gap-3">
-                            <input type="checkbox" id="allowLate" checked={formData.allow_late_submissions} onChange={e => setFormData({...formData, allow_late_submissions: e.target.checked})} className="w-5 h-5 text-blue-600" />
-                            <label htmlFor="allowLate" className="text-sm font-bold text-slate-700 cursor-pointer">Allow Late Submissions</label>
-                        </div>
-
-                        {formData.allow_late_submissions && (
-                            <div>
-                                <label className="block text-[10px] font-bold uppercase text-slate-400 mb-2">Penalty Per Day (%)</label>
-                                <input
-                                    type="number" min="0" max="100"
-                                    value={formData.late_penalty_per_day}
-                                    onChange={e => setFormData({...formData, late_penalty_per_day: Number(e.target.value)})}
-                                    className="w-full p-3 rounded-xl border border-slate-200 focus:border-blue-500 outline-none transition-all text-sm"
-                                    placeholder="e.g. 5"
-                                />
-                            </div>
-                        )}
-                    </div>
 
                     <div className="space-y-6 pt-8 border-t">
                         <div className="flex justify-between items-center">
