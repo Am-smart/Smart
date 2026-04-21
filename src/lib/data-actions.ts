@@ -1,58 +1,56 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use server";
 
-import { supabase, withSession } from './supabase';
-import { getSession } from './auth-actions';
 import { revalidatePath } from 'next/cache';
-import { Submission, QuizSubmission, Course, Lesson, Assignment, Quiz, QuizQuestion, PlannerItem, Discussion, StudySession, Material, User, Certificate, Enrollment, Badge, UserBadge, LiveClass, Maintenance } from './types';
-import { calculateQuizScore } from './scoring-util';
+import { getSession } from './auth-actions';
+import { Submission, QuizSubmission, Course, Lesson, Assignment, Quiz, PlannerItem, Discussion, StudySession, Material, User, Certificate, Badge, UserBadge, LiveClass, Maintenance, Broadcast } from './types';
+import { userService } from './services/user.service';
+import { courseService } from './services/course.service';
+import { enrollmentService } from './services/enrollment.service';
+import { assessmentService } from './services/assessment.service';
+import { learningService } from './services/learning.service';
+import { communicationService } from './services/communication.service';
+import { gamificationService } from './services/gamification.service';
+import { systemService } from './services/system.service';
+import { taskQueue } from './queue/task-queue';
+import { supabase } from './supabase';
 
 async function getVerifiedUser() {
   const session = await getSession();
-  if (!session || !session.sessionId as unknown as string) throw new Error('Unauthorized');
+  if (!session || !session.sessionId) throw new Error('Unauthorized');
   return session;
 }
 
 export async function getCurrentUser() {
   const session = await getVerifiedUser();
-  const { data, error } = await withSession(supabase.from('users'), session.sessionId as unknown as string as string)
-    .select('*')
-    .eq('id', session.id)
-    .single();
-
-  if (error) throw new Error(error.message);
-  return { ...data, sessionId: session.sessionId as unknown as string } as User;
+  return userService.getCurrentUser(session.id as string, session.sessionId as string);
 }
 
 export async function createSystemLog(log: Record<string, unknown>) {
-    // Re-enabled only for anti-cheat logging as per requirements
     if (log.category !== 'anti-cheat') {
         return { success: true };
     }
 
     const session = await getSession();
-    const { error } = await supabase.from('system_logs').insert({
-        ...log,
-        user_id: session?.id
+    taskQueue.enqueue(async () => {
+        await systemService.createLog({
+            ...log,
+            level: (log.level as string) || 'info',
+            category: (log.category as string) || 'system',
+            message: (log.message as string) || '',
+            user_id: session?.id as string
+        });
     });
 
-    if (error) console.error('Failed to create system log:', error);
-    return { success: !error };
+    return { success: true };
 }
 
 // 1. Enrollment Actions
 export async function enrollInCourse(courseId: string) {
   const user = await getVerifiedUser();
-  const { error } = await withSession(supabase.from('enrollments'), user.sessionId as string)
-    .upsert({
-      course_id: courseId,
-      student_id: user.id,
-      enrolled_at: new Date().toISOString()
-    });
+  await enrollmentService.enrollInCourse(user.id as string, courseId, user.sessionId as string);
 
-  if (error) throw new Error(error.message);
-
-  await createSystemLog({
+  createSystemLog({
     level: 'info',
     category: 'academic',
     message: `Student enrolled in course: ${courseId}`,
@@ -66,20 +64,9 @@ export async function enrollInCourse(courseId: string) {
 // 2. Submission Actions
 export async function submitAssignment(assignmentId: string, content: Partial<Submission>) {
   const user = await getVerifiedUser();
-  const { data, error } = await withSession(supabase.from('submissions'), user.sessionId as string)
-    .upsert({
-      assignment_id: assignmentId,
-      student_id: user.id,
-      ...content,
-      submitted_at: new Date().toISOString(),
-      status: 'submitted'
-    }, { onConflict: 'assignment_id, student_id' })
-    .select()
-    .single();
+  const data = await assessmentService.submitAssignment(user.id as string, assignmentId, content, user.sessionId as string);
 
-  if (error) throw new Error(error.message);
-
-  await createSystemLog({
+  createSystemLog({
     level: 'info',
     category: 'academic',
     message: `Assignment submitted: ${assignmentId}`,
@@ -93,31 +80,10 @@ export async function submitAssignment(assignmentId: string, content: Partial<Su
 // 3. Teacher Actions: Grading
 export async function gradeSubmission(submissionId: string, gradeData: Partial<Submission>) {
   const user = await getVerifiedUser();
-  if (user.role !== 'teacher' && user.role !== 'admin') throw new Error('Forbidden');
+  const currentUser = await userService.getCurrentUser(user.id as string, user.sessionId as string);
+  await assessmentService.gradeSubmission(currentUser, submissionId, gradeData, user.sessionId as string);
 
-  const { version, ...cleanGradeData } = gradeData;
-  let query = withSession(
-    supabase.from('submissions'),
-    user.sessionId as string
-  )
-    .update({
-      ...cleanGradeData,
-      status: 'graded',
-      graded_at: new Date().toISOString(),
-      version: (version || 1) + 1
-    }, { count: 'exact' })
-    .eq('id', submissionId);
-
-  if (version) {
-    query = query.eq('version', version);
-  }
-
-  const { error, count } = await query;
-
-  if (error) throw new Error(error.message);
-  if (version && count === 0) throw new Error('Conflict detected: Submission has been updated by another user.');
-
-  await createSystemLog({
+  createSystemLog({
     level: 'info',
     category: 'academic',
     message: `Submission graded: ${submissionId} with score ${gradeData.score}`,
@@ -131,16 +97,8 @@ export async function gradeSubmission(submissionId: string, gradeData: Partial<S
 // 4. Admin Actions: User Status
 export async function toggleUserStatus(userId: string, active: boolean) {
   const user = await getVerifiedUser();
-  if (user.role !== 'admin') throw new Error('Forbidden');
-
-  const { error } = await withSession(
-    supabase.from('users'),
-    user.sessionId as string
-  )
-    .update({ active })
-    .eq('id', userId);
-
-  if (error) throw new Error(error.message);
+  const currentUser = await userService.getCurrentUser(user.id as string, user.sessionId as string);
+  await userService.toggleUserStatus(currentUser, userId, active, user.sessionId as string);
   revalidatePath('/admin/users');
   return { success: true };
 }
@@ -148,34 +106,10 @@ export async function toggleUserStatus(userId: string, active: boolean) {
 // 5. Course Actions
 export async function saveCourse(course: Partial<Course>) {
   const user = await getVerifiedUser();
-  if (user.role !== 'teacher' && user.role !== 'admin') throw new Error('Forbidden');
+  const currentUser = await userService.getCurrentUser(user.id as string, user.sessionId as string);
+  const data = await courseService.saveCourse(currentUser, course, user.sessionId as string);
 
-  if (!course.title) throw new Error('Course title is required');
-
-  const { version, ...courseData } = course;
-  let query = withSession(supabase.from('courses'), user.sessionId as string)
-    .upsert({
-      ...courseData,
-      teacher_id: course.teacher_id || user.id,
-      status: course.status || 'draft',
-      updated_at: new Date().toISOString(),
-      version: (version || 0) + 1
-    });
-
-  if (course.id && version) {
-    query = query.eq('id', course.id).eq('version', version);
-  }
-
-  const { data, error } = await query.select().single();
-
-  if (error) {
-    if (course.id && version && error.code === 'PGRST116') {
-      throw new Error('Conflict detected: Course has been updated by another user.');
-    }
-    throw new Error(error.message);
-  }
-
-  await createSystemLog({
+  createSystemLog({
     level: 'info',
     category: 'management',
     message: `Course ${course.id ? 'updated' : 'created'}: ${course.title} [Status: ${data.status}]`,
@@ -189,15 +123,10 @@ export async function saveCourse(course: Partial<Course>) {
 
 export async function deleteCourse(courseId: string) {
   const user = await getVerifiedUser();
-  if (user.role !== 'teacher' && user.role !== 'admin') throw new Error('Forbidden');
+  const currentUser = await userService.getCurrentUser(user.id as string, user.sessionId as string);
+  await courseService.deleteCourse(currentUser, courseId, user.sessionId as string);
 
-  const { error } = await withSession(supabase.from('courses'), user.sessionId as string)
-    .delete()
-    .eq('id', courseId);
-
-  if (error) throw new Error(error.message);
-
-  await createSystemLog({
+  createSystemLog({
     level: 'info',
     category: 'management',
     message: `Course deleted: ${courseId}`,
@@ -212,47 +141,16 @@ export async function deleteCourse(courseId: string) {
 // 6. Lesson Actions
 export async function saveLesson(lesson: Partial<Lesson>) {
   const user = await getVerifiedUser();
-  if (user.role !== 'teacher' && user.role !== 'admin') throw new Error('Forbidden');
-
-  if (!lesson.title) throw new Error('Lesson title is required');
-  if (!lesson.course_id) throw new Error('Course ID is required');
-
-  const { version, ...lessonData } = lesson;
-  let query = withSession(supabase.from('lessons'), user.sessionId as string)
-    .upsert({
-      ...lessonData,
-      updated_at: new Date().toISOString(),
-      version: (version || 0) + 1
-    });
-
-  if (lesson.id) {
-    query = query.eq('id', lesson.id);
-  }
-  if (version) {
-    query = query.eq('version', version);
-  }
-
-  const { data, error } = await query.select().single();
-
-  if (error) {
-    if (lesson.id && version && error.code === 'PGRST116') {
-        throw new Error('Conflict detected: Lesson has been updated by another user.');
-    }
-    throw new Error(error.message);
-  }
+  const currentUser = await userService.getCurrentUser(user.id as string, user.sessionId as string);
+  const data = await learningService.saveLesson(currentUser, lesson, user.sessionId as string);
   revalidatePath(`/student/courses?id=${lesson.course_id}`);
   return { success: true, data };
 }
 
 export async function deleteLesson(lessonId: string, courseId: string) {
   const user = await getVerifiedUser();
-  if (user.role !== 'teacher' && user.role !== 'admin') throw new Error('Forbidden');
-
-  const { error } = await withSession(supabase.from('lessons'), user.sessionId as string)
-    .delete()
-    .eq('id', lessonId);
-
-  if (error) throw new Error(error.message);
+  const currentUser = await userService.getCurrentUser(user.id as string, user.sessionId as string);
+  await learningService.deleteLesson(currentUser, lessonId, user.sessionId as string);
   revalidatePath(`/student/courses?id=${courseId}`);
   return { success: true };
 }
@@ -260,34 +158,10 @@ export async function deleteLesson(lessonId: string, courseId: string) {
 // 7. Assignment Actions
 export async function saveAssignment(assignment: Partial<Assignment>) {
   const user = await getVerifiedUser();
-  if (user.role !== 'teacher' && user.role !== 'admin') throw new Error('Forbidden');
+  const currentUser = await userService.getCurrentUser(user.id as string, user.sessionId as string);
+  const data = await assessmentService.saveAssignment(currentUser, assignment, user.sessionId as string);
 
-  if (!assignment.title) throw new Error('Assignment title is required');
-  if (!assignment.course_id) throw new Error('Course ID is required');
-
-  const { version, ...assignmentData } = assignment;
-  let query = withSession(supabase.from('assignments'), user.sessionId as string)
-    .upsert({
-      ...assignmentData,
-      teacher_id: assignment.teacher_id || user.id,
-      status: assignment.status || 'draft',
-      version: (version || 0) + 1
-    });
-
-  if (assignment.id && version) {
-    query = query.eq('id', assignment.id).eq('version', version);
-  }
-
-  const { data, error } = await query.select().single();
-
-  if (error) {
-    if (assignment.id && version && error.code === 'PGRST116') {
-        throw new Error('Conflict detected: Assignment has been updated by another user.');
-    }
-    throw new Error(error.message);
-  }
-
-  await createSystemLog({
+  createSystemLog({
     level: 'info',
     category: 'academic',
     message: `Assignment ${assignment.id ? 'updated' : 'created'}: ${assignment.title} [Status: ${data.status}]`,
@@ -301,15 +175,10 @@ export async function saveAssignment(assignment: Partial<Assignment>) {
 
 export async function deleteAssignment(assignmentId: string) {
   const user = await getVerifiedUser();
-  if (user.role !== 'teacher' && user.role !== 'admin') throw new Error('Forbidden');
+  const currentUser = await userService.getCurrentUser(user.id as string, user.sessionId as string);
+  await assessmentService.deleteAssignment(currentUser, assignmentId, user.sessionId as string);
 
-  const { error } = await withSession(supabase.from('assignments'), user.sessionId as string)
-    .delete()
-    .eq('id', assignmentId);
-
-  if (error) throw new Error(error.message);
-
-  await createSystemLog({
+  createSystemLog({
     level: 'info',
     category: 'academic',
     message: `Assignment deleted: ${assignmentId}`,
@@ -324,34 +193,10 @@ export async function deleteAssignment(assignmentId: string) {
 // 8. Quiz Actions
 export async function saveQuiz(quiz: Partial<Quiz>) {
   const user = await getVerifiedUser();
-  if (user.role !== 'teacher' && user.role !== 'admin') throw new Error('Forbidden');
+  const currentUser = await userService.getCurrentUser(user.id as string, user.sessionId as string);
+  const data = await assessmentService.saveQuiz(currentUser, quiz, user.sessionId as string);
 
-  if (!quiz.title) throw new Error('Quiz title is required');
-  if (!quiz.course_id) throw new Error('Course ID is required');
-
-  const { version, ...quizData } = quiz;
-  let query = withSession(supabase.from('quizzes'), user.sessionId as string)
-    .upsert({
-      ...quizData,
-      teacher_id: quiz.teacher_id || user.id,
-      status: quiz.status || 'draft',
-      version: (version || 0) + 1
-    });
-
-  if (quiz.id && version) {
-    query = query.eq('id', quiz.id).eq('version', version);
-  }
-
-  const { data, error } = await query.select().single();
-
-  if (error) {
-    if (quiz.id && version && error.code === 'PGRST116') {
-        throw new Error('Conflict detected: Quiz has been updated by another user.');
-    }
-    throw new Error(error.message);
-  }
-
-  await createSystemLog({
+  createSystemLog({
     level: 'info',
     category: 'academic',
     message: `Quiz ${quiz.id ? 'updated' : 'created'}: ${quiz.title} [Status: ${data.status}]`,
@@ -365,15 +210,10 @@ export async function saveQuiz(quiz: Partial<Quiz>) {
 
 export async function deleteQuiz(quizId: string) {
   const user = await getVerifiedUser();
-  if (user.role !== 'teacher' && user.role !== 'admin') throw new Error('Forbidden');
+  const currentUser = await userService.getCurrentUser(user.id as string, user.sessionId as string);
+  await assessmentService.deleteQuiz(currentUser, quizId, user.sessionId as string);
 
-  const { error } = await withSession(supabase.from('quizzes'), user.sessionId as string)
-    .delete()
-    .eq('id', quizId);
-
-  if (error) throw new Error(error.message);
-
-  await createSystemLog({
+  createSystemLog({
     level: 'info',
     category: 'academic',
     message: `Quiz deleted: ${quizId}`,
@@ -388,127 +228,42 @@ export async function deleteQuiz(quizId: string) {
 // 9. Planner Actions
 export async function savePlannerItem(item: Partial<PlannerItem>) {
   const user = await getVerifiedUser();
-  const { version, ...itemData } = item;
-  let query = withSession(supabase.from('planner'), user.sessionId as string)
-    .upsert({
-      ...itemData,
-      user_id: user.id,
-      version: (version || 0) + 1
-    });
-
-  if (item.id) {
-    query = query.eq('id', item.id);
-  }
-  if (version) {
-    query = query.eq('version', version);
-  }
-
-  const { data, error } = await query.select().single();
-
-  if (error) {
-    if (item.id && version && error.code === 'PGRST116') {
-        throw new Error('Conflict detected: Planner item has been updated by another user.');
-    }
-    throw new Error(error.message);
-  }
+  const data = await systemService.savePlannerItem(user.id as string, item, user.sessionId as string);
   return { success: true, data };
 }
 
 export async function deletePlannerItem(id: string) {
   const user = await getVerifiedUser();
-  const { error } = await withSession(supabase.from('planner'), user.sessionId as string)
-    .delete()
-    .eq('id', id)
-    .eq('user_id', user.id);
-
-  if (error) throw new Error(error.message);
+  await systemService.deletePlannerItem(user.id as string, id, user.sessionId as string);
   return { success: true };
 }
 
 // 10. Discussion Actions
 export async function saveDiscussionPost(post: Partial<Discussion>) {
   const user = await getVerifiedUser();
-  const { version, ...postData } = post;
-  let query = withSession(supabase.from('discussions'), user.sessionId as string)
-    .upsert({
-      ...postData,
-      user_id: user.id,
-      version: (version || 0) + 1
-    });
-
-  if (post.id) {
-    query = query.eq('id', post.id);
-  }
-  if (version) {
-    query = query.eq('version', version);
-  }
-
-  const { data, error } = await query.select().single();
-
-  if (error) {
-    if (post.id && version && error.code === 'PGRST116') {
-        throw new Error('Conflict detected: Discussion post has been updated by another user.');
-    }
-    throw new Error(error.message);
-  }
+  const currentUser = await userService.getCurrentUser(user.id as string, user.sessionId as string);
+  const data = await communicationService.saveDiscussionPost(currentUser, post, user.sessionId as string);
   return { success: true, data };
 }
 
 export async function deleteDiscussionPost(id: string) {
   const user = await getVerifiedUser();
-  const { error } = await withSession(supabase.from('discussions'), user.sessionId as string)
-    .delete()
-    .eq('id', id)
-    .eq('user_id', user.id);
-
-  if (error) throw new Error(error.message);
+  const currentUser = await userService.getCurrentUser(user.id as string, user.sessionId as string);
+  await communicationService.deleteDiscussionPost(currentUser, id, user.sessionId as string);
   return { success: true };
 }
 
 // 11. Study Session Actions
 export async function saveStudySession(session: Partial<StudySession>, xpEarned?: number) {
     const user = await getVerifiedUser();
-    const { error } = await withSession(supabase.from('study_sessions'), user.sessionId as string)
-        .insert([{
-            ...session,
-            user_id: user.id
-        }]);
-
-    if (error) throw new Error(error.message);
-
-    if (xpEarned && xpEarned > 0) {
-        // Fetch current XP and level
-        const { data: userData } = await withSession(supabase.from('users'), user.sessionId as string)
-            .select('xp, level')
-            .eq('id', user.id)
-            .single();
-
-        if (userData) {
-            const newXp = (userData.xp || 0) + xpEarned;
-            // Basic level logic: every 1000 XP is a level
-            const newLevel = Math.floor(newXp / 1000) + 1;
-
-            await withSession(supabase.from('users'), user.sessionId as string)
-                .update({ xp: newXp, level: newLevel })
-                .eq('id', user.id);
-        }
-    }
-
+    await learningService.saveStudySession(user.id as string, session, xpEarned || 0, user.sessionId as string);
     return { success: true };
 }
 
 // 12. Regrade Request
 export async function requestRegrade(assignmentId: string, reason: string) {
     const user = await getVerifiedUser();
-    const { error } = await withSession(supabase.from('submissions'), user.sessionId as string)
-        .update({
-            regrade_request: reason,
-            status: 'submitted'
-        })
-        .eq('assignment_id', assignmentId)
-        .eq('student_id', user.id);
-
-    if (error) throw new Error(error.message);
+    await assessmentService.submitAssignment(user.id as string, assignmentId, { regrade_request: reason, status: 'submitted' }, user.sessionId as string);
     revalidatePath('/student/assignments');
     revalidatePath('/teacher/grading');
     return { success: true };
@@ -517,367 +272,129 @@ export async function requestRegrade(assignmentId: string, reason: string) {
 // 13. Material Actions
 export async function saveMaterial(material: Partial<Material>) {
     const user = await getVerifiedUser();
-    if (user.role !== 'teacher' && user.role !== 'admin') throw new Error('Forbidden');
-
-    const { version, ...materialData } = material;
-    let query = withSession(supabase.from('materials'), user.sessionId as string)
-        .upsert({
-            ...materialData,
-            teacher_id: material.teacher_id || user.id,
-            version: (version || 0) + 1
-        });
-
-    if (material.id) {
-        query = query.eq('id', material.id);
-    }
-    if (version) {
-        query = query.eq('version', version);
-    }
-
-    const { data, error } = await query.select().single();
-
-    if (error) {
-        if (material.id && version && error.code === 'PGRST116') {
-            throw new Error('Conflict detected: Material has been updated by another user.');
-        }
-        throw new Error(error.message);
-    }
+    const currentUser = await userService.getCurrentUser(user.id as string, user.sessionId as string);
+    const data = await learningService.saveMaterial(currentUser, material, user.sessionId as string);
     return { success: true, data };
 }
 
 export async function deleteMaterial(id: string) {
     const user = await getVerifiedUser();
-    if (user.role !== 'teacher' && user.role !== 'admin') throw new Error('Forbidden');
-
-    const { error } = await withSession(supabase.from('materials'), user.sessionId as string)
-        .delete()
-        .eq('id', id);
-
-    if (error) throw new Error(error.message);
+    const currentUser = await userService.getCurrentUser(user.id as string, user.sessionId as string);
+    await learningService.deleteMaterial(currentUser, id, user.sessionId as string);
     return { success: true };
 }
 
 // 14. Student Management Actions
 export async function removeEnrollment(courseId: string, studentId: string) {
     const user = await getVerifiedUser();
-    if (user.role !== 'teacher' && user.role !== 'admin') throw new Error('Forbidden');
-
-    const { error } = await withSession(supabase.from('enrollments'), user.sessionId as string)
-        .delete()
-        .eq('course_id', courseId)
-        .eq('student_id', studentId);
-
-    if (error) throw new Error(error.message);
+    const currentUser = await userService.getCurrentUser(user.id as string, user.sessionId as string);
+    await enrollmentService.removeEnrollment(currentUser, courseId, studentId, user.sessionId as string);
     return { success: true };
 }
 
 export async function issueCertificate(certificate: Partial<Certificate>) {
     const user = await getVerifiedUser();
-    if (user.role !== 'teacher' && user.role !== 'admin') throw new Error('Forbidden');
-
-    const { data, error } = await withSession(supabase.from('certificates'), user.sessionId as string)
-        .insert([{
-            ...certificate,
-            issued_at: new Date().toISOString()
-        }])
-        .select()
-        .single();
-
-    if (error) throw new Error(error.message);
+    const currentUser = await userService.getCurrentUser(user.id as string, user.sessionId as string);
+    const data = await gamificationService.issueCertificate(currentUser, certificate, user.sessionId as string);
     return { success: true, data };
 }
 
 // 15. Badge Actions
 export async function saveBadge(badge: Partial<Badge>) {
     const user = await getVerifiedUser();
-    if (user.role !== 'teacher' && user.role !== 'admin') throw new Error('Forbidden');
-
-    const { version, ...badgeData } = badge;
-    let query = withSession(supabase.from('badges'), user.sessionId as string)
-        .upsert({
-            ...badgeData,
-            version: (version || 0) + 1
-        });
-
-    if (badge.id) {
-        query = query.eq('id', badge.id);
-    }
-    if (version) {
-        query = query.eq('version', version);
-    }
-
-    const { data, error } = await query.select().single();
-
-    if (error) {
-        if (badge.id && version && error.code === 'PGRST116') {
-            throw new Error('Conflict detected: Badge has been updated by another user.');
-        }
-        throw new Error(error.message);
-    }
+    const currentUser = await userService.getCurrentUser(user.id as string, user.sessionId as string);
+    const data = await gamificationService.saveBadge(currentUser, badge, user.sessionId as string);
     return { success: true, data };
 }
 
 export async function deleteBadge(id: string) {
     const user = await getVerifiedUser();
-    if (user.role !== 'teacher' && user.role !== 'admin') throw new Error('Forbidden');
-
-    const { error } = await withSession(supabase.from('badges'), user.sessionId as string)
-        .delete()
-        .eq('id', id);
-
-    if (error) throw new Error(error.message);
+    const currentUser = await userService.getCurrentUser(user.id as string, user.sessionId as string);
+    await gamificationService.deleteBadge(currentUser, id, user.sessionId as string);
     return { success: true };
 }
 
 export async function assignBadge(userBadge: Partial<UserBadge>) {
     const user = await getVerifiedUser();
-    if (user.role !== 'teacher' && user.role !== 'admin') throw new Error('Forbidden');
-
-    const { error } = await withSession(supabase.from('user_badges'), user.sessionId as string)
-        .insert([{
-            ...userBadge,
-            awarded_at: new Date().toISOString()
-        }]);
-
-    if (error) throw new Error(error.message);
+    const currentUser = await userService.getCurrentUser(user.id as string, user.sessionId as string);
+    await gamificationService.assignBadge(currentUser, userBadge, user.sessionId as string);
     return { success: true };
 }
 
 // 16. Live Class Actions
 export async function saveLiveClass(liveClass: Partial<LiveClass>) {
     const user = await getVerifiedUser();
-    if (user.role !== 'teacher' && user.role !== 'admin') throw new Error('Forbidden');
-
-    const { version, id, ...liveClassData } = liveClass;
-
-    // Clean data to prevent UUID syntax errors from empty strings
-    const cleanedId = id && id.trim() !== "" ? id : undefined;
-
-    let query = withSession(supabase.from('live_classes'), user.sessionId as string)
-        .upsert({
-            ...liveClassData,
-            ...(cleanedId ? { id: cleanedId } : {}),
-            teacher_id: liveClass.teacher_id || user.id,
-            status: liveClass.status || 'scheduled',
-            version: (version || 0) + 1
-        });
-
-    if (cleanedId) {
-        query = query.eq('id', cleanedId);
-    }
-    if (version) {
-        query = query.eq('version', version);
-    }
-
-    const { data, error } = await query.select().single();
-
-    if (error) {
-        if (liveClass.id && version && error.code === 'PGRST116') {
-            throw new Error('Conflict detected: Live class has been updated by another user.');
-        }
-        throw new Error(error.message);
-    }
+    const currentUser = await userService.getCurrentUser(user.id as string, user.sessionId as string);
+    const data = await communicationService.saveLiveClass(currentUser, liveClass, user.sessionId as string);
     return { success: true, data };
 }
 
 export async function deleteLiveClass(id: string) {
     const user = await getVerifiedUser();
-    if (user.role !== 'teacher' && user.role !== 'admin') throw new Error('Forbidden');
-
-    const { error } = await withSession(supabase.from('live_classes'), user.sessionId as string)
-        .delete()
-        .eq('id', id);
-
-    if (error) throw new Error(error.message);
+    const currentUser = await userService.getCurrentUser(user.id as string, user.sessionId as string);
+    await communicationService.deleteLiveClass(currentUser, id, user.sessionId as string);
     return { success: true };
 }
 
 // 17. Admin User & System Actions
 export async function saveUser(userData: Partial<User>) {
     const user = await getVerifiedUser();
-    // Users can update their own profile, or admins can update anyone
-    if (user.role !== 'admin' && user.id !== userData.id) throw new Error('Forbidden');
-
-    // Admin-specific flow using RPC to handle password hashing and higher-level field updates
-    if (user.role === 'admin') {
-        const { error } = await withSession(supabase, user.sessionId as string)
-            .rpc('admin_update_user_v2', {
-                p_user_id: userData.id,
-                p_full_name: userData.full_name,
-                p_email: userData.email,
-                p_password: userData.password || '',
-                p_phone: userData.phone,
-                p_role: userData.role,
-                p_xp: userData.xp || 0,
-                p_active: userData.active !== false,
-                p_flagged: userData.flagged || false
-            });
-
-        if (error) throw new Error(error.message);
-        revalidatePath('/admin/users');
-        return { success: true };
-    }
-
-    // Standard user profile update (limited fields)
-    const { version, id, ...cleanUserData } = userData;
-    // Remove sensitive or admin-only fields if they leaked in
-    const fieldsToDelete = ['password', 'role', 'active', 'flagged'] as const;
-    fieldsToDelete.forEach(field => {
-        if (field in cleanUserData) {
-            delete (cleanUserData as unknown as Record<string, unknown>)[field];
-        }
-    });
-
-    let query = withSession(supabase.from('users'), user.sessionId as string)
-        .update({
-            ...cleanUserData,
-            version: (version || 1) + 1
-        })
-        .eq('id', id);
-
-    if (version) {
-        query = query.eq('version', version);
-    }
-
-    const { data, error } = await query.select().single();
-
-    if (error) {
-        if (version && error.code === 'PGRST116') {
-            throw new Error('Conflict detected: User profile has been updated by another user.');
-        }
-        throw new Error(error.message);
-    }
+    const currentUser = await userService.getCurrentUser(user.id as string, user.sessionId as string);
+    const data = await userService.updateUserProfile(currentUser, userData.id as string, userData, user.sessionId as string);
     revalidatePath('/admin/users');
     return { success: true, data };
 }
 
 export async function deleteUser(id: string) {
     const user = await getVerifiedUser();
-    if (user.role !== 'admin') throw new Error('Forbidden');
-
-    const { error } = await withSession(supabase.from('users'), user.sessionId as string)
-        .delete()
-        .eq('id', id);
-
-    if (error) throw new Error(error.message);
+    const currentUser = await userService.getCurrentUser(user.id as string, user.sessionId as string);
+    await userService.deleteUser(currentUser, id, user.sessionId as string);
     revalidatePath('/admin/users');
     return { success: true };
 }
 
 export async function updateSetting(key: string, value: unknown) {
     const user = await getVerifiedUser();
-    if (user.role !== 'admin') throw new Error('Forbidden');
-
-    const { error } = await withSession(supabase, user.sessionId as string)
-        .rpc('update_setting', {
-            p_key: key,
-            p_value: value
-        });
-
-    if (error) throw new Error(error.message);
+    const currentUser = await userService.getCurrentUser(user.id as string, user.sessionId as string);
+    await systemService.updateSetting(currentUser, key, value, user.sessionId as string);
     return { success: true };
 }
 
 export async function updateMaintenance(maintenance: Partial<Maintenance>) {
     const user = await getVerifiedUser();
-    if (user.role !== 'admin') throw new Error('Forbidden');
-
-    const { error } = await withSession(supabase.from('maintenance'), user.sessionId as string)
-        .update(maintenance)
-        .eq('id', maintenance.id);
-
-    if (error) throw new Error(error.message);
+    const currentUser = await userService.getCurrentUser(user.id as string, user.sessionId as string);
+    await systemService.updateMaintenance(currentUser, maintenance, user.sessionId as string);
     return { success: true };
 }
 
-export async function createBroadcast(broadcast: Record<string, unknown>) {
+export async function createBroadcast(broadcast: Partial<Broadcast>) {
     const user = await getVerifiedUser();
-    if (user.role !== 'admin') throw new Error('Forbidden');
-
-    const { error } = await withSession(supabase.from('broadcasts'), user.sessionId as string)
-        .insert([broadcast]);
-
-    if (error) throw new Error(error.message);
+    const currentUser = await userService.getCurrentUser(user.id as string, user.sessionId as string);
+    await communicationService.createBroadcast(currentUser, broadcast, user.sessionId as string);
     return { success: true };
 }
 
 // 18. Quiz Submission
 export async function submitQuiz(quizId: string, submissionData: Partial<QuizSubmission>) {
     const user = await getVerifiedUser();
+    const result = await assessmentService.submitQuiz(user.id as string, quizId, submissionData, user.sessionId as string);
 
-    // Fetch quiz to validate and calculate score server-side
-    const { data: quiz, error: quizError } = await withSession(
-      supabase.from('quizzes'),
-      user.sessionId as string
-    )
-      .select('questions, passing_score, attempts_allowed')
-      .eq('id', quizId)
-      .single();
-
-    if (quizError || !quiz) throw new Error('Quiz not found');
-
-    // Get current attempt count
-    const { data: existingSubmissions } = await withSession(
-        supabase.from('quiz_submissions'),
-        user.sessionId as string
-    )
-    .select('attempt_number')
-    .eq('quiz_id', quizId)
-    .eq('student_id', user.id)
-    .order('attempt_number', { ascending: false });
-
-    const currentAttempts = existingSubmissions?.length || 0;
-    if (quiz.attempts_allowed > 0 && currentAttempts >= quiz.attempts_allowed) {
-        throw new Error(`Maximum attempts (${quiz.attempts_allowed}) reached for this quiz.`);
-    }
-
-    const nextAttempt = currentAttempts + 1;
-
-    const answers = (submissionData.answers as Record<string, string>) || {};
-    const questions = (quiz.questions as QuizQuestion[]) || [];
-
-    const { score: calculatedScore, totalPoints } = calculateQuizScore(questions, answers);
-
-    const { error } = await withSession(
-      supabase.from('quiz_submissions'),
-      user.sessionId as string
-    )
-      .insert({
-        quiz_id: quizId,
-        student_id: user.id,
-        attempt_number: nextAttempt,
-        answers,
-        score: calculatedScore,
-        total_points: totalPoints,
-        status: 'submitted',
-        submitted_at: new Date().toISOString(),
-        time_spent: submissionData.time_spent || 0,
-        violation_count: submissionData.violation_count || 0,
-        started_at: submissionData.started_at || new Date().toISOString()
-      });
-
-    if (error) throw new Error(error.message);
-
-    await createSystemLog({
+    createSystemLog({
         level: 'info',
         category: 'academic',
-        message: `Quiz submitted: ${quizId} with score ${calculatedScore}%`,
+        message: `Quiz submitted: ${quizId} with score ${result.score}%`,
         user_id: user.id
     });
 
     revalidatePath('/student/quizzes');
-    return { success: true, score: calculatedScore };
+    return { success: true, score: result.score };
 }
 
 // Mark a notification as read (for deep linking)
 export async function markNotificationAsRead(notificationId: string) {
   try {
     const user = await getVerifiedUser();
-    const { error } = await withSession(supabase.from('notifications'), user.sessionId as string)
-      .update({ is_read: true })
-      .eq('id', notificationId);
-
-    if (error) throw error;
+    await communicationService.markNotificationAsRead(notificationId, user.sessionId as string);
     revalidatePath('/student');
     revalidatePath('/teacher');
     revalidatePath('/admin');
@@ -892,12 +409,7 @@ export async function markNotificationAsRead(notificationId: string) {
 export async function markAllNotificationsAsRead(userId: string) {
   try {
     const user = await getVerifiedUser();
-    const { error } = await withSession(supabase.from('notifications'), user.sessionId as string)
-      .update({ is_read: true })
-      .eq('user_id', userId)
-      .eq('is_read', false);
-
-    if (error) throw error;
+    await communicationService.markAllNotificationsAsRead(userId, user.sessionId as string);
     revalidatePath('/student');
     revalidatePath('/teacher');
     revalidatePath('/admin');
@@ -910,92 +422,37 @@ export async function markAllNotificationsAsRead(userId: string) {
 
 // Public function to check the count of teachers and admins (for signup form)
 export async function getRoleCount(): Promise<{ teachers: number; admins: number; total: number }> {
-  try {
     const { data, error } = await supabase.rpc('get_role_counts');
-
-    if (error) {
-      console.error('getRoleCount RPC error:', error);
-      // If RPC fails (e.g. not created yet), fallback to a basic query if possible or return defaults
-      return { teachers: 0, admins: 0, total: 0 };
-    }
-
-    if (!data) return { teachers: 0, admins: 0, total: 0 };
-
+    if (error || !data) return { teachers: 0, admins: 0, total: 0 };
     return data as { teachers: number; admins: number; total: number };
-  } catch (error) {
-    console.error('Error fetching role count:', error);
-    return { teachers: 0, admins: 0, total: 0 };
-  }
 }
 
 export async function updateProfile(updates: Partial<User>) {
     const user = await getVerifiedUser();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return saveUser({ ...updates, id: user.id } as any);
+    return saveUser({ ...updates, id: user.id as string } as any);
 }
 
 // 20. Lesson Completion & Progress
 export async function markLessonComplete(lessonId: string, courseId: string) {
     const user = await getVerifiedUser();
-
-    const { error: completionError } = await withSession(supabase.from('lesson_completions'), user.sessionId as string)
-        .upsert({
-            student_id: user.id,
-            lesson_id: lessonId,
-            completed_at: new Date().toISOString()
-        }, { onConflict: 'student_id, lesson_id' });
-
-    if (completionError) throw new Error(completionError.message);
-
-    // 1. Get all lesson IDs for this course
-    const { data: allLessons } = await withSession(supabase.from('lessons'), user.sessionId as string)
-        .select('id')
-        .eq('course_id', courseId);
-
-    const lessonIds = allLessons?.map(l => l.id) || [];
-    if (lessonIds.length === 0) return { success: true, progress: 0 };
-
-    // 2. Get completed lessons for this student in this course
-    const { data: completions } = await withSession(supabase.from('lesson_completions'), user.sessionId as string)
-        .select('lesson_id')
-        .eq('student_id', user.id)
-        .in('lesson_id', lessonIds);
-
-    const progress = Math.round(((completions?.length || 0) / lessonIds.length) * 100);
-
-    // 3. Update enrollment progress
-    const { error: progressError } = await withSession(supabase.from('enrollments'), user.sessionId as string)
-        .update({ progress, completed: progress === 100 })
-        .eq('student_id', user.id)
-        .eq('course_id', courseId);
-
-    if (progressError) throw new Error(progressError.message);
-
+    const result = await learningService.markLessonComplete(user.id as string, lessonId, courseId, user.sessionId as string);
     revalidatePath(`/student/courses?id=${courseId}`);
-    return { success: true, progress };
+    return result;
 }
 
 // 21. Attendance
 export async function recordAttendance(liveClassId: string) {
     const user = await getVerifiedUser();
-    const { error } = await withSession(supabase.from('attendance'), user.sessionId as string)
-        .upsert({
-            live_class_id: liveClassId,
-            student_id: user.id,
-            join_time: new Date().toISOString(),
-            is_present: true
-        }, { onConflict: 'live_class_id, student_id' });
-
-    if (error) throw new Error(error.message);
+    await communicationService.recordAttendance(user.id as string, liveClassId, user.sessionId as string);
     return { success: true };
 }
 
-// 19. File Upload Utility (Server-side metadata/logging, client does the actual heavy lifting to Supabase Storage)
+// 19. File Upload Utility
 export async function uploadFile(fileName: string, category: 'materials' | 'submissions' | 'thumbnails') {
     const user = await getVerifiedUser();
     const filePath = `${category}/${user.id}/${Date.now()}_${fileName}`;
 
-    await createSystemLog({
+    createSystemLog({
         level: 'info',
         category: 'management',
         message: `File upload initiated: ${fileName} in category ${category}`,
@@ -1008,248 +465,134 @@ export async function uploadFile(fileName: string, category: 'materials' | 'subm
 // 22. Get Actions
 export async function getAssignments(teacherId?: string, courseId?: string) {
     const user = await getVerifiedUser();
-    let query = withSession(supabase.from('assignments'), user.sessionId as string).select('*, courses(*)');
-    if (teacherId) query = query.eq('teacher_id', teacherId);
-    if (courseId) query = query.eq('course_id', courseId);
-    const { data, error } = await query;
-    if (error) throw new Error(error.message);
-    return data as Assignment[];
+    return assessmentService.getAssignments(teacherId, courseId, user.sessionId as string);
 }
 
 export async function getQuizzes(courseId?: string, teacherId?: string) {
     const user = await getVerifiedUser();
-    let query = withSession(supabase.from('quizzes'), user.sessionId as string).select('*, courses(*)');
-    if (courseId) query = query.eq('course_id', courseId);
-    if (teacherId) query = query.eq('teacher_id', teacherId);
-    const { data, error } = await query;
-    if (error) throw new Error(error.message);
-    return data as Quiz[];
+    return assessmentService.getQuizzes(courseId, teacherId, user.sessionId as string);
 }
 
 export async function getSubmissions(assignmentId?: string, studentId?: string) {
     const user = await getVerifiedUser();
-    let query = withSession(supabase.from('submissions'), user.sessionId as string).select('*, assignments(*), users(*)');
-    if (assignmentId) query = query.eq('assignment_id', assignmentId);
-    if (studentId) query = query.eq('student_id', studentId);
-    const { data, error } = await query;
-    if (error) throw new Error(error.message);
-    return data as Submission[];
+    return assessmentService.getSubmissions(assignmentId, studentId, user.sessionId as string);
 }
 
 export async function getEnrollments(studentId?: string, courseIds?: string[]) {
     const user = await getVerifiedUser();
-    let query = withSession(supabase.from('enrollments'), user.sessionId as string)
-        .select('*, courses(*), users!student_id(*)');
-
-    if (studentId) {
-        query = query.eq('student_id', studentId);
-    }
-
-    if (courseIds && courseIds.length > 0) {
-        query = query.in('course_id', courseIds);
-    }
-
-    const { data, error } = await query;
-    if (error) throw new Error(error.message);
-    return data as Enrollment[];
+    if (studentId) return enrollmentService.getStudentEnrollments(studentId, user.sessionId as string);
+    return enrollmentService.getCourseEnrollments(user as any, courseIds || [], user.sessionId as string);
 }
 
 export async function getCourses(teacherId?: string) {
     const session = await getSession();
-    let query = supabase.from('courses').select('*');
-    if (session?.sessionId) {
-        query = withSession(query, session.sessionId as unknown as string);
-    }
-
-    if (teacherId) query = query.eq('teacher_id', teacherId);
-    const { data, error } = await query;
-    if (error) throw new Error(error.message);
-    return data as Course[];
+    return courseService.getCourses(teacherId, session?.sessionId as string);
 }
 
 export async function getCourse(id: string) {
     const user = await getVerifiedUser();
-    const { data, error } = await withSession(supabase.from('courses'), user.sessionId as string)
-        .select('*')
-        .eq('id', id)
-        .single();
-    if (error) throw new Error(error.message);
-    return data as Course;
+    return courseService.getCourse(id, user.sessionId as string);
 }
 
 export async function getLessons(courseId: string) {
     const user = await getVerifiedUser();
-    const { data, error } = await withSession(supabase.from('lessons'), user.sessionId as string)
-        .select('*')
-        .eq('course_id', courseId)
-        .order('order_index', { ascending: true });
-    if (error) throw new Error(error.message);
-    return data as Lesson[];
+    return learningService.getLessons(courseId, user.sessionId as string);
 }
 
 export async function getMaterials(courseId?: string) {
     const user = await getVerifiedUser();
-    let query = withSession(supabase.from('materials'), user.sessionId as string).select('*, courses(*)');
-    if (courseId) query = query.eq('course_id', courseId);
-    const { data, error } = await query;
-    if (error) throw new Error(error.message);
-    return data as Material[];
+    return learningService.getMaterials(courseId, user.sessionId as string);
 }
 
 export async function getLiveClasses(courseId?: string, teacherId?: string) {
     const user = await getVerifiedUser();
-    let query = withSession(supabase.from('live_classes'), user.sessionId as string).select('*, courses(*)');
-    if (courseId) query = query.eq('course_id', courseId);
-    if (teacherId) query = query.eq('teacher_id', teacherId);
-    const { data, error } = await query;
-    if (error) throw new Error(error.message);
-    return data as LiveClass[];
+    return communicationService.getLiveClasses(courseId, teacherId, user.sessionId as string);
 }
 
 export async function getNotifications(userId: string) {
     const user = await getVerifiedUser();
-    const { data, error } = await withSession(supabase.from('notifications'), user.sessionId as string)
-        .select('*')
-        .eq('user_id', userId)
-        .order('created_at', { ascending: false });
-    if (error) throw new Error(error.message);
-    return data as Notification[];
+    return communicationService.getNotifications(userId, user.sessionId as string);
 }
 
 export async function getMaintenance() {
     const session = await getSession();
-    let query = supabase.from('maintenance').select('*');
-    if (session?.sessionId) {
-        query = withSession(query, session.sessionId as unknown as string);
-    }
-
-    const { data, error } = await query.maybeSingle();
-    if (error && error.code !== 'PGRST116') throw new Error(error.message);
-    return data as Maintenance || { enabled: false, schedules: [] };
+    return systemService.getMaintenance(session?.sessionId as string);
 }
 
 export async function getPlannerItems(userId: string) {
     const user = await getVerifiedUser();
-    const { data, error } = await withSession(supabase.from('planner'), user.sessionId as string)
-        .select('*')
-        .eq('user_id', userId);
-    if (error) throw new Error(error.message);
-    return data as PlannerItem[];
+    return systemService.getPlannerItems(userId, user.sessionId as string);
 }
 
 export async function getDiscussions(courseId: string) {
     const user = await getVerifiedUser();
-    const { data, error } = await withSession(supabase.from('discussions'), user.sessionId as string)
-        .select('*, users(full_name, email)')
-        .eq('course_id', courseId)
-        .order('created_at', { ascending: true });
-    if (error) throw new Error(error.message);
-    return data as Discussion[];
+    return communicationService.getDiscussions(courseId, user.sessionId as string);
 }
 
 export async function getSystemLogs(limit = 100) {
     const user = await getVerifiedUser();
-    if (user.role !== 'admin') throw new Error('Forbidden');
-    const { data, error } = await withSession(supabase.from('system_logs'), user.sessionId as string)
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(limit);
-    if (error) throw new Error(error.message);
-    return data;
+    const currentUser = await userService.getCurrentUser(user.id as string, user.sessionId as string);
+    return systemService.getLogs(currentUser, limit, user.sessionId as string);
 }
 
 export async function getUserBadges(userId: string) {
     const user = await getVerifiedUser();
-    const { data, error } = await withSession(supabase.from('user_badges'), user.sessionId as string)
-        .select('*, badges(*)')
-        .eq('user_id', userId);
-    if (error) throw new Error(error.message);
-    return data;
+    return gamificationService.getUserBadges(userId, user.sessionId as string);
 }
 
 export async function getCertificates(userId: string) {
     const user = await getVerifiedUser();
-    const { data, error } = await withSession(supabase.from('certificates'), user.sessionId as string)
-        .select('*, courses(title)')
-        .eq('student_id', userId);
-    if (error) throw new Error(error.message);
-    return data;
+    return gamificationService.getCertificates(userId, user.sessionId as string);
 }
 
 export async function getQuizSubmissions(quizId?: string, studentId?: string) {
     const user = await getVerifiedUser();
-    let query = withSession(supabase.from('quiz_submissions'), user.sessionId as string).select('*, quizzes(*), users(*)');
-    if (quizId) query = query.eq('quiz_id', quizId);
-    if (studentId) query = query.eq('student_id', studentId);
-    const { data, error } = await query;
-    if (error) throw new Error(error.message);
-    return data as QuizSubmission[];
+    return assessmentService.getQuizSubmissions(quizId, studentId, user.sessionId as string);
 }
 
 export async function getBadges() {
     await getVerifiedUser();
-    const { data, error } = await supabase.from('badges').select('*');
-    if (error) throw new Error(error.message);
-    return data as Badge[];
+    return gamificationService.getBadges();
 }
 
 export async function getSettings() {
     const user = await getVerifiedUser();
-    const { data, error } = await withSession(supabase.from('settings'), user.sessionId as string).select('*');
-    if (error) throw new Error(error.message);
-    return data;
+    const currentUser = await userService.getCurrentUser(user.id as string, user.sessionId as string);
+    return systemService.getSettings(currentUser, user.sessionId as string);
 }
 
 export async function getUsers() {
     const user = await getVerifiedUser();
-    if (user.role !== 'admin') throw new Error('Forbidden');
-    const { data, error } = await withSession(supabase.from('users'), user.sessionId as string).select('*');
-    if (error) throw new Error(error.message);
-    return data as User[];
+    const currentUser = await userService.getCurrentUser(user.id as string, user.sessionId as string);
+    return userService.getAllUsers(currentUser, user.sessionId as string);
 }
 
 export async function notifyUser(params: { target_id: string, n_title: string, n_msg: string, n_link?: string, n_type?: string }) {
     const user = await getVerifiedUser();
-    if (user.role !== 'admin' && user.role !== 'teacher') throw new Error('Forbidden');
-    const { data, error } = await withSession(supabase, user.sessionId as string).rpc('notify_user', params);
-    if (error) throw new Error(error.message);
-    return data;
+    const currentUser = await userService.getCurrentUser(user.id as string, user.sessionId as string);
+    return communicationService.notifyUser(currentUser, params, user.sessionId as string);
 }
 
 export async function updateSystemLog(id: string, updates: Record<string, unknown>) {
     const user = await getVerifiedUser();
-    if (user.role !== 'admin') throw new Error('Forbidden');
-    const { data, error } = await withSession(supabase.from('system_logs'), user.sessionId as string)
-        .update(updates)
-        .eq('id', id)
-        .select()
-        .single();
-    if (error) throw new Error(error.message);
-    return data;
+    const currentUser = await userService.getCurrentUser(user.id as string, user.sessionId as string);
+    return systemService.updateLog(currentUser, id, updates, user.sessionId as string);
 }
 
 export async function getLessonCompletions(userId?: string) {
     const user = await getVerifiedUser();
-    let query = withSession(supabase.from('lesson_completions'), user.sessionId as string).select('*');
-    if (userId) query = query.eq('student_id', userId);
-    const { data, error } = await query;
-    if (error) throw new Error(error.message);
-    return data;
+    return learningService.getLessonCompletions(userId || user.id as string, user.sessionId as string);
 }
 
 export async function getSessions() {
     const user = await getVerifiedUser();
-    if (user.role !== 'admin') throw new Error('Forbidden');
-    const { data, error } = await withSession(supabase.from('sessions'), user.sessionId as string).select('*');
-    if (error) throw new Error(error.message);
-    return data;
+    const { SessionRepository } = await import('./repositories/session.repository');
+    const repo = new SessionRepository();
+    return repo.findAll(user.sessionId as string);
 }
 
 export async function logAntiCheatViolation(violation: { type: string; assessmentTitle: string; metadata?: Record<string, unknown> }) {
     const user = await getVerifiedUser();
-
-    // Basic server-side verification: check if assessment exists and anti-cheat is enabled
-    // This is a placeholder for more complex logic if needed
 
     return await createSystemLog({
         category: 'anti-cheat',
