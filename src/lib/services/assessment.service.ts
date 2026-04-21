@@ -3,8 +3,7 @@ import { QuizRepository } from '../repositories/quiz.repository';
 import { SubmissionRepository } from '../repositories/submission.repository';
 import { QuizSubmissionRepository } from '../repositories/quiz-submission.repository';
 import { Assignment, Quiz, Submission, QuizSubmission, User, QuizQuestion } from '../types';
-import { rbac } from '../auth/rbac';
-import { calculateQuizScore } from '../scoring-util';
+import { AssessmentDomain } from '../domain/assessment.domain';
 
 export class AssessmentService {
   private assignmentRepo = new AssignmentRepository();
@@ -18,22 +17,11 @@ export class AssessmentService {
   }
 
   async saveAssignment(currentUser: User, assignment: Partial<Assignment>, sessionId: string): Promise<Assignment> {
-    if (!rbac.can(currentUser, 'assignment:manage')) throw new Error('Forbidden');
-    if (!assignment.title) throw new Error('Assignment title is required');
-    if (!assignment.course_id) throw new Error('Course ID is required');
-
-    return this.assignmentRepo.upsert({
-        ...assignment,
-        teacher_id: assignment.teacher_id || currentUser.id,
-        status: assignment.status || 'draft'
-    }, sessionId);
+    const assignmentToSave = AssessmentDomain.prepareAssignment(assignment, currentUser.id);
+    return this.assignmentRepo.upsert(assignmentToSave, sessionId);
   }
 
-  async deleteAssignment(currentUser: User, assignmentId: string, sessionId: string): Promise<void> {
-    const existing = await this.assignmentRepo.findById(assignmentId, sessionId);
-    if (!existing) throw new Error('Assignment not found');
-    if (!rbac.isOwner(currentUser, { teacher_id: existing.teacher_id })) throw new Error('Forbidden');
-
+  async deleteAssignment(assignmentId: string, sessionId: string): Promise<void> {
     await this.assignmentRepo.delete(assignmentId, sessionId);
   }
 
@@ -43,22 +31,11 @@ export class AssessmentService {
   }
 
   async saveQuiz(currentUser: User, quiz: Partial<Quiz>, sessionId: string): Promise<Quiz> {
-    if (!rbac.can(currentUser, 'quiz:manage')) throw new Error('Forbidden');
-    if (!quiz.title) throw new Error('Quiz title is required');
-    if (!quiz.course_id) throw new Error('Course ID is required');
-
-    return this.quizRepo.upsert({
-        ...quiz,
-        teacher_id: quiz.teacher_id || currentUser.id,
-        status: quiz.status || 'draft'
-    }, sessionId);
+    const quizToSave = AssessmentDomain.prepareQuiz(quiz, currentUser.id);
+    return this.quizRepo.upsert(quizToSave, sessionId);
   }
 
-  async deleteQuiz(currentUser: User, quizId: string, sessionId: string): Promise<void> {
-    const existing = await this.quizRepo.findById(quizId, sessionId);
-    if (!existing) throw new Error('Quiz not found');
-    if (!rbac.isOwner(currentUser, { teacher_id: existing.teacher_id })) throw new Error('Forbidden');
-
+  async deleteQuiz(quizId: string, sessionId: string): Promise<void> {
     await this.quizRepo.delete(quizId, sessionId);
   }
 
@@ -68,20 +45,11 @@ export class AssessmentService {
   }
 
   async submitAssignment(studentId: string, assignmentId: string, content: Partial<Submission>, sessionId: string): Promise<Submission> {
-    return this.submissionRepo.upsert({
-      ...content,
-      assignment_id: assignmentId,
-      student_id: studentId,
-      submitted_at: new Date().toISOString(),
-      status: 'submitted'
-    }, sessionId);
+    const submissionToSave = AssessmentDomain.prepareSubmission(studentId, assignmentId, content);
+    return this.submissionRepo.upsert(submissionToSave, sessionId);
   }
 
-  async gradeSubmission(currentUser: User, submissionId: string, gradeData: Partial<Submission>, sessionId: string): Promise<Submission> {
-    if (!rbac.can(currentUser, 'assignment:grade')) throw new Error('Forbidden');
-    const existing = await this.submissionRepo.findById(submissionId, sessionId);
-    if (!existing) throw new Error('Submission not found');
-
+  async gradeSubmission(submissionId: string, gradeData: Partial<Submission>, sessionId: string): Promise<Submission> {
     return this.submissionRepo.upsert({
       ...gradeData,
       id: submissionId,
@@ -102,29 +70,24 @@ export class AssessmentService {
     const existingSubmissions = await this.quizSubmissionRepo.findAttempts(quizId, studentId, sessionId);
     const currentAttempts = existingSubmissions.length;
 
-    if (quiz.attempts_allowed > 0 && currentAttempts >= quiz.attempts_allowed) {
-        throw new Error(`Maximum attempts (${quiz.attempts_allowed}) reached for this quiz.`);
-    }
+    AssessmentDomain.validateQuizAttempt(quiz, currentAttempts);
 
     const nextAttempt = currentAttempts + 1;
     const answers = (submissionData.answers as Record<string, string>) || {};
     const questions = (quiz.questions as QuizQuestion[]) || [];
 
-    const { score: calculatedScore, totalPoints } = calculateQuizScore(questions, answers);
+    const { score: calculatedScore, totalPoints } = AssessmentDomain.calculateQuizScore(questions, answers);
 
-    await this.quizSubmissionRepo.insert({
-        quiz_id: quizId,
-        student_id: studentId,
-        attempt_number: nextAttempt,
-        answers,
-        score: calculatedScore,
-        total_points: totalPoints,
-        status: 'submitted',
-        submitted_at: new Date().toISOString(),
-        time_spent: submissionData.time_spent || 0,
-        violation_count: submissionData.violation_count || 0,
-        started_at: submissionData.started_at || new Date().toISOString()
-    }, sessionId);
+    const submissionToSave = AssessmentDomain.prepareQuizSubmission(
+      studentId,
+      quizId,
+      nextAttempt,
+      calculatedScore,
+      totalPoints,
+      submissionData
+    );
+
+    await this.quizSubmissionRepo.insert(submissionToSave, sessionId);
 
     return { success: true, score: calculatedScore };
   }

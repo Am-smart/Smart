@@ -72,4 +72,10 @@ export class LessonRepository {
     if (error) throw new Error(error.message);
     return data?.map(c => c.lesson_id) || [];
   }
+
+  async getCompletions(studentId: string, sessionId: string): Promise<unknown[]> {
+    const { data, error } = await withSession(supabase.from('lesson_completions').select('*').eq('student_id', studentId), sessionId);
+    if (error) throw new Error(error.message);
+    return data || [];
+  }
 }

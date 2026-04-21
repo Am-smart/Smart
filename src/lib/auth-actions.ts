@@ -3,10 +3,9 @@
 import { cookies } from 'next/headers';
 import { signData, verifyToken } from './crypto';
 import { User } from './types';
-import { validateEmail, normalizeEmail, normalizeInput } from './validation';
+import { validateEmail, validatePassword, validateSignupForm, normalizeEmail, normalizeInput } from './validation';
 import { isRateLimited, recordAttempt, resetRateLimit } from './rate-limit';
 import { authService } from './services/auth.service';
-import { supabase } from './supabase';
 
 const SESSION_COOKIE = 'app-user-session';
 
@@ -27,10 +26,7 @@ export async function login(email: string, password: string) {
   const normalizedEmail = normalizeEmail(email);
   if (isRateLimited(normalizedEmail)) return { success: false, error: `Too many login attempts. Please try again later.` };
 
-  const { data: rawData, error: rpcError } = await supabase.rpc('authenticate_user', {
-    p_email: normalizedEmail,
-    p_password: password
-  });
+  const { data: rawData, error: rpcError } = await authService.authenticate(normalizedEmail, password);
 
   if (rpcError) return { success: false, error: 'Authentication service unavailable' };
   const { user, session_id, error: authError } = normalizeAuthResult(rawData as Record<string, unknown>);
@@ -64,13 +60,25 @@ export async function login(email: string, password: string) {
 export async function signup(userData: Partial<User>) {
   if (!userData.email || !userData.password || !userData.full_name) return { success: false, error: 'Email, name, and password are required' };
 
+  const validation = validateSignupForm(
+    userData.full_name,
+    userData.email,
+    userData.password,
+    userData.password, // Assume confirmation matches for server action
+    userData.phone
+  );
+
+  if (!validation.isValid) {
+    return { success: false, error: validation.errors[0]?.message || 'Invalid input' };
+  }
+
   const normalizedEmail = normalizeEmail(userData.email);
-  const { data: rawData, error: rpcError } = await supabase.rpc('register_user', {
-      p_full_name: normalizeInput(userData.full_name),
-      p_email: normalizedEmail,
-      p_password: userData.password,
-      p_phone: userData.phone ? normalizeInput(userData.phone) : undefined,
-      p_role: userData.role || 'student'
+  const { data: rawData, error: rpcError } = await authService.register({
+      full_name: normalizeInput(userData.full_name),
+      email: normalizedEmail,
+      password: userData.password,
+      phone: userData.phone ? normalizeInput(userData.phone) : undefined,
+      role: userData.role || 'student'
   });
 
   if (rpcError) return { success: false, error: 'Signup service unavailable' };
@@ -114,21 +122,26 @@ export async function updatePassword(currentPass: string, newPass: string) {
     const session = await getSession();
     if (!session || !session.sessionId) return { success: false, error: 'Unauthorized' };
 
-    const { data, error } = await supabase.rpc('update_user_password', {
-        p_current_password: currentPass,
-        p_new_password: newPass
-    }).setHeader('x-session-id', session.sessionId as string);
+    const passwordValidation = validatePassword(newPass);
+    if (!passwordValidation.isValid) {
+      return { success: false, error: passwordValidation.errors[0]?.message };
+    }
+
+    const { data, error } = await authService.updatePassword(currentPass, newPass, session.sessionId as string);
 
     if (error) return { success: false, error: error.message };
     return data;
 }
 
 export async function requestPasswordReset(email: string, reason: string, riskLevel: string) {
-    const { data, error } = await supabase.rpc('request_password_reset', {
-        p_email: email,
-        p_reason: reason,
-        p_risk_level: riskLevel
-    });
+    const emailValidation = validateEmail(email);
+    if (!emailValidation.isValid) throw new Error(emailValidation.errors[0]?.message);
+
+    const { data, error } = await authService.requestPasswordReset(
+        normalizeEmail(email),
+        normalizeInput(reason),
+        riskLevel
+    );
     if (error) throw error;
     return data;
 }
@@ -137,9 +150,7 @@ export async function updatePreferences(preferences: object) {
     const session = await getSession();
     if (!session || !session.sessionId) return { success: false, error: 'Unauthorized' };
 
-    const { data, error } = await supabase.rpc('update_user_preferences', {
-        p_preferences: preferences
-    }).setHeader('x-session-id', session.sessionId as string);
+    const { data, error } = await authService.updatePreferences(preferences, session.sessionId as string);
 
     if (error) return { success: false, error: error.message };
     return data;
@@ -149,10 +160,7 @@ export async function approveResetRequest(userId: string, tempPassword: string) 
     const session = await getSession();
     if (!session || session.role !== 'admin') return { success: false, error: 'Unauthorized' };
 
-    const { data, error } = await supabase.rpc('approve_password_reset', {
-        p_user_id: userId,
-        p_temp_password: tempPassword
-    }).setHeader('x-session-id', session.sessionId as string);
+    const { data, error } = await authService.approvePasswordReset(userId, tempPassword, session.sessionId as string);
 
     if (error) return { success: false, error: error.message };
     return data;
@@ -162,10 +170,7 @@ export async function denyResetRequest(userId: string, reason: string) {
     const session = await getSession();
     if (!session || session.role !== 'admin') return { success: false, error: 'Unauthorized' };
 
-    const { data, error } = await supabase.rpc('deny_password_reset', {
-        p_user_id: userId,
-        p_reason: reason
-    }).setHeader('x-session-id', session.sessionId as string);
+    const { data, error } = await authService.denyPasswordReset(userId, normalizeInput(reason), session.sessionId as string);
 
     if (error) return { success: false, error: error.message };
     return data;

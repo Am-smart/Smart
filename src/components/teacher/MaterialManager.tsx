@@ -15,6 +15,7 @@ export const MaterialManager: React.FC<MaterialManagerProps> = ({ initialMateria
     const { client } = useSupabase();
     const { addToast } = useAppContext();
     const [selectedCourseId, setSelectedCourseId] = useState('');
+    const [description, setDescription] = useState('');
 
     const performUpload = async (file: File, category: 'materials' | 'submissions' | 'thumbnails') => {
         const { filePath } = await uploadFile(file.name, category);
@@ -31,15 +32,18 @@ export const MaterialManager: React.FC<MaterialManagerProps> = ({ initialMateria
         return { url: publicUrl.publicUrl };
     };
 
-    const handleUploadComplete = async (url: string, fileName: string) => {
+    const handleUploadComplete = async (url: string, fileName: string, fileType?: string) => {
         if (!selectedCourseId) return;
         try {
             await saveMaterial({
                 course_id: selectedCourseId,
                 title: fileName,
-                file_url: url
+                description: description,
+                file_url: url,
+                file_type: fileType
             });
             onRefresh();
+            setDescription('');
             addToast('Material uploaded successfully!', 'success');
         } catch (err) {
             console.error('Failed to save material:', err);
@@ -66,27 +70,37 @@ export const MaterialManager: React.FC<MaterialManagerProps> = ({ initialMateria
                     <h2 className="text-2xl font-bold text-slate-900">Course Materials</h2>
                     <p className="text-sm text-slate-500 font-medium">Manage PDFs, lecture notes, and study guides.</p>
                 </div>
-                <div className="flex flex-col sm:flex-row gap-4 w-full md:w-auto">
-                    <select
-                        value={selectedCourseId}
-                        onChange={e => setSelectedCourseId(e.target.value)}
-                        className="p-3 rounded-xl border border-slate-200 outline-none focus:border-blue-500 bg-white min-w-[200px]"
-                    >
-                        <option value="">Select Course to Upload</option>
-                        {courses.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
-                    </select>
+                <div className="flex flex-col gap-4 w-full md:w-auto">
+                    <div className="flex flex-col sm:flex-row gap-4">
+                        <select
+                            value={selectedCourseId}
+                            onChange={e => setSelectedCourseId(e.target.value)}
+                            className="p-3 rounded-xl border border-slate-200 outline-none focus:border-blue-500 bg-white min-w-[200px]"
+                        >
+                            <option value="">Select Course to Upload</option>
+                            {courses.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
+                        </select>
 
-
+                        {selectedCourseId && (
+                            <div className="w-full sm:w-64">
+                                <FileUpload
+                                    category="materials"
+                                    uploadFn={performUpload}
+                                    onUploadComplete={(url, name) => handleUploadComplete(url, name)}
+                                    label="Upload Material"
+                                    className="!min-h-0"
+                                />
+                            </div>
+                        )}
+                    </div>
                     {selectedCourseId && (
-                        <div className="w-full sm:w-64">
-                            <FileUpload
-                                category="materials"
-                                uploadFn={performUpload}
-                                onUploadComplete={handleUploadComplete}
-                                label="Upload Material"
-                                className="!min-h-0"
-                            />
-                        </div>
+                        <input
+                            type="text"
+                            value={description}
+                            onChange={e => setDescription(e.target.value)}
+                            placeholder="Optional description for the material..."
+                            className="p-3 rounded-xl border border-slate-200 outline-none focus:border-blue-500 bg-white text-sm"
+                        />
                     )}
                 </div>
             </header>
@@ -107,6 +121,7 @@ export const MaterialManager: React.FC<MaterialManagerProps> = ({ initialMateria
                             </div>
                             <div>
                                 <h4 className="font-bold text-slate-900 line-clamp-1">{mat.title}</h4>
+                                {mat.description && <p className="text-[10px] text-slate-400 mt-1 line-clamp-2">{mat.description}</p>}
                                 <p className="text-xs text-slate-500 mt-1 font-medium">{courses.find(c => c.id === mat.course_id)?.title || 'Global Material'}</p>
                             </div>
                             <div className="mt-auto pt-4 flex gap-3">

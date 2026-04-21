@@ -3,7 +3,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { getSession } from './auth-actions';
-import { Submission, QuizSubmission, Course, Lesson, Assignment, Quiz, PlannerItem, Discussion, StudySession, Material, User, Certificate, Badge, UserBadge, LiveClass, Maintenance, Broadcast } from './types';
+import { Submission, QuizSubmission, Course, Lesson, Assignment, Quiz, PlannerItem, Discussion, Material, User, Certificate, Badge, UserBadge, LiveClass, Maintenance, Broadcast, StudySession } from './types';
 import { userService } from './services/user.service';
 import { courseService } from './services/course.service';
 import { enrollmentService } from './services/enrollment.service';
@@ -12,8 +12,8 @@ import { learningService } from './services/learning.service';
 import { communicationService } from './services/communication.service';
 import { gamificationService } from './services/gamification.service';
 import { systemService } from './services/system.service';
-import { taskQueue } from './queue/task-queue';
 import { supabase } from './supabase';
+import { authz } from './auth/authorization.service';
 
 async function getVerifiedUser() {
   const session = await getSession();
@@ -32,14 +32,12 @@ export async function createSystemLog(log: Record<string, unknown>) {
     }
 
     const session = await getSession();
-    taskQueue.enqueue(async () => {
-        await systemService.createLog({
-            ...log,
-            level: (log.level as string) || 'info',
-            category: (log.category as string) || 'system',
-            message: (log.message as string) || '',
-            user_id: session?.id as string
-        });
+    await systemService.createLogAsync({
+        ...log,
+        level: (log.level as string) || 'info',
+        category: (log.category as string) || 'system',
+        message: (log.message as string) || '',
+        user_id: session?.id as string
     });
 
     return { success: true };
@@ -48,6 +46,7 @@ export async function createSystemLog(log: Record<string, unknown>) {
 // 1. Enrollment Actions
 export async function enrollInCourse(courseId: string) {
   const user = await getVerifiedUser();
+  // Authorization handled by RLS and implicitly by enrollment rule
   await enrollmentService.enrollInCourse(user.id as string, courseId, user.sessionId as string);
 
   createSystemLog({
@@ -81,7 +80,10 @@ export async function submitAssignment(assignmentId: string, content: Partial<Su
 export async function gradeSubmission(submissionId: string, gradeData: Partial<Submission>) {
   const user = await getVerifiedUser();
   const currentUser = await userService.getCurrentUser(user.id as string, user.sessionId as string);
-  await assessmentService.gradeSubmission(currentUser, submissionId, gradeData, user.sessionId as string);
+
+  authz.canGradeSubmission(currentUser);
+
+  await assessmentService.gradeSubmission(submissionId, gradeData, user.sessionId as string);
 
   createSystemLog({
     level: 'info',
@@ -98,7 +100,10 @@ export async function gradeSubmission(submissionId: string, gradeData: Partial<S
 export async function toggleUserStatus(userId: string, active: boolean) {
   const user = await getVerifiedUser();
   const currentUser = await userService.getCurrentUser(user.id as string, user.sessionId as string);
-  await userService.toggleUserStatus(currentUser, userId, active, user.sessionId as string);
+
+  authz.canManageUsers(currentUser);
+
+  await userService.toggleUserStatus(userId, active, user.sessionId as string);
   revalidatePath('/admin/users');
   return { success: true };
 }
@@ -107,6 +112,9 @@ export async function toggleUserStatus(userId: string, active: boolean) {
 export async function saveCourse(course: Partial<Course>) {
   const user = await getVerifiedUser();
   const currentUser = await userService.getCurrentUser(user.id as string, user.sessionId as string);
+
+  authz.canManageCourse(currentUser); // Initial role check
+
   const data = await courseService.saveCourse(currentUser, course, user.sessionId as string);
 
   createSystemLog({
@@ -124,7 +132,10 @@ export async function saveCourse(course: Partial<Course>) {
 export async function deleteCourse(courseId: string) {
   const user = await getVerifiedUser();
   const currentUser = await userService.getCurrentUser(user.id as string, user.sessionId as string);
-  await courseService.deleteCourse(currentUser, courseId, user.sessionId as string);
+
+  authz.canManageCourse(currentUser);
+
+  await courseService.deleteCourse(courseId, user.sessionId as string);
 
   createSystemLog({
     level: 'info',
@@ -142,7 +153,10 @@ export async function deleteCourse(courseId: string) {
 export async function saveLesson(lesson: Partial<Lesson>) {
   const user = await getVerifiedUser();
   const currentUser = await userService.getCurrentUser(user.id as string, user.sessionId as string);
-  const data = await learningService.saveLesson(currentUser, lesson, user.sessionId as string);
+
+  authz.canManageCourse(currentUser); // Simplified course access check
+
+  const data = await learningService.saveLesson(lesson, user.sessionId as string);
   revalidatePath(`/student/courses?id=${lesson.course_id}`);
   return { success: true, data };
 }
@@ -150,7 +164,10 @@ export async function saveLesson(lesson: Partial<Lesson>) {
 export async function deleteLesson(lessonId: string, courseId: string) {
   const user = await getVerifiedUser();
   const currentUser = await userService.getCurrentUser(user.id as string, user.sessionId as string);
-  await learningService.deleteLesson(currentUser, lessonId, user.sessionId as string);
+
+  authz.canManageCourse(currentUser);
+
+  await learningService.deleteLesson(lessonId, user.sessionId as string);
   revalidatePath(`/student/courses?id=${courseId}`);
   return { success: true };
 }
@@ -159,6 +176,9 @@ export async function deleteLesson(lessonId: string, courseId: string) {
 export async function saveAssignment(assignment: Partial<Assignment>) {
   const user = await getVerifiedUser();
   const currentUser = await userService.getCurrentUser(user.id as string, user.sessionId as string);
+
+  authz.canManageAssignments(currentUser);
+
   const data = await assessmentService.saveAssignment(currentUser, assignment, user.sessionId as string);
 
   createSystemLog({
@@ -176,7 +196,10 @@ export async function saveAssignment(assignment: Partial<Assignment>) {
 export async function deleteAssignment(assignmentId: string) {
   const user = await getVerifiedUser();
   const currentUser = await userService.getCurrentUser(user.id as string, user.sessionId as string);
-  await assessmentService.deleteAssignment(currentUser, assignmentId, user.sessionId as string);
+
+  authz.canManageAssignments(currentUser);
+
+  await assessmentService.deleteAssignment(assignmentId, user.sessionId as string);
 
   createSystemLog({
     level: 'info',
@@ -194,6 +217,9 @@ export async function deleteAssignment(assignmentId: string) {
 export async function saveQuiz(quiz: Partial<Quiz>) {
   const user = await getVerifiedUser();
   const currentUser = await userService.getCurrentUser(user.id as string, user.sessionId as string);
+
+  authz.canManageQuizzes(currentUser);
+
   const data = await assessmentService.saveQuiz(currentUser, quiz, user.sessionId as string);
 
   createSystemLog({
@@ -211,7 +237,10 @@ export async function saveQuiz(quiz: Partial<Quiz>) {
 export async function deleteQuiz(quizId: string) {
   const user = await getVerifiedUser();
   const currentUser = await userService.getCurrentUser(user.id as string, user.sessionId as string);
-  await assessmentService.deleteQuiz(currentUser, quizId, user.sessionId as string);
+
+  authz.canManageQuizzes(currentUser);
+
+  await assessmentService.deleteQuiz(quizId, user.sessionId as string);
 
   createSystemLog({
     level: 'info',
@@ -273,6 +302,9 @@ export async function requestRegrade(assignmentId: string, reason: string) {
 export async function saveMaterial(material: Partial<Material>) {
     const user = await getVerifiedUser();
     const currentUser = await userService.getCurrentUser(user.id as string, user.sessionId as string);
+
+    authz.canManageCourse(currentUser);
+
     const data = await learningService.saveMaterial(currentUser, material, user.sessionId as string);
     return { success: true, data };
 }
@@ -280,7 +312,10 @@ export async function saveMaterial(material: Partial<Material>) {
 export async function deleteMaterial(id: string) {
     const user = await getVerifiedUser();
     const currentUser = await userService.getCurrentUser(user.id as string, user.sessionId as string);
-    await learningService.deleteMaterial(currentUser, id, user.sessionId as string);
+
+    authz.canManageCourse(currentUser);
+
+    await learningService.deleteMaterial(id, user.sessionId as string);
     return { success: true };
 }
 
@@ -288,6 +323,9 @@ export async function deleteMaterial(id: string) {
 export async function removeEnrollment(courseId: string, studentId: string) {
     const user = await getVerifiedUser();
     const currentUser = await userService.getCurrentUser(user.id as string, user.sessionId as string);
+
+    authz.canManageCourse(currentUser);
+
     await enrollmentService.removeEnrollment(currentUser, courseId, studentId, user.sessionId as string);
     return { success: true };
 }
@@ -295,7 +333,10 @@ export async function removeEnrollment(courseId: string, studentId: string) {
 export async function issueCertificate(certificate: Partial<Certificate>) {
     const user = await getVerifiedUser();
     const currentUser = await userService.getCurrentUser(user.id as string, user.sessionId as string);
-    const data = await gamificationService.issueCertificate(currentUser, certificate, user.sessionId as string);
+
+    authz.canManageCourse(currentUser);
+
+    const data = await gamificationService.issueCertificate(certificate, user.sessionId as string);
     return { success: true, data };
 }
 
@@ -303,21 +344,30 @@ export async function issueCertificate(certificate: Partial<Certificate>) {
 export async function saveBadge(badge: Partial<Badge>) {
     const user = await getVerifiedUser();
     const currentUser = await userService.getCurrentUser(user.id as string, user.sessionId as string);
-    const data = await gamificationService.saveBadge(currentUser, badge, user.sessionId as string);
+
+    authz.canManageSystem(currentUser);
+
+    const data = await gamificationService.saveBadge(badge, user.sessionId as string);
     return { success: true, data };
 }
 
 export async function deleteBadge(id: string) {
     const user = await getVerifiedUser();
     const currentUser = await userService.getCurrentUser(user.id as string, user.sessionId as string);
-    await gamificationService.deleteBadge(currentUser, id, user.sessionId as string);
+
+    authz.canManageSystem(currentUser);
+
+    await gamificationService.deleteBadge(id, user.sessionId as string);
     return { success: true };
 }
 
 export async function assignBadge(userBadge: Partial<UserBadge>) {
     const user = await getVerifiedUser();
     const currentUser = await userService.getCurrentUser(user.id as string, user.sessionId as string);
-    await gamificationService.assignBadge(currentUser, userBadge, user.sessionId as string);
+
+    authz.canManageCourse(currentUser);
+
+    await gamificationService.assignBadge(userBadge, user.sessionId as string);
     return { success: true };
 }
 
@@ -325,6 +375,9 @@ export async function assignBadge(userBadge: Partial<UserBadge>) {
 export async function saveLiveClass(liveClass: Partial<LiveClass>) {
     const user = await getVerifiedUser();
     const currentUser = await userService.getCurrentUser(user.id as string, user.sessionId as string);
+
+    authz.canManageCourse(currentUser);
+
     const data = await communicationService.saveLiveClass(currentUser, liveClass, user.sessionId as string);
     return { success: true, data };
 }
@@ -332,7 +385,10 @@ export async function saveLiveClass(liveClass: Partial<LiveClass>) {
 export async function deleteLiveClass(id: string) {
     const user = await getVerifiedUser();
     const currentUser = await userService.getCurrentUser(user.id as string, user.sessionId as string);
-    await communicationService.deleteLiveClass(currentUser, id, user.sessionId as string);
+
+    authz.canManageCourse(currentUser);
+
+    await communicationService.deleteLiveClass(id, user.sessionId as string);
     return { success: true };
 }
 
@@ -340,6 +396,9 @@ export async function deleteLiveClass(id: string) {
 export async function saveUser(userData: Partial<User>) {
     const user = await getVerifiedUser();
     const currentUser = await userService.getCurrentUser(user.id as string, user.sessionId as string);
+
+    authz.canUpdateUser(currentUser, userData.id as string);
+
     const data = await userService.updateUserProfile(currentUser, userData.id as string, userData, user.sessionId as string);
     revalidatePath('/admin/users');
     return { success: true, data };
@@ -348,7 +407,10 @@ export async function saveUser(userData: Partial<User>) {
 export async function deleteUser(id: string) {
     const user = await getVerifiedUser();
     const currentUser = await userService.getCurrentUser(user.id as string, user.sessionId as string);
-    await userService.deleteUser(currentUser, id, user.sessionId as string);
+
+    authz.canManageUsers(currentUser);
+
+    await userService.deleteUser(id, user.sessionId as string);
     revalidatePath('/admin/users');
     return { success: true };
 }
@@ -356,6 +418,9 @@ export async function deleteUser(id: string) {
 export async function updateSetting(key: string, value: unknown) {
     const user = await getVerifiedUser();
     const currentUser = await userService.getCurrentUser(user.id as string, user.sessionId as string);
+
+    authz.canManageSystem(currentUser);
+
     await systemService.updateSetting(currentUser, key, value, user.sessionId as string);
     return { success: true };
 }
@@ -363,6 +428,9 @@ export async function updateSetting(key: string, value: unknown) {
 export async function updateMaintenance(maintenance: Partial<Maintenance>) {
     const user = await getVerifiedUser();
     const currentUser = await userService.getCurrentUser(user.id as string, user.sessionId as string);
+
+    authz.canManageSystem(currentUser);
+
     await systemService.updateMaintenance(currentUser, maintenance, user.sessionId as string);
     return { success: true };
 }
@@ -370,7 +438,10 @@ export async function updateMaintenance(maintenance: Partial<Maintenance>) {
 export async function createBroadcast(broadcast: Partial<Broadcast>) {
     const user = await getVerifiedUser();
     const currentUser = await userService.getCurrentUser(user.id as string, user.sessionId as string);
-    await communicationService.createBroadcast(currentUser, broadcast, user.sessionId as string);
+
+    authz.canManageSystem(currentUser);
+
+    await communicationService.createBroadcast(broadcast, user.sessionId as string);
     return { success: true };
 }
 
@@ -564,18 +635,27 @@ export async function getSettings() {
 export async function getUsers() {
     const user = await getVerifiedUser();
     const currentUser = await userService.getCurrentUser(user.id as string, user.sessionId as string);
-    return userService.getAllUsers(currentUser, user.sessionId as string);
+
+    authz.canManageUsers(currentUser);
+
+    return userService.getAllUsers(user.sessionId as string);
 }
 
 export async function notifyUser(params: { target_id: string, n_title: string, n_msg: string, n_link?: string, n_type?: string }) {
     const user = await getVerifiedUser();
     const currentUser = await userService.getCurrentUser(user.id as string, user.sessionId as string);
-    return communicationService.notifyUser(currentUser, params, user.sessionId as string);
+
+    authz.canManageSystem(currentUser);
+
+    return communicationService.notifyUser(params, user.sessionId as string);
 }
 
 export async function updateSystemLog(id: string, updates: Record<string, unknown>) {
     const user = await getVerifiedUser();
     const currentUser = await userService.getCurrentUser(user.id as string, user.sessionId as string);
+
+    authz.canManageSystem(currentUser);
+
     return systemService.updateLog(currentUser, id, updates, user.sessionId as string);
 }
 

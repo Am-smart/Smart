@@ -41,9 +41,9 @@ export class EnrollmentRepository {
     return data as Enrollment;
   }
 
-  async updateProgress(courseId: string, studentId: string, progress: number, completed: boolean, sessionId: string): Promise<void> {
+  async updateProgress(studentId: string, courseId: string, progress: number, sessionId: string): Promise<void> {
     const { error } = await withSession(supabase.from('enrollments'), sessionId)
-      .update({ progress, completed })
+      .update({ progress, completed: progress === 100 })
       .eq('course_id', courseId)
       .eq('student_id', studentId);
 

@@ -31,7 +31,8 @@ export const AssignmentEditor: React.FC<AssignmentEditorProps> = ({ teacherId, a
         hard_enforcement: assignment?.hard_enforcement || false,
         regrade_requests_enabled: assignment?.regrade_requests_enabled !== false,
         questions: assignment?.questions || [],
-        attachments: assignment?.attachments || []
+        attachments: assignment?.attachments || [],
+        allowed_extensions: assignment?.allowed_extensions || ['pdf', 'doc', 'docx', 'zip', 'jpg', 'png']
     });
     const [isSaving, setIsSaving] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
@@ -203,6 +204,17 @@ export const AssignmentEditor: React.FC<AssignmentEditorProps> = ({ teacherId, a
                                 <Paperclip size={12} /> {isUploading ? 'Uploading...' : 'Add Attachment'}
                             </label>
                         </div>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">Allowed File Extensions (Comma separated)</label>
+                        <input
+                            type="text"
+                            value={formData.allowed_extensions.join(', ')}
+                            onChange={e => setFormData({ ...formData, allowed_extensions: e.target.value.split(',').map(s => s.trim()) })}
+                            className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all"
+                            placeholder="pdf, doc, docx, zip"
+                        />
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
