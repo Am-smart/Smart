@@ -1,6 +1,7 @@
 import { BadgeRepository } from '../repositories/badge.repository';
 import { CertificateRepository } from '../repositories/certificate.repository';
 import { Badge, UserBadge, Certificate, User } from '../types';
+import { UserDomain } from '../domain/user.domain';
 
 export class GamificationService {
   private badgeRepo = new BadgeRepository();
@@ -16,17 +17,17 @@ export class GamificationService {
   }
 
   async saveBadge(currentUser: User, badge: Partial<Badge>, sessionId: string): Promise<Badge> {
-    if (currentUser.role !== 'admin' && currentUser.role !== 'teacher') throw new Error('Forbidden');
+    if (!UserDomain.canManageContent(currentUser)) throw new Error('Forbidden');
     return this.badgeRepo.upsert(badge, sessionId);
   }
 
   async deleteBadge(currentUser: User, id: string, sessionId: string): Promise<void> {
-    if (currentUser.role !== 'admin' && currentUser.role !== 'teacher') throw new Error('Forbidden');
+    if (!UserDomain.canManageContent(currentUser)) throw new Error('Forbidden');
     await this.badgeRepo.delete(id, sessionId);
   }
 
   async assignBadge(currentUser: User, userBadge: Partial<UserBadge>, sessionId: string): Promise<void> {
-    if (currentUser.role !== 'admin' && currentUser.role !== 'teacher') throw new Error('Forbidden');
+    if (!UserDomain.canManageContent(currentUser)) throw new Error('Forbidden');
     await this.badgeRepo.assignToUser(userBadge, sessionId);
   }
 
@@ -36,7 +37,7 @@ export class GamificationService {
   }
 
   async issueCertificate(currentUser: User, certificate: Partial<Certificate>, sessionId: string): Promise<Certificate> {
-    if (currentUser.role !== 'admin' && currentUser.role !== 'teacher') throw new Error('Forbidden');
+    if (!UserDomain.canManageContent(currentUser)) throw new Error('Forbidden');
     return this.certificateRepo.create(certificate, sessionId);
   }
 }

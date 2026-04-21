@@ -1,6 +1,7 @@
 import { CourseRepository } from '../repositories/course.repository';
 import { Course, User } from '../types';
 import { rbac } from '../auth/rbac';
+import { CourseDomain } from '../domain/course.domain';
 
 export class CourseService {
   private courseRepo = new CourseRepository();
@@ -24,13 +25,10 @@ export class CourseService {
       if (!rbac.can(currentUser, 'course:create')) throw new Error('Forbidden');
     }
 
-    if (!course.title) throw new Error('Course title is required');
+    CourseDomain.validate(course);
+    const courseToSave = CourseDomain.create(course, currentUser.id);
 
-    return this.courseRepo.upsert({
-        ...course,
-        teacher_id: course.teacher_id || currentUser.id,
-        status: course.status || 'draft',
-    }, sessionId);
+    return this.courseRepo.upsert(courseToSave, sessionId);
   }
 
   async deleteCourse(currentUser: User, courseId: string, sessionId: string): Promise<void> {
