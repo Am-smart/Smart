@@ -78,15 +78,15 @@ export const UserEditor: React.FC<UserEditorProps> = ({ user, onSave, onCancel }
                     <h2 className="text-2xl font-bold text-slate-900">{user?.id ? 'Edit User' : 'Add New User'}</h2>
                     <button onClick={onCancel} className="p-2 hover:bg-slate-200 rounded-full transition-colors">✕</button>
                 </header>
-                <form onSubmit={handleSubmit} className="p-8 space-y-6">
-                    <div className="grid grid-cols-2 gap-6">
+                <form onSubmit={handleSubmit} className="p-4 md:p-8 space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
                             <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">Full Name</label>
                             <input
                                 type="text" required
                                 value={formData.full_name}
                                 onChange={(e) => setFormData(prev => ({ ...prev, full_name: e.target.value }))}
-                                className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all"
+                                className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all text-sm"
                                 placeholder="John Doe"
                             />
                         </div>
@@ -95,7 +95,7 @@ export const UserEditor: React.FC<UserEditorProps> = ({ user, onSave, onCancel }
                             <select
                                 value={formData.role}
                                 onChange={(e) => setFormData(prev => ({ ...prev, role: e.target.value as User['role'] }))}
-                                className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all"
+                                className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all text-sm"
                             >
                                 <option value="student">Student</option>
                                 <option value="teacher">Teacher</option>
@@ -103,14 +103,14 @@ export const UserEditor: React.FC<UserEditorProps> = ({ user, onSave, onCancel }
                             </select>
                         </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
                             <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">Email Address</label>
                             <input
                                 type="email" required
                                 value={formData.email}
                                 onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                                className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all"
+                                className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all text-sm"
                                 placeholder="john@example.com"
                                 disabled={!!user?.id}
                             />
@@ -121,7 +121,7 @@ export const UserEditor: React.FC<UserEditorProps> = ({ user, onSave, onCancel }
                                 type="tel"
                                 value={formData.phone}
                                 onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-                                className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all"
+                                className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all text-sm"
                                 placeholder="+1 (555) 000-0000"
                             />
                         </div>
