@@ -1,4 +1,4 @@
-import { Quiz, QuizQuestion, QuizSubmission, Submission, Assignment } from '../types';
+import { Quiz, QuizQuestion, QuizSubmission, Submission } from '../types';
 
 export class AssessmentDomain {
   static calculateQuizScore(questions: QuizQuestion[], answers: Record<string, unknown>) {

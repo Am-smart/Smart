@@ -1,5 +1,6 @@
 import { CourseRepository } from '../repositories/course.repository';
 import { Course, User } from '../types';
+import { rbac } from '../auth/rbac';
 import { CourseDomain } from '../domain/course.domain';
 
 export class CourseService {
@@ -16,6 +17,9 @@ export class CourseService {
   }
 
   async saveCourse(currentUser: User, course: Partial<Course>, sessionId: string): Promise<Course> {
+    CourseDomain.validate(course);
+    const courseToSave = CourseDomain.create(course, currentUser.id);
+
     CourseDomain.validate(course);
     const courseToSave = CourseDomain.create(course, currentUser.id);
 
