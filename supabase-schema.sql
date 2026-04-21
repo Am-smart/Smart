@@ -92,6 +92,8 @@ CREATE TABLE IF NOT EXISTS assignments (
   attachments JSONB DEFAULT '[]'::jsonb,
   status VARCHAR(50) DEFAULT 'draft' CHECK (status IN ('draft', 'published')),
   anti_cheat_enabled BOOLEAN DEFAULT FALSE,
+  auto_submit_enabled BOOLEAN DEFAULT FALSE,
+  hard_enforcement BOOLEAN DEFAULT FALSE,
   regrade_requests_enabled BOOLEAN DEFAULT TRUE,
   version INTEGER DEFAULT 1
 );
@@ -165,6 +167,8 @@ CREATE TABLE IF NOT EXISTS quizzes (
   shuffle_questions BOOLEAN DEFAULT FALSE,
   status VARCHAR(50) DEFAULT 'draft' CHECK (status IN ('draft', 'published')),
   anti_cheat_enabled BOOLEAN DEFAULT FALSE,
+  auto_submit_enabled BOOLEAN DEFAULT FALSE,
+  hard_enforcement BOOLEAN DEFAULT FALSE,
   start_at TIMESTAMP WITH TIME ZONE,
   end_at TIMESTAMP WITH TIME ZONE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -338,8 +342,20 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'assignments' AND column_name = 'anti_cheat_enabled') THEN
         ALTER TABLE assignments ADD COLUMN anti_cheat_enabled BOOLEAN DEFAULT FALSE;
     END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'assignments' AND column_name = 'auto_submit_enabled') THEN
+        ALTER TABLE assignments ADD COLUMN auto_submit_enabled BOOLEAN DEFAULT FALSE;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'assignments' AND column_name = 'hard_enforcement') THEN
+        ALTER TABLE assignments ADD COLUMN hard_enforcement BOOLEAN DEFAULT FALSE;
+    END IF;
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'quizzes' AND column_name = 'anti_cheat_enabled') THEN
         ALTER TABLE quizzes ADD COLUMN anti_cheat_enabled BOOLEAN DEFAULT FALSE;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'quizzes' AND column_name = 'auto_submit_enabled') THEN
+        ALTER TABLE quizzes ADD COLUMN auto_submit_enabled BOOLEAN DEFAULT FALSE;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'quizzes' AND column_name = 'hard_enforcement') THEN
+        ALTER TABLE quizzes ADD COLUMN hard_enforcement BOOLEAN DEFAULT FALSE;
     END IF;
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'submissions' AND column_name = 'violation_count') THEN
         ALTER TABLE submissions ADD COLUMN violation_count INTEGER DEFAULT 0;
@@ -480,24 +496,24 @@ BEGIN
   SELECT * INTO v_user FROM users WHERE email = p_email;
 
   IF v_user.id IS NULL THEN
-    RETURN jsonb_build_object('success', false, 'error', 'Invalid email or password');
+    RETURN jsonb_build_object('success', false, 'user', null, 'session_id', null, 'error', 'Invalid email or password');
   END IF;
 
   IF v_user.active = FALSE THEN
-    RETURN jsonb_build_object('success', false, 'error', 'Account is deactivated');
+    RETURN jsonb_build_object('success', false, 'user', null, 'session_id', null, 'error', 'Account is deactivated');
   END IF;
 
   IF v_user.flagged = TRUE THEN
-    RETURN jsonb_build_object('success', false, 'error', 'Account is flagged. Please contact support.');
+    RETURN jsonb_build_object('success', false, 'user', null, 'session_id', null, 'error', 'Account is flagged. Please contact support.');
   END IF;
 
   IF v_user.locked_until IS NOT NULL AND v_user.locked_until > v_now THEN
-    RETURN jsonb_build_object('success', false, 'error', 'Account locked until ' || to_char(v_user.locked_until, 'HH24:MI:SS'));
+    RETURN jsonb_build_object('success', false, 'user', null, 'session_id', null, 'error', 'Account locked until ' || to_char(v_user.locked_until, 'HH24:MI:SS'));
   END IF;
 
   -- Block users who used their temp pass but haven't changed it
   IF v_user.reset_request->>'status' = 'approved_used' THEN
-     RETURN jsonb_build_object('success', false, 'error', 'Your session has expired. You must change your password using the secure prompt provided during your first login.');
+     RETURN jsonb_build_object('success', false, 'user', null, 'session_id', null, 'error', 'Your session has expired. You must change your password using the secure prompt provided during your first login.');
   END IF;
 
   -- Verify password
@@ -505,18 +521,18 @@ BEGIN
     -- PASSWORD FAILED: Check if there is reset info to show
     IF v_user.reset_request IS NOT NULL THEN
        IF v_user.reset_request->>'status' = 'pending' THEN
-          RETURN jsonb_build_object('success', false, 'error', 'Your password reset request is under review.');
+          RETURN jsonb_build_object('success', false, 'user', null, 'session_id', null, 'error', 'Your password reset request is under review.');
        ELSIF v_user.reset_request->>'status' = 'approved' THEN
           IF (v_user.reset_request->>'expires_at')::timestamp with time zone > v_now THEN
-             RETURN jsonb_build_object('success', false, 'error', 'Reset approved. Your temp password is: ' || (v_user.reset_request->>'temp_password'));
+             RETURN jsonb_build_object('success', false, 'user', null, 'session_id', null, 'error', 'Reset approved. Your temp password is: ' || (v_user.reset_request->>'temp_password'));
           END IF;
        ELSIF v_user.reset_request->>'status' = 'denied' THEN
-          RETURN jsonb_build_object('success', false, 'error', 'Reset denied: ' || (v_user.reset_request->>'denial_reason'));
+          RETURN jsonb_build_object('success', false, 'user', null, 'session_id', null, 'error', 'Reset denied: ' || (v_user.reset_request->>'denial_reason'));
        END IF;
     END IF;
 
     UPDATE users SET failed_attempts = failed_attempts + 1 WHERE id = v_user.id;
-    RETURN jsonb_build_object('success', false, 'error', 'Invalid email or password');
+    RETURN jsonb_build_object('success', false, 'user', null, 'session_id', null, 'error', 'Invalid email or password');
   END IF;
 
   -- Successful login
@@ -524,7 +540,7 @@ BEGIN
   IF v_user.reset_request->>'status' = 'approved' THEN
      -- Enforce expiration
      IF (v_user.reset_request->>'expires_at')::timestamp with time zone < v_now THEN
-        RETURN jsonb_build_object('success', false, 'error', 'Temporary password has expired. Please request a new one.');
+        RETURN jsonb_build_object('success', false, 'user', null, 'session_id', null, 'error', 'Temporary password has expired. Please request a new one.');
      END IF;
      UPDATE users
      SET reset_request = jsonb_set(reset_request, '{status}', '"approved_used"') - 'temp_password'
@@ -534,7 +550,7 @@ BEGIN
   UPDATE users SET last_login = v_now, failed_attempts = 0, locked_until = NULL WHERE id = v_user.id;
   INSERT INTO sessions (user_id, expires_at) VALUES (v_user.id, v_now + INTERVAL '7 days') RETURNING id INTO v_session_id;
 
-  RETURN jsonb_build_object('success', true, 'user', (to_jsonb(v_user) - 'password'), 'session_id', v_session_id);
+  RETURN jsonb_build_object('success', true, 'user', (to_jsonb(v_user) - 'password'), 'session_id', v_session_id, 'error', null);
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
@@ -556,14 +572,14 @@ BEGIN
   IF v_user.id IS NOT NULL THEN
     IF v_user.reset_request IS NOT NULL THEN
        IF v_user.reset_request->>'status' = 'pending' THEN
-          RETURN jsonb_build_object('success', false, 'error', 'This email is registered. A password reset request is under review.');
+          RETURN jsonb_build_object('success', false, 'user', null, 'session_id', null, 'error', 'This email is registered. A password reset request is under review.');
        ELSIF v_user.reset_request->>'status' = 'approved' THEN
-          RETURN jsonb_build_object('success', false, 'error', 'This email is registered. Password reset approved. Temp Pass: ' || (v_user.reset_request->>'temp_password'));
+          RETURN jsonb_build_object('success', false, 'user', null, 'session_id', null, 'error', 'This email is registered. Password reset approved. Temp Pass: ' || (v_user.reset_request->>'temp_password'));
        ELSIF v_user.reset_request->>'status' = 'denied' THEN
-          RETURN jsonb_build_object('success', false, 'error', 'This email is registered. Previous reset request denied: ' || (v_user.reset_request->>'denial_reason'));
+          RETURN jsonb_build_object('success', false, 'user', null, 'session_id', null, 'error', 'This email is registered. Previous reset request denied: ' || (v_user.reset_request->>'denial_reason'));
        END IF;
     END IF;
-    RETURN jsonb_build_object('success', false, 'error', 'An account with this email already exists.');
+    RETURN jsonb_build_object('success', false, 'user', null, 'session_id', null, 'error', 'An account with this email already exists.');
   END IF;
 
   v_hashed_password := crypt(p_password, gen_salt('bf', 10));
@@ -572,7 +588,7 @@ BEGIN
     IF p_role IN ('teacher', 'admin') THEN
       SELECT COUNT(*) INTO v_count FROM users WHERE role IN ('teacher', 'admin');
       IF v_count >= 3 THEN
-        RETURN jsonb_build_object('success', false, 'error', 'Public creation of teachers and admins is restricted.');
+        RETURN jsonb_build_object('success', false, 'user', null, 'session_id', null, 'error', 'Public creation of teachers and admins is restricted.');
       END IF;
     END IF;
   END IF;
@@ -585,7 +601,7 @@ BEGIN
   VALUES (v_user.id, NOW() + INTERVAL '7 days')
   RETURNING id INTO v_session_id;
 
-  RETURN jsonb_build_object('success', true, 'user', (to_jsonb(v_user) - 'password'), 'session_id', v_session_id);
+  RETURN jsonb_build_object('success', true, 'user', (to_jsonb(v_user) - 'password'), 'session_id', v_session_id, 'error', null);
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 

@@ -1,6 +1,8 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect, useCallback } from 'react';
-import { Quiz, User } from '@/lib/types';
+import { Quiz, User, QuizQuestion } from '@/lib/types';
 import { submitQuiz } from '@/lib/data-actions';
+import { calculateQuizScore } from '@/lib/scoring-util';
 import { useAntiCheat } from '@/hooks/useAntiCheat';
 import { useIndexedDB } from '@/hooks/useIndexedDB';
 import { useAppContext } from '@/components/AppContext';
@@ -59,7 +61,7 @@ export const QuizView: React.FC<QuizViewProps> = ({ quiz, user, onComplete, onCa
     const newAnswers = { ...answers, [questionId]: value };
     setAnswers(newAnswers);
     await setCache(`quiz_progress_${quiz.id}`, newAnswers);
-  }, [answers, quiz.id, setCache]);
+  }, [answers, quiz.id, setCache, violationCount]);
 
   const handleSubmit = useCallback(async (isTimeout = false) => {
     if (isSubmitting || result) return;
@@ -76,25 +78,21 @@ export const QuizView: React.FC<QuizViewProps> = ({ quiz, user, onComplete, onCa
 
         let score = 0;
         if (isOnline) {
-            const res = await submitQuiz(quiz.id, payload);
+            const res = await submitQuiz(quiz.id, { ...payload, violation_count: violationCount });
             if (!res.success) throw new Error('Submission failed');
             score = res.score || 0;
         } else {
-            // Offline estimation for immediate feedback
-            let correct = 0;
-            const questions = quiz.questions || [];
-            questions.forEach((q) => {
-                if (answers[q.id] === q.correct_answer) {
-                    correct++;
-                }
-            });
-            score = questions.length > 0 ? Math.round((correct / questions.length) * 100) : 0;
+            // Offline estimation using unified logic
+            const questions = (quiz.questions as QuizQuestion[]) || [];
+            const result = calculateQuizScore(questions, answers);
+            score = result.score;
 
             await addToQueue('QUIZ_SUBMISSION', {
                 quiz_id: quiz.id,
                 student_id: user.id,
                 ...payload,
                 score,
+                violation_count: violationCount,
                 status: 'submitted'
             });
         }
@@ -119,11 +117,12 @@ export const QuizView: React.FC<QuizViewProps> = ({ quiz, user, onComplete, onCa
         addToast(`Security Warning: Violation detected (${violationCount}). This assessment has been flagged for review.`, 'info');
     }
 
-    if (quiz.anti_cheat_enabled && violationCount >= 5 && !isSubmitting && !result) {
+    // Use hard_enforcement flag from database (Step 1)
+    if (quiz.anti_cheat_enabled && quiz.hard_enforcement && violationCount >= 5 && !isSubmitting && !result) {
         addToast('Security Threshold Reached: Assessment locked and auto-submitted due to multiple violations.', 'error', 10000);
         handleSubmit(false);
     }
-  }, [violationCount, quiz.anti_cheat_enabled, addToast, isSubmitting, result, handleSubmit]);
+  }, [violationCount, quiz, addToast, isSubmitting, result , violationCount, handleSubmit]);
 
   useEffect(() => {
     if (timeLeft === null) return;
@@ -133,7 +132,7 @@ export const QuizView: React.FC<QuizViewProps> = ({ quiz, user, onComplete, onCa
     }
     const timer = setInterval(() => setTimeLeft(prev => prev! - 1), 1000);
     return () => clearInterval(timer);
-  }, [timeLeft, handleSubmit]);
+  }, [timeLeft , violationCount, handleSubmit]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);

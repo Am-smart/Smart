@@ -1,8 +1,9 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
-import { useSupabase } from '@/hooks/useSupabase';
+import { getEnrollments, getAssignments, getSubmissions } from '@/lib/data-actions';
 import { Enrollment, Course, Assignment } from '@/lib/types';
 import dynamic from 'next/dynamic';
 
@@ -10,7 +11,6 @@ const StudyTimer = dynamic(() => import("@/components/student/StudyTimer").then(
 
 export default function StudentDashboard() {
   const { user } = useAuth();
-  const { client } = useSupabase();
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [stats, setStats] = useState({ courses: 0, dueSoon: 0, xp: 0 });
@@ -23,9 +23,9 @@ export default function StudentDashboard() {
     setError(null);
     try {
         const [myEnrollments, allAssignments, mySubmissions] = await Promise.all([
-          client.from('enrollments').select('*, courses(*)').eq('student_id', user.id).then(r => r.data || []),
-          client.from('assignments').select('*, courses(*)').eq('status', 'published').then(r => r.data || []),
-          client.from('submissions').select('*').eq('student_id', user.id).then(r => r.data || [])
+          getEnrollments(user.id),
+          getAssignments(),
+          getSubmissions(undefined, user.id)
         ]);
 
         const enrolledIds = myEnrollments.map((e: Enrollment) => e.course_id);
@@ -48,7 +48,7 @@ export default function StudentDashboard() {
     } finally {
         setIsLoading(false);
     }
-  }, [user, client]);
+  }, [user]);
 
   useEffect(() => {
     fetchData();

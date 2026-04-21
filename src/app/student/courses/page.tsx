@@ -3,8 +3,8 @@
 import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
 import { useSupabase } from '@/hooks/useSupabase';
+import { enrollInCourse, getLessons } from '@/lib/data-actions';
 import { useIndexedDB } from '@/hooks/useIndexedDB';
-import { enrollInCourse } from '@/lib/data-actions';
 import { CourseCatalog } from "@/components/student/CourseCatalog";
 import { CourseView } from "@/components/student/CourseView";
 import { Course, Lesson } from '@/lib/types';
@@ -14,7 +14,7 @@ import { useAppContext } from '@/components/AppContext';
 function CatalogContent() {
   const { user } = useAuth();
   const { addToast } = useAppContext();
-  const { client, getCourses, getEnrollments } = useSupabase();
+  const { getCourses, getEnrollments } = useSupabase();
   const { isOnline, addToQueue } = useIndexedDB();
   const [courses, setCourses] = useState<Course[]>([]);
   const [enrolledIds, setEnrolledIds] = useState<string[]>([]);
@@ -43,13 +43,12 @@ function CatalogContent() {
         const c = courses.find(item => item.id === courseIdParam);
         if (c) {
             setActiveCourse(c);
-            client.from('lessons').select('*').eq('course_id', c.id).order('order_index', { ascending: true })
-                .then(({ data }) => setLessons((data as Lesson[]) || []));
+            getLessons(c.id).then(data => setLessons(data || []));
         }
     } else {
         setActiveCourse(null);
     }
-  }, [courseIdParam, courses, client]);
+  }, [courseIdParam, courses]);
 
   const handleEnroll = async (courseId: string) => {
     if (!user) return;

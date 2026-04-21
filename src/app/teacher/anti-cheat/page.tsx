@@ -2,39 +2,42 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
-import { useSupabase } from '@/hooks/useSupabase';
+import { getCourses, getAssignments, getQuizzes, getSubmissions, getQuizSubmissions } from '@/lib/data-actions';
 import { AntiCheatRecord } from "@/components/student/AntiCheatRecord";
 import { Submission, QuizSubmission } from '@/lib/types';
 
 export default function AntiCheatPage() {
   const { user } = useAuth();
-  const { client } = useSupabase();
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [quizSubmissions, setQuizSubmissions] = useState<QuizSubmission[]>([]);
 
   useEffect(() => {
     if (user) {
         // Teachers see all anti-cheat logs for students in their courses
-        client.from('courses').select('id').eq('teacher_id', user.id).then(async ({ data: myCourses }) => {
-            const courseIds = (myCourses || []).map(c => c.id);
+        getCourses(user.id).then(async myCourses => {
+            const courseIds = myCourses.map(c => c.id);
             if (courseIds.length > 0) {
-                const [asgnRes, quizRes] = await Promise.all([
-                    client.from('assignments').select('id').in('course_id', courseIds),
-                    client.from('quizzes').select('id').in('course_id', courseIds)
+                const [allAsgns, allQuizzes] = await Promise.all([
+                    getAssignments(user.id),
+                    getQuizzes(undefined, user.id)
                 ]);
-                const asgnIds = (asgnRes.data || []).map(a => a.id);
-                const quizIds = (quizRes.data || []).map(q => q.id);
+                const asgnIds = allAsgns.map(a => a.id);
+                const quizIds = allQuizzes.map(q => q.id);
 
                 if (asgnIds.length > 0) {
-                    client.from('submissions').select('*, assignments(*), users(full_name)').in('assignment_id', asgnIds).then(r => setSubmissions(r.data || []));
+                    getSubmissions().then(data => {
+                        setSubmissions(data.filter(s => asgnIds.includes(s.assignment_id)));
+                    });
                 }
                 if (quizIds.length > 0) {
-                    client.from('quiz_submissions').select('*, quizzes(*), users(full_name)').in('quiz_id', quizIds).then(r => setQuizSubmissions(r.data || []));
+                    getQuizSubmissions().then(data => {
+                        setQuizSubmissions(data.filter(s => quizIds.includes(s.quiz_id)));
+                    });
                 }
             }
         });
     }
-  }, [user, client]);
+  }, [user]);
 
   return (
     <div className="space-y-6">

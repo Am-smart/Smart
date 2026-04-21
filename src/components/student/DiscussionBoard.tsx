@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useSupabase } from '@/hooks/useSupabase';
 import { Discussion } from '@/lib/types';
 import { MessageSquare, Send, Trash2 } from 'lucide-react';
-import { saveDiscussionPost, deleteDiscussionPost } from '@/lib/data-actions';
+import { saveDiscussionPost, deleteDiscussionPost, getDiscussions } from '@/lib/data-actions';
 
 interface DiscussionBoardProps {
   courseId?: string;
@@ -10,22 +9,13 @@ interface DiscussionBoardProps {
 }
 
 export const DiscussionBoard: React.FC<DiscussionBoardProps> = ({ courseId, userId }) => {
-  const { client } = useSupabase();
   const [discussions, setDiscussions] = useState<Discussion[]>([]);
   const [message, setMessage] = useState('');
 
   const fetchDiscussions = useCallback(async () => {
-    let query = client.from('discussions').select('*, users(full_name)').order('created_at', { ascending: false });
-
-    if (courseId) {
-      query = query.eq('course_id', courseId);
-    } else {
-      query = query.is('course_id', null);
-    }
-
-    const { data } = await query;
+    const data = await getDiscussions(courseId || 'global');
     setDiscussions((data as Discussion[]) || []);
-  }, [client, courseId]);
+  }, [courseId]);
 
   useEffect(() => { fetchDiscussions(); }, [fetchDiscussions]);
 

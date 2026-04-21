@@ -2,13 +2,12 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
-import { useSupabase } from '@/hooks/useSupabase';
+import { getCourses, getMaterials } from '@/lib/data-actions';
 import { MaterialManager } from "@/components/teacher/MaterialManager";
 import { Material, Course } from '@/lib/types';
 
 export default function MaterialsPage() {
   const { user } = useAuth();
-  const { client, getCourses } = useSupabase();
   const [courses, setCourses] = useState<Course[]>([]);
   const [materials, setMaterials] = useState<Material[]>([]);
 
@@ -16,9 +15,10 @@ export default function MaterialsPage() {
       if (!user) return;
       const myCourses = await getCourses(user.id!);
       setCourses(myCourses);
-      const { data } = await client.from('materials').select('*').in('course_id', myCourses.map(c => c.id));
-      setMaterials(data || []);
-  }, [user, client, getCourses]);
+      const allMaterials = await getMaterials();
+      const courseIds = myCourses.map(c => c.id);
+      setMaterials(allMaterials.filter(m => courseIds.includes(m.course_id)));
+  }, [user]);
 
   useEffect(() => {
     fetchData();

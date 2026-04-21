@@ -2,12 +2,11 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
-import { useSupabase } from '@/hooks/useSupabase';
+import { getCourses, getEnrollments } from '@/lib/data-actions';
 import { Enrollment } from '@/lib/types';
 
 export default function GradeBookPage() {
   const { user } = useAuth();
-  const { client, getCourses } = useSupabase();
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
 
   useEffect(() => {
@@ -15,12 +14,12 @@ export default function GradeBookPage() {
         getCourses(user.id!).then(async myCourses => {
             const courseIds = myCourses.map(c => c.id);
             if (courseIds.length > 0) {
-                const { data } = await client.from('enrollments').select('*, courses(*), users!student_id(*)').in('course_id', courseIds);
+                const data = await getEnrollments(undefined, courseIds);
                 setEnrollments(data || []);
             }
         });
     }
-  }, [user, getCourses, client]);
+  }, [user]);
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">

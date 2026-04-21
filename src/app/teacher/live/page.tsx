@@ -2,13 +2,12 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
-import { useSupabase } from '@/hooks/useSupabase';
+import { getCourses, getLiveClasses } from '@/lib/data-actions';
 import { LiveClassManager } from "@/components/teacher/LiveClassManager";
 import { LiveClass, Course } from '@/lib/types';
 
 export default function LiveClassesPage() {
   const { user } = useAuth();
-  const { client, getCourses } = useSupabase();
   const [courses, setCourses] = useState<Course[]>([]);
   const [liveClasses, setLiveClasses] = useState<LiveClass[]>([]);
 
@@ -16,9 +15,9 @@ export default function LiveClassesPage() {
       if (!user) return;
       const myCourses = await getCourses(user.id);
       setCourses(myCourses);
-      const { data } = await client.from('live_classes').select('*').eq('teacher_id', user.id);
+      const data = await getLiveClasses(undefined, user.id);
       setLiveClasses(data || []);
-  }, [user, client, getCourses]);
+  }, [user]);
 
   useEffect(() => {
     fetchData();

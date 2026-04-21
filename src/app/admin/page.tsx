@@ -2,11 +2,10 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
-import { useSupabase } from '@/hooks/useSupabase';
+import { getUsers, getCourses } from '@/lib/data-actions';
 
 export default function AdminDashboard() {
   const { user } = useAuth();
-  const { client } = useSupabase();
   const [stats, setStats] = useState({
       totalUsers: 0,
       activeCourses: 0,
@@ -18,24 +17,20 @@ export default function AdminDashboard() {
 
   const fetchData = useCallback(async () => {
     if (!user) return;
-    const [usersRes, coursesRes, flaggedRes, teachersRes, studentsRes, resetsRes] = await Promise.all([
-      client.from('users').select('*', { count: 'exact', head: true }),
-      client.from('courses').select('*', { count: 'exact', head: true }).eq('status', 'published'),
-      client.from('users').select('*', { count: 'exact', head: true }).eq('flagged', true),
-      client.from('users').select('*', { count: 'exact', head: true }).eq('role', 'teacher'),
-      client.from('users').select('*', { count: 'exact', head: true }).eq('role', 'student'),
-      client.from('users').select('*', { count: 'exact', head: true }).not('reset_request', 'is', null)
+    const [allUsers, allCourses] = await Promise.all([
+        getUsers(),
+        getCourses()
     ]);
 
     setStats({
-      totalUsers: usersRes.count || 0,
-      activeCourses: coursesRes.count || 0,
-      flaggedUsers: flaggedRes.count || 0,
-      teachers: teachersRes.count || 0,
-      students: studentsRes.count || 0,
-      pendingResets: resetsRes.count || 0
+      totalUsers: allUsers.length,
+      activeCourses: allCourses.filter(c => c.status === 'published').length,
+      flaggedUsers: allUsers.filter(u => u.flagged).length,
+      teachers: allUsers.filter(u => u.role === 'teacher').length,
+      students: allUsers.filter(u => u.role === 'student').length,
+      pendingResets: allUsers.filter(u => u.reset_request).length
     });
-  }, [user, client]);
+  }, [user]);
 
   useEffect(() => {
     fetchData();

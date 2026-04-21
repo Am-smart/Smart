@@ -2,20 +2,18 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
-import { useSupabase } from '@/hooks/useSupabase';
+import { getEnrollments, getAssignments, getSubmissions, requestRegrade } from '@/lib/data-actions';
 import { AssignmentsList } from "@/components/student/AssignmentsList";
 import { Assignment, Submission } from '@/lib/types';
 import dynamic from 'next/dynamic';
 import { useAppContext } from '@/components/AppContext';
 import { FeedbackModal } from '@/components/student/FeedbackModal';
-import { requestRegrade } from '@/lib/data-actions';
 
 const AssignmentForm = dynamic(() => import("@/components/student/AssignmentForm").then(m => m.AssignmentForm), { ssr: false });
 
 export default function AssignmentsPage() {
   const { user } = useAuth();
   const { addToast } = useAppContext();
-  const { client, getAssignments, getEnrollments } = useSupabase();
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [activeAssignment, setActiveAssignment] = useState<Assignment | null>(null);
@@ -26,13 +24,13 @@ export default function AssignmentsPage() {
     const [myEnrollments, allAssignments, mySubmissions] = await Promise.all([
       getEnrollments(user.id),
       getAssignments(),
-      client.from('submissions').select('*, assignments(*)').eq('student_id', user.id).then(r => r.data || [])
+      getSubmissions(undefined, user.id)
     ]);
 
     const enrolledIds = myEnrollments.map(e => e.course_id);
     setAssignments(allAssignments.filter(a => enrolledIds.includes(a.course_id) && a.status === 'published'));
     setSubmissions(mySubmissions);
-  }, [user, client, getAssignments, getEnrollments]);
+  }, [user]);
 
   useEffect(() => {
     fetchData();

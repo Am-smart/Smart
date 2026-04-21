@@ -1,17 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useSupabase } from '@/hooks/useSupabase';
 import { PlannerItem } from '@/lib/types';
 import { useIndexedDB } from '@/hooks/useIndexedDB';
 import { useAppContext } from '../AppContext';
 import { useAuth } from '../auth/AuthContext';
-import { savePlannerItem, deletePlannerItem } from '@/lib/data-actions';
+import { savePlannerItem, deletePlannerItem, getPlannerItems } from '@/lib/data-actions';
 
 interface PlannerViewProps {
   userId: string;
 }
 
 export const PlannerView: React.FC<PlannerViewProps> = ({ userId }) => {
-  const { client } = useSupabase();
   const { user } = useAuth();
   const { addToast } = useAppContext();
   const { isOnline, addToQueue, setCache, getCache } = useIndexedDB();
@@ -27,19 +25,14 @@ export const PlannerView: React.FC<PlannerViewProps> = ({ userId }) => {
     if (cached) setItems(cached);
 
     if (isOnline) {
-        const { data } = await client
-          .from('planner')
-          .select('*')
-          .eq('user_id', userId)
-          .order('due_date', { ascending: true });
-
+        const data = await getPlannerItems(userId);
         if (data) {
             setItems((data as PlannerItem[]));
             await setCache('planner_items', data);
         }
     }
     setIsLoading(false);
-  }, [userId, client, isOnline, getCache, setCache]);
+  }, [userId, isOnline, getCache, setCache]);
 
   useEffect(() => {
     fetchPlanner();

@@ -1,10 +1,10 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
-import { supabase, withSession } from '@/lib/supabase';
-import { User, UserRole } from '@/lib/types';
+import { User } from '@/lib/types';
 import { useIndexedDB } from '@/hooks/useIndexedDB';
 import { login as loginAction, signup as signupAction, logout as logoutAction, getSession } from '@/lib/auth-actions';
+import { getCurrentUser } from '@/lib/data-actions';
 
 interface AuthState {
   user: User | null;
@@ -28,41 +28,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     const initAuth = async () => {
         // 1. Try secure session first
-        const session = await getSession();
-        if (session && typeof session === 'object' && 'id' in session) {
-            const sessionId = session.sessionId as string;
-            const userId = session.id as string;
-
-            try {
-              // Use sessionId if available, otherwise fall back to singleton
-              const { data: user, error } = await withSession(supabase.from('users'), sessionId)
-                .select('*')
-                .eq('id', userId)
-                .single();
-
-              if (user && !error) {
-                  const authenticatedUser = { ...user, sessionId } as User;
-                  await setCache('current_user', authenticatedUser);
-                  setState({ user: authenticatedUser, role: user.role, isLoading: false });
+        try {
+          const session = await getSession();
+          if (session) {
+              const user = await getCurrentUser();
+              if (user) {
+                  await setCache('current_user', user);
+                  setState({ user, role: user.role, isLoading: false });
                   // Background pull
-                  pullData(userId, sessionId, user.role);
-                  return;
-              } else {
-                  console.warn('Profile fetch failed, falling back to session metadata:', error);
-                  // Fallback to session metadata if DB fetch fails but session is valid
-                  const authenticatedUser = {
-                    id: userId,
-                    email: session.email as string,
-                    full_name: session.full_name as string,
-                    role: session.role as UserRole,
-                    sessionId
-                  } as User;
-                  setState({ user: authenticatedUser, role: authenticatedUser.role, isLoading: false });
+                  pullData(user.id, user.sessionId!, user.role);
                   return;
               }
-            } catch (err) {
-              console.error('Auth initialization error:', err);
-            }
+          }
+        } catch (err) {
+            console.error('Auth initialization error:', err);
         }
 
         // 2. Fallback to cache for offline support

@@ -2,20 +2,19 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
-import { useSupabase } from '@/hooks/useSupabase';
+import { getCertificates } from '@/lib/data-actions';
 import { CertificatesList } from "@/components/student/CertificatesList";
 import { Certificate } from '@/lib/types';
 
 export default function CertificatesPage() {
   const { user } = useAuth();
-  const { client } = useSupabase();
   const [certificates, setCertificates] = useState<Certificate[]>([]);
 
   useEffect(() => {
     if (user) {
-        client.from('certificates').select('*, courses(title)').eq('student_id', user.id).then(r => setCertificates(r.data || []));
+        getCertificates(user.id).then(data => setCertificates(data || []));
     }
-  }, [user, client]);
+  }, [user]);
 
   return <CertificatesList studentName={user?.full_name || user?.email || ''} certificates={certificates} />;
 }

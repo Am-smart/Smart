@@ -1,7 +1,8 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { useSupabase } from '@/hooks/useSupabase';
+import { getSystemLogs, updateSystemLog, notifyUser } from '@/lib/data-actions';
 import { useAppContext } from '@/components/AppContext';
 import { Search, MessageSquare, Send, CheckCircle, Clock, User, Mail, ShieldAlert } from 'lucide-react';
 
@@ -25,7 +26,6 @@ interface SupportTicket {
 }
 
 export default function AdminHelpPage() {
-    const { client } = useSupabase();
     const { addToast } = useAppContext();
     const [tickets, setTickets] = useState<SupportTicket[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -37,22 +37,21 @@ export default function AdminHelpPage() {
     const fetchTickets = useCallback(async () => {
         setIsLoading(true);
         try {
-            const { data, error } = await client
-                .from('system_logs')
-                .select('*, users(full_name, email)')
-                .eq('category', 'management')
-                .contains('metadata', { type: 'support_ticket' })
-                .order('created_at', { ascending: false });
-
-            if (error) throw error;
-            setTickets(data || []);
+            const data = await getSystemLogs(200);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const supportTickets = ((data as any[]) || []).filter((log) =>
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                log.category === 'management' &&
+                log.metadata?.type === 'support_ticket'
+            ) as unknown as SupportTicket[];
+            setTickets(supportTickets);
         } catch (err) {
             console.error('Failed to fetch tickets:', err);
             addToast('Error loading support tickets', 'error');
         } finally {
             setIsLoading(false);
         }
-    }, [client, addToast]);
+    }, [addToast]);
 
     useEffect(() => {
         fetchTickets();
@@ -71,23 +70,16 @@ export default function AdminHelpPage() {
                 resolved: true
             };
 
-            const { error: updateError } = await client
-                .from('system_logs')
-                .update({ metadata: updatedMetadata })
-                .eq('id', selectedTicket.id);
-
-            if (updateError) throw updateError;
+            await updateSystemLog(selectedTicket.id, { metadata: updatedMetadata });
 
             // 2. Send notification to user
-            const { error: notifyError } = await client.rpc('notify_user', {
+            await notifyUser({
                 target_id: selectedTicket.user_id,
                 n_title: 'Support Response',
                 n_msg: `Response to: ${selectedTicket.message.replace('Support Request: ', '')}\n\n${replyText}`,
                 n_link: '/student/help',
                 n_type: 'system'
             });
-
-            if (notifyError) throw notifyError;
 
             addToast('Reply sent and ticket resolved!', 'success');
             setReplyText('');
@@ -103,12 +95,7 @@ export default function AdminHelpPage() {
 
     const markResolved = async (ticket: SupportTicket) => {
         try {
-            const { error } = await client
-                .from('system_logs')
-                .update({ metadata: { ...ticket.metadata, resolved: true } })
-                .eq('id', ticket.id);
-
-            if (error) throw error;
+            await updateSystemLog(ticket.id, { metadata: { ...ticket.metadata, resolved: true } });
             addToast('Ticket marked as resolved', 'success');
             fetchTickets();
         } catch (err) {

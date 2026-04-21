@@ -1,9 +1,9 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect } from 'react';
 import { User, Activity, Clock } from 'lucide-react';
-import { useSupabase } from '@/hooks/useSupabase';
+import { getUsers, getSessions, getCourses, getAssignments, getEnrollments, getSubmissions, getQuizzes, getLessonCompletions, getQuizSubmissions, getSystemLogs } from '@/lib/data-actions';
 
 export const AdminAnalytics: React.FC = () => {
-    const { client } = useSupabase();
     const [counts, setCounts] = useState({ users: 0, sessions: 0, courses: 0, lessonCompletions: 0, quizPasses: 0 });
     const [growth, setGrowth] = useState<number[]>([]);
 
@@ -12,21 +12,23 @@ export const AdminAnalytics: React.FC = () => {
             const sevenDaysAgo = new Date();
             sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-            const [u, s, c, lc, qs, g] = await Promise.all([
-                client.from('users').select('*', { count: 'exact', head: true }),
-                client.from('sessions').select('*', { count: 'exact', head: true }).gt('expires_at', new Date().toISOString()),
-                client.from('courses').select('*', { count: 'exact', head: true }),
-                client.from('lesson_completions').select('*', { count: 'exact', head: true }),
-                client.from('quiz_submissions').select('score, quiz_id').gte('score', 60),
-                client.from('users').select('created_at').gte('created_at', sevenDaysAgo.toISOString())
+            const [users, sessions, courses, lessonCompletions, quizSubmissions] = await Promise.all([
+                getUsers(),
+                getSessions(),
+                getCourses(),
+                getLessonCompletions(),
+                getQuizSubmissions()
             ]);
+
+            const activeSessions = (sessions as unknown as Record<string, unknown>[]).filter((s) => new Date((s.expires_at as string)) > new Date());
+            const passedQuizzes = (quizSubmissions as unknown as Record<string, unknown>[]).filter((qs) => (qs.score as number) >= 60);
 
             // Improved growth calculation: group users by last 7 days
             const dailyGrowth = new Array(7).fill(0);
             const now = new Date();
 
-            g.data?.forEach(user => {
-                const createdDate = new Date(user.created_at);
+            users.filter(u => new Date(u.created_at) >= sevenDaysAgo).forEach(user => {
+                const createdDate = new Date((user.created_at as string));
                 const diffTime = Math.abs(now.getTime() - createdDate.getTime());
                 const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
 
@@ -41,15 +43,15 @@ export const AdminAnalytics: React.FC = () => {
             setGrowth(dailyGrowth.map(v => (v / max) * 100));
 
             setCounts({
-                users: u.count || 0,
-                sessions: s.count || 0,
-                courses: c.count || 0,
-                lessonCompletions: lc.count || 0,
-                quizPasses: qs.data?.length || 0
+                users: users.length,
+                sessions: activeSessions.length,
+                courses: courses.length,
+                lessonCompletions: lessonCompletions.length,
+                quizPasses: passedQuizzes.length
             });
         };
         fetchAnalytics();
-    }, [client]);
+    }, []);
 
     return (
         <div className="space-y-8">
@@ -115,20 +117,19 @@ export const AdminAnalytics: React.FC = () => {
 };
 
 export const SystemHealth: React.FC = () => {
-    const { client } = useSupabase();
     const [latency, setLatency] = useState<number | null>(null);
 
     useEffect(() => {
         const checkLatency = async () => {
             const start = performance.now();
-            await client.from('users').select('*', { count: 'exact', head: true });
+            await getUsers();
             const end = performance.now();
             setLatency(Math.round(end - start));
         };
         checkLatency();
         const interval = setInterval(checkLatency, 30000);
         return () => clearInterval(interval);
-    }, [client]);
+    }, []);
 
     return (
         <div className="space-y-8">
@@ -171,18 +172,19 @@ export const SystemHealth: React.FC = () => {
 };
 
 export const SystemInfo: React.FC = () => {
-    const { client } = useSupabase();
     const [totalRecords, setTotalRecords] = useState<number>(0);
 
     useEffect(() => {
         const fetchTotalRecords = async () => {
-            const tables = ['users', 'courses', 'lessons', 'enrollments', 'assignments', 'submissions', 'quizzes', 'quiz_submissions', 'discussions', 'notifications', 'system_logs'];
-            const counts = await Promise.all(tables.map(t => client.from(t).select('*', { count: 'exact', head: true })));
-            const total = counts.reduce((acc, c) => acc + (c.count || 0), 0);
+            // This is a rough estimation since we are moving away from direct counts
+            const data = await Promise.all([
+                getUsers(), getCourses(), getAssignments(), getEnrollments(), getSubmissions(), getQuizzes(), getQuizSubmissions(), getSystemLogs()
+            ]);
+            const total = data.reduce((acc, d) => acc + (d?.length || 0), 0);
             setTotalRecords(total);
         };
         fetchTotalRecords();
-    }, [client]);
+    }, []);
 
     return (
         <div className="space-y-8">

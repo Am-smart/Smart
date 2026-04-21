@@ -1,15 +1,14 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import React, { useState } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
 import { Settings, Shield, Bell, Save } from 'lucide-react';
 import { useAppContext } from '@/components/AppContext';
-import { useSupabase } from '@/hooks/useSupabase';
-import { updateSetting } from '@/lib/data-actions';
+import { getSettings, updateSetting } from '@/lib/data-actions';
 
 export default function AdminSettingsPage() {
     const { user } = useAuth();
-    const { client } = useSupabase();
     const { addToast } = useAppContext();
     const [activeTab, setActiveTab] = useState<'security' | 'alerts' | 'api'>('security');
     const [config, setConfig] = useState({
@@ -46,17 +45,19 @@ export default function AdminSettingsPage() {
     // Load from database on mount
     React.useEffect(() => {
         const loadConfigs = async () => {
-            const { data: globalData } = await client.from('settings').select('value').eq('key', 'global_config').maybeSingle();
-            if (globalData) setConfig(globalData.value);
+            const allSettings = (await getSettings()) as unknown as Record<string, unknown>[];
 
-            const { data: alertsData } = await client.from('settings').select('value').eq('key', 'system_alerts').maybeSingle();
-            if (alertsData) setAlerts(alertsData.value);
+            const globalData = allSettings.find(s => s.key === 'global_config');
+            if (globalData) setConfig(globalData.value as unknown as any);
 
-            const { data: apiData } = await client.from('settings').select('value').eq('key', 'api_keys').maybeSingle();
-            if (apiData) setApiKeys(apiData.value);
+            const alertsData = allSettings.find(s => s.key === 'system_alerts');
+            if (alertsData) setAlerts(alertsData.value as unknown as any);
+
+            const apiData = allSettings.find(s => s.key === 'api_keys');
+            if (apiData) setApiKeys(apiData.value as unknown as any);
         };
         loadConfigs();
-    }, [client]);
+    }, []);
 
     if (!user) return null;
 
