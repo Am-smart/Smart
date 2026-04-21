@@ -3,6 +3,7 @@ import { MaintenanceRepository } from '../repositories/maintenance.repository';
 import { PlannerRepository } from '../repositories/planner.repository';
 import { SettingRepository } from '../repositories/setting.repository';
 import { SystemLog, Maintenance, PlannerItem, User, Setting } from '../types';
+import { UserDomain } from '../domain/user.domain';
 
 export class SystemService {
   private logRepo = new SystemLogRepository();
@@ -16,12 +17,12 @@ export class SystemService {
   }
 
   async getLogs(currentUser: User, limit: number, sessionId: string): Promise<SystemLog[]> {
-    if (currentUser.role !== 'admin') throw new Error('Forbidden');
+    if (!UserDomain.isAdmin(currentUser)) throw new Error('Forbidden');
     return this.logRepo.findAll(limit, sessionId);
   }
 
   async updateLog(currentUser: User, id: string, updates: Partial<SystemLog>, sessionId: string): Promise<SystemLog> {
-    if (currentUser.role !== 'admin') throw new Error('Forbidden');
+    if (!UserDomain.isAdmin(currentUser)) throw new Error('Forbidden');
     return this.logRepo.update(id, updates, sessionId);
   }
 
@@ -31,7 +32,7 @@ export class SystemService {
   }
 
   async updateMaintenance(currentUser: User, maintenance: Partial<Maintenance>, sessionId: string): Promise<void> {
-    if (currentUser.role !== 'admin') throw new Error('Forbidden');
+    if (!UserDomain.isAdmin(currentUser)) throw new Error('Forbidden');
     await this.maintenanceRepo.update(maintenance, sessionId);
   }
 
@@ -50,12 +51,12 @@ export class SystemService {
 
   // Settings
   async getSettings(currentUser: User, sessionId: string): Promise<Setting[]> {
-    if (currentUser.role !== 'admin') throw new Error('Forbidden');
+    if (!UserDomain.isAdmin(currentUser)) throw new Error('Forbidden');
     return this.settingRepo.findAll(sessionId);
   }
 
   async updateSetting(currentUser: User, key: string, value: unknown, sessionId: string): Promise<void> {
-    if (currentUser.role !== 'admin') throw new Error('Forbidden');
+    if (!UserDomain.isAdmin(currentUser)) throw new Error('Forbidden');
     await this.settingRepo.update(key, value, sessionId);
   }
 }

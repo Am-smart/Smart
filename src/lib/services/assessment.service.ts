@@ -4,7 +4,7 @@ import { SubmissionRepository } from '../repositories/submission.repository';
 import { QuizSubmissionRepository } from '../repositories/quiz-submission.repository';
 import { Assignment, Quiz, Submission, QuizSubmission, User, QuizQuestion } from '../types';
 import { rbac } from '../auth/rbac';
-import { calculateQuizScore } from '../scoring-util';
+import { AssessmentDomain } from '../domain/assessment.domain';
 
 export class AssessmentService {
   private assignmentRepo = new AssignmentRepository();
@@ -68,13 +68,8 @@ export class AssessmentService {
   }
 
   async submitAssignment(studentId: string, assignmentId: string, content: Partial<Submission>, sessionId: string): Promise<Submission> {
-    return this.submissionRepo.upsert({
-      ...content,
-      assignment_id: assignmentId,
-      student_id: studentId,
-      submitted_at: new Date().toISOString(),
-      status: 'submitted'
-    }, sessionId);
+    const submissionToSave = AssessmentDomain.prepareSubmission(studentId, assignmentId, content);
+    return this.submissionRepo.upsert(submissionToSave, sessionId);
   }
 
   async gradeSubmission(currentUser: User, submissionId: string, gradeData: Partial<Submission>, sessionId: string): Promise<Submission> {
@@ -102,29 +97,24 @@ export class AssessmentService {
     const existingSubmissions = await this.quizSubmissionRepo.findAttempts(quizId, studentId, sessionId);
     const currentAttempts = existingSubmissions.length;
 
-    if (quiz.attempts_allowed > 0 && currentAttempts >= quiz.attempts_allowed) {
-        throw new Error(`Maximum attempts (${quiz.attempts_allowed}) reached for this quiz.`);
-    }
+    AssessmentDomain.validateQuizAttempt(quiz, currentAttempts);
 
     const nextAttempt = currentAttempts + 1;
     const answers = (submissionData.answers as Record<string, string>) || {};
     const questions = (quiz.questions as QuizQuestion[]) || [];
 
-    const { score: calculatedScore, totalPoints } = calculateQuizScore(questions, answers);
+    const { score: calculatedScore, totalPoints } = AssessmentDomain.calculateQuizScore(questions, answers);
 
-    await this.quizSubmissionRepo.insert({
-        quiz_id: quizId,
-        student_id: studentId,
-        attempt_number: nextAttempt,
-        answers,
-        score: calculatedScore,
-        total_points: totalPoints,
-        status: 'submitted',
-        submitted_at: new Date().toISOString(),
-        time_spent: submissionData.time_spent || 0,
-        violation_count: submissionData.violation_count || 0,
-        started_at: submissionData.started_at || new Date().toISOString()
-    }, sessionId);
+    const submissionToSave = AssessmentDomain.prepareQuizSubmission(
+      studentId,
+      quizId,
+      nextAttempt,
+      calculatedScore,
+      totalPoints,
+      submissionData
+    );
+
+    await this.quizSubmissionRepo.insert(submissionToSave, sessionId);
 
     return { success: true, score: calculatedScore };
   }
