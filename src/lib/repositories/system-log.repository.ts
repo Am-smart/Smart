@@ -15,7 +15,7 @@ export class SystemLogRepository {
 
   async findAll(limit = 100, sessionId: string): Promise<SystemLog[]> {
     const { data, error } = await withSession(supabase.from('system_logs'), sessionId)
-      .select('*')
+      .select('*, users(full_name, email)')
       .order('created_at', { ascending: false })
       .limit(limit);
 
