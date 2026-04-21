@@ -4,6 +4,7 @@ import { LiveClassRepository } from '../repositories/live-class.repository';
 import { AttendanceRepository } from '../repositories/attendance.repository';
 import { BroadcastRepository } from '../repositories/broadcast.repository';
 import { Discussion, Notification, LiveClass, User, Broadcast } from '../types';
+import { CommunicationDomain } from '../domain/communication.domain';
 
 export class CommunicationService {
   private discussionRepo = new DiscussionRepository();
@@ -18,10 +19,8 @@ export class CommunicationService {
   }
 
   async saveDiscussionPost(currentUser: User, post: Partial<Discussion>, sessionId: string): Promise<Discussion> {
-    return this.discussionRepo.upsert({
-      ...post,
-      user_id: post.user_id || currentUser.id
-    }, sessionId);
+    const postToSave = CommunicationDomain.prepareDiscussion(post, currentUser.id);
+    return this.discussionRepo.upsert(postToSave, sessionId);
   }
 
   async deleteDiscussionPost(currentUser: User, id: string, sessionId: string): Promise<void> {
@@ -41,8 +40,7 @@ export class CommunicationService {
     await this.notificationRepo.markAllAsRead(userId, sessionId);
   }
 
-  async notifyUser(currentUser: User, params: { target_id: string, n_title: string, n_msg: string, n_link?: string, n_type?: string }, sessionId: string): Promise<void> {
-    if (currentUser.role !== 'admin' && currentUser.role !== 'teacher') throw new Error('Forbidden');
+  async notifyUser(params: { target_id: string, n_title: string, n_msg: string, n_link?: string, n_type?: string }, sessionId: string): Promise<void> {
     await this.notificationRepo.create(params.target_id, params.n_title, params.n_msg, params.n_link, params.n_type, sessionId);
   }
 
@@ -52,16 +50,11 @@ export class CommunicationService {
   }
 
   async saveLiveClass(currentUser: User, liveClass: Partial<LiveClass>, sessionId: string): Promise<LiveClass> {
-    if (currentUser.role !== 'admin' && currentUser.role !== 'teacher') throw new Error('Forbidden');
-    return this.liveClassRepo.upsert({
-      ...liveClass,
-      teacher_id: liveClass.teacher_id || currentUser.id,
-      status: liveClass.status || 'scheduled'
-    }, sessionId);
+    const liveClassToSave = CommunicationDomain.prepareLiveClass(liveClass, currentUser.id);
+    return this.liveClassRepo.upsert(liveClassToSave, sessionId);
   }
 
-  async deleteLiveClass(currentUser: User, id: string, sessionId: string): Promise<void> {
-    if (currentUser.role !== 'admin' && currentUser.role !== 'teacher') throw new Error('Forbidden');
+  async deleteLiveClass(id: string, sessionId: string): Promise<void> {
     await this.liveClassRepo.delete(id, sessionId);
   }
 
@@ -74,9 +67,9 @@ export class CommunicationService {
     }, sessionId);
   }
 
-  async createBroadcast(currentUser: User, broadcast: Partial<Broadcast>, sessionId: string): Promise<Broadcast> {
-    if (currentUser.role !== 'admin') throw new Error('Forbidden');
-    return this.broadcastRepo.create(broadcast, sessionId);
+  async createBroadcast(broadcast: Partial<Broadcast>, sessionId: string): Promise<Broadcast> {
+    const broadcastToSave = CommunicationDomain.prepareBroadcast(broadcast);
+    return this.broadcastRepo.create(broadcastToSave, sessionId);
   }
 }
 

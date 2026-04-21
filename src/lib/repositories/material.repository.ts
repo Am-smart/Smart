@@ -17,6 +17,15 @@ export class MaterialRepository {
     return data as Material[];
   }
 
+  async findAll(courseId?: string, sessionId?: string): Promise<Material[]> {
+    let query = supabase.from('materials').select('*, courses(*)');
+    if (courseId) query = query.eq('course_id', courseId);
+
+    const { data, error } = sessionId ? await withSession(query, sessionId) : await query;
+    if (error) throw new Error(error.message);
+    return data as Material[];
+  }
+
   async upsert(material: Partial<Material>, sessionId: string): Promise<Material> {
     const { version, id, ...materialData } = material;
 
