@@ -18,10 +18,7 @@ export class CourseService {
 
   async saveCourse(currentUser: User, course: Partial<Course>, sessionId: string): Promise<Course> {
     CourseDomain.validate(course);
-    const courseToSave = CourseDomain.create(course, currentUser.id);
-
-    CourseDomain.validate(course);
-    const courseToSave = CourseDomain.create(course, currentUser.id);
+    const courseToSave = CourseDomain.create(course, currentUser.id, currentUser.full_name);
 
     return this.courseRepo.upsert(courseToSave, sessionId);
   }
