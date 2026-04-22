@@ -12,7 +12,6 @@ import { learningService } from './services/learning.service';
 import { communicationService } from './services/communication.service';
 import { gamificationService } from './services/gamification.service';
 import { systemService } from './services/system.service';
-import { taskQueue } from './queue/task-queue';
 import { supabase } from './supabase';
 import { authz } from './auth/authorization.service';
 
@@ -33,14 +32,12 @@ export async function createSystemLog(log: Record<string, unknown>) {
     }
 
     const session = await getSession();
-    taskQueue.enqueue(async () => {
-        await systemService.createLog({
-            ...log,
-            level: (log.level as string) || 'info',
-            category: (log.category as string) || 'system',
-            message: (log.message as string) || '',
-            user_id: session?.id as string
-        });
+    await systemService.createLogAsync({
+        ...log,
+        level: (log.level as string) || 'info',
+        category: (log.category as string) || 'system',
+        message: (log.message as string) || '',
+        user_id: session?.id as string
     });
 
     return { success: true };
@@ -135,6 +132,8 @@ export async function saveCourse(course: Partial<Course>) {
 export async function deleteCourse(courseId: string) {
   const user = await getVerifiedUser();
   const currentUser = await userService.getCurrentUser(user.id as string, user.sessionId as string);
+
+  authz.canManageCourse(currentUser);
 
   await courseService.deleteCourse(courseId, user.sessionId as string);
 
@@ -398,6 +397,7 @@ export async function saveUser(userData: Partial<User>) {
     const user = await getVerifiedUser();
     const currentUser = await userService.getCurrentUser(user.id as string, user.sessionId as string);
 
+    authz.canUpdateUser(currentUser, userData.id as string);
     // Self-update or Admin update handled by UserService logic
 
     const data = await userService.updateUserProfile(currentUser, userData.id as string, userData, user.sessionId as string);
@@ -636,7 +636,10 @@ export async function getSettings() {
 export async function getUsers() {
     const user = await getVerifiedUser();
     const currentUser = await userService.getCurrentUser(user.id as string, user.sessionId as string);
-    return userService.getAllUsers(currentUser, user.sessionId as string);
+
+    authz.canManageUsers(currentUser);
+
+    return userService.getAllUsers(user.sessionId as string);
 }
 
 export async function notifyUser(params: { target_id: string, n_title: string, n_msg: string, n_link?: string, n_type?: string }) {

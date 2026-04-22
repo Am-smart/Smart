@@ -16,6 +16,13 @@ export class SystemService {
     return this.logRepo.create(log, sessionId);
   }
 
+  async createLogAsync(log: SystemLog): Promise<void> {
+    const { taskQueue } = await import('../queue/task-queue');
+    taskQueue.enqueue(async () => {
+      await this.createLog(log);
+    });
+  }
+
   async getLogs(currentUser: User, limit: number, sessionId: string): Promise<SystemLog[]> {
     if (!UserDomain.isAdmin(currentUser)) throw new Error('Forbidden');
     return this.logRepo.findAll(limit, sessionId);

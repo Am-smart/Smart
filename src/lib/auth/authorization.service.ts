@@ -29,6 +29,12 @@ export class AuthorizationService {
     if (!rbac.can(user, 'user:manage')) throw new Error('Forbidden');
   }
 
+  canUpdateUser(currentUser: User, targetUserId: string): void {
+    if (currentUser.role !== 'admin' && currentUser.id !== targetUserId) {
+      throw new Error('Forbidden');
+    }
+  }
+
   // System
   canManageSystem(user: User): void {
     if (!rbac.can(user, 'system:manage')) throw new Error('Forbidden');

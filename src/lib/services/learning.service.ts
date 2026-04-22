@@ -2,6 +2,7 @@
 import { LessonRepository } from '../repositories/lesson.repository';
 import { MaterialRepository } from '../repositories/material.repository';
 import { StudySessionRepository } from '../repositories/study-session.repository';
+import { EnrollmentRepository } from '../repositories/enrollment.repository';
 import { Lesson, Material, User, LessonCompletion } from '../types';
 import { LearningDomain } from '../domain/learning.domain';
 import { supabase, withSession } from '../supabase';
@@ -10,6 +11,7 @@ export class LearningService {
   private lessonRepo = new LessonRepository();
   private materialRepo = new MaterialRepository();
   private studySessionRepo = new StudySessionRepository();
+  private enrollmentRepo = new EnrollmentRepository();
 
   // Lessons
   async getLessons(courseId: string, sessionId: string): Promise<Lesson[]> {

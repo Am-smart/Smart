@@ -21,7 +21,8 @@ export const LiveClassManager: React.FC<LiveClassManagerProps> = ({ teacherId, l
         end_at: '',
         room_name: '',
         description: '',
-        recurring_config: ''
+        recurring_config: '',
+        recording_url: ''
     });
 
     const handleCreate = async (e: React.FormEvent) => {
@@ -120,6 +121,10 @@ export const LiveClassManager: React.FC<LiveClassManagerProps> = ({ teacherId, l
                         <div>
                             <label className="block text-[10px] font-bold uppercase text-slate-500 mb-2 tracking-widest">End Time</label>
                             <input type="datetime-local" required value={formData.end_at} onChange={e => setFormData({...formData, end_at: e.target.value})} className="input-custom" />
+                        </div>
+                        <div className="md:col-span-2">
+                            <label className="block text-[10px] font-bold uppercase text-slate-500 mb-2 tracking-widest">Recording URL (Optional)</label>
+                            <input type="url" value={formData.recording_url} onChange={e => setFormData({...formData, recording_url: e.target.value})} className="input-custom" placeholder='https://...' />
                         </div>
                         <div className="md:col-span-2">
                             <label className="block text-[10px] font-bold uppercase text-slate-500 mb-2 tracking-widest">Recurring Config (JSON)</label>
