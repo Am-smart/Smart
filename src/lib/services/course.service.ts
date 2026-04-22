@@ -20,9 +20,6 @@ export class CourseService {
     CourseDomain.validate(course);
     const courseToSave = CourseDomain.create(course, currentUser.id);
 
-    CourseDomain.validate(course);
-    const courseToSave = CourseDomain.create(course, currentUser.id);
-
     return this.courseRepo.upsert(courseToSave, sessionId);
   }
 
