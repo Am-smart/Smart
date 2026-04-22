@@ -336,7 +336,7 @@ export async function issueCertificate(certificate: Partial<Certificate>) {
 
     authz.canManageCourse(currentUser);
 
-    const data = await gamificationService.issueCertificate(certificate, user.sessionId as string);
+    const data = await gamificationService.issueCertificate(currentUser, certificate, user.sessionId as string);
     return { success: true, data };
 }
 
@@ -347,7 +347,7 @@ export async function saveBadge(badge: Partial<Badge>) {
 
     authz.canManageSystem(currentUser);
 
-    const data = await gamificationService.saveBadge(badge, user.sessionId as string);
+    const data = await gamificationService.saveBadge(currentUser, badge, user.sessionId as string);
     return { success: true, data };
 }
 
@@ -357,7 +357,7 @@ export async function deleteBadge(id: string) {
 
     authz.canManageSystem(currentUser);
 
-    await gamificationService.deleteBadge(id, user.sessionId as string);
+    await gamificationService.deleteBadge(currentUser, id, user.sessionId as string);
     return { success: true };
 }
 
@@ -367,7 +367,7 @@ export async function assignBadge(userBadge: Partial<UserBadge>) {
 
     authz.canManageCourse(currentUser);
 
-    await gamificationService.assignBadge(userBadge, user.sessionId as string);
+    await gamificationService.assignBadge(currentUser, userBadge, user.sessionId as string);
     return { success: true };
 }
 
@@ -639,7 +639,7 @@ export async function getUsers() {
 
     authz.canManageUsers(currentUser);
 
-    return userService.getAllUsers(user.sessionId as string);
+    return userService.getAllUsers(currentUser, user.sessionId as string);
 }
 
 export async function notifyUser(params: { target_id: string, n_title: string, n_msg: string, n_link?: string, n_type?: string }) {
