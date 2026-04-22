@@ -43,22 +43,26 @@ export class LearningService {
 
   // Progress
   async markLessonComplete(studentId: string, lessonId: string, courseId: string, sessionId: string): Promise<{ success: boolean }> {
-    await this.lessonRepo.markComplete(studentId, lessonId, sessionId);
+    const { error } = await withSession(supabase.from('lesson_completions').upsert({
+      student_id: studentId,
+      lesson_id: lessonId
+    }), sessionId);
+
+    if (error) throw new Error(error.message);
 
     // Update progress
-    const lessons = await this.lessonRepo.findByCourseId(courseId, sessionId);
-    const lessonIds = lessons.map(l => l.id);
-    const completedIds = await this.lessonRepo.findCompletions(studentId, lessonIds, sessionId);
+    const { data: lessons } = await withSession(supabase.from('lessons').select('id').eq('course_id', courseId), sessionId);
+    const { data: completed } = await withSession(supabase.from('lesson_completions').select('lesson_id').eq('student_id', studentId).in('lesson_id', lessons?.map(l => l.id) || []), sessionId);
 
-    const progress = LearningDomain.calculateProgress(completedIds.length, lessonIds.length);
-
-    await this.enrollmentRepo.updateProgress(studentId, courseId, progress, sessionId);
+    const progress = Math.round(((completed?.length || 0) / (lessons?.length || 1)) * 100);
+    await withSession(supabase.from('enrollments').update({ progress, completed: progress === 100 }).eq('course_id', courseId).eq('student_id', studentId), sessionId);
 
     return { success: true };
   }
 
   async getLessonCompletions(studentId: string, sessionId: string): Promise<LessonCompletion[]> {
-      const data = await this.lessonRepo.getCompletions(studentId, sessionId);
+      const { data, error } = await withSession(supabase.from('lesson_completions').select('*').eq('student_id', studentId), sessionId);
+      if (error) throw new Error(error.message);
       return data as LessonCompletion[];
   }
 

@@ -11,7 +11,8 @@ export class UserService {
     return { ...user, sessionId };
   }
 
-  async getAllUsers(sessionId: string): Promise<User[]> {
+  async getAllUsers(currentUser: User, sessionId: string): Promise<User[]> {
+    if (!UserDomain.canManageUsers(currentUser)) throw new Error('Forbidden');
     return this.userRepo.findAll(sessionId);
   }
 
@@ -19,16 +20,20 @@ export class UserService {
     const targetUser = await this.userRepo.findById(userId, sessionId);
     if (!targetUser) throw new Error('User not found');
 
+    UserDomain.validateUpdate(currentUser, userId);
+
     const filteredUpdates = UserDomain.filterUpdateFields(currentUser, updates);
 
     return this.userRepo.update(userId, filteredUpdates, sessionId, targetUser.version);
   }
 
-  async toggleUserStatus(userId: string, active: boolean, sessionId: string): Promise<void> {
+  async toggleUserStatus(currentUser: User, userId: string, active: boolean, sessionId: string): Promise<void> {
+    if (!UserDomain.canManageUsers(currentUser)) throw new Error('Forbidden');
     await this.userRepo.update(userId, { active }, sessionId);
   }
 
-  async deleteUser(userId: string, sessionId: string): Promise<void> {
+  async deleteUser(currentUser: User, userId: string, sessionId: string): Promise<void> {
+    if (!UserDomain.canManageUsers(currentUser)) throw new Error('Forbidden');
     await this.userRepo.delete(userId, sessionId);
   }
 }

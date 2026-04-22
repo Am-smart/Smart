@@ -103,7 +103,7 @@ export async function toggleUserStatus(userId: string, active: boolean) {
 
   authz.canManageUsers(currentUser);
 
-  await userService.toggleUserStatus(userId, active, user.sessionId as string);
+  await userService.toggleUserStatus(currentUser, userId, active, user.sessionId as string);
   revalidatePath('/admin/users');
   return { success: true };
 }
@@ -398,6 +398,7 @@ export async function saveUser(userData: Partial<User>) {
     const currentUser = await userService.getCurrentUser(user.id as string, user.sessionId as string);
 
     authz.canUpdateUser(currentUser, userData.id as string);
+    // Self-update or Admin update handled by UserService logic
 
     const data = await userService.updateUserProfile(currentUser, userData.id as string, userData, user.sessionId as string);
     revalidatePath('/admin/users');
@@ -410,7 +411,7 @@ export async function deleteUser(id: string) {
 
     authz.canManageUsers(currentUser);
 
-    await userService.deleteUser(id, user.sessionId as string);
+    await userService.deleteUser(currentUser, id, user.sessionId as string);
     revalidatePath('/admin/users');
     return { success: true };
 }
