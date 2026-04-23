@@ -26,9 +26,10 @@ export interface User {
 
 export interface Course {
   id: string;
+  course_id?: string;
+  created_by?: string;
   title: string;
   description?: string;
-  category?: string;
   status: 'draft' | 'published' | 'archived';
   teacher_id: string;
   thumbnail_url?: string;

@@ -17,7 +17,7 @@ export const CourseEditor: React.FC<CourseEditorProps> = ({ course, teacherId, o
     const [formData, setFormData] = useState({
         title: course?.title || '',
         description: course?.description || '',
-        category: course?.category || 'Programming',
+        course_id: course?.course_id || '',
         status: course?.status || 'draft',
         thumbnail_url: course?.thumbnail_url || 'https://images.unsplash.com/photo-1516116216624-53e697fedbea?w=800&auto=format&fit=crop&q=60'
     });
@@ -87,17 +87,15 @@ export const CourseEditor: React.FC<CourseEditorProps> = ({ course, teacherId, o
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
-                            <label className="block text-xs font-bold text-slate-700 uppercase mb-3 tracking-wide">Category</label>
-                            <select
-                                value={formData.category}
-                                onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
+                            <label className="block text-xs font-bold text-slate-700 uppercase mb-3 tracking-wide">Enrollment Course ID (Optional)</label>
+                            <input
+                                type="text"
+                                value={formData.course_id}
+                                onChange={(e) => setFormData(prev => ({ ...prev, course_id: e.target.value }))}
                                 className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all text-sm"
-                            >
-                                <option>Programming</option>
-                                <option>Design</option>
-                                <option>Business</option>
-                                <option>Marketing</option>
-                            </select>
+                                placeholder="e.g. CS101"
+                            />
+                            <p className="text-[10px] text-slate-400 mt-1 italic">If provided, students will need this ID to enroll.</p>
                         </div>
                         <div>
                             <label className="block text-xs font-bold text-slate-700 uppercase mb-3 tracking-wide">Status</label>

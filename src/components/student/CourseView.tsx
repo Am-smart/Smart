@@ -62,7 +62,9 @@ export const CourseView: React.FC<CourseViewProps> = ({ course, lessons, onBack 
                     <button onClick={onBack} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-500"><ArrowLeft size={20} /></button>
                     <div>
                         <h2 className="text-xl font-bold text-slate-900">{course.title}</h2>
-                        <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">{lessons.length} Lessons available</p>
+                        <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">
+                            {lessons.length} Lessons available • BY {course.created_by || 'Unknown Instructor'}
+                        </p>
                     </div>
                 </div>
             </header>

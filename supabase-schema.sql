@@ -41,9 +41,10 @@ CREATE TABLE IF NOT EXISTS users (
 
 CREATE TABLE IF NOT EXISTS courses (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  course_id VARCHAR(100),
+  created_by VARCHAR(255),
   title VARCHAR(255) NOT NULL,
   description TEXT,
-  category VARCHAR(100),
   thumbnail_url TEXT,
   teacher_id UUID REFERENCES users(id) ON UPDATE CASCADE ON DELETE SET NULL,
   status VARCHAR(50) DEFAULT 'draft' CHECK (status IN ('draft', 'published', 'archived')),
@@ -379,8 +380,14 @@ BEGIN
     END IF;
 
     -- Course Metadata
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'courses' AND column_name = 'category') THEN
-        ALTER TABLE courses ADD COLUMN category VARCHAR(100);
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'courses' AND column_name = 'category') THEN
+        ALTER TABLE courses DROP COLUMN category;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'courses' AND column_name = 'course_id') THEN
+        ALTER TABLE courses ADD COLUMN course_id VARCHAR(100);
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'courses' AND column_name = 'created_by') THEN
+        ALTER TABLE courses ADD COLUMN created_by VARCHAR(255);
     END IF;
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'courses' AND column_name = 'thumbnail_url') THEN
         ALTER TABLE courses ADD COLUMN thumbnail_url TEXT;
