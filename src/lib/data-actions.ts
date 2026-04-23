@@ -88,7 +88,7 @@ export async function gradeSubmission(submissionId: string, gradeData: Partial<S
   createSystemLog({
     level: 'info',
     category: 'academic',
-    message: `Submission graded: ${submissionId} with score ${gradeData.score}`,
+    message: `Submission graded: ${submissionId} with score ${gradeData.grade}`,
     user_id: user.id
   });
 

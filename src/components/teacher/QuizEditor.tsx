@@ -21,8 +21,8 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({ teacherId, quiz, courses
         time_limit: quiz?.time_limit || 30,
         attempts_allowed: quiz?.attempts_allowed || 1,
         passing_score: quiz?.passing_score || 60,
-        start_at: quiz?.start_at ? new Date(quiz.start_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-        end_at: quiz?.end_at ? new Date(quiz.end_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+        start_at: quiz?.start_at ? new Date(quiz.start_at).toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16),
+        end_at: quiz?.end_at ? new Date(quiz.end_at).toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16),
         status: quiz?.status || 'draft',
         anti_cheat_enabled: quiz?.anti_cheat_enabled || false,
         auto_submit_enabled: quiz?.auto_submit_enabled || false,
@@ -98,12 +98,12 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({ teacherId, quiz, courses
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
-                            <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">Start Date</label>
-                            <input type="date" required value={formData.start_at} onChange={e => setFormData({...formData, start_at: e.target.value})} className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all" />
+                            <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">Start At</label>
+                            <input type="datetime-local" required value={formData.start_at} onChange={e => setFormData({...formData, start_at: e.target.value})} className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all" />
                         </div>
                         <div>
-                            <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">End Date</label>
-                            <input type="date" required value={formData.end_at} onChange={e => setFormData({...formData, end_at: e.target.value})} className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all" />
+                            <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">End At</label>
+                            <input type="datetime-local" required value={formData.end_at} onChange={e => setFormData({...formData, end_at: e.target.value})} className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all" />
                         </div>
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">

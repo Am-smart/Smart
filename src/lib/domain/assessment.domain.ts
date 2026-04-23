@@ -37,8 +37,10 @@ export class AssessmentDomain {
   }
 
   static prepareAssignment(assignment: Partial<Assignment>, teacherId: string): Partial<Assignment> {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any
+    const { courses: _, ...rest } = assignment as any;
     return {
-      ...assignment,
+      ...rest,
       teacher_id: assignment.teacher_id || teacherId,
       status: assignment.status || 'draft',
       allowed_extensions: assignment.allowed_extensions || ['pdf', 'doc', 'docx', 'zip', 'jpg', 'png']
@@ -46,8 +48,10 @@ export class AssessmentDomain {
   }
 
   static prepareQuiz(quiz: Partial<Quiz>, teacherId: string): Partial<Quiz> {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any
+    const { courses: _, ...rest } = quiz as any;
     return {
-      ...quiz,
+      ...rest,
       teacher_id: quiz.teacher_id || teacherId,
       status: quiz.status || 'draft',
       shuffle_questions: quiz.shuffle_questions || false
@@ -55,8 +59,10 @@ export class AssessmentDomain {
   }
 
   static prepareSubmission(studentId: string, assignmentId: string, content: Partial<Submission>): Partial<Submission> {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any
+    const { assignments: _a, users: _u, ...rest } = content as any;
     return {
-      ...content,
+      ...rest,
       assignment_id: assignmentId,
       student_id: studentId,
       submitted_at: new Date().toISOString(),

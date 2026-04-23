@@ -21,8 +21,10 @@ export class QuizSubmissionRepository {
   }
 
   async insert(submission: Partial<QuizSubmission>, sessionId: string): Promise<QuizSubmission> {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any
+    const { quizzes: _, users: __, ...submissionData } = submission as any;
     const { data, error } = await withSession(supabase.from('quiz_submissions'), sessionId)
-      .insert(submission)
+      .insert(submissionData)
       .select()
       .single();
 
