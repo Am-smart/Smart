@@ -38,7 +38,6 @@ export const GradingModal: React.FC<GradingModalProps> = ({ submission, onSave, 
         setIsSaving(true);
         try {
             const gradeData: Partial<Submission> = {
-                score: Number(formData.grade),
                 grade: Number(formData.grade),
                 feedback: formData.feedback,
                 late_penalty_applied: calculatedPenalty,

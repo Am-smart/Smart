@@ -20,8 +20,8 @@ export const AssignmentEditor: React.FC<AssignmentEditorProps> = ({ teacherId, a
         title: assignment?.title || '',
         description: assignment?.description || '',
         course_id: assignment?.course_id || (courses.length > 0 ? courses[0].id : ''),
-        start_at: assignment?.start_at ? new Date(assignment.start_at).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
-        due_date: assignment?.due_date ? new Date(assignment.due_date).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+        start_at: assignment?.start_at ? new Date(assignment.start_at).toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16),
+        due_date: assignment?.due_date ? new Date(assignment.due_date).toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16),
         points_possible: assignment?.points_possible || 0,
         status: assignment?.status || 'draft',
         allow_late_submissions: assignment?.allow_late_submissions !== false,
@@ -122,12 +122,12 @@ export const AssignmentEditor: React.FC<AssignmentEditorProps> = ({ teacherId, a
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">Start Date</label>
-                                <input type="date" required value={formData.start_at} onChange={e => setFormData({...formData, start_at: e.target.value})} className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all" />
+                                <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">Start At</label>
+                                <input type="datetime-local" required value={formData.start_at} onChange={e => setFormData({...formData, start_at: e.target.value})} className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all" />
                             </div>
                             <div>
                                 <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">Due Date</label>
-                                <input type="date" required value={formData.due_date} onChange={e => setFormData({...formData, due_date: e.target.value})} className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all" />
+                                <input type="datetime-local" required value={formData.due_date} onChange={e => setFormData({...formData, due_date: e.target.value})} className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all" />
                             </div>
                         </div>
                     </div>

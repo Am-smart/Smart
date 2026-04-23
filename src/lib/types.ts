@@ -142,7 +142,6 @@ export interface Submission {
   attachments?: Record<string, unknown>[];
   status: 'draft' | 'submitted' | 'graded' | 'returned';
   grade?: number;
-  score?: number;
   final_grade?: number;
   feedback?: string;
   regrade_request?: string | null;
