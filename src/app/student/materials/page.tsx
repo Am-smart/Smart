@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
-import { getEnrollments, getMaterials } from '@/lib/data-actions';
+import { getEnrollments, getMaterials } from '@/lib/api-client';
 import { MaterialsList } from "@/components/student/MaterialsList";
 import { Material } from '@/lib/types';
 

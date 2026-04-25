@@ -7,7 +7,7 @@ import { CourseManager } from "@/components/teacher/CourseManager";
 import { CourseEditor } from "@/components/teacher/CourseEditor";
 import { LessonEditor } from "@/components/teacher/LessonEditor";
 import { Course } from '@/lib/types';
-import { deleteCourse } from '@/lib/data-actions';
+import { apiClient } from '@/lib/api-client';
 
 export default function CoursesPage() {
   const { user } = useAuth();
@@ -44,7 +44,7 @@ export default function CoursesPage() {
           onEdit={setEditingCourse}
           onDelete={async (id) => {
               if (!confirm('Are you sure you want to delete this course and all its lessons?')) return;
-              await deleteCourse(id);
+              await apiClient.delete(`/api/courses?id=${id}`);
               fetchCourses();
           }}
           onCreate={() => setIsAdding(true)}

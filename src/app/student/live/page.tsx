@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
-import { getEnrollments, getLiveClasses, recordAttendance } from '@/lib/data-actions';
+import { getEnrollments, getLiveClasses, recordAttendance } from '@/lib/api-client';
 import { LiveClassesList } from "@/components/student/LiveClassesList";
 import { LiveClass } from '@/lib/types';
 import { useAppContext } from '@/components/AppContext';

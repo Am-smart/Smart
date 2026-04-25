@@ -51,7 +51,6 @@ export class AssessmentService {
   }
 
   async gradeSubmission(submissionId: string, gradeData: Partial<Submission>, sessionId: string): Promise<Submission> {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any
     const { assignments: _, users: __, ...rest } = gradeData as any;
     return this.submissionRepo.upsert({
       ...rest,

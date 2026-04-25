@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Course, Lesson } from '@/lib/types';
 import { Plus, Trash2, GripVertical, Save, X, Edit2 } from 'lucide-react';
 import { useAppContext } from '@/components/AppContext';
-import { saveLesson, deleteLesson, getLessons } from '@/lib/data-actions';
+import { apiClient } from '@/lib/api-client';
 
 interface LessonEditorProps {
     course: Course;

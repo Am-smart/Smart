@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
 import { useSupabase } from '@/hooks/useSupabase';
-import { enrollInCourse, getLessons } from '@/lib/data-actions';
+import { apiClient } from '@/lib/api-client';
 import { useIndexedDB } from '@/hooks/useIndexedDB';
 import { CourseCatalog } from "@/components/student/CourseCatalog";
 import { CourseView } from "@/components/student/CourseView";
@@ -43,7 +43,7 @@ function CatalogContent() {
         const c = courses.find(item => item.id === courseIdParam);
         if (c) {
             setActiveCourse(c);
-            getLessons(c.id).then(data => setLessons(data || []));
+            apiClient.get<Lesson[]>(`/api/lessons?courseId=${c.id}`).then(data => setLessons(data || []));
         }
     } else {
         setActiveCourse(null);
@@ -55,7 +55,7 @@ function CatalogContent() {
 
     try {
       if (isOnline) {
-          await enrollInCourse(courseId);
+          await apiClient.post(`/api/system/enroll?courseId=${courseId}`);
           addToast('Successfully enrolled in course!', 'success');
       } else {
           await addToQueue('ENROLL', { course_id: courseId, student_id: user.id }, user.sessionId);

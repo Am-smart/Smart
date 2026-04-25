@@ -1,38 +1,48 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { courseService } from '@/lib/services/course.service';
-import { userService } from '@/lib/services/user.service';
-import { rbac } from '@/lib/auth/rbac';
+import { NextResponse } from 'next/server';
+import { getSessionUser, handleUnauthorized } from '../api-utils';
+import { learningController } from '@/lib/controllers/learning.controller';
 
-export async function GET(req: NextRequest) {
-  const sessionId = req.headers.get('x-session-id');
-  if (!sessionId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+export async function GET(request: Request) {
+  const user = await getSessionUser();
+  if (!user) return handleUnauthorized();
+
+  const { searchParams } = new URL(request.url);
+  const teacherId = searchParams.get('teacherId') || undefined;
 
   try {
-    const courses = await courseService.getCourses(undefined, sessionId);
-    return NextResponse.json({ courses });
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    return NextResponse.json({ error: message }, { status: 500 });
+    const courses = await learningController.getCourses(user, teacherId);
+    return NextResponse.json(courses);
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 
-export async function POST(req: NextRequest) {
-  const sessionId = req.headers.get('x-session-id');
-  const userId = req.headers.get('x-user-id');
-  if (!sessionId || !userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+export async function DELETE(request: Request) {
+    const user = await getSessionUser();
+    if (!user) return handleUnauthorized();
+
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+
+    if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 });
+
+    try {
+        await learningController.deleteCourse(user, id);
+        return NextResponse.json({ success: true });
+    } catch (error: any) {
+        return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+}
+
+export async function POST(request: Request) {
+  const user = await getSessionUser();
+  if (!user) return handleUnauthorized();
 
   try {
-    const body = await req.json();
-    const user = await userService.getCurrentUser(userId, sessionId);
-
-    if (!rbac.can(user, 'course:create')) {
-        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-    }
-
-    const course = await courseService.saveCourse(user, body, sessionId);
-    return NextResponse.json({ course });
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    return NextResponse.json({ error: message }, { status: 500 });
+    const body = await request.json();
+    const course = await learningController.saveCourse(user, body);
+    return NextResponse.json(course);
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

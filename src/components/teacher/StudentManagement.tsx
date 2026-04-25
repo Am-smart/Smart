@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Enrollment, Course } from '@/lib/types';
 import { Award, Trash2, FileBadge, X } from 'lucide-react';
 import { useAppContext } from '@/components/AppContext';
-import { removeEnrollment, issueCertificate } from '@/lib/data-actions';
+import { apiClient } from '@/lib/api-client';
 
 interface StudentManagementProps {
     initialEnrollments: Enrollment[];

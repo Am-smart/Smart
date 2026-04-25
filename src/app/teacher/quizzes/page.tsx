@@ -7,7 +7,7 @@ import { QuizEditor } from "@/components/teacher/QuizEditor";
 import { Quiz, Course } from '@/lib/types';
 import { Trash2, Edit } from 'lucide-react';
 import { useAppContext } from '@/components/AppContext';
-import { deleteQuiz } from '@/lib/data-actions';
+import { apiClient } from '@/lib/api-client';
 
 export default function QuizzesPage() {
   const { user } = useAuth();

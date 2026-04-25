@@ -3,7 +3,7 @@ import { Bell } from 'lucide-react';
 import { Header } from './ui/Header';
 import { useAppContext } from './AppContext';
 import { NotificationPanel } from './NotificationPanel';
-import { markNotificationAsRead, markAllNotificationsAsRead } from '@/lib/data-actions';
+import { markNotificationAsRead, markAllNotificationsAsRead } from '@/lib/api-client';
 import { useAuth } from './auth/AuthContext';
 import { Notification } from '@/lib/types';
 

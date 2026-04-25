@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { getUsers, saveUser, deleteUser } from '@/lib/data-actions';
+import { apiClient } from '@/lib/api-client';
 import { UserManagement } from "@/components/admin/UserManagement";
 import { UserEditor } from "@/components/admin/UserEditor";
 import { User } from '@/lib/types';

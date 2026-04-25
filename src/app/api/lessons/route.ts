@@ -1,0 +1,20 @@
+import { NextResponse } from 'next/server';
+import { getSessionUser, handleUnauthorized } from '../api-utils';
+import { learningService } from '@/lib/services/learning.service';
+
+export async function DELETE(request: Request) {
+    const user = await getSessionUser();
+    if (!user) return handleUnauthorized();
+
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+
+    if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 });
+
+    try {
+        await learningService.deleteLesson(id, user.sessionId!);
+        return NextResponse.json({ success: true });
+    } catch (error: any) {
+        return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+}

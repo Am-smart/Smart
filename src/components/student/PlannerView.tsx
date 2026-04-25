@@ -3,7 +3,7 @@ import { PlannerItem } from '@/lib/types';
 import { useIndexedDB } from '@/hooks/useIndexedDB';
 import { useAppContext } from '../AppContext';
 import { useAuth } from '../auth/AuthContext';
-import { savePlannerItem, deletePlannerItem, getPlannerItems } from '@/lib/data-actions';
+import { savePlannerItem, deletePlannerItem, getPlannerItems } from '@/lib/api-client';
 
 interface PlannerViewProps {
   userId: string;

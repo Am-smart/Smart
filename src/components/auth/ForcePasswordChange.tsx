@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from 'react';
-import { updatePassword } from '@/lib/auth-actions';
+import { updatePassword } from '@/lib/api-client';
 import { useAppContext } from '@/components/AppContext';
 import { Lock, Save, ShieldCheck } from 'lucide-react';
 

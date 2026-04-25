@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Quiz, Course, QuizQuestion } from '@/lib/types';
 import { useAppContext } from '@/components/AppContext';
 import { Plus } from 'lucide-react';
-import { saveQuiz } from '@/lib/data-actions';
+import { apiClient } from '@/lib/api-client';
 
 interface QuizEditorProps {
     teacherId: string;

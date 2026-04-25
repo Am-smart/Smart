@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { LessonRepository } from '../repositories/lesson.repository';
 import { MaterialRepository } from '../repositories/material.repository';
 import { StudySessionRepository } from '../repositories/study-session.repository';

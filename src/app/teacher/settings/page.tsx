@@ -3,7 +3,7 @@
 import React from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
 import { TeacherSettings } from "@/components/teacher/TeacherSettings";
-import { saveUser } from '@/lib/data-actions';
+import { apiClient } from '@/lib/api-client';
 
 export default function SettingsPage() {
   const { user } = useAuth();

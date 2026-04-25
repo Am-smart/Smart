@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
 import { logAntiCheatViolation } from '@/lib/data-actions';

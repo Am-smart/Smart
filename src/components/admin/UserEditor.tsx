@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { User } from '@/lib/types';
 import { useAppContext } from '@/components/AppContext';
-import { saveUser } from '@/lib/data-actions';
-import { signup } from '@/lib/auth-actions';
+import { apiClient } from '@/lib/api-client';
+import { apiClient } from '@/lib/api-client';
 
 interface UserEditorProps {
     user?: User;
@@ -38,7 +38,6 @@ export const UserEditor: React.FC<UserEditorProps> = ({ user, onSave, onCancel }
                     xp: formData.xp,
                     active: user.active,
                     flagged: user.flagged,
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     reset_request: null as any, // Invalidate reset request on edit
                 };
 

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
-import { getCourses, getEnrollments, getSubmissions, getQuizSubmissions } from '@/lib/data-actions';
+import { apiClient } from '@/lib/api-client';
 import { Enrollment, Submission, QuizSubmission } from '@/lib/types';
 
 export default function GradeBookPage() {
