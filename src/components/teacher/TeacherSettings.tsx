@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { User } from '@/lib/types';
 import { Bell, User as UserIcon, Lock, Save } from 'lucide-react';
 import { useAppContext } from '../AppContext';
-import { updatePassword, updatePreferences } from '@/lib/auth-actions';
 
 interface TeacherSettingsProps {
     user: User;

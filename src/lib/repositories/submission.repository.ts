@@ -21,7 +21,6 @@ export class SubmissionRepository {
   }
 
   async upsert(submission: Partial<Submission>, sessionId: string): Promise<Submission> {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any
     const { version, id, assignments: _, users: __, ...submissionData } = submission as any;
 
     let query = withSession(supabase.from('submissions'), sessionId)

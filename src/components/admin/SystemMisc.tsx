@@ -1,7 +1,5 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect } from 'react';
 import { User, Activity, Clock } from 'lucide-react';
-import { getUsers, getSessions, getCourses, getAssignments, getEnrollments, getSubmissions, getQuizzes, getLessonCompletions, getQuizSubmissions, getSystemLogs } from '@/lib/data-actions';
 
 export const AdminAnalytics: React.FC = () => {
     const [counts, setCounts] = useState({ users: 0, sessions: 0, courses: 0, lessonCompletions: 0, quizPasses: 0 });

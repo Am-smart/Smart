@@ -1,8 +1,6 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { getSystemLogs } from '@/lib/data-actions';
 import { SystemInfo } from "@/components/admin/SystemMisc";
 
 export default function SystemPage() {

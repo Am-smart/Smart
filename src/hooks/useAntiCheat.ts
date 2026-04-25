@@ -1,7 +1,6 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
-import { logAntiCheatViolation } from '@/lib/data-actions';
+import { apiClient } from '@/lib/api-client';
 
 /**
  * Advanced Anti-Cheat Hook - Production Ready
@@ -30,10 +29,11 @@ export const useAntiCheat = (enabled: boolean = false, assessmentTitle: string =
 
     if (user && enabled) {
         try {
-            await logAntiCheatViolation({
-                type,
-                assessmentTitle,
-                metadata: { ...metadata, timestamp: new Date().toISOString() }
+            await apiClient.post('/api/system/logs', {
+                category: 'anti-cheat',
+                level: 'warning',
+                message: `User ${user.email} attempted ${type} during ${assessmentTitle}`,
+                metadata: { ...metadata, type, assessmentTitle, timestamp: new Date().toISOString() }
             });
         } catch (err) {
             console.error('Failed to log anti-cheat violation to server:', err);

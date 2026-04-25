@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Badge, User } from '@/lib/types';
 import { Plus, Trash2, Award } from 'lucide-react';
 import { useAppContext } from '@/components/AppContext';
-import { saveBadge, deleteBadge, assignBadge, getBadges, getUsers } from '@/lib/data-actions';
 
 export const BadgeManager: React.FC = () => {
     const { addToast } = useAppContext();

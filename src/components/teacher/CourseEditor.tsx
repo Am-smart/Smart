@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { Course } from '@/lib/types';
 import { useIndexedDB } from '@/hooks/useIndexedDB';
 import { useAppContext } from '@/components/AppContext';
-import { saveCourse } from '@/lib/data-actions';
 
 interface CourseEditorProps {
     teacherId: string;

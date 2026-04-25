@@ -1,7 +1,5 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useState, useEffect, useCallback } from 'react';
 import { Quiz, User, QuizQuestion } from '@/lib/types';
-import { submitQuiz } from '@/lib/data-actions';
 import { calculateQuizScore } from '@/lib/scoring-util';
 import { useAntiCheat } from '@/hooks/useAntiCheat';
 import { useIndexedDB } from '@/hooks/useIndexedDB';
@@ -78,8 +76,7 @@ export const QuizView: React.FC<QuizViewProps> = ({ quiz, user, onComplete, onCa
 
         let score = 0;
         if (isOnline) {
-            const res = await submitQuiz(quiz.id, { ...payload, violation_count: violationCount });
-            if (!res.success) throw new Error('Submission failed');
+            const res = await apiClient.post<any>(`/api/submissions?assignmentId=${quiz.id}&type=quiz`, { ...payload, violation_count: violationCount });
             score = res.score || 0;
         } else {
             // Offline estimation using unified logic

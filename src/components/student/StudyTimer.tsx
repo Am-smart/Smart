@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Course } from '@/lib/types';
 import { useAppContext } from '../AppContext';
-import { saveStudySession } from '@/lib/data-actions';
+import { saveStudySession } from '@/lib/api-client';
 
 interface StudyTimerProps {
   userId: string;

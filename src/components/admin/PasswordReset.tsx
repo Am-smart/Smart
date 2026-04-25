@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { User } from '@/lib/types';
 import { useAppContext } from '@/components/AppContext';
-import { approveResetRequest, denyResetRequest } from '@/lib/auth-actions';
 import { CheckCircle, XCircle, ShieldAlert } from 'lucide-react';
 
 interface PasswordResetProps {

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Submission, QuizSubmission, Course, Assignment, Quiz, User, PlannerItem, Discussion } from '@/lib/types';
-import * as actions from '@/lib/data-actions';
+import { apiClient } from '@/lib/api-client';
 
 const DB_NAME = 'smartlms-offline-v3';
 const DB_VERSION = 3;
@@ -120,57 +120,57 @@ export const useIndexedDB = () => {
         switch (item.type) {
           case 'ENROLL':
             const { course_id } = item.payload as { course_id: string };
-            const enrollRes = await actions.enrollInCourse(course_id);
-            if (enrollRes.success) success = true;
+            await apiClient.post(`/api/system/enroll?courseId=${course_id}`);
+            success = true;
             break;
           case 'SUBMISSION':
             const { assignment_id, ...subContent } = item.payload as Partial<Submission> & { assignment_id: string };
-            const subRes = await actions.submitAssignment(assignment_id, subContent);
-            if (subRes.success) success = true;
+            await apiClient.post(`/api/submissions?assignmentId=${assignment_id}`, subContent);
+            success = true;
             break;
           case 'QUIZ_SUBMISSION':
             const { quiz_id, ...quizContent } = item.payload as Partial<QuizSubmission> & { quiz_id: string };
-            const quizRes = await actions.submitQuiz(quiz_id, quizContent);
-            if (quizRes.success) success = true;
+            await apiClient.post(`/api/submissions?assignmentId=${quiz_id}&type=quiz`, quizContent);
+            success = true;
             break;
           case 'PROFILE_UPDATE':
-            const profRes = await actions.saveUser(item.payload as Partial<User>);
-            if (profRes.success) success = true;
+            await apiClient.post('/api/auth/profile', item.payload);
+            success = true;
             break;
           case 'COURSE_SAVE':
-            const courseRes = await actions.saveCourse(item.payload as Partial<Course>);
-            if (courseRes.success) success = true;
+            await apiClient.post('/api/courses', item.payload);
+            success = true;
             break;
           case 'ASSIGNMENT_SAVE':
-            const assignRes = await actions.saveAssignment(item.payload as Partial<Assignment>);
-            if (assignRes.success) success = true;
+            await apiClient.post('/api/assignments', item.payload);
+            success = true;
             break;
           case 'QUIZ_SAVE':
-            const qRes = await actions.saveQuiz(item.payload as Partial<Quiz>);
-            if (qRes.success) success = true;
+            await apiClient.post('/api/quizzes', item.payload);
+            success = true;
             break;
           case 'DISCUSSION_POST':
-            const dRes = await actions.saveDiscussionPost(item.payload as Partial<Discussion>);
-            if (dRes.success) success = true;
+            await apiClient.post('/api/system/discussions', item.payload);
+            success = true;
             break;
           case 'PLANNER_UPDATE':
-            const pRes = await actions.savePlannerItem(item.payload as Partial<PlannerItem>);
-            if (pRes.success) success = true;
+            await apiClient.post('/api/system/planner', item.payload);
+            success = true;
             break;
           case 'SETTING_UPDATE':
             const { p_key, p_value } = item.payload as { p_key: string, p_value: unknown };
-            const sRes = await actions.updateSetting(p_key, p_value);
-            if (sRes.success) success = true;
+            await apiClient.post('/api/system/settings', { key: p_key, value: p_value });
+            success = true;
             break;
           case 'LESSON_COMPLETE':
             const { lesson_id, course_id: l_course_id } = item.payload as { lesson_id: string, course_id: string };
-            const lcRes = await actions.markLessonComplete(lesson_id, l_course_id);
-            if (lcRes.success) success = true;
+            await apiClient.post('/api/system/lesson-completions', { lessonId: lesson_id, courseId: l_course_id });
+            success = true;
             break;
           case 'ATTENDANCE':
             const { live_class_id } = item.payload as { live_class_id: string };
-            const attRes = await actions.recordAttendance(live_class_id);
-            if (attRes.success) success = true;
+            await apiClient.post('/api/system/attendance', { liveClassId: live_class_id });
+            success = true;
             break;
         }
 
@@ -194,15 +194,15 @@ export const useIndexedDB = () => {
     try {
         if (role === 'student') {
             const [courses, enrollments, assignments, quizzes, materials, planner, liveClasses, discussions, completions] = await Promise.all([
-                actions.getCourses(),
-                actions.getEnrollments(userId),
-                actions.getAssignments(),
-                actions.getQuizzes(),
-                actions.getMaterials(),
-                actions.getPlannerItems(userId),
-                actions.getLiveClasses(),
-                actions.getDiscussions('global'), // Or relevant course id if context exists
-                actions.getLessonCompletions(userId)
+                apiClient.get<any[]>('/api/courses'),
+                apiClient.get<any[]>(`/api/system/enrollments?studentId=${userId}`),
+                apiClient.get<any[]>('/api/assignments'),
+                apiClient.get<any[]>('/api/quizzes'),
+                apiClient.get<any[]>('/api/materials'),
+                apiClient.get<any[]>(`/api/system/planner?userId=${userId}`),
+                apiClient.get<any[]>('/api/system/live-classes'),
+                apiClient.get<any[]>('/api/system/discussions?courseId=global'),
+                apiClient.get<any[]>(`/api/system/lesson-completions?userId=${userId}`)
             ]);
 
             if (courses) await setCache('all_courses', courses);
@@ -216,12 +216,12 @@ export const useIndexedDB = () => {
             if (completions) await setCache('lesson_completions', completions);
         } else if (role === 'teacher') {
              const [courses, assignments, quizzes, materials, submissions, liveClasses] = await Promise.all([
-                actions.getCourses(userId),
-                actions.getAssignments(userId),
-                actions.getQuizzes(undefined, userId),
-                actions.getMaterials(),
-                actions.getSubmissions(),
-                actions.getLiveClasses(undefined, userId)
+                apiClient.get<any[]>(`/api/courses?teacherId=${userId}`),
+                apiClient.get<any[]>(`/api/assignments?teacherId=${userId}`),
+                apiClient.get<any[]>(`/api/quizzes?teacherId=${userId}`),
+                apiClient.get<any[]>('/api/materials'),
+                apiClient.get<any[]>('/api/submissions'),
+                apiClient.get<any[]>(`/api/system/live-classes?teacherId=${userId}`)
             ]);
 
             if (courses) await setCache('teacher_courses', courses);
@@ -232,10 +232,10 @@ export const useIndexedDB = () => {
             if (liveClasses) await setCache('teacher_live_classes', liveClasses);
         } else if (role === 'admin') {
             const [users, courses, logs, settings] = await Promise.all([
-                actions.getUsers(),
-                actions.getCourses(),
-                actions.getSystemLogs(100),
-                actions.getSettings()
+                apiClient.get<any[]>('/api/system/users'),
+                apiClient.get<any[]>('/api/courses'),
+                apiClient.get<any[]>('/api/system/logs?limit=100'),
+                apiClient.get<any[]>('/api/system/settings')
             ]);
 
             if (users) await setCache('admin_users', users);

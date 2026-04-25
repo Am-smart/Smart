@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { useSupabase } from '@/hooks/useSupabase';
 import { Course, Material } from '@/lib/types';
 import { useAppContext } from '@/components/AppContext';
-import { saveMaterial, deleteMaterial, uploadFile } from '@/lib/data-actions';
 import { FileUpload } from '@/components/ui/FileUpload';
 
 interface MaterialManagerProps {

@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
-import { getSubmissions } from '@/lib/data-actions';
 import { GradingQueue } from "@/components/teacher/GradingQueue";
 import { GradingModal } from "@/components/teacher/GradingModal";
 import { Submission } from '@/lib/types';

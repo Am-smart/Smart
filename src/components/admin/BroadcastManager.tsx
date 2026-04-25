@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Course } from '@/lib/types';
 import { useAppContext } from '@/components/AppContext';
-import { createBroadcast } from '@/lib/data-actions';
 
 interface BroadcastManagerProps {
     initialCourses: Course[];

@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Submission } from '@/lib/types';
 import { useAppContext } from '@/components/AppContext';
-import { gradeSubmission } from '@/lib/data-actions';
 
 interface GradingModalProps {
     submission: Submission;

@@ -1,10 +1,9 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useAuth } from '@/components/auth/AuthContext';
 import { useCallback, useMemo } from 'react';
 import { supabase, withSession } from '@/lib/supabase';
 import { User, Course, Enrollment, Assignment, Quiz, Discussion, Notification, Maintenance } from '@/lib/types';
 import { useIndexedDB } from './useIndexedDB';
-import * as actions from '@/lib/data-actions';
+import { apiClient } from '@/lib/api-client';
 
 export const useSupabase = () => {
   const { user } = useAuth();
@@ -19,16 +18,15 @@ export const useSupabase = () => {
       return adminCached?.find(u => u.id === id) || null;
     }
 
-    const users = await actions.getUsers();
+    const users = await apiClient.get<User[]>('/api/system/users');
     const data = users.find(u => u.id === id) || null;
     if (data && data.id === user?.id) await setCache('current_user', data);
     return data;
   }, [user?.id, isOnline, getCache, setCache]);
 
   const saveUser = useCallback(async (u: Partial<User>): Promise<User> => {
-    const res = await actions.saveUser(u);
-    if (!res.success) throw new Error('Failed to save user');
-    return res.data as User;
+    const res = await apiClient.post<User>('/api/system/users/update', u);
+    return res;
   }, []);
 
   // Course operations
@@ -39,7 +37,7 @@ export const useSupabase = () => {
       return cached || [];
     }
 
-    const data = await actions.getCourses(teacherId);
+    const data = await apiClient.get<Course[]>(teacherId ? `/api/courses?teacherId=${teacherId}` : '/api/courses');
     const key = teacherId ? 'teacher_courses' : 'all_courses';
     if (data) await setCache(key, data);
 
@@ -53,14 +51,13 @@ export const useSupabase = () => {
       return cached || [];
     }
 
-    const data = await actions.getEnrollments(studentId);
+    const data = await apiClient.get<Enrollment[]>(`/api/system/enrollments?studentId=${studentId}`);
     if (data) await setCache('my_enrollments', data);
     return data || [];
   }, [isOnline, getCache, setCache]);
 
   const enrollInCourse = useCallback(async (courseId: string): Promise<Enrollment> => {
-    const res = await actions.enrollInCourse(courseId);
-    if (!res.success) throw new Error('Failed to enroll in course');
+    await apiClient.post(`/api/system/enroll?courseId=${courseId}`);
     return { course_id: courseId, student_id: user?.id || '' } as Enrollment;
   }, [user?.id]);
 
@@ -73,7 +70,10 @@ export const useSupabase = () => {
       return cached || [];
     }
 
-    const data = await actions.getAssignments(teacherId, courseId);
+    let url = '/api/assignments?';
+    if (teacherId) url += `teacherId=${teacherId}&`;
+    if (courseId) url += `courseId=${courseId}`;
+    const data = await apiClient.get<Assignment[]>(url);
     const key = teacherId ? 'teacher_assignments' : 'all_assignments';
     if (data) await setCache(key, data);
 
@@ -89,7 +89,10 @@ export const useSupabase = () => {
       return cached || [];
     }
 
-    const data = await actions.getQuizzes(courseId, teacherId);
+    let url = '/api/quizzes?';
+    if (teacherId) url += `teacherId=${teacherId}&`;
+    if (courseId) url += `courseId=${courseId}`;
+    const data = await apiClient.get<Quiz[]>(url);
     const key = teacherId ? 'teacher_quizzes' : 'all_quizzes';
     if (data) await setCache(key, data);
 
@@ -98,17 +101,17 @@ export const useSupabase = () => {
 
   // Discussion operations
   const getDiscussions = useCallback(async (courseId: string): Promise<Discussion[]> => {
-    return await actions.getDiscussions(courseId);
+    return await apiClient.get<Discussion[]>(`/api/system/discussions?courseId=${courseId}`);
   }, []);
 
   // Notification operations
   const getNotifications = useCallback(async (userId: string): Promise<Notification[]> => {
-    return await actions.getNotifications(userId) as any;
+    return await apiClient.get<Notification[]>(`/api/system/notifications?userId=${userId}`);
   }, []);
 
   // Maintenance operations
   const getMaintenance = useCallback(async (): Promise<Maintenance> => {
-    return await actions.getMaintenance() as any;
+    return await apiClient.get<Maintenance>('/api/system/maintenance');
   }, []);
 
   const proxiedClient = useMemo(() => {

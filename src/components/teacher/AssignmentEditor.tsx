@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Assignment, Course, AssignmentQuestion } from '@/lib/types';
 import { useAppContext } from '@/components/AppContext';
 import { Plus, Paperclip } from 'lucide-react';
-import { saveAssignment, uploadFile } from '@/lib/data-actions';
 import { useSupabase } from '@/hooks/useSupabase';
 
 interface AssignmentEditorProps {

@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
-import { getCourses, getEnrollments } from '@/lib/data-actions';
 import { StudentManagement } from "@/components/teacher/StudentManagement";
 import { Enrollment, Course } from '@/lib/types';
 

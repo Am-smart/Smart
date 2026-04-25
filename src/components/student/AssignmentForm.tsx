@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Assignment, User } from '@/lib/types';
 import { useSupabase } from '@/hooks/useSupabase';
-import { submitAssignment, uploadFile } from '@/lib/data-actions';
 import { useAntiCheat } from '@/hooks/useAntiCheat';
 import { useIndexedDB } from '@/hooks/useIndexedDB';
 import { useAppContext } from '@/components/AppContext';
@@ -46,7 +45,7 @@ export const AssignmentForm: React.FC<AssignmentFormProps> = ({ assignment, user
       throw new Error('File upload requires an active internet connection.');
     }
 
-    const { filePath } = await uploadFile(file.name, category);
+    const { filePath } = await apiClient.post<{ filePath: string }>('/api/system/upload-path', { fileName: file.name, category });
     const { error: uploadError } = await client.storage
         .from('lms-files')
         .upload(filePath, file);
@@ -76,9 +75,9 @@ export const AssignmentForm: React.FC<AssignmentFormProps> = ({ assignment, user
         };
 
         if (isOnline) {
-            const res = await submitAssignment(assignment.id, payload);
+            const res = await apiClient.post<any>(`/api/submissions?assignmentId=${assignment.id}`, payload);
             addToast('Assignment submitted successfully!', 'success');
-            onComplete(res.data?.id || Math.random().toString());
+            onComplete(res.id || Math.random().toString());
         } else {
             await addToQueue('SUBMISSION', payload, user.sessionId);
             addToast('Offline: Submission queued for synchronization.', 'info');

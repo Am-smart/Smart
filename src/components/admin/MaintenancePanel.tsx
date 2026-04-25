@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Maintenance, MaintenanceSchedule } from '@/lib/types';
 import { Plus, Trash2, Clock, MessageSquare } from 'lucide-react';
-import { updateMaintenance } from '@/lib/data-actions';
 
 interface MaintenancePanelProps {
   maintenance: Maintenance | null;

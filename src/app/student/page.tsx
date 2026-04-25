@@ -1,9 +1,7 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
-import { getEnrollments, getAssignments, getSubmissions } from '@/lib/data-actions';
 import { Enrollment, Course, Assignment } from '@/lib/types';
 import dynamic from 'next/dynamic';
 
@@ -23,9 +21,9 @@ export default function StudentDashboard() {
     setError(null);
     try {
         const [myEnrollments, allAssignments, mySubmissions] = await Promise.all([
-          getEnrollments(user.id),
-          getAssignments(),
-          getSubmissions(undefined, user.id)
+          apiClient.get<Enrollment[]>(`/api/system/enrollments?studentId=${user.id}`),
+          apiClient.get<Assignment[]>('/api/assignments'),
+          apiClient.get<any[]>(`/api/submissions?studentId=${user.id}`)
         ]);
 
         const enrolledIds = myEnrollments.map((e: Enrollment) => e.course_id);
@@ -48,7 +46,7 @@ export default function StudentDashboard() {
     } finally {
         setIsLoading(false);
     }
-  }, [user]);
+  }, [user, fetchData]);
 
   useEffect(() => {
     fetchData();

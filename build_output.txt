@@ -1,0 +1,36 @@
+
+> next-app@0.1.0 build
+> next build
+
+   ▲ Next.js 15.5.14
+
+   Creating an optimized production build ...
+Failed to compile.
+
+./src/app/api/auth/preferences/route.ts
+Module not found: Can't resolve '../api-utils'
+
+https://nextjs.org/docs/messages/module-not-found
+
+./src/app/api/auth/profile/route.ts
+Module not found: Can't resolve '../api-utils'
+
+https://nextjs.org/docs/messages/module-not-found
+
+./src/app/api/auth/reset-request/route.ts
+Module not found: Can't resolve '../api-utils'
+
+https://nextjs.org/docs/messages/module-not-found
+
+./src/app/api/system/attendance/route.ts
+Module not found: Can't resolve '../api-utils'
+
+https://nextjs.org/docs/messages/module-not-found
+
+./src/app/api/system/badges/route.ts
+Module not found: Can't resolve '../api-utils'
+
+https://nextjs.org/docs/messages/module-not-found
+
+
+> Build failed because of webpack errors

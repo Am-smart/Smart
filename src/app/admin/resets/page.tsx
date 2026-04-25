@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { getUsers } from '@/lib/data-actions';
 import { PasswordReset } from "@/components/admin/PasswordReset";
 import { User } from '@/lib/types';
 

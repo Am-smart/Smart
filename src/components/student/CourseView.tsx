@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Course, Lesson } from '@/lib/types';
 import { ArrowLeft, BookOpen, Video, FileText, ChevronRight, CheckCircle } from 'lucide-react';
-import { markLessonComplete, getLessonCompletions } from '@/lib/data-actions';
+import { markLessonComplete, getLessonCompletions } from '@/lib/api-client';
 import { useAppContext } from '@/components/AppContext';
 import { useAuth } from '@/components/auth/AuthContext';
 

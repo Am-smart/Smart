@@ -22,7 +22,6 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
  */
 export function withSession<T>(query: T, sessionId?: string): T {
   if (sessionId && query && typeof query === 'object' && 'headers' in query) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const q = query as any;
     if (q.headers) {
       if (typeof q.headers.set === 'function') {

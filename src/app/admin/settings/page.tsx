@@ -1,11 +1,9 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import React, { useState } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
 import { Settings, Shield, Bell, Save } from 'lucide-react';
 import { useAppContext } from '@/components/AppContext';
-import { getSettings, updateSetting } from '@/lib/data-actions';
 
 export default function AdminSettingsPage() {
     const { user } = useAuth();

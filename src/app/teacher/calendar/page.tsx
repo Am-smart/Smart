@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
-import { getCourses, getAssignments, getQuizzes, getLiveClasses } from '@/lib/data-actions';
 import { CalendarView } from "@/components/ui/CalendarView";
 import { Assignment, Quiz, LiveClass } from '@/lib/types';
 

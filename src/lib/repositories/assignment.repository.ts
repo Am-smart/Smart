@@ -21,7 +21,6 @@ export class AssignmentRepository {
   }
 
   async upsert(assignment: Partial<Assignment>, sessionId: string): Promise<Assignment> {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any
     const { version, id, courses: _, ...assignmentData } = assignment as any;
 
     let query = withSession(supabase.from('assignments'), sessionId)

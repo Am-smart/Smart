@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
-import { getEnrollments, getAssignments, getSubmissions, requestRegrade } from '@/lib/data-actions';
+import { getEnrollments, getAssignments, getSubmissions, requestRegrade } from '@/lib/api-client';
 import { AssignmentsList } from "@/components/student/AssignmentsList";
 import { Assignment, Submission } from '@/lib/types';
 import dynamic from 'next/dynamic';

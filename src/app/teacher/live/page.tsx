@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
-import { getCourses, getLiveClasses } from '@/lib/data-actions';
 import { LiveClassManager } from "@/components/teacher/LiveClassManager";
 import { LiveClass, Course } from '@/lib/types';
 
