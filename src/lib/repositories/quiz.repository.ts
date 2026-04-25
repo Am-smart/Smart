@@ -21,7 +21,6 @@ export class QuizRepository {
   }
 
   async upsert(quiz: Partial<Quiz>, sessionId: string): Promise<Quiz> {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any
     const { version, id, courses: _, ...quizData } = quiz as any;
 
     let query = withSession(supabase.from('quizzes'), sessionId)

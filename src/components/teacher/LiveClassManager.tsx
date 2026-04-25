@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { LiveClass, Course } from '@/lib/types';
 import { Video, Calendar, Clock, Trash2, Play, Square, ExternalLink } from 'lucide-react';
 import { useAppContext } from '@/components/AppContext';
-import { saveLiveClass, deleteLiveClass } from '@/lib/data-actions';
+import { apiClient } from '@/lib/api-client';
 
 interface LiveClassManagerProps {
     teacherId: string;
@@ -67,7 +67,6 @@ export const LiveClassManager: React.FC<LiveClassManagerProps> = ({ teacherId, l
             await saveLiveClass({
                 id: lc.id,
                 status: newStatus as 'completed' | 'live',
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 actual_end_at: newStatus === 'completed' ? new Date().toISOString() : (null as any)
             });
 

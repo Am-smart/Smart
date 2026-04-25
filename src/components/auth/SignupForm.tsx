@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { UserRole } from '@/lib/types';
 import { useAuth } from './AuthContext';
 import { validateSignupForm, normalizeEmail, normalizeInput } from '@/lib/validation';
-import { getRoleCount } from '@/lib/data-actions';
+import { getRoleCount } from '@/lib/api-client';
 
 interface SignupFormProps {
   initialRole?: UserRole;

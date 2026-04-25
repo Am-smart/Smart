@@ -1,8 +1,7 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { getSystemLogs, updateSystemLog, notifyUser } from '@/lib/data-actions';
+import { apiClient } from '@/lib/api-client';
 import { useAppContext } from '@/components/AppContext';
 import { Search, MessageSquare, Send, CheckCircle, Clock, User, Mail, ShieldAlert } from 'lucide-react';
 
@@ -38,9 +37,7 @@ export default function AdminHelpPage() {
         setIsLoading(true);
         try {
             const data = await getSystemLogs(200);
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const supportTickets = ((data as any[]) || []).filter((log) =>
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 log.category === 'management' &&
                 log.metadata?.type === 'support_ticket'
             ) as unknown as SupportTicket[];

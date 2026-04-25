@@ -37,7 +37,6 @@ export class AssessmentDomain {
   }
 
   static prepareAssignment(assignment: Partial<Assignment>, teacherId: string): Partial<Assignment> {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any
     const { courses: _, ...rest } = assignment as any;
     return {
       ...rest,
@@ -48,7 +47,6 @@ export class AssessmentDomain {
   }
 
   static prepareQuiz(quiz: Partial<Quiz>, teacherId: string): Partial<Quiz> {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any
     const { courses: _, ...rest } = quiz as any;
     return {
       ...rest,
@@ -59,7 +57,6 @@ export class AssessmentDomain {
   }
 
   static prepareSubmission(studentId: string, assignmentId: string, content: Partial<Submission>): Partial<Submission> {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any
     const { assignments: _a, users: _u, ...rest } = content as any;
     return {
       ...rest,

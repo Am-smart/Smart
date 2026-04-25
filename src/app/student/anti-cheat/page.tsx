@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
-import { getSubmissions, getQuizSubmissions } from '@/lib/data-actions';
+import { getSubmissions, getQuizSubmissions } from '@/lib/api-client';
 import { AntiCheatRecord } from "@/components/student/AntiCheatRecord";
 import { Submission, QuizSubmission } from '@/lib/types';
 

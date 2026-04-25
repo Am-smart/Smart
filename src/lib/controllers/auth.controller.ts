@@ -1,0 +1,79 @@
+import { authService } from '../services/auth.service';
+import { LoginRequestDTO, SignupRequestDTO, AuthResponseDTO } from '../dto/auth.dto';
+import { validateEmail, validateSignupForm, normalizeEmail, normalizeInput, validateLoginForm } from '../validation';
+import { UserMapper } from '../mappers';
+import { signData } from '../crypto';
+import { User } from '../types';
+import { recordAttempt, isRateLimited, resetRateLimit } from '../rate-limit';
+
+export class AuthController {
+  async login(credentials: LoginRequestDTO): Promise<AuthResponseDTO> {
+    const validation = validateLoginForm(credentials.email, credentials.password || '');
+    if (!validation.isValid) {
+      return { success: false, user: null, sessionId: null, error: validation.errors[0].message };
+    }
+
+    const normalizedEmail = normalizeEmail(credentials.email);
+    if (isRateLimited(normalizedEmail)) {
+        return { success: false, user: null, sessionId: null, error: 'Too many login attempts. Please try again later.' };
+    }
+
+    const { data: rawData, error: rpcError } = await authService.authenticate(normalizedEmail, credentials.password || '');
+
+    if (rpcError) return { success: false, user: null, sessionId: null, error: 'Authentication service unavailable' };
+
+    const result = rawData as any;
+    if (!result.success) {
+      if (result.error === 'Invalid email or password') recordAttempt(normalizedEmail);
+      return { success: false, user: null, sessionId: null, error: result.error };
+    }
+
+    resetRateLimit(normalizedEmail);
+    const user = result.user as User;
+    const sessionId = result.session_id;
+
+    return {
+      success: true,
+      user: UserMapper.toDTO(user),
+      sessionId: sessionId
+    };
+  }
+
+  async signup(data: SignupRequestDTO): Promise<AuthResponseDTO> {
+    const validation = validateSignupForm(
+      data.full_name,
+      data.email,
+      data.password || '',
+      data.password || '',
+      data.phone
+    );
+
+    if (!validation.isValid) {
+      return { success: false, user: null, sessionId: null, error: validation.errors[0].message };
+    }
+
+    const { data: rawData, error: rpcError } = await authService.register({
+      full_name: normalizeInput(data.full_name),
+      email: normalizeEmail(data.email),
+      password: data.password || '',
+      phone: data.phone ? normalizeInput(data.phone) : undefined,
+      role: data.role || 'student'
+    });
+
+    if (rpcError) return { success: false, user: null, sessionId: null, error: 'Signup service unavailable' };
+
+    const result = rawData as any;
+    if (!result.success) return { success: false, user: null, sessionId: null, error: result.error };
+
+    const user = result.user as User;
+    const sessionId = result.session_id;
+
+    return {
+      success: true,
+      user: UserMapper.toDTO(user),
+      sessionId: sessionId
+    };
+  }
+}
+
+export const authController = new AuthController();

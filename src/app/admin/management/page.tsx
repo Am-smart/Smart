@@ -4,7 +4,7 @@ import React from 'react';
 import { SystemHealth, SystemInfo } from "@/components/admin/SystemMisc";
 import { Shield, Settings, Database } from 'lucide-react';
 import { useAppContext } from '@/components/AppContext';
-import { createSystemLog } from '@/lib/data-actions';
+import { apiClient } from '@/lib/api-client';
 
 export default function ManagementPage() {
     const { addToast } = useAppContext();

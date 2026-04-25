@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
 import { useAppContext } from '@/components/AppContext';
-import { getEnrollments, getAssignments, getSubmissions, getUserBadges } from '@/lib/data-actions';
+import { getEnrollments, getAssignments, getSubmissions, getUserBadges } from '@/lib/api-client';
 import { StudentSidebar } from "@/components/StudentSidebar";
 import { StudentHeader } from "@/components/StudentHeader";
 import { ForcePasswordChange } from "@/components/auth/ForcePasswordChange";

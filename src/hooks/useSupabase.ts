@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useAuth } from '@/components/auth/AuthContext';
 import { useCallback, useMemo } from 'react';
 import { supabase, withSession } from '@/lib/supabase';

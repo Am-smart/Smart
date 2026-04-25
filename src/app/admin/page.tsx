@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
-import { getUsers, getCourses } from '@/lib/data-actions';
+import { apiClient } from '@/lib/api-client';
 
 export default function AdminDashboard() {
   const { user } = useAuth();

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
-import { getCertificates } from '@/lib/data-actions';
+import { getCertificates } from '@/lib/api-client';
 import { CertificatesList } from "@/components/student/CertificatesList";
 import { Certificate } from '@/lib/types';
 

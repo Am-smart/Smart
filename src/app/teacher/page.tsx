@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
-import { getCourses, getSubmissions, getLiveClasses } from '@/lib/data-actions';
+import { apiClient } from '@/lib/api-client';
 
 export default function TeacherDashboard() {
   const { user } = useAuth();

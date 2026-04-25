@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { validateEmail, normalizeEmail, normalizeInput } from '@/lib/validation';
-import { requestPasswordReset } from '@/lib/auth-actions';
+import { requestPasswordReset } from '@/lib/api-client';
 
 interface ResetPasswordFormProps {
   onClose: () => void;

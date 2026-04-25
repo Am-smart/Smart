@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
-import { getEnrollments, getQuizzes, getQuizSubmissions } from '@/lib/data-actions';
+import { getEnrollments, getQuizzes, getQuizSubmissions } from '@/lib/api-client';
 import { QuizzesList } from "@/components/student/QuizzesList";
 import { Quiz, QuizSubmission } from '@/lib/types';
 import dynamic from 'next/dynamic';

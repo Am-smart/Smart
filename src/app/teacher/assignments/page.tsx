@@ -7,7 +7,7 @@ import { AssignmentEditor } from "@/components/teacher/AssignmentEditor";
 import { Assignment, Course } from '@/lib/types';
 import { Trash2, Edit } from 'lucide-react';
 import { useAppContext } from '@/components/AppContext';
-import { deleteAssignment } from '@/lib/data-actions';
+import { apiClient } from '@/lib/api-client';
 
 export default function AssignmentsPage() {
   const { user } = useAuth();
