@@ -4,7 +4,7 @@ import { getSessionUser, handleUnauthorized } from '@/app/api/api-utils';
 import { userService } from '@/lib/services/user.service';
 import { UserMapper } from '@/lib/mappers';
 
-export async function GET(request: Request) {
+export async function GET() {
   const user = await getSessionUser();
   if (!user) return handleUnauthorized();
 

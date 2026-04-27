@@ -21,7 +21,7 @@ export class SubmissionRepository {
   }
 
   async upsert(submission: Partial<Submission>, sessionId: string): Promise<Submission> {
-    const { version, id, assignments: _, users: __, ...submissionData } = submission as any;
+    const { version, id, assignments: _, users: __, ...submissionData } = submission as unknown;
 
     let query = withSession(supabase.from('submissions'), sessionId)
       .upsert({

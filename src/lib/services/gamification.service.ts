@@ -1,7 +1,6 @@
 import { BadgeRepository } from '../repositories/badge.repository';
 import { CertificateRepository } from '../repositories/certificate.repository';
 import { Badge, UserBadge, Certificate, User } from '../types';
-import { GamificationDomain } from '../domain/gamification.domain';
 import { UserDomain } from '../domain/user.domain';
 
 export class GamificationService {

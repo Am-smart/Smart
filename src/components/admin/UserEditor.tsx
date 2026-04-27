@@ -32,12 +32,12 @@ export const UserEditor: React.FC<UserEditorProps> = ({ user, onSave, onCancel }
                     email: formData.email,
                     full_name: formData.full_name,
                     phone: formData.phone,
-                    role: formData.role as any,
+                    role: formData.role as 'student' | 'teacher' | 'admin',
                     password: formData.password || undefined,
                     xp: formData.xp,
                     active: user.active,
-                    flagged: (user as any).flagged,
-                    reset_request: null as any, // Invalidate reset request on edit
+                    flagged: (user as unknown as Record<string, unknown>).flagged as boolean,
+                    reset_request: null, // Invalidate reset request on edit
                 };
 
                 await saveUser(userData);

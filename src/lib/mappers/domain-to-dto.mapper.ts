@@ -66,7 +66,7 @@ export class AssessmentMapper {
       submission_text: submission.submission_text,
       file_url: submission.file_url,
       assignment: submission.assignments ? this.toAssignmentDTO(submission.assignments) : undefined,
-      student: submission.users ? UserMapper.toDTO(submission.users as any) : undefined
+      student: submission.users ? UserMapper.toDTO(submission.users as unknown) : undefined
     };
   }
 
@@ -82,7 +82,7 @@ export class AssessmentMapper {
       started_at: submission.started_at,
       submitted_at: submission.submitted_at,
       quiz: submission.quizzes ? this.toQuizDTO(submission.quizzes) : undefined,
-      student: submission.users ? UserMapper.toDTO(submission.users as any) : undefined
+      student: submission.users ? UserMapper.toDTO(submission.users as unknown) : undefined
     };
   }
 }
@@ -140,7 +140,7 @@ export class CommunicationMapper {
       title: d.title,
       content: d.content,
       created_at: d.created_at,
-      user: d.users ? UserMapper.toDTO(d.users as any) : undefined
+      user: d.users ? UserMapper.toDTO(d.users as unknown) : undefined
     };
   }
 }
@@ -183,7 +183,7 @@ export class SystemMapper {
       metadata: sl.metadata,
       user_id: sl.user_id,
       created_at: sl.created_at,
-      user: sl.users ? UserMapper.toDTO(sl.users as any) : undefined
+      user: sl.users ? UserMapper.toDTO(sl.users as unknown) : undefined
     };
   }
 }

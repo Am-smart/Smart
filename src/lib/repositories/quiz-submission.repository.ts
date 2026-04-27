@@ -21,7 +21,7 @@ export class QuizSubmissionRepository {
   }
 
   async insert(submission: Partial<QuizSubmission>, sessionId: string): Promise<QuizSubmission> {
-    const { quizzes: _, users: __, ...submissionData } = submission as any;
+    const { quizzes: _, users: __, ...submissionData } = submission as unknown;
     const { data, error } = await withSession(supabase.from('quiz_submissions'), sessionId)
       .insert(submissionData)
       .select()

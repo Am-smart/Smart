@@ -20,7 +20,7 @@ export default function GradeBookPage() {
             const courseIds = myCourses.map(c => c.id);
             if (courseIds.length > 0) {
                 const [enrols, subs, qSubs] = await Promise.all([
-                    getEnrollments(undefined as any), // Fix: actually studentId is first param
+                    getEnrollments(),
                     getSubmissions(),
                     getQuizSubmissions()
                 ]);
@@ -35,7 +35,7 @@ export default function GradeBookPage() {
 
   const calculateGrade = (studentId: string, courseId: string) => {
       const courseSubmissions = allSubmissions.filter(s => s.student_id === studentId && s.assignment?.course_id === courseId && s.status === 'graded');
-      const courseQuizSubmissions = allQuizSubmissions.filter(s => s.student_id === studentId && s.quiz?.course_id === courseId && (s as any).status === 'submitted');
+      const courseQuizSubmissions = allQuizSubmissions.filter(s => s.student_id === studentId && s.quiz?.course_id === courseId && s.status === 'submitted');
 
       const asgnScores = courseSubmissions.map(s => s.final_grade || 0);
       const quizScores = courseQuizSubmissions.map(s => s.score || 0);

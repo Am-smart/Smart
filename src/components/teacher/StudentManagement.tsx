@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { EnrollmentDTO, CourseDTO } from '@/lib/dto/learning.dto';
 import { Award, Trash2, FileBadge, X } from 'lucide-react';
 import { useAppContext } from '@/components/AppContext';
-import { apiClient } from '@/lib/api-client';
 
 interface StudentManagementProps {
     initialEnrollments: EnrollmentDTO[];
