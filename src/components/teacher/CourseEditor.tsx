@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { X } from 'lucide-react';
 import { CourseDTO } from '@/lib/dto/learning.dto';
 import { useIndexedDB } from '@/hooks/useIndexedDB';
 import { useAppContext } from '@/components/AppContext';
@@ -53,11 +54,13 @@ export const CourseEditor: React.FC<CourseEditorProps> = ({ course, teacherId, o
     };
 
     return (
-        <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center z-50 p-2 md:p-4">
+        <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center z-50 p-2 md:p-4" aria-busy={isSaving}>
             <div className="bg-white w-full max-w-2xl rounded-2xl md:rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300 flex flex-col max-h-[95vh]">
                 <header className="p-6 md:p-8 border-b bg-slate-50 flex justify-between items-center shrink-0">
                     <h2 className="text-xl md:text-2xl font-bold text-slate-900">{course?.id ? 'Edit Course' : 'Create New Course'}</h2>
-                    <button onClick={onCancel} className="p-2 hover:bg-slate-200 rounded-full transition-colors">✕</button>
+                    <button onClick={onCancel} className="p-2 hover:bg-slate-200 rounded-full transition-colors" aria-label="Close dialog">
+                        <X size={24} className="text-slate-600" />
+                    </button>
                 </header>
                 <form onSubmit={handleSubmit} className="p-6 md:p-8 space-y-6 overflow-y-auto flex-1">
                     {!isOnline && (
@@ -122,7 +125,7 @@ export const CourseEditor: React.FC<CourseEditorProps> = ({ course, teacherId, o
                 </form>
                 <footer className="p-6 md:p-8 bg-slate-50 border-t flex flex-col md:flex-row justify-between gap-4 shrink-0">
                     <button type="button" onClick={onCancel} className="btn-secondary py-4 text-sm flex-1">Discard Changes</button>
-                    <button type="submit" disabled={isSaving} onClick={handleSubmit} className="btn-primary py-4 text-sm flex-1">
+                    <button type="submit" disabled={isSaving} className="btn-primary py-4 text-sm flex-1">
                         {isSaving ? 'Saving...' : course?.id ? 'Update Course' : 'Create Course'}
                     </button>
                 </footer>

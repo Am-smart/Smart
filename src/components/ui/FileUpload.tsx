@@ -144,12 +144,13 @@ export const FileUpload: React.FC<FileUploadProps> = ({
                 </div>
                 <div>
                   <p className="text-sm font-bold text-slate-700">Uploading...</p>
-                  <div className="w-full bg-slate-200 h-1.5 rounded-full mt-2 overflow-hidden">
+                  <div className="w-full bg-slate-200 h-1.5 rounded-full mt-2 overflow-hidden" role="progressbar" aria-valuenow={progress} aria-valuemin={0} aria-valuemax={100} aria-label="Upload progress">
                     <div
                       className="bg-blue-600 h-full transition-all duration-300"
                       style={{ width: `${progress}%` }}
                     ></div>
                   </div>
+                  <p className="text-xs text-slate-500 mt-2">{progress}% uploaded</p>
                 </div>
               </div>
             ) : (
