@@ -3,10 +3,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { apiClient } from '@/lib/api-client';
 import { PasswordReset } from "@/components/admin/PasswordReset";
-import { User } from '@/lib/types';
+import { UserDTO } from '@/lib/dto/auth.dto';
+import { getUsers } from '@/lib/api-actions';
 
 export default function ResetsPage() {
-  const [users, setUsers] = useState<User[]>([]);
+  const [users, setUsers] = useState<UserDTO[]>([]);
 
   const fetchUsers = useCallback(async () => {
       const data = await getUsers();

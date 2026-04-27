@@ -2,7 +2,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
-import { apiClient } from '@/lib/api-client';
 
 export default function TeacherDashboard() {
   const { user } = useAuth();

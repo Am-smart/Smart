@@ -1,8 +1,8 @@
 import React from 'react';
-import { Enrollment } from '@/lib/types';
+import { EnrollmentDTO } from '@/lib/dto/learning.dto';
 
 interface MyCoursesProps {
-  enrollments: Enrollment[];
+  enrollments: EnrollmentDTO[];
   onOpenCourse: (courseId: string) => void;
 }
 
@@ -17,7 +17,7 @@ export const MyCourses: React.FC<MyCoursesProps> = ({ enrollments, onOpenCourse 
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {enrollments.map(enrollment => {
-            const course = enrollment.courses;
+            const course = enrollment.course;
             if (!course) return null;
             return (
               <div key={enrollment.course_id} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col gap-4">

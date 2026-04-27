@@ -4,11 +4,12 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { apiClient } from '@/lib/api-client';
 import { UserManagement } from "@/components/admin/UserManagement";
 import { UserEditor } from "@/components/admin/UserEditor";
-import { User } from '@/lib/types';
+import { UserDTO } from '@/lib/dto/auth.dto';
+import { getUsers, deleteUser, saveUser } from '@/lib/api-actions';
 
 export default function UsersPage() {
-  const [users, setUsers] = useState<User[]>([]);
-  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [users, setUsers] = useState<UserDTO[]>([]);
+  const [editingUser, setEditingUser] = useState<UserDTO | null>(null);
   const [isAdding, setIsAdding] = useState(false);
 
   const fetchUsers = useCallback(async () => {

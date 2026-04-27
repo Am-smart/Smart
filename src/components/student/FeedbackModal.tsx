@@ -1,10 +1,10 @@
 import React from 'react';
-import { Submission, Assignment } from '@/lib/types';
+import { SubmissionDTO, AssignmentDTO } from '@/lib/dto/assessment.dto';
 import { X, MessageCircle, FileText, CheckCircle2 } from 'lucide-react';
 
 interface FeedbackModalProps {
-    assignment: Assignment;
-    submission: Submission;
+    assignment: AssignmentDTO;
+    submission: SubmissionDTO;
     onClose: () => void;
 }
 
@@ -50,9 +50,9 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({ assignment, submis
                         <div className="space-y-6">
                              <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest">Question Breakdown</h4>
                              <div className="space-y-4">
-                                {assignment.questions.map((q, idx) => {
-                                    const answer = submission.answers?.[idx];
-                                    const feedback = submission.response_feedback?.[idx];
+                                {assignment.questions.map((q: any, idx: number) => {
+                                    const answer = (submission as any).answers?.[idx];
+                                    const feedback = (submission as any).response_feedback?.[idx];
                                     return (
                                         <div key={idx} className="border border-slate-100 rounded-2xl p-6 space-y-4 hover:border-slate-200 transition-colors">
                                             <div className="flex justify-between items-start gap-4">

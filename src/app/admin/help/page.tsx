@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { apiClient } from '@/lib/api-client';
 import { useAppContext } from '@/components/AppContext';
 import { Search, MessageSquare, Send, CheckCircle, Clock, User, Mail, ShieldAlert } from 'lucide-react';
 

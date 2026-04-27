@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Badge, User } from '@/lib/types';
+import { BadgeDTO, SystemLogDTO } from '@/lib/dto/system.dto';
+import { UserDTO } from '@/lib/dto/auth.dto';
 import { Plus, Trash2, Award } from 'lucide-react';
 import { useAppContext } from '@/components/AppContext';
-import { apiClient } from '@/lib/api-client';
+import { getBadges, saveBadge, deleteBadge, assignBadge, getUsers } from '@/lib/api-actions';
 
 export const BadgeManager: React.FC = () => {
     const { addToast } = useAppContext();
-    const [badges, setBadges] = useState<Badge[]>([]);
-    const [students, setStudents] = useState<User[]>([]);
+    const [badges, setBadges] = useState<BadgeDTO[]>([]);
+    const [students, setStudents] = useState<UserDTO[]>([]);
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [formData, setFormData] = useState({ title: '', description: '', icon_url: '🏆' });
 

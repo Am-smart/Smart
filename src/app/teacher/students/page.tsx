@@ -2,14 +2,14 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
-import { apiClient } from '@/lib/api-client';
+import { getCourses, getEnrollments } from '@/lib/api-actions';
 import { StudentManagement } from "@/components/teacher/StudentManagement";
-import { Enrollment, Course } from '@/lib/types';
+import { EnrollmentDTO, CourseDTO } from '@/lib/dto/learning.dto';
 
 export default function StudentManagementPage() {
   const { user } = useAuth();
-  const [courses, setCourses] = useState<Course[]>([]);
-  const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
+  const [courses, setCourses] = useState<CourseDTO[]>([]);
+  const [enrollments, setEnrollments] = useState<EnrollmentDTO[]>([]);
 
   const fetchData = useCallback(async () => {
     if (!user) return;

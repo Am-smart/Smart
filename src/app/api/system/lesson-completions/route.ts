@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getSessionUser, handleUnauthorized } from '../api-utils';
+import { getSessionUser, handleUnauthorized } from '@/app/api/api-utils';
 import { learningService } from '@/lib/services/learning.service';
 
 export async function POST(request: Request) {

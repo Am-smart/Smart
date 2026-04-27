@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { Assignment, Course, AssignmentQuestion } from '@/lib/types';
+import { AssignmentDTO } from '@/lib/dto/assessment.dto';
+import { CourseDTO } from '@/lib/dto/learning.dto';
 import { useAppContext } from '@/components/AppContext';
 import { Plus, Paperclip } from 'lucide-react';
-import { apiClient } from '@/lib/api-client';
+import { uploadFile, saveAssignment } from '@/lib/api-actions';
 import { useSupabase } from '@/hooks/useSupabase';
 
 interface AssignmentEditorProps {
     teacherId: string;
-    assignment?: Assignment;
-    courses: Course[];
+    assignment?: AssignmentDTO;
+    courses: CourseDTO[];
     onSave: () => void;
     onCancel: () => void;
 }
@@ -16,7 +17,7 @@ interface AssignmentEditorProps {
 export const AssignmentEditor: React.FC<AssignmentEditorProps> = ({ teacherId, assignment, courses, onSave, onCancel }) => {
     const { addToast } = useAppContext();
     const { client } = useSupabase();
-    const [formData, setFormData] = useState({
+    const [formData, setFormData] = useState<any>({
         title: assignment?.title || '',
         description: assignment?.description || '',
         course_id: assignment?.course_id || (courses.length > 0 ? courses[0].id : ''),
@@ -25,22 +26,22 @@ export const AssignmentEditor: React.FC<AssignmentEditorProps> = ({ teacherId, a
         points_possible: assignment?.points_possible || 0,
         status: assignment?.status || 'draft',
         allow_late_submissions: assignment?.allow_late_submissions !== false,
-        late_penalty_per_day: assignment?.late_penalty_per_day || 0,
+        late_penalty_per_day: (assignment as any)?.late_penalty_per_day || 0,
         anti_cheat_enabled: assignment?.anti_cheat_enabled || false,
         auto_submit_enabled: assignment?.auto_submit_enabled || false,
         hard_enforcement: assignment?.hard_enforcement || false,
         regrade_requests_enabled: assignment?.regrade_requests_enabled !== false,
         questions: assignment?.questions || [],
         attachments: assignment?.attachments || [],
-        allowed_extensions: assignment?.allowed_extensions || ['pdf', 'doc', 'docx', 'zip', 'jpg', 'png']
+        allowed_extensions: (assignment as any)?.allowed_extensions || ['pdf', 'doc', 'docx', 'zip', 'jpg', 'png']
     });
     const [isSaving, setIsSaving] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
 
     // Auto-calculate points_possible
     useEffect(() => {
-        const total = formData.questions.reduce((sum, q) => sum + (q.points || 0), 0);
-        setFormData(prev => ({ ...prev, points_possible: total }));
+        const total = formData.questions.reduce((sum: number, q: any) => sum + (q.points || 0), 0);
+        setFormData((prev: any) => ({ ...prev, points_possible: total }));
     }, [formData.questions]);
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -227,7 +228,7 @@ export const AssignmentEditor: React.FC<AssignmentEditorProps> = ({ teacherId, a
                                         value={q.type}
                                         onChange={e => {
                                             const updated = [...formData.questions];
-                                            updated[index].type = e.target.value as AssignmentQuestion["type"];
+                                            updated[index].type = e.target.value as any;
                                             setFormData({ ...formData, questions: updated });
                                         }}
                                         className="p-3 rounded-xl border border-slate-200 bg-white text-sm"

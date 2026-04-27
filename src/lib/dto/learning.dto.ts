@@ -42,4 +42,5 @@ export interface MaterialDTO {
   file_url: string;
   file_type?: string;
   created_at: string;
+  course?: CourseDTO;
 }

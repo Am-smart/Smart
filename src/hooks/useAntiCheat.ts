@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
-import { logAntiCheatViolation } from '@/lib/data-actions';
+import { logAntiCheatViolation } from '@/lib/api-actions';
 
 /**
  * Advanced Anti-Cheat Hook - Production Ready

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Submission, QuizSubmission, Course, Assignment, Quiz, User, PlannerItem, Discussion } from '@/lib/types';
-import * as actions from '@/lib/data-actions';
+import * as actions from '@/lib/api-actions';
 
 const DB_NAME = 'smartlms-offline-v3';
 const DB_VERSION = 3;

@@ -4,13 +4,13 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
 import { useSupabase } from '@/hooks/useSupabase';
 import { MyCourses } from "@/components/student/MyCourses";
-import { Enrollment } from '@/lib/types';
+import { EnrollmentDTO } from '@/lib/dto/learning.dto';
 import { useRouter } from 'next/navigation';
 
 export default function MyCoursesPage() {
   const { user } = useAuth();
   const { getEnrollments } = useSupabase();
-  const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
+  const [enrollments, setEnrollments] = useState<EnrollmentDTO[]>([]);
   const router = useRouter();
 
   useEffect(() => {

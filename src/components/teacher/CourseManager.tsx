@@ -1,12 +1,12 @@
 import React from 'react';
-import { Course } from '@/lib/types';
+import { CourseDTO } from '@/lib/dto/learning.dto';
 import { Plus, BookOpen, MoreVertical, Trash2, Edit } from 'lucide-react';
 
 interface CourseManagerProps {
-    courses: Course[];
+    courses: CourseDTO[];
     onCreate: () => void;
-    onEdit: (course: Course) => void;
-    onManageLessons: (course: Course) => void;
+    onEdit: (course: CourseDTO) => void;
+    onManageLessons: (course: CourseDTO) => void;
     onDelete: (id: string) => void;
 }
 

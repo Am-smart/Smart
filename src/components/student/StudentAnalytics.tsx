@@ -1,10 +1,11 @@
 import React, { useMemo } from 'react';
-import { Submission, QuizSubmission, Enrollment } from '@/lib/types';
+import { SubmissionDTO, QuizSubmissionDTO } from '@/lib/dto/assessment.dto';
+import { EnrollmentDTO } from '@/lib/dto/learning.dto';
 
 interface StudentAnalyticsProps {
-  submissions: Submission[];
-  quizSubmissions: QuizSubmission[];
-  enrollments: Enrollment[];
+  submissions: SubmissionDTO[];
+  quizSubmissions: QuizSubmissionDTO[];
+  enrollments: EnrollmentDTO[];
 }
 
 export const StudentAnalytics: React.FC<StudentAnalyticsProps> = ({ submissions, quizSubmissions, enrollments }) => {
@@ -64,7 +65,7 @@ export const StudentAnalytics: React.FC<StudentAnalyticsProps> = ({ submissions,
                 {enrollments.map(e => (
                     <div key={e.course_id}>
                         <div className="flex justify-between items-center mb-2">
-                            <span className="text-sm font-bold text-slate-700">{e.courses?.title}</span>
+                            <span className="text-sm font-bold text-slate-700">{e.course?.title}</span>
                             <span className="text-sm font-bold text-blue-600">{e.progress}%</span>
                         </div>
                         <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">

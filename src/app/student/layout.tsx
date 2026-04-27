@@ -3,12 +3,14 @@
 import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
 import { useAppContext } from '@/components/AppContext';
-import { getEnrollments, getAssignments, getSubmissions, getUserBadges } from '@/lib/api-client';
+import { getEnrollments, getAssignments, getSubmissions, getUserBadges } from '@/lib/api-actions';
 import { StudentSidebar } from "@/components/StudentSidebar";
 import { StudentHeader } from "@/components/StudentHeader";
 import { ForcePasswordChange } from "@/components/auth/ForcePasswordChange";
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
-import { User, Enrollment, Assignment, Submission, Course } from '@/lib/types';
+import { UserDTO } from '@/lib/dto/auth.dto';
+import { EnrollmentDTO, CourseDTO } from '@/lib/dto/learning.dto';
+import { AssignmentDTO, SubmissionDTO } from '@/lib/dto/assessment.dto';
 import dynamic from 'next/dynamic';
 
 const StudyTimer = dynamic(() => import("@/components/student/StudyTimer").then(m => m.StudyTimer), { ssr: false });
@@ -21,7 +23,7 @@ function StudentLayoutContent({
   const { user, role, logout, isLoading: authLoading, updateProfile } = useAuth();
   const { notifications } = useAppContext();
   const [stats, setStats] = useState({ courses: 0, dueSoon: 0, badges: 0, unreadNotifications: 0 });
-  const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
+  const [enrollments, setEnrollments] = useState<EnrollmentDTO[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
@@ -34,7 +36,7 @@ function StudentLayoutContent({
                    pathname.includes('/student/quizzes') ||
                    pathname.includes('/student/live');
 
-  const fetchStats = useCallback(async (u: User) => {
+  const fetchStats = useCallback(async (u: UserDTO) => {
     try {
       const [myEnrollments, allAssignments, mySubmissions, myBadges] = await Promise.all([
         getEnrollments(u.id),
@@ -44,11 +46,11 @@ function StudentLayoutContent({
       ]);
 
       setEnrollments(myEnrollments);
-      const enrolledIds = myEnrollments.map((e: Enrollment) => e.course_id);
+      const enrolledIds = myEnrollments.map((e: EnrollmentDTO) => e.course_id);
       setStats(prev => ({
         ...prev,
         courses: myEnrollments.length,
-        dueSoon: allAssignments.filter((a: Assignment) => enrolledIds.includes(a.course_id) && new Date(a.due_date as string) > new Date() && !mySubmissions.some((s: Submission) => s.assignment_id === a.id)).length,
+        dueSoon: allAssignments.filter((a: AssignmentDTO) => enrolledIds.includes(a.course_id) && new Date(a.due_date as string) > new Date() && !mySubmissions.some((s: SubmissionDTO) => s.assignment_id === a.id)).length,
         badges: myBadges.length
       }));
     } catch (err) {
@@ -108,7 +110,7 @@ function StudentLayoutContent({
             <div className={`${pathname === '/student' ? 'p-4 md:p-8' : 'hidden'}`}>
                 <StudyTimer
                   userId={user.id}
-                  courses={enrollments.map(e => e.courses).filter(Boolean) as Course[]}
+                  courses={enrollments.map(e => e.course).filter(Boolean) as CourseDTO[]}
                   activeCourseId={isLearning ? activeCourseId : undefined}
                 />
             </div>

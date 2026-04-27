@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Assignment, User } from '@/lib/types';
+import { AssignmentDTO } from '@/lib/dto/assessment.dto';
+import { UserDTO } from '@/lib/dto/auth.dto';
 import { useSupabase } from '@/hooks/useSupabase';
 import { apiClient } from '@/lib/api-client';
 import { useAntiCheat } from '@/hooks/useAntiCheat';
@@ -8,8 +9,8 @@ import { useAppContext } from '@/components/AppContext';
 import { FileUpload } from '@/components/ui/FileUpload';
 
 interface AssignmentFormProps {
-  assignment: Assignment;
-  user: User;
+  assignment: AssignmentDTO;
+  user: UserDTO;
   onComplete: (submissionId: string) => void;
   onCancel: () => void;
 }
@@ -99,7 +100,7 @@ export const AssignmentForm: React.FC<AssignmentFormProps> = ({ assignment, user
           <div>
             <h2 className="text-xl md:text-2xl font-bold text-slate-900">{assignment.title}</h2>
             <div className="flex items-center gap-3 mt-2">
-                <span className="text-[10px] font-bold text-purple-600 bg-purple-50 px-3 py-1 rounded-full uppercase">{assignment.courses?.title || 'Assignment'}</span>
+                <span className="text-[10px] font-bold text-purple-600 bg-purple-50 px-3 py-1 rounded-full uppercase">{assignment.course?.title || 'Assignment'}</span>
                 <span className="text-[10px] text-slate-500 font-medium">Due: {new Date(assignment.due_date).toLocaleDateString()}</span>
             </div>
           </div>

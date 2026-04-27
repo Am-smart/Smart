@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { Course } from '@/lib/types';
+import { CourseDTO } from '@/lib/dto/learning.dto';
 import { useAppContext } from '@/components/AppContext';
-import { apiClient } from '@/lib/api-client';
+import { createBroadcast } from '@/lib/api-actions';
 
 interface BroadcastManagerProps {
-    initialCourses: Course[];
+    initialCourses: CourseDTO[];
 }
 
 export const BroadcastManager: React.FC<BroadcastManagerProps> = ({ initialCourses }) => {

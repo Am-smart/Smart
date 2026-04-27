@@ -1,16 +1,16 @@
 import React from 'react';
-import { Quiz, QuizSubmission } from '@/lib/types';
+import { QuizDTO, QuizSubmissionDTO } from '@/lib/dto/assessment.dto';
 import { X, Clock, Target, CheckCircle2, AlertCircle } from 'lucide-react';
 
 interface QuizResultModalProps {
-    quiz: Quiz;
-    submission: QuizSubmission;
+    quiz: QuizDTO;
+    submission: QuizSubmissionDTO;
     onClose: () => void;
 }
 
 export const QuizResultModal: React.FC<QuizResultModalProps> = ({ quiz, submission, onClose }) => {
     const questions = quiz.questions || [];
-    const answers = submission.answers || {};
+    const answers = (submission as any).answers || {};
 
     return (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[3000] p-4">

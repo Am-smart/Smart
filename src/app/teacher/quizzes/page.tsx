@@ -4,18 +4,19 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
 import { useSupabase } from '@/hooks/useSupabase';
 import { QuizEditor } from "@/components/teacher/QuizEditor";
-import { Quiz, Course } from '@/lib/types';
+import { QuizDTO } from '@/lib/dto/assessment.dto';
+import { CourseDTO } from '@/lib/dto/learning.dto';
 import { Trash2, Edit } from 'lucide-react';
 import { useAppContext } from '@/components/AppContext';
-import { apiClient } from '@/lib/api-client';
+import { deleteQuiz } from '@/lib/api-actions';
 
 export default function QuizzesPage() {
   const { user } = useAuth();
   const { getCourses, getQuizzes } = useSupabase();
   const { addToast } = useAppContext();
-  const [courses, setCourses] = useState<Course[]>([]);
-  const [quizzes, setQuizzes] = useState<Quiz[]>([]);
-  const [editingQuiz, setEditingQuiz] = useState<Quiz | null>(null);
+  const [courses, setCourses] = useState<CourseDTO[]>([]);
+  const [quizzes, setQuizzes] = useState<QuizDTO[]>([]);
+  const [editingQuiz, setEditingQuiz] = useState<QuizDTO | null>(null);
   const [isAdding, setIsAdding] = useState(false);
 
   const fetchData = useCallback(async () => {

@@ -1,20 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { Course, Lesson } from '@/lib/types';
+import { CourseDTO, LessonDTO } from '@/lib/dto/learning.dto';
 import { ArrowLeft, BookOpen, Video, FileText, ChevronRight, CheckCircle } from 'lucide-react';
-import { markLessonComplete, getLessonCompletions } from '@/lib/api-client';
+import { markLessonComplete, getLessonCompletions } from '@/lib/api-actions';
 import { useAppContext } from '@/components/AppContext';
 import { useAuth } from '@/components/auth/AuthContext';
 
 interface CourseViewProps {
-    course: Course;
-    lessons: Lesson[];
+    course: CourseDTO;
+    lessons: LessonDTO[];
     onBack: () => void;
 }
 
 export const CourseView: React.FC<CourseViewProps> = ({ course, lessons, onBack }) => {
     const { addToast } = useAppContext();
     const { user } = useAuth();
-    const [activeLesson, setActiveLesson] = useState<Lesson | null>(lessons[0] || null);
+    const [activeLesson, setActiveLesson] = useState<LessonDTO | null>(lessons[0] || null);
     const [completions, setCompletions] = useState<string[]>([]);
     const [isUpdating, setIsUpdating] = useState(false);
 

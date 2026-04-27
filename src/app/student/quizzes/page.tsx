@@ -2,9 +2,9 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
-import { getEnrollments, getQuizzes, getQuizSubmissions } from '@/lib/api-client';
+import { getEnrollments, getQuizzes, getQuizSubmissions } from '@/lib/api-actions';
 import { QuizzesList } from "@/components/student/QuizzesList";
-import { Quiz, QuizSubmission } from '@/lib/types';
+import { QuizDTO, QuizSubmissionDTO } from '@/lib/dto/assessment.dto';
 import dynamic from 'next/dynamic';
 import { QuizResultModal } from '@/components/student/QuizResultModal';
 
@@ -12,10 +12,10 @@ const QuizView = dynamic(() => import("@/components/student/QuizView").then(m =>
 
 export default function QuizzesPage() {
   const { user } = useAuth();
-  const [quizzes, setQuizzes] = useState<Quiz[]>([]);
-  const [submissions, setSubmissions] = useState<QuizSubmission[]>([]);
-  const [activeQuiz, setActiveQuiz] = useState<Quiz | null>(null);
-  const [viewingResult, setViewingResult] = useState<{ quiz: Quiz, submission: QuizSubmission } | null>(null);
+  const [quizzes, setQuizzes] = useState<QuizDTO[]>([]);
+  const [submissions, setSubmissions] = useState<QuizSubmissionDTO[]>([]);
+  const [activeQuiz, setActiveQuiz] = useState<QuizDTO | null>(null);
+  const [viewingResult, setViewingResult] = useState<{ quiz: QuizDTO, submission: QuizSubmissionDTO } | null>(null);
 
   const fetchData = useCallback(async () => {
     if (!user) return;

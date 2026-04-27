@@ -33,3 +33,21 @@ export interface SystemLogDTO {
   created_at?: string;
   user?: UserDTO;
 }
+
+export interface CertificateDTO {
+  id: string;
+  course_id: string;
+  student_id: string;
+  issued_at: string;
+  certificate_url: string;
+  course?: { title: string };
+}
+
+export interface BadgeDTO {
+  id: string;
+  title: string;
+  description: string;
+  icon_url: string;
+  xp_required?: number;
+  created_at?: string;
+}

@@ -1,15 +1,15 @@
 import React, { useState } from 'react';
-import { Maintenance, MaintenanceSchedule } from '@/lib/types';
+import { MaintenanceDTO } from '@/lib/dto/system.dto';
 import { Plus, Trash2, Clock, MessageSquare } from 'lucide-react';
-import { apiClient } from '@/lib/api-client';
+import { updateMaintenance } from '@/lib/api-actions';
 
 interface MaintenancePanelProps {
-  maintenance: Maintenance | null;
+  maintenance: MaintenanceDTO | null;
   onToggle: (enabled: boolean) => Promise<void>;
 }
 
 export const MaintenancePanel: React.FC<MaintenancePanelProps> = ({ maintenance, onToggle }) => {
-  const [newSchedule, setNewSchedule] = useState<MaintenanceSchedule>({
+  const [newSchedule, setNewSchedule] = useState<any>({
     start_at: '',
     end_at: '',
     reason: ''

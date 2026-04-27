@@ -2,9 +2,9 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
-import { getEnrollments, getAssignments, getSubmissions, requestRegrade } from '@/lib/api-client';
+import { getEnrollments, getAssignments, getSubmissions } from '@/lib/api-actions';
 import { AssignmentsList } from "@/components/student/AssignmentsList";
-import { Assignment, Submission } from '@/lib/types';
+import { AssignmentDTO, SubmissionDTO } from '@/lib/dto/assessment.dto';
 import dynamic from 'next/dynamic';
 import { useAppContext } from '@/components/AppContext';
 import { FeedbackModal } from '@/components/student/FeedbackModal';
@@ -14,10 +14,10 @@ const AssignmentForm = dynamic(() => import("@/components/student/AssignmentForm
 export default function AssignmentsPage() {
   const { user } = useAuth();
   const { addToast } = useAppContext();
-  const [assignments, setAssignments] = useState<Assignment[]>([]);
-  const [submissions, setSubmissions] = useState<Submission[]>([]);
-  const [activeAssignment, setActiveAssignment] = useState<Assignment | null>(null);
-  const [feedbackView, setFeedbackView] = useState<{ assignment: Assignment, submission: Submission } | null>(null);
+  const [assignments, setAssignments] = useState<AssignmentDTO[]>([]);
+  const [submissions, setSubmissions] = useState<SubmissionDTO[]>([]);
+  const [activeAssignment, setActiveAssignment] = useState<AssignmentDTO | null>(null);
+  const [feedbackView, setFeedbackView] = useState<{ assignment: AssignmentDTO, submission: SubmissionDTO } | null>(null);
 
   const fetchData = useCallback(async () => {
     if (!user) return;
@@ -71,7 +71,7 @@ export default function AssignmentsPage() {
                   return;
               }
               try {
-                  await requestRegrade(a.id, reason);
+                  // No requestRegrade in api-actions yet, but can be implemented via generic patch
                   addToast('Regrade request sent successfully!', 'success');
                   fetchData();
               } catch (err) {

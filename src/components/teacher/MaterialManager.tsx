@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { useSupabase } from '@/hooks/useSupabase';
-import { Course, Material } from '@/lib/types';
+import { MaterialDTO, CourseDTO } from '@/lib/dto/learning.dto';
 import { useAppContext } from '@/components/AppContext';
-import { apiClient } from '@/lib/api-client';
+import { uploadFile, saveMaterial, deleteMaterial } from '@/lib/api-actions';
 import { FileUpload } from '@/components/ui/FileUpload';
 
 interface MaterialManagerProps {
-    initialMaterials: Material[];
-    courses: Course[];
+    initialMaterials: MaterialDTO[];
+    courses: CourseDTO[];
     onRefresh: () => void;
 }
 

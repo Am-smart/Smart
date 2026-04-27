@@ -4,12 +4,12 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
 import { useSupabase } from '@/hooks/useSupabase';
 import { DiscussionBoard } from "@/components/student/DiscussionBoard";
-import { Enrollment } from '@/lib/types';
+import { EnrollmentDTO } from '@/lib/dto/learning.dto';
 
 export default function DiscussionsPage() {
   const { user } = useAuth();
   const { getEnrollments } = useSupabase();
-  const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
+  const [enrollments, setEnrollments] = useState<EnrollmentDTO[]>([]);
   const [selectedCourseId, setSelectedCourseId] = useState<string>('');
 
   useEffect(() => {
@@ -34,7 +34,7 @@ export default function DiscussionsPage() {
             >
                 <option value="">Global Discussion</option>
                 {enrollments.map(e => (
-                    <option key={e.course_id} value={e.course_id}>{e.courses?.title}</option>
+                    <option key={e.course_id} value={e.course_id}>{e.course?.title}</option>
                 ))}
             </select>
         </div>

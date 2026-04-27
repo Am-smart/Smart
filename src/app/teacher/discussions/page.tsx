@@ -4,12 +4,12 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
 import { useSupabase } from '@/hooks/useSupabase';
 import { DiscussionBoard } from "@/components/student/DiscussionBoard";
-import { Course } from '@/lib/types';
+import { CourseDTO } from '@/lib/dto/learning.dto';
 
 export default function DiscussionsPage() {
   const { user } = useAuth();
   const { getCourses } = useSupabase();
-  const [courses, setCourses] = useState<Course[]>([]);
+  const [courses, setCourses] = useState<CourseDTO[]>([]);
   const [selectedCourseId, setSelectedCourseId] = useState<string>('');
 
   useEffect(() => {

@@ -1,12 +1,12 @@
 import React from 'react';
-import { Assignment, Submission } from '@/lib/types';
+import { AssignmentDTO, SubmissionDTO } from '@/lib/dto/assessment.dto';
 
 interface AssignmentsListProps {
-  assignments: Assignment[];
-  submissions: Submission[];
-  onSubmit: (assignment: Assignment) => void;
-  onViewFeedback: (assignment: Assignment) => void;
-  onRegradeRequest: (assignment: Assignment, reason: string) => void;
+  assignments: AssignmentDTO[];
+  submissions: SubmissionDTO[];
+  onSubmit: (assignment: AssignmentDTO) => void;
+  onViewFeedback: (assignment: AssignmentDTO) => void;
+  onRegradeRequest: (assignment: AssignmentDTO, reason: string) => void;
 }
 
 export const AssignmentsList: React.FC<AssignmentsListProps> = ({ assignments, submissions, onSubmit, onViewFeedback, onRegradeRequest }) => {
@@ -41,7 +41,7 @@ export const AssignmentsList: React.FC<AssignmentsListProps> = ({ assignments, s
                       <div className="font-semibold text-slate-900">{assignment.title}</div>
                       <div className="text-xs text-slate-500 mt-0.5 line-clamp-1">{assignment.description}</div>
                     </td>
-                    <td className="px-6 py-4 text-slate-600 text-sm">{assignment.courses?.title || 'Unknown'}</td>
+                    <td className="px-6 py-4 text-slate-600 text-sm">{assignment.course?.title || 'Unknown'}</td>
                     <td className="px-6 py-4">
                       <div className={`text-sm ${isOverdue ? 'text-red-500 font-semibold' : 'text-slate-600'}`}>
                         {new Date(assignment.due_date).toLocaleDateString()}

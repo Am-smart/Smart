@@ -2,18 +2,18 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
-import { getUserBadges } from '@/lib/api-client';
+import { getUserBadges } from '@/lib/api-actions';
 import { AchievementsList } from "@/components/student/AchievementsList";
-import { Badge } from '@/lib/types';
+import { BadgeDTO } from '@/lib/dto/system.dto';
 
 export default function AchievementsPage() {
   const { user } = useAuth();
-  const [badges, setBadges] = useState<Badge[user]>([user]);
+  const [badges, setBadges] = useState<BadgeDTO[]>([]);
 
   useEffect(() => {
     if (user) {
         getUserBadges(user.id).then(data => {
-            const mapped = (data || [user]) as unknown as { badges: Badge }[user];
+            const mapped = data as any[];
             setBadges(mapped.map(ub => ub.badges).filter(Boolean));
         });
     }

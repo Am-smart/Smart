@@ -4,18 +4,19 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
 import { useSupabase } from '@/hooks/useSupabase';
 import { AssignmentEditor } from "@/components/teacher/AssignmentEditor";
-import { Assignment, Course } from '@/lib/types';
+import { AssignmentDTO } from '@/lib/dto/assessment.dto';
+import { CourseDTO } from '@/lib/dto/learning.dto';
 import { Trash2, Edit } from 'lucide-react';
 import { useAppContext } from '@/components/AppContext';
-import { apiClient } from '@/lib/api-client';
+import { deleteAssignment } from '@/lib/api-actions';
 
 export default function AssignmentsPage() {
   const { user } = useAuth();
   const { getCourses, getAssignments } = useSupabase();
   const { addToast } = useAppContext();
-  const [courses, setCourses] = useState<Course[]>([]);
-  const [assignments, setAssignments] = useState<Assignment[]>([]);
-  const [editingAssignment, setEditingAssignment] = useState<Assignment | null>(null);
+  const [courses, setCourses] = useState<CourseDTO[]>([]);
+  const [assignments, setAssignments] = useState<AssignmentDTO[]>([]);
+  const [editingAssignment, setEditingAssignment] = useState<AssignmentDTO | null>(null);
   const [isAdding, setIsAdding] = useState(false);
 
   const fetchData = useCallback(async () => {

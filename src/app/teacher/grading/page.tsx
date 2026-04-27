@@ -2,15 +2,15 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
-import { apiClient } from '@/lib/api-client';
+import { getSubmissions } from '@/lib/api-actions';
 import { GradingQueue } from "@/components/teacher/GradingQueue";
 import { GradingModal } from "@/components/teacher/GradingModal";
-import { Submission } from '@/lib/types';
+import { SubmissionDTO } from '@/lib/dto/assessment.dto';
 
 export default function GradingPage() {
   const { user } = useAuth();
-  const [submissions, setSubmissions] = useState<Submission[]>([]);
-  const [selectedSubmission, setSelectedSubmission] = useState<Submission | null>(null);
+  const [submissions, setSubmissions] = useState<SubmissionDTO[]>([]);
+  const [selectedSubmission, setSelectedSubmission] = useState<SubmissionDTO | null>(null);
 
   const fetchSubmissions = useCallback(async () => {
     if (user) {
