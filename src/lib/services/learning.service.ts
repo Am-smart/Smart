@@ -67,7 +67,7 @@ export class LearningService {
 
   // Study Sessions
   async saveStudySession(userId: string, session: Partial<unknown>, xpEarned: number, sessionId: string): Promise<void> {
-    await this.studySessionRepo.create({ ...(session as Record<string, unknown>), user_id: userId } as any, sessionId);
+    await this.studySessionRepo.create({ ...(session as Record<string, unknown>), user_id: userId } as Record<string, unknown>, sessionId);
     if (xpEarned > 0) {
       await withSession(supabase.rpc('award_xp', { p_user_id: userId, p_amount: xpEarned }), sessionId);
     }

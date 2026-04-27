@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { getErrorMessage } from '@/lib/api-error';
 import { getSessionUser, handleUnauthorized } from '@/app/api/api-utils';
 import { gamificationService } from '@/lib/services/gamification.service';
 
@@ -9,8 +10,8 @@ export async function GET() {
   try {
     const badges = await gamificationService.getBadges();
     return NextResponse.json(badges);
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
   }
 }
 
@@ -22,8 +23,8 @@ export async function POST(request: Request) {
         const body = await request.json();
         const badge = await gamificationService.saveBadge(user, body, user.sessionId!);
         return NextResponse.json(badge);
-    } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+    } catch (error: unknown) {
+        return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
     }
 }
 
@@ -39,7 +40,7 @@ export async function DELETE(request: Request) {
     try {
         await gamificationService.deleteBadge(user, id, user.sessionId!);
         return NextResponse.json({ success: true });
-    } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+    } catch (error: unknown) {
+        return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
     }
 }

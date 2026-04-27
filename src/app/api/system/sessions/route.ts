@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { getErrorMessage } from '@/lib/api-error';
 import { getSessionUser, handleUnauthorized } from '@/app/api/api-utils';
 import { SessionRepository } from '@/lib/repositories/session.repository';
 
@@ -10,7 +11,7 @@ export async function GET() {
         const repo = new SessionRepository();
         const sessions = await repo.findAll(user.sessionId!);
         return NextResponse.json(sessions);
-    } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+    } catch (error: unknown) {
+        return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
     }
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSessionUser, handleUnauthorized } from '@/app/api/api-utils';
 import { assessmentService } from '@/lib/services/assessment.service';
+import { getErrorMessage } from '@/lib/api-error';
 
 export async function DELETE(request: Request) {
     const user = await getSessionUser();
@@ -14,7 +15,7 @@ export async function DELETE(request: Request) {
     try {
         await assessmentService.deleteAssignment(id, user.sessionId!);
         return NextResponse.json({ success: true });
-    } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+    } catch (error: unknown) {
+        return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
     }
 }

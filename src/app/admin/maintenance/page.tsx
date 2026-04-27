@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { getCourses, getMaintenance } from '@/lib/api-actions';
+import { getCourses, getMaintenance, updateSetting } from '@/lib/api-actions';
 import { MaintenancePanel } from "@/components/admin/MaintenancePanel";
 import { BroadcastManager } from "@/components/admin/BroadcastManager";
 import { CourseDTO } from '@/lib/dto/learning.dto';
@@ -26,7 +26,7 @@ export default function MaintenancePage() {
     <div className="space-y-8">
         <MaintenancePanel
             maintenance={maintenance}
-            onToggle={async (enabled) => {
+            onToggle={async () => {
                 // updateSetting or similar can be used for maintenance toggle
                 fetchData();
             }}

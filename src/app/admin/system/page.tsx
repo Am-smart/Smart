@@ -7,7 +7,7 @@ export default function SystemPage() {
   const [logs, setLogs] = useState<{id: string, created_at: string, message: string}[]>([]);
 
   useEffect(() => {
-    getSystemLogs(50).then(data => setLogs((data as any) || []));
+    getSystemLogs(50).then(data => setLogs((data as Array<{id: string, created_at: string, message: string}>) || []));
   }, []);
 
   return (

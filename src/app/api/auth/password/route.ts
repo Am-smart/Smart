@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { getErrorMessage } from '@/lib/api-error';
 import { getSessionUser, handleUnauthorized } from '@/app/api/api-utils';
 import { authService } from '@/lib/services/auth.service';
 
@@ -10,7 +11,7 @@ export async function POST(request: Request) {
         const { currentPassword, newPassword } = await request.json();
         const result = await authService.updatePassword(currentPassword, newPassword, user.sessionId!);
         return NextResponse.json(result);
-    } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+    } catch (error: unknown) {
+        return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
     }
 }

@@ -2,6 +2,21 @@ import { Assignment, Quiz, Submission, QuizSubmission } from '../types';
 import { CourseDTO } from './learning.dto';
 import { UserDTO } from './auth.dto';
 
+export interface QuestionDTO {
+  id: string;
+  question_text: string;
+  question_type: string;
+  points: number;
+  options?: string[];
+}
+
+export interface AttachmentDTO {
+  id: string;
+  file_name: string;
+  file_url: string;
+  uploaded_at: string;
+}
+
 export interface AssignmentDTO {
   id: string;
   course_id: string;
@@ -17,8 +32,8 @@ export interface AssignmentDTO {
   auto_submit_enabled: boolean;
   hard_enforcement: boolean;
   regrade_requests_enabled: boolean;
-  questions: any[];
-  attachments?: any[];
+  questions: QuestionDTO[];
+  attachments?: AttachmentDTO[];
   course?: CourseDTO;
 }
 
@@ -38,7 +53,7 @@ export interface QuizDTO {
   shuffle_questions: boolean;
   start_at?: string;
   end_at?: string;
-  questions: any[];
+  questions: QuestionDTO[];
   course?: CourseDTO;
 }
 

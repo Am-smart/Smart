@@ -51,9 +51,9 @@ export async function apiFetch<T>(url: string, options: RequestInit = {}, retrie
 
 export const apiClient = {
   get: <T>(url: string, options?: RequestInit) => apiFetch<T>(url, { ...options, method: 'GET' }),
-  post: <T>(url: string, body?: any, options?: RequestInit) =>
+  post: <T>(url: string, body?: unknown, options?: RequestInit) =>
     apiFetch<T>(url, { ...options, method: 'POST', body: JSON.stringify(body) }),
-  patch: <T>(url: string, body?: any, options?: RequestInit) =>
+  patch: <T>(url: string, body?: unknown, options?: RequestInit) =>
     apiFetch<T>(url, { ...options, method: 'PATCH', body: JSON.stringify(body) }),
   delete: <T>(url: string, options?: RequestInit) => apiFetch<T>(url, { ...options, method: 'DELETE' }),
 };

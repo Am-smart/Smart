@@ -6,7 +6,7 @@ import { updatePassword, updatePreferences } from '@/lib/api-actions';
 
 interface TeacherSettingsProps {
     user: UserDTO;
-    onUpdate: (updates: any) => Promise<void>;
+    onUpdate: (updates: unknown) => Promise<void>;
 }
 
 export const TeacherSettings: React.FC<TeacherSettingsProps> = ({ user, onUpdate }) => {

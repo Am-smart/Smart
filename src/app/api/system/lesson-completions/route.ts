@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { getErrorMessage } from '@/lib/api-error';
 import { getSessionUser, handleUnauthorized } from '@/app/api/api-utils';
 import { learningService } from '@/lib/services/learning.service';
 
@@ -11,8 +12,8 @@ export async function POST(request: Request) {
     const { lessonId, courseId } = body;
     const result = await learningService.markLessonComplete(user.id, lessonId, courseId, user.sessionId!);
     return NextResponse.json(result);
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
   }
 }
 
@@ -26,7 +27,7 @@ export async function GET(request: Request) {
     try {
         const completions = await learningService.getLessonCompletions(userId, user.sessionId!);
         return NextResponse.json(completions);
-    } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+    } catch (error: unknown) {
+        return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
     }
 }

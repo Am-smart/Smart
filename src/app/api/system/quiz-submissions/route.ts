@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { getErrorMessage } from '@/lib/api-error';
 import { getSessionUser, handleUnauthorized } from '@/app/api/api-utils';
 import { assessmentService } from '@/lib/services/assessment.service';
 
@@ -13,7 +14,7 @@ export async function GET(request: Request) {
   try {
     const submissions = await assessmentService.getQuizSubmissions(quizId, studentId, user.sessionId!);
     return NextResponse.json(submissions);
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
   }
 }

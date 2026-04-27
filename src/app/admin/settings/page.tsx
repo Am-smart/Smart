@@ -43,16 +43,16 @@ export default function AdminSettingsPage() {
     // Load from database on mount
     React.useEffect(() => {
         const loadConfigs = async () => {
-            const allSettings = (await getSettings()) as unknown as Record<string, unknown>[];
+            const allSettings = await getSettings();
 
-            const globalData = allSettings.find(s => s.key === 'global_config');
-            if (globalData) setConfig(globalData.value as unknown as any);
+            const globalData = allSettings.find((s: { key: string }) => s.key === 'global_config');
+            if (globalData) setConfig(globalData.value as Record<string, boolean>);
 
-            const alertsData = allSettings.find(s => s.key === 'system_alerts');
-            if (alertsData) setAlerts(alertsData.value as unknown as any);
+            const alertsData = allSettings.find((s: { key: string }) => s.key === 'system_alerts');
+            if (alertsData) setAlerts(alertsData.value as Record<string, boolean>);
 
-            const apiData = allSettings.find(s => s.key === 'api_keys');
-            if (apiData) setApiKeys(apiData.value as unknown as any);
+            const apiData = allSettings.find((s: { key: string }) => s.key === 'api_keys');
+            if (apiData) setApiKeys(apiData.value as Record<string, string>);
         };
         loadConfigs();
     }, []);

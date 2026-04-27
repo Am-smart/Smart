@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { getErrorMessage } from '@/lib/api-error';
 import { cookies } from 'next/headers';
 import { authController } from '@/lib/controllers/auth.controller';
 import { signData } from '@/lib/crypto';
@@ -28,7 +29,7 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json(result);
-  } catch (error: any) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    return NextResponse.json({ success: false, error: getErrorMessage(error) }, { status: 500 });
   }
 }

@@ -9,7 +9,7 @@ interface MaintenancePanelProps {
 }
 
 export const MaintenancePanel: React.FC<MaintenancePanelProps> = ({ maintenance, onToggle }) => {
-  const [newSchedule, setNewSchedule] = useState<any>({
+  const [newSchedule, setNewSchedule] = useState<unknown>({
     start_at: '',
     end_at: '',
     reason: ''

@@ -15,7 +15,7 @@ interface QuizEditorProps {
 
 export const QuizEditor: React.FC<QuizEditorProps> = ({ teacherId, quiz, courses, onSave, onCancel }) => {
     const { addToast } = useAppContext();
-    const [formData, setFormData] = useState<any>({
+    const [formData, setFormData] = useState<unknown>({
         title: quiz?.title || '',
         description: quiz?.description || '',
         course_id: quiz?.course_id || (courses.length > 0 ? courses[0].id : ''),
@@ -34,7 +34,7 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({ teacherId, quiz, courses
     const [isSaving, setIsSaving] = useState(false);
 
     const handleAddQuestion = () => {
-        const newQ: any = {
+        const newQ: unknown = {
             id: Math.random().toString(36).substr(2, 9),
             question_text: '',
             type: 'mcq',
@@ -47,7 +47,7 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({ teacherId, quiz, courses
         setFormData({ ...formData, questions: [...formData.questions, newQ] });
     };
 
-    const handleQuestionChange = (index: number, updates: any) => {
+    const handleQuestionChange = (index: number, updates: unknown) => {
         const updated = [...formData.questions];
         updated[index] = { ...updated[index], ...updates };
         setFormData({ ...formData, questions: updated });
@@ -196,7 +196,7 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({ teacherId, quiz, courses
                                             value={q.type}
                                             onChange={e => {
                                                 const newType = e.target.value as any;
-                                                const updates: any = { type: newType, correct_answer: '' };
+                                                const updates: unknown = { type: newType, correct_answer: '' };
                                                 if (newType === 'tf') {
                                                     updates.options = ['True', 'False'];
                                                 } else if (newType === 'mcq') {
