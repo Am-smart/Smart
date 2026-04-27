@@ -3,7 +3,6 @@ import { QuizRepository } from '../repositories/quiz.repository';
 import { SubmissionRepository } from '../repositories/submission.repository';
 import { QuizSubmissionRepository } from '../repositories/quiz-submission.repository';
 import { Assignment, Quiz, Submission, QuizSubmission, User, QuizQuestion } from '../types';
-import { rbac } from '../auth/rbac';
 import { AssessmentDomain } from '../domain/assessment.domain';
 
 export class AssessmentService {

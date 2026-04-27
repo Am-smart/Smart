@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { getSessionUser } from '@/app/api/api-utils';
 import { verifyToken } from '@/lib/crypto';
 import { cookies } from 'next/headers';
 

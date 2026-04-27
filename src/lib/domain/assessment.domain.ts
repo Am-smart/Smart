@@ -37,7 +37,7 @@ export class AssessmentDomain {
   }
 
   static prepareAssignment(assignment: Partial<Assignment>, teacherId: string): Partial<Assignment> {
-    const { courses: _, ...rest } = assignment as any;
+    const { courses: _, ...rest } = assignment as unknown;
     return {
       ...rest,
       teacher_id: assignment.teacher_id || teacherId,
@@ -47,7 +47,7 @@ export class AssessmentDomain {
   }
 
   static prepareQuiz(quiz: Partial<Quiz>, teacherId: string): Partial<Quiz> {
-    const { courses: _, ...rest } = quiz as any;
+    const { courses: _, ...rest } = quiz as unknown;
     return {
       ...rest,
       teacher_id: quiz.teacher_id || teacherId,
@@ -57,7 +57,7 @@ export class AssessmentDomain {
   }
 
   static prepareSubmission(studentId: string, assignmentId: string, content: Partial<Submission>): Partial<Submission> {
-    const { assignments: _a, users: _u, ...rest } = content as any;
+    const { assignments: _a, users: _u, ...rest } = content as unknown;
     return {
       ...rest,
       assignment_id: assignmentId,

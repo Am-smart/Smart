@@ -102,12 +102,12 @@ export const useSupabase = () => {
 
   // Notification operations
   const getNotifications = useCallback(async (userId: string): Promise<Notification[]> => {
-    return await actions.getNotifications(userId) as any;
+    return await actions.getNotifications(userId) as unknown;
   }, []);
 
   // Maintenance operations
   const getMaintenance = useCallback(async (): Promise<Maintenance> => {
-    return await actions.getMaintenance() as any;
+    return await actions.getMaintenance() as unknown;
   }, []);
 
   const proxiedClient = useMemo(() => {

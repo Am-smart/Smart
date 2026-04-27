@@ -2,7 +2,7 @@ import { assessmentService } from '../services/assessment.service';
 import { AssessmentMapper } from '../mappers/domain-to-dto.mapper';
 import { rbac } from '../auth/rbac';
 import { User, Assignment, Quiz, Submission, QuizSubmission } from '../types';
-import { AssignmentDTO, QuizDTO, SubmissionDTO, QuizSubmissionDTO } from '../dto/assessment.dto';
+import { AssignmentDTO, QuizDTO, SubmissionDTO } from '../dto/assessment.dto';
 
 export class AssessmentController {
   async getAssignments(user: User, teacherId?: string, courseId?: string): Promise<AssignmentDTO[]> {

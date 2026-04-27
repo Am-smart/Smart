@@ -21,7 +21,7 @@ export class QuizRepository {
   }
 
   async upsert(quiz: Partial<Quiz>, sessionId: string): Promise<Quiz> {
-    const { version, id, courses: _, ...quizData } = quiz as any;
+    const { version, id, courses: _, ...quizData } = quiz as unknown;
 
     let query = withSession(supabase.from('quizzes'), sessionId)
       .upsert({

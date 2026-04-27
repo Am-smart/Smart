@@ -22,7 +22,7 @@ export class AuthController {
 
     if (rpcError) return { success: false, user: null, sessionId: null, error: 'Authentication service unavailable' };
 
-    const result = rawData as any;
+    const result = rawData as unknown;
     if (!result.success) {
       if (result.error === 'Invalid email or password') recordAttempt(normalizedEmail);
       return { success: false, user: null, sessionId: null, error: result.error };
@@ -62,7 +62,7 @@ export class AuthController {
 
     if (rpcError) return { success: false, user: null, sessionId: null, error: 'Signup service unavailable' };
 
-    const result = rawData as any;
+    const result = rawData as unknown;
     if (!result.success) return { success: false, user: null, sessionId: null, error: result.error };
 
     const user = result.user as User;

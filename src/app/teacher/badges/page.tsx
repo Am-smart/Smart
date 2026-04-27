@@ -9,8 +9,6 @@ import { BadgeDTO } from '@/lib/dto/system.dto';
 
 export default function BadgesPage() {
   const { user } = useAuth();
-  const [courses, setCourses] = useState<CourseDTO[]>([]);
-  const [badges, setBadges] = useState<BadgeDTO[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -19,13 +17,10 @@ export default function BadgesPage() {
     setIsLoading(true);
     setError(null);
     try {
-      const [myCourses, allBadges] = await Promise.all([
+      await Promise.all([
         getCourses(user.id),
         getUserBadges(user.id)
       ]);
-      setCourses(myCourses);
-      const badgesList = allBadges as Array<{ badges?: BadgeDTO }>;
-      setBadges(badgesList.map(ub => ub.badges).filter(Boolean) as BadgeDTO[]);
     } catch (err) {
       console.error('Failed to load badges:', err);
       setError('Failed to load badges');

@@ -1,4 +1,3 @@
-import { Course, Enrollment, Material, Lesson } from '../types';
 import { UserDTO } from './auth.dto';
 
 export interface CourseDTO {

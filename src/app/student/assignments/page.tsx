@@ -65,7 +65,7 @@ export default function AssignmentsPage() {
                   setFeedbackView({ assignment: a, submission: sub });
               }
           }}
-          onRegradeRequest={async (a, reason) => {
+          onRegradeRequest={async (a) => {
               if (!a.regrade_requests_enabled) {
                   addToast('Regrade requests are disabled for this assignment.', 'error');
                   return;

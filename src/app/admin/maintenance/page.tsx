@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { getCourses, getMaintenance, updateSetting } from '@/lib/api-actions';
+import { getCourses, getMaintenance } from '@/lib/api-actions';
 import { MaintenancePanel } from "@/components/admin/MaintenancePanel";
 import { BroadcastManager } from "@/components/admin/BroadcastManager";
 import { CourseDTO } from '@/lib/dto/learning.dto';

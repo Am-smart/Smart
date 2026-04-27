@@ -1,6 +1,5 @@
 import { CourseRepository } from '../repositories/course.repository';
 import { Course, User } from '../types';
-import { rbac } from '../auth/rbac';
 import { CourseDomain } from '../domain/course.domain';
 
 export class CourseService {
