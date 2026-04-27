@@ -51,13 +51,13 @@ export class AssessmentService {
   }
 
   async gradeSubmission(submissionId: string, gradeData: Partial<Submission>, sessionId: string): Promise<Submission> {
-    const { assignments: _, users: __, ...rest } = gradeData as any;
+    const { assignments: _, users: __, ...rest } = gradeData as Record<string, unknown>;
     return this.submissionRepo.upsert({
       ...rest,
       id: submissionId,
       status: 'graded',
       graded_at: new Date().toISOString(),
-    }, sessionId);
+    } as Partial<Submission>, sessionId);
   }
 
   // Quiz Submissions

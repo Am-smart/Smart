@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { apiClient } from '@/lib/api-client';
 import { PasswordReset } from "@/components/admin/PasswordReset";
 import { UserDTO } from '@/lib/dto/auth.dto';
 import { getUsers } from '@/lib/api-actions';

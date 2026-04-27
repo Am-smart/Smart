@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { getErrorMessage } from '@/lib/api-error';
 import { getSessionUser, handleUnauthorized } from '@/app/api/api-utils';
 import { assessmentController } from '@/lib/controllers/assessment.controller';
 
@@ -13,8 +14,8 @@ export async function GET(request: Request) {
   try {
     const submissions = await assessmentController.getSubmissions(user, assignmentId, studentId);
     return NextResponse.json(submissions);
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
   }
 }
 
@@ -35,8 +36,8 @@ export async function POST(request: Request) {
         const submission = await assessmentController.submitAssignment(user, assignmentId!, body);
         return NextResponse.json(submission);
     }
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
   }
 }
 
@@ -53,7 +54,7 @@ export async function PATCH(request: Request) {
         const body = await request.json();
         await assessmentController.gradeSubmission(user, submissionId, body);
         return NextResponse.json({ success: true });
-    } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+    } catch (error: unknown) {
+        return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
     }
 }

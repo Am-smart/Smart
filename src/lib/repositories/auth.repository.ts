@@ -1,14 +1,14 @@
 import { supabase } from '../supabase';
 
 export class AuthRepository {
-  async authenticate(email: string, password: string): Promise<{ data: any, error: any }> {
+  async authenticate(email: string, password: string): Promise<{ data: unknown, error: unknown }> {
     return supabase.rpc('authenticate_user', {
       p_email: email,
       p_password: password
     });
   }
 
-  async register(data: { full_name: string; email: string; password: string; phone?: string; role: string }): Promise<{ data: any, error: any }> {
+  async register(data: { full_name: string; email: string; password: string; phone?: string; role: string }): Promise<{ data: unknown, error: unknown }> {
     return supabase.rpc('register_user', {
         p_full_name: data.full_name,
         p_email: data.email,
@@ -18,14 +18,14 @@ export class AuthRepository {
     });
   }
 
-  async updatePassword(currentPass: string, newPass: string, sessionId: string): Promise<{ data: any, error: any }> {
+  async updatePassword(currentPass: string, newPass: string, sessionId: string): Promise<{ data: unknown, error: unknown }> {
     return supabase.rpc('update_user_password', {
         p_current_password: currentPass,
         p_new_password: newPass
     }).setHeader('x-session-id', sessionId);
   }
 
-  async requestPasswordReset(email: string, reason: string, riskLevel: string): Promise<{ data: any, error: any }> {
+  async requestPasswordReset(email: string, reason: string, riskLevel: string): Promise<{ data: unknown, error: unknown }> {
     return supabase.rpc('request_password_reset', {
         p_email: email,
         p_reason: reason,
@@ -33,21 +33,21 @@ export class AuthRepository {
     });
   }
 
-  async approvePasswordReset(userId: string, tempPassword: string, sessionId: string): Promise<{ data: any, error: any }> {
+  async approvePasswordReset(userId: string, tempPassword: string, sessionId: string): Promise<{ data: unknown, error: unknown }> {
     return supabase.rpc('approve_password_reset', {
         p_user_id: userId,
         p_temp_password: tempPassword
     }).setHeader('x-session-id', sessionId);
   }
 
-  async denyPasswordReset(userId: string, reason: string, sessionId: string): Promise<{ data: any, error: any }> {
+  async denyPasswordReset(userId: string, reason: string, sessionId: string): Promise<{ data: unknown, error: unknown }> {
     return supabase.rpc('deny_password_reset', {
         p_user_id: userId,
         p_reason: reason
     }).setHeader('x-session-id', sessionId);
   }
 
-  async updatePreferences(preferences: object, sessionId: string): Promise<{ data: any, error: any }> {
+  async updatePreferences(preferences: object, sessionId: string): Promise<{ data: unknown, error: unknown }> {
     return supabase.rpc('update_user_preferences', {
         p_preferences: preferences
     }).setHeader('x-session-id', sessionId);

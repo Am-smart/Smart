@@ -2,11 +2,11 @@ import React, { useState } from 'react';
 import { UserDTO } from '@/lib/dto/auth.dto';
 import { Bell, User as UserIcon, Lock, Save } from 'lucide-react';
 import { useAppContext } from '../AppContext';
-import { updatePassword, updatePreferences } from '@/lib/api-client';
+import { updatePassword, updatePreferences } from '@/lib/api-actions';
 
 interface StudentSettingsProps {
     user: UserDTO;
-    onUpdate: (updates: any) => Promise<void>;
+    onUpdate: (updates: unknown) => Promise<void>;
 }
 
 export const StudentSettings: React.FC<StudentSettingsProps> = ({ user, onUpdate }) => {

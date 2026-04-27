@@ -79,7 +79,7 @@ export const GradingModal: React.FC<GradingModalProps> = ({ submission, onSave, 
 
                         {(submission as any).answers && Object.keys((submission as any).answers).length > 0 ? (
                             <div className="space-y-4">
-                                {submission.assignment?.questions.map((q: any, idx: number) => (
+                                {submission.assignment?.questions.map((q: unknown, idx: number) => (
                                     <div key={idx} className="bg-white p-5 rounded-2xl shadow-sm border border-blue-100/50 space-y-4">
                                         <div>
                                             <div className="text-[10px] font-black text-blue-500 uppercase tracking-widest mb-2">Step {idx + 1}: {q.text}</div>

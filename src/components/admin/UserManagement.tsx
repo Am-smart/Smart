@@ -6,7 +6,7 @@ interface UserManagementProps {
   onAdd: () => void;
   onEdit: (user: UserDTO) => void;
   onDelete: (id: string) => Promise<void>;
-  onUpdate: (id: string, updates: any) => Promise<void>;
+  onUpdate: (id: string, updates: unknown) => Promise<void>;
 }
 
 export const UserManagement: React.FC<UserManagementProps> = ({ users, onAdd, onEdit, onDelete, onUpdate }) => {

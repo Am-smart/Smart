@@ -17,7 +17,7 @@ interface AssignmentEditorProps {
 export const AssignmentEditor: React.FC<AssignmentEditorProps> = ({ teacherId, assignment, courses, onSave, onCancel }) => {
     const { addToast } = useAppContext();
     const { client } = useSupabase();
-    const [formData, setFormData] = useState<any>({
+    const [formData, setFormData] = useState<unknown>({
         title: assignment?.title || '',
         description: assignment?.description || '',
         course_id: assignment?.course_id || (courses.length > 0 ? courses[0].id : ''),
@@ -40,8 +40,8 @@ export const AssignmentEditor: React.FC<AssignmentEditorProps> = ({ teacherId, a
 
     // Auto-calculate points_possible
     useEffect(() => {
-        const total = formData.questions.reduce((sum: number, q: any) => sum + (q.points || 0), 0);
-        setFormData((prev: any) => ({ ...prev, points_possible: total }));
+        const total = formData.questions.reduce((sum: number, q: unknown) => sum + (q.points || 0), 0);
+        setFormData((prev: unknown) => ({ ...prev, points_possible: total }));
     }, [formData.questions]);
 
     const handleSubmit = async (e: React.FormEvent) => {

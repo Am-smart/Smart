@@ -22,10 +22,11 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
  */
 export function withSession<T>(query: T, sessionId?: string): T {
   if (sessionId && query && typeof query === 'object' && 'headers' in query) {
-    const q = query as any;
-    if (q.headers) {
-      if (typeof q.headers.set === 'function') {
-        q.headers.set('x-session-id', sessionId);
+    const q = query as Record<string, unknown>;
+    if (q.headers && typeof q.headers === 'object' && q.headers !== null) {
+      const headers = q.headers as Record<string, unknown> & { set?: (key: string, value: string) => void };
+      if (typeof headers.set === 'function') {
+        headers.set('x-session-id', sessionId);
       } else {
         q.headers['x-session-id'] = sessionId;
       }

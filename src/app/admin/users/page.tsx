@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { apiClient } from '@/lib/api-client';
 import { UserManagement } from "@/components/admin/UserManagement";
 import { UserEditor } from "@/components/admin/UserEditor";
 import { UserDTO } from '@/lib/dto/auth.dto';

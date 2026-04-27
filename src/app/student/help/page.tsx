@@ -3,7 +3,7 @@
 import React, { useState, useMemo } from 'react';
 import { Search, HelpCircle, Book, MessageSquare, Shield, ChevronDown, ChevronUp, Send, LifeBuoy } from 'lucide-react';
 import { useAppContext } from '@/components/AppContext';
-import { createSystemLog } from '@/lib/api-client';
+import { createSystemLog } from '@/lib/api-actions';
 
 const FAQ_DATA = [
     {

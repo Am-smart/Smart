@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { getErrorMessage } from '@/lib/api-error';
 import { getSessionUser, handleUnauthorized } from '@/app/api/api-utils';
 import { systemController } from '@/lib/controllers/system.controller';
 
@@ -14,8 +15,8 @@ export async function GET(request: Request) {
   try {
     const discussions = await systemController.getDiscussions(user, courseId);
     return NextResponse.json(discussions);
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
   }
 }
 
@@ -32,8 +33,8 @@ export async function DELETE(request: Request) {
         const { communicationService } = await import('@/lib/services/communication.service');
         await communicationService.deleteDiscussionPost(user, id, user.sessionId!);
         return NextResponse.json({ success: true });
-    } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+    } catch (error: unknown) {
+        return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
     }
 }
 
@@ -45,7 +46,7 @@ export async function POST(request: Request) {
     const body = await request.json();
     const post = await systemController.saveDiscussionPost(user, body);
     return NextResponse.json(post);
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
   }
 }

@@ -79,7 +79,7 @@ export const QuizView: React.FC<QuizViewProps> = ({ quiz, user, onComplete, onCa
 
         let score = 0;
         if (isOnline) {
-            const res = await apiClient.post<any>(`/api/submissions?assignmentId=${quiz.id}&type=quiz`, { ...payload, violation_count: violationCount });
+            const res = await apiClient.post<unknown>(`/api/submissions?assignmentId=${quiz.id}&type=quiz`, { ...payload, violation_count: violationCount });
             score = res.score || 0;
         } else {
             // Offline estimation using unified logic

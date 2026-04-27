@@ -12,15 +12,22 @@ export interface PlannerItemDTO {
   created_at: string;
 }
 
+export interface ScheduleDTO {
+  id: string;
+  start_time: string;
+  end_time: string;
+  reason?: string;
+}
+
 export interface MaintenanceDTO {
   enabled: boolean;
   message?: string;
-  schedules: any[];
+  schedules: ScheduleDTO[];
 }
 
 export interface SettingDTO {
   key: string;
-  value: any;
+  value: string | number | boolean | Record<string, unknown>;
 }
 
 export interface SystemLogDTO {
@@ -28,7 +35,7 @@ export interface SystemLogDTO {
   level: string;
   category: string;
   message: string;
-  metadata?: any;
+  metadata?: Record<string, unknown>;
   user_id?: string;
   created_at?: string;
   user?: UserDTO;

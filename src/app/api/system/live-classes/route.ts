@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { getErrorMessage } from '@/lib/api-error';
 import { getSessionUser, handleUnauthorized } from '@/app/api/api-utils';
 import { communicationService } from '@/lib/services/communication.service';
 import { CommunicationMapper } from '@/lib/mappers/domain-to-dto.mapper';
@@ -11,8 +12,8 @@ export async function POST(request: Request) {
         const body = await request.json();
         const saved = await communicationService.saveLiveClass(user, body, user.sessionId!);
         return NextResponse.json(CommunicationMapper.toLiveClassDTO(saved));
-    } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+    } catch (error: unknown) {
+        return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
     }
 }
 
@@ -28,7 +29,7 @@ export async function DELETE(request: Request) {
     try {
         await communicationService.deleteLiveClass(id, user.sessionId!);
         return NextResponse.json({ success: true });
-    } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+    } catch (error: unknown) {
+        return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
     }
 }

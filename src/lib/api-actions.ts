@@ -453,3 +453,66 @@ export async function saveStudySession(session: unknown, xpEarned: number): Prom
 export async function uploadFile(fileName: string, category: string): Promise<{ filePath: string }> {
     return apiClient.post<{ filePath: string }>('/api/system/upload-path', { fileName, category });
 }
+
+// Notifications
+export async function markNotificationAsRead(notificationId: string): Promise<{ success: boolean; error?: string }> {
+    try {
+        await apiClient.patch(`/api/system/notifications?id=${notificationId}`, { is_read: true });
+        return { success: true };
+    } catch (error: unknown) {
+        return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+}
+
+export async function markAllNotificationsAsRead(userId: string): Promise<{ success: boolean; error?: string }> {
+    try {
+        await apiClient.patch(`/api/system/notifications?userId=${userId}`, { markAll: true });
+        return { success: true };
+    } catch (error: unknown) {
+        return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+}
+
+// Auth - Password Management
+export async function updatePassword(userId: string, currentPassword: string, newPassword: string): Promise<{ success: boolean; error?: string }> {
+    try {
+        await apiClient.post('/api/auth/password', { userId, currentPassword, newPassword });
+        return { success: true };
+    } catch (error: unknown) {
+        return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+}
+
+export async function requestPasswordReset(email: string): Promise<{ success: boolean; error?: string }> {
+    try {
+        await apiClient.post('/api/auth/reset-request', { email, action: 'request' });
+        return { success: true };
+    } catch (error: unknown) {
+        return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+}
+
+// Auth - User Info
+export async function getRoleCount(): Promise<{ teachers: number; admins: number; total: number }> {
+    return apiClient.get<{ teachers: number; admins: number; total: number }>('/api/auth/role-count');
+}
+
+// User Preferences
+export async function updatePreferences(userId: string, preferences: Record<string, unknown>): Promise<{ success: boolean; error?: string }> {
+    try {
+        await apiClient.post('/api/auth/preferences', { userId, preferences });
+        return { success: true };
+    } catch (error: unknown) {
+        return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+}
+
+// System Logging
+export async function createSystemLog(data: { level: string; category: string; message: string; metadata?: unknown }): Promise<{ success: boolean; error?: string }> {
+    try {
+        await apiClient.post('/api/system/logs', data);
+        return { success: true };
+    } catch (error: unknown) {
+        return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+    }
+}

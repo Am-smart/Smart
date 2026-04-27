@@ -77,7 +77,7 @@ export const AssignmentForm: React.FC<AssignmentFormProps> = ({ assignment, user
         };
 
         if (isOnline) {
-            const res = await apiClient.post<any>(`/api/submissions?assignmentId=${assignment.id}`, payload);
+            const res = await apiClient.post<unknown>(`/api/submissions?assignmentId=${assignment.id}`, payload);
             addToast('Assignment submitted successfully!', 'success');
             onComplete(res.id || Math.random().toString());
         } else {

@@ -3,7 +3,7 @@ import { User, Notification } from '@/lib/types';
 import { Bell } from 'lucide-react';
 import { Header } from './ui/Header';
 import { NotificationPanel } from './NotificationPanel';
-import { markNotificationAsRead, markAllNotificationsAsRead } from '@/lib/api-client';
+import { markNotificationAsRead, markAllNotificationsAsRead } from '@/lib/api-actions';
 
 interface HeaderStats {
   courses: number;

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { getErrorMessage } from '@/lib/api-error';
 import { getSessionUser, handleUnauthorized } from '@/app/api/api-utils';
 import { systemService } from '@/lib/services/system.service';
 
@@ -10,8 +11,8 @@ export async function POST(request: Request) {
     const body = await request.json();
     const item = await systemService.savePlannerItem(user.id, body, user.sessionId!);
     return NextResponse.json(item);
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
   }
 }
 
@@ -26,8 +27,8 @@ export async function DELETE(request: Request) {
   try {
     await systemService.deletePlannerItem(user.id, id, user.sessionId!);
     return NextResponse.json({ success: true });
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error: unknown) {
+    return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
   }
 }
 
@@ -41,7 +42,7 @@ export async function GET(request: Request) {
     try {
         const items = await systemService.getPlannerItems(userId, user.sessionId!);
         return NextResponse.json(items);
-    } catch (error: any) {
-        return NextResponse.json({ error: error.message }, { status: 500 });
+    } catch (error: unknown) {
+        return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
     }
 }

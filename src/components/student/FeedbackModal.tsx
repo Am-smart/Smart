@@ -50,7 +50,7 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({ assignment, submis
                         <div className="space-y-6">
                              <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest">Question Breakdown</h4>
                              <div className="space-y-4">
-                                {assignment.questions.map((q: any, idx: number) => {
+                                {assignment.questions.map((q: unknown, idx: number) => {
                                     const answer = (submission as any).answers?.[idx];
                                     const feedback = (submission as any).response_feedback?.[idx];
                                     return (

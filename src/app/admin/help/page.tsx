@@ -36,10 +36,10 @@ export default function AdminHelpPage() {
         setIsLoading(true);
         try {
             const data = await getSystemLogs(200);
-            const supportTickets = ((data as any[]) || []).filter((log) =>
+            const supportTickets = ((data as SupportTicket[]) || []).filter((log) =>
                 log.category === 'management' &&
                 log.metadata?.type === 'support_ticket'
-            ) as unknown as SupportTicket[];
+            );
             setTickets(supportTickets);
         } catch (err) {
             console.error('Failed to fetch tickets:', err);
