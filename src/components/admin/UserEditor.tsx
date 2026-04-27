@@ -86,7 +86,7 @@ export const UserEditor: React.FC<UserEditorProps> = ({ user, onSave, onCancel }
                             <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">Role</label>
                             <select
                                 value={formData.role}
-                                onChange={(e) => setFormData(prev => ({ ...prev, role: e.target.value as any }))}
+                                onChange={(e) => setFormData(prev => ({ ...prev, role: e.target.value as 'student' | 'teacher' | 'admin' }))}
                                 className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all text-sm"
                             >
                                 <option value="student">Student</option>

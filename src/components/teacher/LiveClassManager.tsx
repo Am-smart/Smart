@@ -31,7 +31,7 @@ export const LiveClassManager: React.FC<LiveClassManagerProps> = ({ teacherId, l
         try {
             const roomName = formData.room_name || `room_${Math.random().toString(36).substr(2, 9)}`;
             let recurring = {};
-            try { if (formData.recurring_config) recurring = JSON.parse(formData.recurring_config); } catch (e) {}
+            try { if (formData.recurring_config) recurring = JSON.parse(formData.recurring_config); } catch (_e) {}
 
             await saveLiveClass({
                 ...formData,
@@ -68,7 +68,7 @@ export const LiveClassManager: React.FC<LiveClassManagerProps> = ({ teacherId, l
             await saveLiveClass({
                 id: lc.id,
                 status: newStatus as 'completed' | 'live',
-                actual_end_at: newStatus === 'completed' ? new Date().toISOString() : (null as any)
+                actual_end_at: newStatus === 'completed' ? new Date().toISOString() : (null as unknown as string | null)
             });
 
             addToast(`Class ${newStatus === 'live' ? 'is now LIVE!' : 'has ended.'}`, 'success');

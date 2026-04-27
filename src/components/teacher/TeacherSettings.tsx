@@ -16,7 +16,7 @@ export const TeacherSettings: React.FC<TeacherSettingsProps> = ({ user, onUpdate
         full_name: user.full_name || '',
         phone: user.phone || '',
     });
-    const [notificationPreferences, setNotificationPreferences] = useState<Record<string, boolean>>((user as any).notification_preferences || {
+    const [notificationPreferences, setNotificationPreferences] = useState<Record<string, boolean>>((user as unknown as Record<string, unknown>).notification_preferences as Record<string, boolean> || {
         email: true,
         push: true,
         inApp: true

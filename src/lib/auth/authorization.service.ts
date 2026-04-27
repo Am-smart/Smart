@@ -1,5 +1,5 @@
 import { rbac } from './rbac';
-import { User, Course, Assignment, Quiz, Lesson, LiveClass, Discussion, Material, Badge } from '../types';
+import { User, Course } from '../types';
 
 export class AuthorizationService {
   // Courses

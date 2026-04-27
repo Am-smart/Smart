@@ -4,8 +4,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
 import { getCourses, getUserBadges } from '@/lib/api-actions';
 import { BadgeManager } from "@/components/teacher/BadgeManager";
-import { CourseDTO } from '@/lib/dto/learning.dto';
-import { BadgeDTO } from '@/lib/dto/system.dto';
 
 export default function BadgesPage() {
   const { user } = useAuth();

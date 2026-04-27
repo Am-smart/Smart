@@ -61,8 +61,8 @@ export async function getCertificates(userId: string): Promise<CertificateDTO[]>
     return apiClient.get<CertificateDTO[]>(`/api/system/certificates?userId=${userId}`);
 }
 
-export async function getUserBadges(userId: string): Promise<any[]> {
-    return apiClient.get<any[]>(`/api/system/user-badges?userId=${userId}`);
+export async function getUserBadges(userId: string): Promise<Record<string, unknown>[]> {
+    return apiClient.get<Record<string, unknown>[]>(`/api/system/user-badges?userId=${userId}`);
 }
 
 export async function getBadges(): Promise<BadgeDTO[]> {
@@ -327,8 +327,8 @@ export async function markLessonComplete(lessonId: string, courseId: string): Pr
     }
 }
 
-export async function getLessonCompletions(userId: string): Promise<any[]> {
-    return apiClient.get<any[]>(`/api/system/lesson-completions?userId=${userId}`);
+export async function getLessonCompletions(userId: string): Promise<Record<string, unknown>[]> {
+    return apiClient.get<Record<string, unknown>[]>(`/api/system/lesson-completions?userId=${userId}`);
 }
 
 // Discussions

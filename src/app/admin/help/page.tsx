@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAppContext } from '@/components/AppContext';
 import { Search, MessageSquare, Send, CheckCircle, Clock, User, Mail, ShieldAlert } from 'lucide-react';
+import { getSystemLogs, createSystemLog } from '@/lib/api-actions';
 
 interface SupportTicket {
     id: string;
@@ -59,22 +60,18 @@ export default function AdminHelpPage() {
 
         setIsSubmitting(true);
         try {
-            // 1. Update the ticket in system_logs
+            // 1. Log the support ticket response
             const updatedMetadata = {
                 ...selectedTicket.metadata,
                 reply: replyText,
                 resolved: true
             };
 
-            await updateSystemLog(selectedTicket.id, { metadata: updatedMetadata });
-
-            // 2. Send notification to user
-            await notifyUser({
-                target_id: selectedTicket.user_id,
-                n_title: 'Support Response',
-                n_msg: `Response to: ${selectedTicket.message.replace('Support Request: ', '')}\n\n${replyText}`,
-                n_link: '/student/help',
-                n_type: 'system'
+            await createSystemLog({
+                level: 'info',
+                category: 'management',
+                message: `Support ticket ${selectedTicket.id} resolved`,
+                metadata: updatedMetadata
             });
 
             addToast('Reply sent and ticket resolved!', 'success');
@@ -91,7 +88,12 @@ export default function AdminHelpPage() {
 
     const markResolved = async (ticket: SupportTicket) => {
         try {
-            await updateSystemLog(ticket.id, { metadata: { ...ticket.metadata, resolved: true } });
+            await createSystemLog({
+                level: 'info',
+                category: 'management',
+                message: `Support ticket ${ticket.id} marked as resolved`,
+                metadata: { ...ticket.metadata, resolved: true }
+            });
             addToast('Ticket marked as resolved', 'success');
             fetchTickets();
         } catch (err) {
