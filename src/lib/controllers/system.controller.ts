@@ -2,13 +2,12 @@ import { userService } from '../services/user.service';
 import { systemService } from '../services/system.service';
 import { communicationService } from '../services/communication.service';
 import { enrollmentService } from '../services/enrollment.service';
-import { UserMapper, SystemMapper, CommunicationMapper } from '../mappers/domain-to-dto.mapper';
-import { UserMapper as BaseUserMapper } from '../mappers';
+import { SystemMapper, CommunicationMapper } from '../mappers/domain-to-dto.mapper';
 import { rbac } from '../auth/rbac';
-import { User, PlannerItem, Discussion, LiveClass, Notification } from '../types';
+import { User, PlannerItem } from '../types';
 import { UserDTO } from '../dto/auth.dto';
-import { PlannerItemDTO, MaintenanceDTO, SystemLogDTO } from '../dto/system.dto';
-import { DiscussionDTO, LiveClassDTO, NotificationDTO } from '../dto/communication.dto';
+import { PlannerItemDTO } from '../dto/system.dto';
+import { DiscussionDTO, NotificationDTO } from '../dto/communication.dto';
 
 export class SystemController {
   async getAllUsers(user: User): Promise<UserDTO[]> {

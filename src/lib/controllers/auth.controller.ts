@@ -1,8 +1,6 @@
 import { authService } from '../services/auth.service';
 import { LoginRequestDTO, SignupRequestDTO, AuthResponseDTO } from '../dto/auth.dto';
-import { validateEmail, validateSignupForm, normalizeEmail, normalizeInput, validateLoginForm } from '../validation';
-import { UserMapper } from '../mappers';
-import { signData } from '../crypto';
+import { validateSignupForm, normalizeEmail, normalizeInput, validateLoginForm } from '../validation';
 import { User } from '../types';
 import { recordAttempt, isRateLimited, resetRateLimit } from '../rate-limit';
 

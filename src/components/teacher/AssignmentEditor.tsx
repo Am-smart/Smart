@@ -26,14 +26,14 @@ export const AssignmentEditor: React.FC<AssignmentEditorProps> = ({ teacherId, a
         points_possible: assignment?.points_possible || 0,
         status: assignment?.status || 'draft',
         allow_late_submissions: assignment?.allow_late_submissions !== false,
-        late_penalty_per_day: (assignment as any)?.late_penalty_per_day || 0,
+        late_penalty_per_day: (assignment as unknown as Record<string, unknown>).late_penalty_per_day as number || 0,
         anti_cheat_enabled: assignment?.anti_cheat_enabled || false,
         auto_submit_enabled: assignment?.auto_submit_enabled || false,
         hard_enforcement: assignment?.hard_enforcement || false,
         regrade_requests_enabled: assignment?.regrade_requests_enabled !== false,
         questions: assignment?.questions || [],
         attachments: assignment?.attachments || [],
-        allowed_extensions: (assignment as any)?.allowed_extensions || ['pdf', 'doc', 'docx', 'zip', 'jpg', 'png']
+        allowed_extensions: (assignment as unknown as Record<string, unknown>).allowed_extensions as string[] || ['pdf', 'doc', 'docx', 'zip', 'jpg', 'png']
     });
     const [isSaving, setIsSaving] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
@@ -228,7 +228,7 @@ export const AssignmentEditor: React.FC<AssignmentEditorProps> = ({ teacherId, a
                                         value={q.type}
                                         onChange={e => {
                                             const updated = [...formData.questions];
-                                            updated[index].type = e.target.value as any;
+                                            updated[index].type = e.target.value as 'essay' | 'file' | 'mcq';
                                             setFormData({ ...formData, questions: updated });
                                         }}
                                         className="p-3 rounded-xl border border-slate-200 bg-white text-sm"

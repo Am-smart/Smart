@@ -29,7 +29,7 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({ teacherId, quiz, courses
         auto_submit_enabled: quiz?.auto_submit_enabled || false,
         hard_enforcement: quiz?.hard_enforcement || false,
         shuffle_questions: quiz?.shuffle_questions || false,
-        questions: (quiz?.questions as any[]) || []
+        questions: (quiz?.questions as unknown[]) || []
     });
     const [isSaving, setIsSaving] = useState(false);
 
@@ -118,7 +118,7 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({ teacherId, quiz, courses
                         </div>
                         <div className="sm:col-span-2 md:col-span-1">
                             <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">Status</label>
-                            <select value={formData.status} onChange={e => setFormData({...formData, status: e.target.value as any})} className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all">
+                            <select value={formData.status} onChange={e => setFormData({...formData, status: e.target.value as 'draft' | 'published'})} className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all">
                                 <option value="draft">Draft</option>
                                 <option value="published">Published</option>
                             </select>
@@ -195,7 +195,7 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({ teacherId, quiz, courses
                                         <select
                                             value={q.type}
                                             onChange={e => {
-                                                const newType = e.target.value as any;
+                                                const newType = e.target.value as 'mcq' | 'tf' | 'essay' | 'file';
                                                 const updates: unknown = { type: newType, correct_answer: '' };
                                                 if (newType === 'tf') {
                                                     updates.options = ['True', 'False'];

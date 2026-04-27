@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { BadgeDTO, SystemLogDTO } from '@/lib/dto/system.dto';
+import { BadgeDTO } from '@/lib/dto/gamification.dto';
 import { UserDTO } from '@/lib/dto/auth.dto';
 import { Plus, Trash2, Award } from 'lucide-react';
 import { useAppContext } from '@/components/AppContext';

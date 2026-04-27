@@ -122,7 +122,7 @@ export const QuizView: React.FC<QuizViewProps> = ({ quiz, user, onComplete, onCa
         addToast('Security Threshold Reached: Assessment locked and auto-submitted due to multiple violations.', 'error', 10000);
         handleSubmit(false);
     }
-  }, [violationCount, quiz, addToast, isSubmitting, result , violationCount, handleSubmit]);
+  }, [violationCount, quiz, addToast, isSubmitting, result, handleSubmit]);
 
   useEffect(() => {
     if (timeLeft === null) return;

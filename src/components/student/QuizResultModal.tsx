@@ -10,7 +10,7 @@ interface QuizResultModalProps {
 
 export const QuizResultModal: React.FC<QuizResultModalProps> = ({ quiz, submission, onClose }) => {
     const questions = quiz.questions || [];
-    const answers = (submission as any).answers || {};
+    const answers = (submission as unknown as Record<string, unknown>).answers as Record<string, unknown> || {};
 
     return (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[3000] p-4">

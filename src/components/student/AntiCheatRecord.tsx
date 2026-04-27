@@ -15,7 +15,7 @@ export const AntiCheatRecord: React.FC<AntiCheatRecordProps> = ({ submissions, q
         id: s.id,
         type: 'Assignment',
         title: s.assignment?.title || 'Unknown',
-        violations: (s as any).violation_count || 0,
+        violations: (s as unknown as Record<string, unknown>).violation_count as number || 0,
         status: s.status,
         submittedAt: s.submitted_at,
         student: s.student?.full_name
@@ -24,8 +24,8 @@ export const AntiCheatRecord: React.FC<AntiCheatRecordProps> = ({ submissions, q
         id: s.id,
         type: 'Quiz',
         title: s.quiz?.title || 'Unknown',
-        violations: (s as any).violation_count || 0,
-        status: (s as any).status,
+        violations: (s as unknown as Record<string, unknown>).violation_count as number || 0,
+        status: (s as unknown as Record<string, unknown>).status as string,
         submittedAt: s.submitted_at,
         student: s.student?.full_name
     }))

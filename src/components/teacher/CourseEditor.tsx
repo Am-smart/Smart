@@ -104,7 +104,7 @@ export const CourseEditor: React.FC<CourseEditorProps> = ({ course, teacherId, o
                             <label className="block text-xs font-bold text-slate-700 uppercase mb-3 tracking-wide">Status</label>
                             <select
                                 value={formData.status}
-                                onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value as any }))}
+                                onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value as 'draft' | 'published' | 'archived' }))}
                                 className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all text-sm"
                             >
                                 <option value="draft">Draft</option>
