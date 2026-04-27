@@ -1,9 +1,9 @@
 import React from 'react';
-import { Submission } from '@/lib/types';
+import { SubmissionDTO } from '@/lib/dto/assessment.dto';
 
 interface GradingQueueProps {
-  submissions: Submission[];
-  onGrade: (submission: Submission) => void;
+  submissions: SubmissionDTO[];
+  onGrade: (submission: SubmissionDTO) => void;
 }
 
 export const GradingQueue: React.FC<GradingQueueProps> = ({ submissions, onGrade }) => {
@@ -30,8 +30,8 @@ export const GradingQueue: React.FC<GradingQueueProps> = ({ submissions, onGrade
             ) : (
               pending.map(sub => (
                 <tr key={sub.id} className="hover:bg-slate-50 transition-colors">
-                  <td className="px-6 py-4 font-semibold text-slate-900">{sub.users?.full_name || 'Anonymous Student'}</td>
-                  <td className="px-6 py-4 text-sm text-slate-600">{sub.assignments?.title || 'Unknown'}</td>
+                  <td className="px-6 py-4 font-semibold text-slate-900">{sub.student?.full_name || 'Anonymous Student'}</td>
+                  <td className="px-6 py-4 text-sm text-slate-600">{sub.assignment?.title || 'Unknown'}</td>
                   <td className="px-6 py-4 text-xs text-slate-500">{new Date(sub.submitted_at).toLocaleString()}</td>
                   <td className="px-6 py-4 text-right">
                     <button onClick={() => onGrade(sub)} className="btn-primary text-[10px] py-1.5 px-4">Grade Now</button>

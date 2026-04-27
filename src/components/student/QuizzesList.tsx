@@ -1,9 +1,9 @@
 import React from 'react';
-import { Quiz, QuizSubmission } from '@/lib/types';
+import { QuizDTO, QuizSubmissionDTO } from '@/lib/dto/assessment.dto';
 
 interface QuizzesListProps {
-  quizzes: Quiz[];
-  submissions: QuizSubmission[];
+  quizzes: QuizDTO[];
+  submissions: QuizSubmissionDTO[];
   onStart: (quizId: string) => void;
   onViewResults: (quizId: string, submissionId: string) => void;
 }
@@ -32,7 +32,7 @@ export const QuizzesList: React.FC<QuizzesListProps> = ({ quizzes, submissions, 
             <div key={quiz.id} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col gap-4">
               <div>
                 <h3 className="text-lg font-bold text-slate-900">{quiz.title}</h3>
-                <div className="text-[10px] font-bold text-blue-600 uppercase tracking-widest mt-1">{quiz.courses?.title || 'Course'}</div>
+                <div className="text-[10px] font-bold text-blue-600 uppercase tracking-widest mt-1">{quiz.course?.title || 'Course'}</div>
               </div>
 
               <div className="grid grid-cols-2 gap-4 p-4 bg-slate-50 rounded-xl">

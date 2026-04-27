@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getSessionUser, handleUnauthorized } from '../api-utils';
+import { getSessionUser, handleUnauthorized } from '@/app/api/api-utils';
 import { SessionRepository } from '@/lib/repositories/session.repository';
 
 export async function GET() {

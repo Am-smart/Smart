@@ -2,16 +2,17 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
-import { apiClient } from '@/lib/api-client';
-import { Enrollment, Course, Assignment } from '@/lib/types';
+import { getEnrollments, getAssignments, getSubmissions } from '@/lib/api-actions';
+import { EnrollmentDTO, CourseDTO } from '@/lib/dto/learning.dto';
+import { AssignmentDTO } from '@/lib/dto/assessment.dto';
 import dynamic from 'next/dynamic';
 
 const StudyTimer = dynamic(() => import("@/components/student/StudyTimer").then(m => m.StudyTimer), { ssr: false });
 
 export default function StudentDashboard() {
   const { user } = useAuth();
-  const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
-  const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [enrollments, setEnrollments] = useState<EnrollmentDTO[]>([]);
+  const [assignments, setAssignments] = useState<AssignmentDTO[]>([]);
   const [stats, setStats] = useState({ courses: 0, dueSoon: 0, xp: 0 });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -22,13 +23,13 @@ export default function StudentDashboard() {
     setError(null);
     try {
         const [myEnrollments, allAssignments, mySubmissions] = await Promise.all([
-          apiClient.get<Enrollment[]>(`/api/system/enrollments?studentId=${user.id}`),
-          apiClient.get<Assignment[]>('/api/assignments'),
-          apiClient.get<any[]>(`/api/submissions?studentId=${user.id}`)
+          getEnrollments(user.id),
+          getAssignments(),
+          getSubmissions(undefined, user.id)
         ]);
 
-        const enrolledIds = myEnrollments.map((e: Enrollment) => e.course_id);
-        const pendingAssignments = allAssignments.filter((a: Assignment) =>
+        const enrolledIds = myEnrollments.map((e: EnrollmentDTO) => e.course_id);
+        const pendingAssignments = allAssignments.filter((a: AssignmentDTO) =>
             enrolledIds.includes(a.course_id) &&
             (!a.due_date || new Date(a.due_date as string) > new Date()) &&
             !mySubmissions.some((s: { assignment_id: string }) => s.assignment_id === a.id)
@@ -47,7 +48,7 @@ export default function StudentDashboard() {
     } finally {
         setIsLoading(false);
     }
-  }, [user, fetchData]);
+  }, [user]);
 
   useEffect(() => {
     fetchData();
@@ -83,7 +84,7 @@ export default function StudentDashboard() {
   return (
     <div className="space-y-8">
       {enrollments.length > 0 && (
-        <StudyTimer userId={user.id} courses={enrollments.map(e => e.courses).filter(Boolean) as Course[]} />
+        <StudyTimer userId={user.id} courses={enrollments.map(e => e.course).filter(Boolean) as CourseDTO[]} />
       )}
 
       <h2 className="text-2xl font-bold mb-6">Welcome Back, {user.full_name}!</h2>
@@ -111,7 +112,7 @@ export default function StudentDashboard() {
                           <div key={e.course_id} className="flex items-center gap-4 p-4 bg-slate-50 rounded-xl">
                               <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center text-xl">📖</div>
                               <div className="flex-1">
-                                  <div className="font-bold text-slate-900">{e.courses?.title}</div>
+                                  <div className="font-bold text-slate-900">{e.course?.title}</div>
                                   <div className="w-full bg-slate-200 h-1.5 rounded-full mt-2 overflow-hidden">
                                       <div className="bg-blue-500 h-full" style={{ width: `${e.progress}%` }}></div>
                                   </div>

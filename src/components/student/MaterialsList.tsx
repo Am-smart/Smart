@@ -1,8 +1,8 @@
 import React from 'react';
-import { Material } from '@/lib/types';
+import { MaterialDTO } from '@/lib/dto/learning.dto';
 
 interface MaterialsListProps {
-  materials: Material[];
+  materials: MaterialDTO[];
 }
 
 export const MaterialsList: React.FC<MaterialsListProps> = ({ materials }) => {

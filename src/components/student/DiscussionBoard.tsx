@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Discussion } from '@/lib/types';
+import { DiscussionDTO } from '@/lib/dto/communication.dto';
 import { MessageSquare, Send, Trash2 } from 'lucide-react';
 import { apiClient } from '@/lib/api-client';
 
@@ -9,11 +9,11 @@ interface DiscussionBoardProps {
 }
 
 export const DiscussionBoard: React.FC<DiscussionBoardProps> = ({ courseId, userId }) => {
-  const [discussions, setDiscussions] = useState<Discussion[]>([]);
+  const [discussions, setDiscussions] = useState<DiscussionDTO[]>([]);
   const [message, setMessage] = useState('');
 
   const fetchDiscussions = useCallback(async () => {
-    const data = await apiClient.get<Discussion[]>(`/api/system/discussions?courseId=${courseId || 'global'}`);
+    const data = await apiClient.get<DiscussionDTO[]>(`/api/system/discussions?courseId=${courseId || 'global'}`);
     setDiscussions(data || []);
   }, [courseId]);
 
@@ -55,7 +55,7 @@ export const DiscussionBoard: React.FC<DiscussionBoardProps> = ({ courseId, user
           <div key={d.id} className={`flex flex-col ${d.user_id === userId ? 'items-end' : 'items-start'}`}>
             <div className={`max-w-[80%] p-4 rounded-2xl ${d.user_id === userId ? 'bg-blue-600 text-white rounded-tr-none' : 'bg-slate-100 text-slate-800 rounded-tl-none'}`}>
               <div className="text-[10px] font-bold uppercase tracking-wider mb-1 opacity-70">
-                {d.users?.full_name || 'Anonymous User'}
+                {d.user?.full_name || 'Anonymous User'}
               </div>
               <p className="text-sm leading-relaxed">{d.content}</p>
             </div>

@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { Submission } from '@/lib/types';
+import { SubmissionDTO } from '@/lib/dto/assessment.dto';
 import { useAppContext } from '@/components/AppContext';
-import { apiClient } from '@/lib/api-client';
+import { gradeSubmission } from '@/lib/api-actions';
 
 interface GradingModalProps {
-    submission: Submission;
+    submission: SubmissionDTO;
     onSave: () => void;
     onCancel: () => void;
 }
@@ -12,20 +12,20 @@ interface GradingModalProps {
 export const GradingModal: React.FC<GradingModalProps> = ({ submission, onSave, onCancel }) => {
     const { addToast } = useAppContext();
 
-    const dueDate = submission.assignments?.due_date ? new Date(submission.assignments.due_date) : null;
+    const dueDate = submission.assignment?.due_date ? new Date(submission.assignment.due_date) : null;
     const submittedAt = new Date(submission.submitted_at);
     const isLate = dueDate && submittedAt > dueDate;
     const daysLate = isLate ? Math.ceil((submittedAt.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24)) : 0;
-    const penaltyPerDay = submission.assignments?.late_penalty_per_day || 0;
+    const penaltyPerDay = (submission.assignment as any)?.late_penalty_per_day || 0;
     const calculatedPenalty = isLate ? daysLate * penaltyPerDay : 0;
 
     const [formData, setFormData] = useState({
         grade: submission.grade?.toString() || '',
         feedback: submission.feedback || '',
-        points_possible: submission.assignments?.points_possible || 100,
+        points_possible: submission.assignment?.points_possible || 100,
         regrade_feedback: '',
-        response_feedback: (submission.response_feedback as Record<string, string>) || {},
-        question_scores: (submission.question_scores as Record<string, number>) || {}
+        response_feedback: ((submission as any).response_feedback as Record<string, string>) || {},
+        question_scores: ((submission as any).question_scores as Record<string, number>) || {}
     });
     const [isSaving, setIsSaving] = useState(false);
     const [regradeStatus, setRegradeStatus] = useState<'pending' | 'resolved'>(submission.regrade_request ? 'pending' : 'resolved');
@@ -69,7 +69,7 @@ export const GradingModal: React.FC<GradingModalProps> = ({ submission, onSave, 
                 <header className="p-8 border-b bg-slate-50 flex justify-between items-center">
                     <div>
                         <h2 className="text-2xl font-bold text-slate-900">Grade Submission</h2>
-                        <div className="text-xs text-slate-500 font-medium mt-1">Student: {submission.users?.full_name || 'Anonymous Student'}</div>
+                        <div className="text-xs text-slate-500 font-medium mt-1">Student: {submission.student?.full_name || 'Anonymous Student'}</div>
                     </div>
                     <button onClick={onCancel} className="p-2 hover:bg-slate-200 rounded-full transition-colors">✕</button>
                 </header>
@@ -77,17 +77,17 @@ export const GradingModal: React.FC<GradingModalProps> = ({ submission, onSave, 
                     <div className="bg-blue-50 p-4 md:p-6 rounded-2xl border border-blue-100 space-y-4">
                         <h4 className="text-sm font-bold text-blue-700 uppercase mb-2">Student Submission</h4>
 
-                        {submission.answers && Object.keys(submission.answers).length > 0 ? (
+                        {(submission as any).answers && Object.keys((submission as any).answers).length > 0 ? (
                             <div className="space-y-4">
-                                {submission.assignments?.questions.map((q, idx) => (
+                                {submission.assignment?.questions.map((q: any, idx: number) => (
                                     <div key={idx} className="bg-white p-5 rounded-2xl shadow-sm border border-blue-100/50 space-y-4">
                                         <div>
                                             <div className="text-[10px] font-black text-blue-500 uppercase tracking-widest mb-2">Step {idx + 1}: {q.text}</div>
                                             <div className="text-sm text-slate-800">
                                                 {q.type === 'file' ? (
-                                                    <a href={submission.answers?.[idx] as string} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-bold">View Uploaded File</a>
+                                                    <a href={(submission as any).answers?.[idx] as string} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-bold">View Uploaded File</a>
                                                 ) : (
-                                                    (submission.answers?.[idx] as string) || <span className="italic text-slate-400">No response</span>
+                                                    ((submission as any).answers?.[idx] as string) || <span className="italic text-slate-400">No response</span>
                                                 )}
                                             </div>
                                         </div>

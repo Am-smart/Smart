@@ -2,15 +2,15 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
-import { getEnrollments, getLiveClasses, recordAttendance } from '@/lib/api-client';
+import { getEnrollments, getLiveClasses, recordAttendance } from '@/lib/api-actions';
 import { LiveClassesList } from "@/components/student/LiveClassesList";
-import { LiveClass } from '@/lib/types';
+import { LiveClassDTO } from '@/lib/dto/communication.dto';
 import { useAppContext } from '@/components/AppContext';
 
 export default function LiveClassesPage() {
     const { addToast } = useAppContext();
   const { user } = useAuth();
-  const [liveClasses, setLiveClasses] = useState<LiveClass[]>([]);
+  const [liveClasses, setLiveClasses] = useState<LiveClassDTO[]>([]);
 
   useEffect(() => {
     if (user) {

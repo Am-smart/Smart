@@ -1,14 +1,14 @@
 import React from 'react';
-import { Certificate } from '@/lib/types';
+import { CertificateDTO } from '@/lib/dto/system.dto';
 import jsPDF from 'jspdf';
 
 interface CertificatesListProps {
   studentName: string;
-  certificates: Certificate[];
+  certificates: CertificateDTO[];
 }
 
 export const CertificatesList: React.FC<CertificatesListProps> = ({ studentName, certificates }) => {
-  const downloadPDF = (cert: Certificate) => {
+  const downloadPDF = (cert: CertificateDTO) => {
     const doc = new jsPDF({
       orientation: 'landscape',
       unit: 'mm',
@@ -47,7 +47,7 @@ export const CertificatesList: React.FC<CertificatesListProps> = ({ studentName,
     doc.setTextColor(59, 130, 246);
     doc.setFontSize(24);
     doc.setFont('helvetica', 'bold');
-    doc.text(cert.courses?.title || 'Unknown Course', 148.5, 135, { align: 'center' });
+    doc.text(cert.course?.title || 'Unknown Course', 148.5, 135, { align: 'center' });
 
     // Footer
     doc.setTextColor(150);
@@ -60,7 +60,7 @@ export const CertificatesList: React.FC<CertificatesListProps> = ({ studentName,
     doc.setFontSize(14);
     doc.text('SmartLMS Learning Platform', 148.5, 190, { align: 'center' });
 
-    doc.save(`${cert.courses?.title}_Certificate.pdf`);
+    doc.save(`${cert.course?.title}_Certificate.pdf`);
   };
 
   return (
@@ -72,7 +72,7 @@ export const CertificatesList: React.FC<CertificatesListProps> = ({ studentName,
           certificates.map(cert => (
             <div key={cert.id} className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 flex flex-col items-center text-center group hover:shadow-xl transition-shadow border-t-4 border-t-blue-500">
               <div className="text-5xl mb-6">📜</div>
-              <h3 className="font-black text-xl text-slate-900 mb-2">{cert.courses?.title}</h3>
+              <h3 className="font-black text-xl text-slate-900 mb-2">{cert.course?.title}</h3>
               <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-6">Issued: {new Date(cert.issued_at).toLocaleDateString()}</p>
 
               <div className="flex gap-3 w-full">

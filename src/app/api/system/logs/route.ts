@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getSessionUser, handleUnauthorized } from '../api-utils';
+import { getSessionUser, handleUnauthorized } from '@/app/api/api-utils';
 import { systemService } from '@/lib/services/system.service';
 import { SystemMapper } from '@/lib/mappers/domain-to-dto.mapper';
 

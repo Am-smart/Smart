@@ -2,13 +2,13 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
-import { getEnrollments, getMaterials } from '@/lib/api-client';
+import { getEnrollments, getMaterials } from '@/lib/api-actions';
 import { MaterialsList } from "@/components/student/MaterialsList";
-import { Material } from '@/lib/types';
+import { MaterialDTO } from '@/lib/dto/learning.dto';
 
 export default function MaterialsPage() {
   const { user } = useAuth();
-  const [materials, setMaterials] = useState<Material[]>([]);
+  const [materials, setMaterials] = useState<MaterialDTO[]>([]);
 
   useEffect(() => {
     if (user) {

@@ -1,8 +1,8 @@
 import React from 'react';
-import { Badge } from '@/lib/types';
+import { BadgeDTO } from '@/lib/dto/system.dto';
 
 interface AchievementsListProps {
-  badges: Badge[];
+  badges: BadgeDTO[];
 }
 
 export const AchievementsList: React.FC<AchievementsListProps> = ({ badges }) => {

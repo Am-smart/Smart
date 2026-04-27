@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Quiz, User, QuizQuestion } from '@/lib/types';
+import { QuizDTO } from '@/lib/dto/assessment.dto';
+import { UserDTO } from '@/lib/dto/auth.dto';
 import { apiClient } from '@/lib/api-client';
 import { calculateQuizScore } from '@/lib/scoring-util';
 import { useAntiCheat } from '@/hooks/useAntiCheat';
@@ -7,8 +8,8 @@ import { useIndexedDB } from '@/hooks/useIndexedDB';
 import { useAppContext } from '@/components/AppContext';
 
 interface QuizViewProps {
-  quiz: Quiz;
-  user: User;
+  quiz: QuizDTO;
+  user: UserDTO;
   onComplete: (score: number) => void;
   onCancel: () => void;
 }
@@ -81,7 +82,7 @@ export const QuizView: React.FC<QuizViewProps> = ({ quiz, user, onComplete, onCa
             score = res.score || 0;
         } else {
             // Offline estimation using unified logic
-            const questions = (quiz.questions as QuizQuestion[]) || [];
+            const questions = (quiz.questions as unknown[]) || [];
             const result = calculateQuizScore(questions, answers);
             score = result.score;
 
@@ -107,7 +108,7 @@ export const QuizView: React.FC<QuizViewProps> = ({ quiz, user, onComplete, onCa
         addToast(msg, 'error');
         setIsSubmitting(false);
     }
-  }, [quiz, user, answers, isSubmitting, result, isOnline, addToQueue, setCache, timeLeft, startedAt, addToast]);
+  }, [quiz, user, answers, isSubmitting, result, isOnline, addToQueue, setCache, timeLeft, startedAt, addToast, violationCount]);
 
   // Anti-cheat: Hard enforcement when enabled
   useEffect(() => {

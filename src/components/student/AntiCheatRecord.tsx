@@ -1,10 +1,11 @@
 import React from 'react';
-import { Submission, QuizSubmission, SystemLog } from '@/lib/types';
+import { SubmissionDTO, QuizSubmissionDTO } from '@/lib/dto/assessment.dto';
+import { SystemLogDTO } from '@/lib/dto/system.dto';
 
 interface AntiCheatRecordProps {
-  submissions: Submission[];
-  quizSubmissions: QuizSubmission[];
-  logs?: SystemLog[];
+  submissions: SubmissionDTO[];
+  quizSubmissions: QuizSubmissionDTO[];
+  logs?: SystemLogDTO[];
   isTeacher?: boolean;
 }
 
@@ -13,20 +14,20 @@ export const AntiCheatRecord: React.FC<AntiCheatRecordProps> = ({ submissions, q
     ...submissions.map(s => ({
         id: s.id,
         type: 'Assignment',
-        title: s.assignments?.title || 'Unknown',
-        violations: s.violation_count || 0,
+        title: s.assignment?.title || 'Unknown',
+        violations: (s as any).violation_count || 0,
         status: s.status,
         submittedAt: s.submitted_at,
-        student: s.users?.full_name
+        student: s.student?.full_name
     })),
     ...quizSubmissions.map(s => ({
         id: s.id,
         type: 'Quiz',
-        title: s.quizzes?.title || 'Unknown',
-        violations: s.violation_count || 0,
-        status: s.status,
+        title: s.quiz?.title || 'Unknown',
+        violations: (s as any).violation_count || 0,
+        status: (s as any).status,
         submittedAt: s.submitted_at,
-        student: s.users?.full_name
+        student: s.student?.full_name
     }))
   ].filter(s => s.status === 'submitted' || s.status === 'graded');
 
@@ -125,8 +126,8 @@ export const AntiCheatRecord: React.FC<AntiCheatRecordProps> = ({ submissions, q
                           {log.created_at ? new Date(log.created_at).toLocaleString() : 'N/A'}
                         </td>
                         <td className="px-6 py-4">
-                          <div className="text-sm font-bold text-slate-700">{log.users?.full_name || 'System'}</div>
-                          <div className="text-[10px] text-slate-400">{log.users?.email}</div>
+                          <div className="text-sm font-bold text-slate-700">{log.user?.full_name || 'System'}</div>
+                          <div className="text-[10px] text-slate-400">{log.user?.email}</div>
                         </td>
                         <td className="px-6 py-4">
                           <span className="text-xs font-black uppercase text-red-600 bg-red-50 px-2 py-1 rounded">

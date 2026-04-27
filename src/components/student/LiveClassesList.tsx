@@ -1,9 +1,9 @@
 import React from 'react';
-import { LiveClass } from '@/lib/types';
+import { LiveClassDTO } from '@/lib/dto/communication.dto';
 
 interface LiveClassesListProps {
-  liveClasses: LiveClass[];
-  onJoin: (liveClass: LiveClass) => void;
+  liveClasses: LiveClassDTO[];
+  onJoin: (liveClass: LiveClassDTO) => void;
 }
 
 export const LiveClassesList: React.FC<LiveClassesListProps> = ({ liveClasses, onJoin }) => {

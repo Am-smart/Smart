@@ -2,13 +2,13 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
-import { getCertificates } from '@/lib/api-client';
+import { getCertificates } from '@/lib/api-actions';
 import { CertificatesList } from "@/components/student/CertificatesList";
-import { Certificate } from '@/lib/types';
+import { CertificateDTO } from '@/lib/dto/system.dto';
 
 export default function CertificatesPage() {
   const { user } = useAuth();
-  const [certificates, setCertificates] = useState<Certificate[]>([]);
+  const [certificates, setCertificates] = useState<CertificateDTO[]>([]);
 
   useEffect(() => {
     if (user) {

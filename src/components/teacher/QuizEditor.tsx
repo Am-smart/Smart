@@ -1,20 +1,21 @@
 import React, { useState } from 'react';
-import { Quiz, Course, QuizQuestion } from '@/lib/types';
+import { QuizDTO } from '@/lib/dto/assessment.dto';
+import { CourseDTO } from '@/lib/dto/learning.dto';
 import { useAppContext } from '@/components/AppContext';
 import { Plus } from 'lucide-react';
-import { apiClient } from '@/lib/api-client';
+import { saveQuiz } from '@/lib/api-actions';
 
 interface QuizEditorProps {
     teacherId: string;
-    quiz?: Quiz;
-    courses: Course[];
+    quiz?: QuizDTO;
+    courses: CourseDTO[];
     onSave: () => void;
     onCancel: () => void;
 }
 
 export const QuizEditor: React.FC<QuizEditorProps> = ({ teacherId, quiz, courses, onSave, onCancel }) => {
     const { addToast } = useAppContext();
-    const [formData, setFormData] = useState({
+    const [formData, setFormData] = useState<any>({
         title: quiz?.title || '',
         description: quiz?.description || '',
         course_id: quiz?.course_id || (courses.length > 0 ? courses[0].id : ''),
@@ -28,12 +29,12 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({ teacherId, quiz, courses
         auto_submit_enabled: quiz?.auto_submit_enabled || false,
         hard_enforcement: quiz?.hard_enforcement || false,
         shuffle_questions: quiz?.shuffle_questions || false,
-        questions: (quiz?.questions as QuizQuestion[]) || []
+        questions: (quiz?.questions as any[]) || []
     });
     const [isSaving, setIsSaving] = useState(false);
 
     const handleAddQuestion = () => {
-        const newQ: QuizQuestion = {
+        const newQ: any = {
             id: Math.random().toString(36).substr(2, 9),
             question_text: '',
             type: 'mcq',
@@ -46,7 +47,7 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({ teacherId, quiz, courses
         setFormData({ ...formData, questions: [...formData.questions, newQ] });
     };
 
-    const handleQuestionChange = (index: number, updates: Partial<QuizQuestion>) => {
+    const handleQuestionChange = (index: number, updates: any) => {
         const updated = [...formData.questions];
         updated[index] = { ...updated[index], ...updates };
         setFormData({ ...formData, questions: updated });
@@ -117,7 +118,7 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({ teacherId, quiz, courses
                         </div>
                         <div className="sm:col-span-2 md:col-span-1">
                             <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">Status</label>
-                            <select value={formData.status} onChange={e => setFormData({...formData, status: e.target.value as Quiz['status']})} className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all">
+                            <select value={formData.status} onChange={e => setFormData({...formData, status: e.target.value as any})} className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all">
                                 <option value="draft">Draft</option>
                                 <option value="published">Published</option>
                             </select>
@@ -194,8 +195,8 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({ teacherId, quiz, courses
                                         <select
                                             value={q.type}
                                             onChange={e => {
-                                                const newType = e.target.value as QuizQuestion["type"];
-                                                const updates: Partial<QuizQuestion> = { type: newType, correct_answer: '' };
+                                                const newType = e.target.value as any;
+                                                const updates: any = { type: newType, correct_answer: '' };
                                                 if (newType === 'tf') {
                                                     updates.options = ['True', 'False'];
                                                 } else if (newType === 'mcq') {

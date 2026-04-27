@@ -2,9 +2,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
-import { getAssignments, getQuizzes, getLiveClasses, getEnrollments } from '@/lib/api-client';
+import { getAssignments, getQuizzes, getLiveClasses, getEnrollments } from '@/lib/api-actions';
 import { CalendarView } from "@/components/ui/CalendarView";
-import { Assignment, Quiz, LiveClass } from '@/lib/types';
+import { AssignmentDTO, QuizDTO } from '@/lib/dto/assessment.dto';
+import { LiveClassDTO } from '@/lib/dto/communication.dto';
 
 interface CalendarEvent {
     id: string;
@@ -31,21 +32,21 @@ export default function CalendarPage() {
             ]);
 
             const mappedEvents: CalendarEvent[] = [
-                ...assignments.filter(a => courseIds.includes(a.course_id)).map((a: Assignment) => ({
+                ...assignments.filter(a => courseIds.includes(a.course_id)).map((a: AssignmentDTO) => ({
                     id: a.id,
                     title: `Due: ${a.title}`,
                     date: a.due_date.split('T')[0],
                     type: 'assignment' as const,
                     color: 'bg-blue-50 text-blue-600 border-blue-500'
                 })),
-                ...quizzes.filter(q => courseIds.includes(q.course_id)).map((q: Quiz) => ({
+                ...quizzes.filter(q => courseIds.includes(q.course_id)).map((q: QuizDTO) => ({
                     id: q.id,
                     title: `Quiz: ${q.title}`,
                     date: (q.start_at || q.end_at || '').split('T')[0],
                     type: 'quiz' as const,
                     color: 'bg-purple-50 text-purple-600 border-purple-500'
                 })),
-                ...liveClasses.filter(l => courseIds.includes(l.course_id)).map((l: LiveClass) => ({
+                ...liveClasses.filter(l => courseIds.includes(l.course_id)).map((l: LiveClassDTO) => ({
                     id: l.id,
                     title: `Class: ${l.title}`,
                     date: l.start_at.split('T')[0],

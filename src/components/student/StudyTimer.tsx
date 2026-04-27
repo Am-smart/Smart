@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Course } from '@/lib/types';
+import { CourseDTO } from '@/lib/dto/learning.dto';
 import { useAppContext } from '../AppContext';
-import { saveStudySession } from '@/lib/api-client';
+import { saveStudySession } from '@/lib/api-actions';
 
 interface StudyTimerProps {
   userId: string;
-  courses: Course[];
+  courses: CourseDTO[];
   activeCourseId?: string; // Optional course context for auto-tracking
 }
 

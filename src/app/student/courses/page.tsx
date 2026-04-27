@@ -7,7 +7,7 @@ import { apiClient } from '@/lib/api-client';
 import { useIndexedDB } from '@/hooks/useIndexedDB';
 import { CourseCatalog } from "@/components/student/CourseCatalog";
 import { CourseView } from "@/components/student/CourseView";
-import { Course, Lesson } from '@/lib/types';
+import { CourseDTO, LessonDTO } from '@/lib/dto/learning.dto';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAppContext } from '@/components/AppContext';
 
@@ -16,10 +16,10 @@ function CatalogContent() {
   const { addToast } = useAppContext();
   const { getCourses, getEnrollments } = useSupabase();
   const { isOnline, addToQueue } = useIndexedDB();
-  const [courses, setCourses] = useState<Course[]>([]);
+  const [courses, setCourses] = useState<CourseDTO[]>([]);
   const [enrolledIds, setEnrolledIds] = useState<string[]>([]);
-  const [activeCourse, setActiveCourse] = useState<Course | null>(null);
-  const [lessons, setLessons] = useState<Lesson[]>([]);
+  const [activeCourse, setActiveCourse] = useState<CourseDTO | null>(null);
+  const [lessons, setLessons] = useState<LessonDTO[]>([]);
   const router = useRouter();
   const searchParams = useSearchParams();
   const courseIdParam = searchParams.get('id');
@@ -43,7 +43,7 @@ function CatalogContent() {
         const c = courses.find(item => item.id === courseIdParam);
         if (c) {
             setActiveCourse(c);
-            apiClient.get<Lesson[]>(`/api/lessons?courseId=${c.id}`).then(data => setLessons(data || []));
+            apiClient.get<LessonDTO[]>(`/api/lessons?courseId=${c.id}`).then(data => setLessons(data || []));
         }
     } else {
         setActiveCourse(null);

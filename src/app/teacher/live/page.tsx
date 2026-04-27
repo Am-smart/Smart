@@ -2,14 +2,15 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
-import { apiClient } from '@/lib/api-client';
+import { getCourses, getLiveClasses } from '@/lib/api-actions';
 import { LiveClassManager } from "@/components/teacher/LiveClassManager";
-import { LiveClass, Course } from '@/lib/types';
+import { LiveClassDTO } from '@/lib/dto/communication.dto';
+import { CourseDTO } from '@/lib/dto/learning.dto';
 
 export default function LiveClassesPage() {
   const { user } = useAuth();
-  const [courses, setCourses] = useState<Course[]>([]);
-  const [liveClasses, setLiveClasses] = useState<LiveClass[]>([]);
+  const [courses, setCourses] = useState<CourseDTO[]>([]);
+  const [liveClasses, setLiveClasses] = useState<LiveClassDTO[]>([]);
 
   const fetchData = useCallback(async () => {
       if (!user) return;

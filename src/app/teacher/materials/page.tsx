@@ -2,14 +2,14 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
-import { apiClient } from '@/lib/api-client';
+import { getCourses, getMaterials } from '@/lib/api-actions';
 import { MaterialManager } from "@/components/teacher/MaterialManager";
-import { Material, Course } from '@/lib/types';
+import { MaterialDTO, CourseDTO } from '@/lib/dto/learning.dto';
 
 export default function MaterialsPage() {
   const { user } = useAuth();
-  const [courses, setCourses] = useState<Course[]>([]);
-  const [materials, setMaterials] = useState<Material[]>([]);
+  const [courses, setCourses] = useState<CourseDTO[]>([]);
+  const [materials, setMaterials] = useState<MaterialDTO[]>([]);
 
   const fetchData = useCallback(async () => {
       if (!user) return;

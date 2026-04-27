@@ -1,24 +1,24 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Course, Lesson } from '@/lib/types';
+import { CourseDTO, LessonDTO } from '@/lib/dto/learning.dto';
 import { Plus, Trash2, GripVertical, Save, X, Edit2 } from 'lucide-react';
 import { useAppContext } from '@/components/AppContext';
-import { apiClient } from '@/lib/api-client';
+import { getLessons, saveLesson, deleteLesson } from '@/lib/api-actions';
 
 interface LessonEditorProps {
-    course: Course;
+    course: CourseDTO;
     onClose: () => void;
 }
 
 export const LessonEditor: React.FC<LessonEditorProps> = ({ course, onClose }) => {
     const { addToast } = useAppContext();
-    const [lessons, setLessons] = useState<Lesson[]>([]);
+    const [lessons, setLessons] = useState<LessonDTO[]>([]);
     const [isAdding, setIsAdding] = useState(false);
-    const [editingLesson, setEditingLesson] = useState<Lesson | null>(null);
+    const [editingLesson, setEditingLesson] = useState<LessonDTO | null>(null);
     const [formData, setFormData] = useState({ title: '', content: '', video_url: '' });
 
     const fetchLessons = useCallback(async () => {
         const data = await getLessons(course.id);
-        setLessons((data as Lesson[]) || []);
+        setLessons(data || []);
     }, [course.id]);
 
     useEffect(() => { fetchLessons(); }, [fetchLessons]);
@@ -54,7 +54,7 @@ export const LessonEditor: React.FC<LessonEditorProps> = ({ course, onClose }) =
     const handleDelete = async (id: string) => {
         if (!confirm('Are you sure you want to delete this lesson?')) return;
         try {
-            await deleteLesson(id, course.id);
+            await deleteLesson(id);
             addToast('Lesson deleted', 'success');
             fetchLessons();
         } catch (err) {
@@ -63,7 +63,7 @@ export const LessonEditor: React.FC<LessonEditorProps> = ({ course, onClose }) =
         }
     };
 
-    const startEdit = (lesson: Lesson) => {
+    const startEdit = (lesson: LessonDTO) => {
         setEditingLesson(lesson);
         setFormData({
             title: lesson.title,

@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { apiClient } from '@/lib/api-client';
 import { SystemInfo } from "@/components/admin/SystemMisc";
 
 export default function SystemPage() {

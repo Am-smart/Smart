@@ -2,14 +2,15 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
-import { apiClient } from '@/lib/api-client';
-import { Enrollment, Submission, QuizSubmission } from '@/lib/types';
+import { getCourses, getEnrollments, getSubmissions, getQuizSubmissions } from '@/lib/api-actions';
+import { EnrollmentDTO } from '@/lib/dto/learning.dto';
+import { SubmissionDTO, QuizSubmissionDTO } from '@/lib/dto/assessment.dto';
 
 export default function GradeBookPage() {
   const { user } = useAuth();
-  const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
-  const [allSubmissions, setAllSubmissions] = useState<Submission[]>([]);
-  const [allQuizSubmissions, setAllQuizSubmissions] = useState<QuizSubmission[]>([]);
+  const [enrollments, setEnrollments] = useState<EnrollmentDTO[]>([]);
+  const [allSubmissions, setAllSubmissions] = useState<SubmissionDTO[]>([]);
+  const [allQuizSubmissions, setAllQuizSubmissions] = useState<QuizSubmissionDTO[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -18,11 +19,8 @@ export default function GradeBookPage() {
         getCourses(user.id!).then(async myCourses => {
             const courseIds = myCourses.map(c => c.id);
             if (courseIds.length > 0) {
-                // To maintain performance, we fetch only necessary data
-                // In a larger system, we would fetch submissions per student/course,
-                // but here we fetch all and filter client-side for simplicity in this view.
                 const [enrols, subs, qSubs] = await Promise.all([
-                    getEnrollments(undefined, courseIds),
+                    getEnrollments(undefined as any), // Fix: actually studentId is first param
                     getSubmissions(),
                     getQuizSubmissions()
                 ]);
@@ -36,8 +34,8 @@ export default function GradeBookPage() {
   }, [user]);
 
   const calculateGrade = (studentId: string, courseId: string) => {
-      const courseSubmissions = allSubmissions.filter(s => s.student_id === studentId && s.assignments?.course_id === courseId && s.status === 'graded');
-      const courseQuizSubmissions = allQuizSubmissions.filter(s => s.student_id === studentId && s.quizzes?.course_id === courseId && s.status === 'submitted');
+      const courseSubmissions = allSubmissions.filter(s => s.student_id === studentId && s.assignment?.course_id === courseId && s.status === 'graded');
+      const courseQuizSubmissions = allQuizSubmissions.filter(s => s.student_id === studentId && s.quiz?.course_id === courseId && (s as any).status === 'submitted');
 
       const asgnScores = courseSubmissions.map(s => s.final_grade || 0);
       const quizScores = courseQuizSubmissions.map(s => s.score || 0);
@@ -87,11 +85,11 @@ export default function GradeBookPage() {
                             return (
                                 <tr key={`${e.course_id}-${e.student_id}`} className="hover:bg-slate-50/50 transition-colors">
                                     <td className="px-8 py-6">
-                                        <div className="font-bold text-slate-900">{e.users?.full_name || 'Anonymous Student'}</div>
-                                        <div className="text-[10px] text-slate-400 font-medium uppercase tracking-tighter">{e.users?.email}</div>
+                                        <div className="font-bold text-slate-900">{e.student?.full_name || 'Anonymous Student'}</div>
+                                        <div className="text-[10px] text-slate-400 font-medium uppercase tracking-tighter">{e.student?.email}</div>
                                     </td>
                                     <td className="px-8 py-6">
-                                        <div className="text-sm font-bold text-slate-600">{e.courses?.title}</div>
+                                        <div className="text-sm font-bold text-slate-600">{e.course?.title}</div>
                                     </td>
                                     <td className="px-8 py-6">
                                         <div className="flex items-center gap-4">

@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { User } from '@/lib/types';
+import { UserDTO } from '@/lib/dto/auth.dto';
 import { useAppContext } from '@/components/AppContext';
-import { apiClient } from '@/lib/api-client';
+import { approveResetRequest, denyResetRequest } from '@/lib/api-actions';
 import { CheckCircle, XCircle, ShieldAlert } from 'lucide-react';
 
 interface PasswordResetProps {
-    users: User[];
+    users: UserDTO[];
     onRefresh: () => void;
 }
 
@@ -24,7 +24,7 @@ export const PasswordReset: React.FC<PasswordResetProps> = ({ users, onRefresh }
     const [isProcessing, setIsProcessing] = useState(false);
 
     const pendingUsers = users.filter(u => {
-        const req = u.reset_request as ResetRequestMetadata | null;
+        const req = (u as any).reset_request as ResetRequestMetadata | null;
         return req && req.status === 'pending';
     });
 
@@ -114,7 +114,7 @@ export const PasswordReset: React.FC<PasswordResetProps> = ({ users, onRefresh }
                     </div>
                 ) : (
                     pendingUsers.map(user => {
-                        const request = user.reset_request as ResetRequestMetadata | null;
+                        const request = (user as any).reset_request as ResetRequestMetadata | null;
                         return (
                             <div key={user.id} className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100 flex flex-col md:flex-row justify-between gap-6 hover:shadow-md transition-shadow">
                                 <div className="flex-1">

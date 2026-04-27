@@ -6,15 +6,15 @@ import { useSupabase } from '@/hooks/useSupabase';
 import { CourseManager } from "@/components/teacher/CourseManager";
 import { CourseEditor } from "@/components/teacher/CourseEditor";
 import { LessonEditor } from "@/components/teacher/LessonEditor";
-import { Course } from '@/lib/types';
-import { apiClient } from '@/lib/api-client';
+import { CourseDTO } from '@/lib/dto/learning.dto';
+import { deleteCourse } from '@/lib/api-actions';
 
 export default function CoursesPage() {
   const { user } = useAuth();
   const { getCourses } = useSupabase();
-  const [courses, setCourses] = useState<Course[]>([]);
-  const [editingCourse, setEditingCourse] = useState<Course | null>(null);
-  const [activeLessonCourse, setActiveLessonCourse] = useState<Course | null>(null);
+  const [courses, setCourses] = useState<CourseDTO[]>([]);
+  const [editingCourse, setEditingCourse] = useState<CourseDTO | null>(null);
+  const [activeLessonCourse, setActiveLessonCourse] = useState<CourseDTO | null>(null);
   const [isAdding, setIsAdding] = useState(false);
 
   const fetchCourses = useCallback(async () => {
@@ -44,7 +44,7 @@ export default function CoursesPage() {
           onEdit={setEditingCourse}
           onDelete={async (id) => {
               if (!confirm('Are you sure you want to delete this course and all its lessons?')) return;
-              await apiClient.delete(`/api/courses?id=${id}`);
+              await deleteCourse(id);
               fetchCourses();
           }}
           onCreate={() => setIsAdding(true)}

@@ -3,7 +3,7 @@ import { useCallback, useMemo } from 'react';
 import { supabase, withSession } from '@/lib/supabase';
 import { User, Course, Enrollment, Assignment, Quiz, Discussion, Notification, Maintenance } from '@/lib/types';
 import { useIndexedDB } from './useIndexedDB';
-import * as actions from '@/lib/data-actions';
+import * as actions from '@/lib/api-actions';
 
 export const useSupabase = () => {
   const { user } = useAuth();

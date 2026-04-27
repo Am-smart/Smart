@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
-import { LiveClass, Course } from '@/lib/types';
+import { LiveClassDTO } from '@/lib/dto/communication.dto';
+import { CourseDTO } from '@/lib/dto/learning.dto';
 import { Video, Calendar, Clock, Trash2, Play, Square, ExternalLink } from 'lucide-react';
 import { useAppContext } from '@/components/AppContext';
-import { apiClient } from '@/lib/api-client';
+import { saveLiveClass, deleteLiveClass } from '@/lib/api-actions';
 
 interface LiveClassManagerProps {
     teacherId: string;
-    liveClasses: LiveClass[];
-    courses: Course[];
+    liveClasses: LiveClassDTO[];
+    courses: CourseDTO[];
     onRefresh: () => void;
 }
 
@@ -61,7 +62,7 @@ export const LiveClassManager: React.FC<LiveClassManagerProps> = ({ teacherId, l
         }
     };
 
-    const toggleStatus = async (lc: LiveClass) => {
+    const toggleStatus = async (lc: LiveClassDTO) => {
         const newStatus = lc.status === 'live' ? 'completed' : 'live';
         try {
             await saveLiveClass({

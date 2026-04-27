@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { PlannerItem } from '@/lib/types';
+import { PlannerItemDTO } from '@/lib/dto/system.dto';
 import { useIndexedDB } from '@/hooks/useIndexedDB';
 import { useAppContext } from '../AppContext';
 import { useAuth } from '../auth/AuthContext';
-import { savePlannerItem, deletePlannerItem, getPlannerItems } from '@/lib/api-client';
+import { savePlannerItem, deletePlannerItem, getPlannerItems } from '@/lib/api-actions';
 
 interface PlannerViewProps {
   userId: string;
@@ -13,7 +13,7 @@ export const PlannerView: React.FC<PlannerViewProps> = ({ userId }) => {
   const { user } = useAuth();
   const { addToast } = useAppContext();
   const { isOnline, addToQueue, setCache, getCache } = useIndexedDB();
-  const [items, setItems] = useState<PlannerItem[]>([]);
+  const [items, setItems] = useState<PlannerItemDTO[]>([]);
   const [newItem, setNewItem] = useState('');
   const [dueDate, setDueDate] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -21,13 +21,13 @@ export const PlannerView: React.FC<PlannerViewProps> = ({ userId }) => {
   const fetchPlanner = useCallback(async () => {
     setIsLoading(true);
 
-    const cached = await getCache<PlannerItem[]>('planner_items');
+    const cached = await getCache<PlannerItemDTO[]>('planner_items');
     if (cached) setItems(cached);
 
     if (isOnline) {
         const data = await getPlannerItems(userId);
         if (data) {
-            setItems((data as PlannerItem[]));
+            setItems(data);
             await setCache('planner_items', data);
         }
     }
@@ -63,14 +63,14 @@ export const PlannerView: React.FC<PlannerViewProps> = ({ userId }) => {
         }
     } else {
         await addToQueue('PLANNER_UPDATE', payload, user?.sessionId);
-        setItems(prev => [...prev, payload as PlannerItem]);
+        setItems(prev => [...prev, payload as PlannerItemDTO]);
         setNewItem('');
         setDueDate('');
         addToast('Task queued offline.', 'info');
     }
   };
 
-  const toggleComplete = async (item: PlannerItem) => {
+  const toggleComplete = async (item: PlannerItemDTO) => {
     const updated = { ...item, completed: !item.completed };
     if (isOnline) {
         try {
