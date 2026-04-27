@@ -2,22 +2,34 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
-import { useSupabase } from '@/hooks/useSupabase';
+import { getEnrollments } from '@/lib/api-actions';
 import { MyCourses } from "@/components/student/MyCourses";
 import { EnrollmentDTO } from '@/lib/dto/learning.dto';
 import { useRouter } from 'next/navigation';
 
 export default function MyCoursesPage() {
   const { user } = useAuth();
-  const { getEnrollments } = useSupabase();
   const [enrollments, setEnrollments] = useState<EnrollmentDTO[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
 
   useEffect(() => {
     if (user) {
-        getEnrollments(user.id).then(setEnrollments);
+      setIsLoading(true);
+      setError(null);
+      getEnrollments(user.id)
+        .then(setEnrollments)
+        .catch(err => {
+          console.error('Failed to load enrollments:', err);
+          setError('Failed to load your courses');
+        })
+        .finally(() => setIsLoading(false));
     }
-  }, [user, getEnrollments]);
+  }, [user]);
+
+  if (isLoading) return <div className="animate-pulse">Loading courses...</div>;
+  if (error) return <div className="text-red-600 font-semibold">{error}</div>;
 
   return (
     <MyCourses

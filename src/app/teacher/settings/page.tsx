@@ -5,16 +5,14 @@ import { useAuth } from '@/components/auth/AuthContext';
 import { TeacherSettings } from "@/components/teacher/TeacherSettings";
 
 export default function SettingsPage() {
-  const { user } = useAuth();
+  const { user, updateProfile } = useAuth();
 
   if (!user) return null;
 
   return (
     <TeacherSettings
         user={user}
-        onUpdate={async (u) => {
-            await saveUser({ ...u, id: user.id });
-        }}
+        onUpdate={updateProfile}
     />
   );
 }
