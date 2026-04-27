@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { AlertTriangle, Shield, CheckCircle, X, Clock } from 'lucide-react';
 import { QuizDTO } from '@/lib/dto/assessment.dto';
 import { UserDTO } from '@/lib/dto/auth.dto';
 import { apiClient } from '@/lib/api-client';
@@ -61,7 +62,7 @@ export const QuizView: React.FC<QuizViewProps> = ({ quiz, user, onComplete, onCa
     const newAnswers = { ...answers, [questionId]: value };
     setAnswers(newAnswers);
     await setCache(`quiz_progress_${quiz.id}`, newAnswers);
-  }, [answers, quiz.id, setCache, violationCount]);
+  }, [answers, quiz.id, setCache]);
 
   const handleSubmit = useCallback(async (isTimeout = false) => {
     if (isSubmitting || result) return;
@@ -131,7 +132,7 @@ export const QuizView: React.FC<QuizViewProps> = ({ quiz, user, onComplete, onCa
     }
     const timer = setInterval(() => setTimeLeft(prev => prev! - 1), 1000);
     return () => clearInterval(timer);
-  }, [timeLeft , violationCount, handleSubmit]);
+  }, [timeLeft, handleSubmit]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -143,8 +144,14 @@ export const QuizView: React.FC<QuizViewProps> = ({ quiz, user, onComplete, onCa
     return (
         <div className="fixed inset-0 bg-slate-900/90 z-[100] flex items-center justify-center p-4 backdrop-blur-md">
             <div className="bg-white rounded-3xl p-10 max-w-md w-full text-center shadow-2xl animate-in zoom-in duration-300">
-                <div className={`text-6xl mb-6 ${result.passed ? 'animate-bounce' : ''}`}>
-                    {result.isTimeout ? '⏰' : result.passed ? '🎉' : '🍵'}
+                <div className="flex justify-center mb-6">
+                    {result.isTimeout ? (
+                        <Clock size={64} className="text-red-500" />
+                    ) : result.passed ? (
+                        <CheckCircle size={64} className="text-green-500 animate-bounce" />
+                    ) : (
+                        <AlertTriangle size={64} className="text-amber-500" />
+                    )}
                 </div>
                 {result.isTimeout && <div className="text-red-500 font-bold uppercase tracking-widest text-xs mb-2">Time&apos;s Up!</div>}
                 <h2 className="text-3xl font-black mb-2">{result.passed ? 'PASSED!' : 'TRY AGAIN'}</h2>
@@ -167,7 +174,7 @@ export const QuizView: React.FC<QuizViewProps> = ({ quiz, user, onComplete, onCa
   }
 
   return (
-    <div className="fixed inset-0 bg-white z-50 overflow-y-auto">
+    <div className="fixed inset-0 bg-white z-50 overflow-y-auto" aria-busy={isSubmitting}>
       <div className="max-w-3xl mx-auto p-4 md:p-8">
         <header className="flex flex-col md:flex-row justify-between items-center mb-8 pb-4 border-b gap-4">
           <div>
@@ -176,17 +183,25 @@ export const QuizView: React.FC<QuizViewProps> = ({ quiz, user, onComplete, onCa
           </div>
           <div className="text-center md:text-right">
             {timeLeft !== null && (
-              <div className={`text-2xl font-mono font-bold ${timeLeft < 60 ? 'text-red-500 animate-pulse' : 'text-slate-700'}`}>
+              <div className={`text-2xl font-mono font-bold flex items-center justify-center md:justify-end gap-2 ${timeLeft < 60 ? 'text-red-500 animate-pulse' : 'text-slate-700'}`}>
+                <Clock size={24} />
                 {formatTime(timeLeft)}
               </div>
             )}
-            <button onClick={onCancel} className="text-slate-400 hover:text-slate-600 text-xs font-bold uppercase mt-2">Cancel Quiz</button>
+            <button onClick={onCancel} className="text-slate-400 hover:text-slate-600 text-xs font-bold uppercase mt-2 inline-flex items-center gap-1">
+              <X size={16} />
+              Cancel Quiz
+            </button>
           </div>
         </header>
 
         {quiz.anti_cheat_enabled && (
             <div className={`mb-6 p-4 rounded-xl flex items-center gap-3 text-xs md:text-sm font-medium border ${violationCount > 0 ? 'bg-red-50 border-red-200 text-red-800' : 'bg-amber-50 border-amber-200 text-amber-800'}`}>
-                <span className="text-xl">{violationCount > 0 ? '⚠️' : '🛡️'}</span>
+                {violationCount > 0 ? (
+                    <AlertTriangle size={20} className="shrink-0 text-red-600" />
+                ) : (
+                    <Shield size={20} className="shrink-0 text-amber-600" />
+                )}
                 {violationCount > 0
                     ? `SECURITY FLAG: ${violationCount} violation(s) detected. This attempt is marked for review.`
                     : 'Anti-cheat protection is active. Your actions are being monitored.'}

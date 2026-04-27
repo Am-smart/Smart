@@ -4,6 +4,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import { User } from '@/lib/types';
 import { useIndexedDB } from '@/hooks/useIndexedDB';
 import { apiClient } from '@/lib/api-client';
+import { sessionManager } from '@/lib/session-manager';
 import { UserDTO } from '@/lib/dto/auth.dto';
 
 interface AuthState {
@@ -36,6 +37,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                   const user = { ...userDTO, sessionId: session.sessionId } as User;
                   await setCache('current_user', user);
                   setState({ user, role: user.role, isLoading: false });
+                  // Initialize session timeout tracking
+                  sessionManager.initSession();
                   // Background pull
                   pullData(user.id, user.sessionId!, user.role);
                   return;
@@ -49,6 +52,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const cachedUser = await getCache<User>('current_user');
         if (cachedUser) {
             setState({ user: cachedUser, role: cachedUser.role, isLoading: false });
+            sessionManager.initSession();
         } else {
             setState(prev => ({ ...prev, isLoading: false }));
         }
@@ -90,6 +94,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [setCache]);
 
   const logout = useCallback(async () => {
+    sessionManager.cleanupSession();
     await apiClient.post('/api/auth/logout');
     await setCache('current_user', null);
     setState({

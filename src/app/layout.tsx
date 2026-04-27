@@ -1,5 +1,6 @@
 import { AuthProvider } from "@/components/auth/AuthContext";
 import { AppProvider } from "@/components/AppContext";
+import { SessionExpiryWarning } from "@/components/SessionExpiryWarning";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import Script from "next/script";
@@ -36,6 +37,7 @@ export default function RootLayout({
         <AuthProvider>
           <AppProvider>
             {children}
+            <SessionExpiryWarning />
           </AppProvider>
         </AuthProvider>
       </body>
