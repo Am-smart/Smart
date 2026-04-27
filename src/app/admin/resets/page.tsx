@@ -15,7 +15,7 @@ export default function ResetsPage() {
     setError(null);
     try {
       const data = await getUsers();
-      setUsers(data.filter(u => u.reset_request) || []);
+      setUsers(data.filter(u => (u as unknown as Record<string, unknown>).reset_request) || []);
     } catch (err) {
       console.error('Failed to load reset requests:', err);
       setError('Failed to load reset requests');
