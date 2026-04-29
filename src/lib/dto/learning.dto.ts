@@ -2,6 +2,8 @@ import { UserDTO } from './auth.dto';
 
 export interface CourseDTO {
   id: string;
+  course_id?: string;
+  created_by?: string;
   title: string;
   description?: string;
   status: 'draft' | 'published' | 'archived';

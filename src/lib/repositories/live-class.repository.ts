@@ -4,7 +4,7 @@ import { LiveClass } from '../types';
 export class LiveClassRepository {
   async findById(id: string, sessionId: string): Promise<LiveClass | null> {
     const { data, error } = await withSession(supabase.from('live_classes').select('*, courses(*)').eq('id', id), sessionId).maybeSingle();
-    if (error) throw new Error(error.message);
+    if (error) throw new Error((error as Error).message);
     return data as LiveClass;
   }
 
@@ -16,7 +16,7 @@ export class LiveClassRepository {
     if (courseId) query = query.eq('course_id', courseId);
     if (teacherId) query = query.eq('teacher_id', teacherId);
     const { data, error } = await query;
-    if (error) throw new Error(error.message);
+    if (error) throw new Error((error as Error).message);
     return data as LiveClass[];
   }
 
@@ -42,7 +42,7 @@ export class LiveClassRepository {
       if (cleanedId && version && error.code === 'PGRST116') {
         throw new Error('Conflict detected: Live class has been updated by another user.');
       }
-      throw new Error(error.message);
+      throw new Error((error as Error).message);
     }
     return data as LiveClass;
   }
@@ -52,6 +52,6 @@ export class LiveClassRepository {
       .delete()
       .eq('id', id);
 
-    if (error) throw new Error(error.message);
+    if (error) throw new Error((error as Error).message);
   }
 }

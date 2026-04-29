@@ -4,7 +4,7 @@ import { Lesson } from '../types';
 export class LessonRepository {
   async findById(id: string, sessionId: string): Promise<Lesson | null> {
     const { data, error } = await withSession(supabase.from('lessons').select('*').eq('id', id), sessionId).maybeSingle();
-    if (error) throw new Error(error.message);
+    if (error) throw new Error((error as Error).message);
     return data as Lesson;
   }
 
@@ -14,7 +14,7 @@ export class LessonRepository {
       .eq('course_id', courseId)
       .order('order_index', { ascending: true });
 
-    if (error) throw new Error(error.message);
+    if (error) throw new Error((error as Error).message);
     return data as Lesson[];
   }
 
@@ -39,7 +39,7 @@ export class LessonRepository {
       if (id && version && error.code === 'PGRST116') {
         throw new Error('Conflict detected: Lesson has been updated by another user.');
       }
-      throw new Error(error.message);
+      throw new Error((error as Error).message);
     }
     return data as Lesson;
   }
@@ -49,7 +49,7 @@ export class LessonRepository {
       .delete()
       .eq('id', id);
 
-    if (error) throw new Error(error.message);
+    if (error) throw new Error((error as Error).message);
   }
 
   async markComplete(studentId: string, lessonId: string, sessionId: string): Promise<void> {
@@ -60,7 +60,7 @@ export class LessonRepository {
         completed_at: new Date().toISOString()
       }, { onConflict: 'student_id, lesson_id' });
 
-    if (error) throw new Error(error.message);
+    if (error) throw new Error((error as Error).message);
   }
 
   async findCompletions(studentId: string, lessonIds: string[], sessionId: string): Promise<string[]> {
@@ -69,13 +69,13 @@ export class LessonRepository {
         .eq('student_id', studentId)
         .in('lesson_id', lessonIds);
 
-    if (error) throw new Error(error.message);
+    if (error) throw new Error((error as Error).message);
     return data?.map(c => c.lesson_id) || [];
   }
 
   async getCompletions(studentId: string, sessionId: string): Promise<unknown[]> {
     const { data, error } = await withSession(supabase.from('lesson_completions').select('*').eq('student_id', studentId), sessionId);
-    if (error) throw new Error(error.message);
+    if (error) throw new Error((error as Error).message);
     return data || [];
   }
 }

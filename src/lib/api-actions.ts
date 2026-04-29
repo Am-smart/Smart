@@ -35,16 +35,16 @@ export async function deleteUser(id: string): Promise<{ success: boolean; error?
         await apiClient.delete(`/api/system/users?id=${id}`);
         return { success: true };
     } catch (error: unknown) {
-        return { success: false, error: error.message };
+        return { success: false, error: (error as Error).message };
     }
 }
 
-export async function saveUser(user: Partial<User>): Promise<{ success: boolean; data?: UserDTO; error?: string }> {
+export async function saveUser(user: Partial<User> & { id?: string }): Promise<{ success: boolean; data?: UserDTO; error?: string }> {
   try {
     const data = await apiClient.post<UserDTO>('/api/system/users/update', user);
     return { success: true, data };
   } catch (error: unknown) {
-    return { success: false, error: error.message };
+    return { success: false, error: (error as Error).message };
   }
 }
 
@@ -53,55 +53,17 @@ export async function approveResetRequest(userId: string, tempPass: string): Pro
         await apiClient.post('/api/auth/reset-request', { userId, tempPass, action: 'approve' });
         return { success: true };
     } catch (error: unknown) {
-        return { success: false, error: error.message };
+        return { success: false, error: (error as Error).message };
     }
 }
 
-export async function getCertificates(userId: string): Promise<CertificateDTO[]> {
-    return apiClient.get<CertificateDTO[]>(`/api/system/certificates?userId=${userId}`);
-}
-
-export async function getUserBadges(userId: string): Promise<Record<string, unknown>[]> {
-    return apiClient.get<Record<string, unknown>[]>(`/api/system/user-badges?userId=${userId}`);
-}
-
-export async function getBadges(): Promise<BadgeDTO[]> {
-    return apiClient.get<BadgeDTO[]>('/api/system/badges');
-}
-
-export async function saveBadge(badge: unknown): Promise<{ success: boolean; error?: string }> {
-    try {
-        await apiClient.post('/api/system/badges', badge);
-        return { success: true };
-    } catch (error: unknown) {
-        return { success: false, error: error.message };
-    }
-}
-
-export async function deleteBadge(id: string): Promise<{ success: boolean; error?: string }> {
-    try {
-        await apiClient.delete(`/api/system/badges?id=${id}`);
-        return { success: true };
-    } catch (error: unknown) {
-        return { success: false, error: error.message };
-    }
-}
-
-export async function assignBadge(data: { badge_id: string; user_id: string }): Promise<{ success: boolean; error?: string }> {
-    try {
-        await apiClient.post('/api/system/user-badges', data);
-        return { success: true };
-    } catch (error: unknown) {
-        return { success: false, error: error.message };
-    }
-}
 
 export async function denyResetRequest(userId: string, reason: string): Promise<{ success: boolean; error?: string }> {
     try {
         await apiClient.post('/api/auth/reset-request', { userId, reason, action: 'deny' });
         return { success: true };
     } catch (error: unknown) {
-        return { success: false, error: error.message };
+        return { success: false, error: (error as Error).message };
     }
 }
 
@@ -110,7 +72,7 @@ export async function saveLiveClass(liveClass: Partial<LiveClass>): Promise<{ su
         const data = await apiClient.post<LiveClassDTO>('/api/system/live-classes', liveClass);
         return { success: true, data };
     } catch (error: unknown) {
-        return { success: false, error: error.message };
+        return { success: false, error: (error as Error).message };
     }
 }
 
@@ -119,7 +81,7 @@ export async function deleteLiveClass(id: string): Promise<{ success: boolean; e
         await apiClient.delete(`/api/system/live-classes?id=${id}`);
         return { success: true };
     } catch (error: unknown) {
-        return { success: false, error: error.message };
+        return { success: false, error: (error as Error).message };
     }
 }
 
@@ -128,7 +90,7 @@ export async function deleteAssignment(id: string): Promise<{ success: boolean; 
         await apiClient.delete(`/api/assignments?id=${id}`);
         return { success: true };
     } catch (error: unknown) {
-        return { success: false, error: error.message };
+        return { success: false, error: (error as Error).message };
     }
 }
 
@@ -137,7 +99,7 @@ export async function deletePlannerItem(id: string): Promise<{ success: boolean;
         await apiClient.delete(`/api/system/planner?id=${id}`);
         return { success: true };
     } catch (error: unknown) {
-        return { success: false, error: error.message };
+        return { success: false, error: (error as Error).message };
     }
 }
 
@@ -152,7 +114,7 @@ export async function saveCourse(course: Partial<Course>): Promise<{ success: bo
     const data = await apiClient.post<CourseDTO>('/api/courses', course);
     return { success: true, data };
   } catch (error: unknown) {
-    return { success: false, error: error.message };
+    return { success: false, error: (error as Error).message };
   }
 }
 
@@ -161,13 +123,19 @@ export async function deleteQuiz(id: string): Promise<{ success: boolean; error?
         await apiClient.delete(`/api/quizzes?id=${id}`);
         return { success: true };
     } catch (error: unknown) {
-        return { success: false, error: error.message };
+        return { success: false, error: (error as Error).message };
     }
 }
 
 // Enrollments
-export async function getEnrollments(studentId: string): Promise<EnrollmentDTO[]> {
-  return apiClient.get<EnrollmentDTO[]>(`/api/system/enrollments?studentId=${studentId}`);
+export async function getEnrollments(studentId?: string, courseIds?: string[]): Promise<EnrollmentDTO[]> {
+  let url = '/api/system/enrollments';
+  const params = new URLSearchParams();
+  if (studentId) params.append('studentId', studentId);
+  if (courseIds) params.append('courseIds', courseIds.join(','));
+
+  if (params.toString()) url += `?${params.toString()}`;
+  return apiClient.get<EnrollmentDTO[]>(url);
 }
 
 export async function enrollInCourse(courseId: string): Promise<{ success: boolean; error?: string }> {
@@ -175,7 +143,7 @@ export async function enrollInCourse(courseId: string): Promise<{ success: boole
     await apiClient.post('/api/system/enroll', { courseId });
     return { success: true };
   } catch (error: unknown) {
-    return { success: false, error: error.message };
+    return { success: false, error: (error as Error).message };
   }
 }
 
@@ -184,7 +152,7 @@ export async function deleteCourse(id: string): Promise<{ success: boolean; erro
         await apiClient.delete(`/api/courses?id=${id}`);
         return { success: true };
     } catch (error: unknown) {
-        return { success: false, error: error.message };
+        return { success: false, error: (error as Error).message };
     }
 }
 
@@ -203,7 +171,7 @@ export async function saveAssignment(assignment: Partial<Assignment>): Promise<{
     const data = await apiClient.post<AssignmentDTO>('/api/assignments', assignment);
     return { success: true, data };
   } catch (error: unknown) {
-    return { success: false, error: error.message };
+    return { success: false, error: (error as Error).message };
   }
 }
 
@@ -212,7 +180,7 @@ export async function submitAssignment(assignmentId: string, content: Partial<Su
     const data = await apiClient.post<SubmissionDTO>(`/api/submissions?assignmentId=${assignmentId}`, content);
     return { success: true, data };
   } catch (error: unknown) {
-    return { success: false, error: error.message };
+    return { success: false, error: (error as Error).message };
   }
 }
 
@@ -230,7 +198,7 @@ export async function gradeSubmission(id: string, gradeData: Partial<Submission>
         await apiClient.patch(`/api/submissions?id=${id}`, gradeData);
         return { success: true };
     } catch (error: unknown) {
-        return { success: false, error: error.message };
+        return { success: false, error: (error as Error).message };
     }
 }
 
@@ -249,7 +217,7 @@ export async function saveQuiz(quiz: Partial<Quiz>): Promise<{ success: boolean;
     const data = await apiClient.post<QuizDTO>('/api/quizzes', quiz);
     return { success: true, data };
   } catch (error: unknown) {
-    return { success: false, error: error.message };
+    return { success: false, error: (error as Error).message };
   }
 }
 
@@ -258,7 +226,7 @@ export async function submitQuiz(quizId: string, content: Partial<QuizSubmission
     const result = await apiClient.post<{ score: number }>(`/api/submissions?assignmentId=${quizId}&type=quiz`, content);
     return { success: true, score: result.score };
   } catch (error: unknown) {
-    return { success: false, error: error.message };
+    return { success: false, error: (error as Error).message };
   }
 }
 
@@ -282,7 +250,7 @@ export async function saveMaterial(material: Partial<Material>): Promise<{ succe
     const data = await apiClient.post<MaterialDTO>('/api/materials', material);
     return { success: true, data };
   } catch (error: unknown) {
-    return { success: false, error: error.message };
+    return { success: false, error: (error as Error).message };
   }
 }
 
@@ -291,7 +259,7 @@ export async function deleteMaterial(id: string): Promise<{ success: boolean; er
         await apiClient.delete(`/api/materials?id=${id}`);
         return { success: true };
     } catch (error: unknown) {
-        return { success: false, error: error.message };
+        return { success: false, error: (error as Error).message };
     }
 }
 
@@ -300,7 +268,7 @@ export async function deleteLesson(id: string): Promise<{ success: boolean; erro
         await apiClient.delete(`/api/lessons?id=${id}`);
         return { success: true };
     } catch (error: unknown) {
-        return { success: false, error: error.message };
+        return { success: false, error: (error as Error).message };
     }
 }
 
@@ -309,12 +277,12 @@ export async function getLessons(courseId: string): Promise<LessonDTO[]> {
     return apiClient.get<LessonDTO[]>(`/api/lessons?courseId=${courseId}`);
 }
 
-export async function saveLesson(lesson: Partial<Lesson>): Promise<{ success: boolean; data?: LessonDTO; error?: string }> {
+export async function saveLesson(lesson: Partial<LessonDTO>): Promise<{ success: boolean; data?: LessonDTO; error?: string }> {
     try {
         const data = await apiClient.post<LessonDTO>('/api/lessons', lesson);
         return { success: true, data };
     } catch (error: unknown) {
-        return { success: false, error: error.message };
+        return { success: false, error: (error as Error).message };
     }
 }
 
@@ -323,12 +291,13 @@ export async function markLessonComplete(lessonId: string, courseId: string): Pr
         await apiClient.post('/api/system/lesson-completions', { lessonId, courseId });
         return { success: true };
     } catch (error: unknown) {
-        return { success: false, error: error.message };
+        return { success: false, error: (error as Error).message };
     }
 }
 
-export async function getLessonCompletions(userId: string): Promise<Record<string, unknown>[]> {
-    return apiClient.get<Record<string, unknown>[]>(`/api/system/lesson-completions?userId=${userId}`);
+export async function getLessonCompletions(userId?: string): Promise<Record<string, unknown>[]> {
+    const url = userId ? `/api/system/lesson-completions?userId=${userId}` : '/api/system/lesson-completions';
+    return apiClient.get<Record<string, unknown>[]>(url);
 }
 
 // Discussions
@@ -341,7 +310,7 @@ export async function saveDiscussionPost(discussion: Partial<Discussion>): Promi
     const data = await apiClient.post<DiscussionDTO>('/api/system/discussions', discussion);
     return { success: true, data };
   } catch (error: unknown) {
-    return { success: false, error: error.message };
+    return { success: false, error: (error as Error).message };
   }
 }
 
@@ -355,7 +324,7 @@ export async function createBroadcast(broadcast: unknown): Promise<{ success: bo
         await apiClient.post('/api/system/broadcasts', broadcast);
         return { success: true };
     } catch (error: unknown) {
-        return { success: false, error: error.message };
+        return { success: false, error: (error as Error).message };
     }
 }
 
@@ -369,7 +338,7 @@ export async function updateMaintenance(data: unknown): Promise<{ success: boole
         await apiClient.post('/api/system/maintenance', data);
         return { success: true };
     } catch (error: unknown) {
-        return { success: false, error: error.message };
+        return { success: false, error: (error as Error).message };
     }
 }
 
@@ -378,7 +347,7 @@ export async function getSystemLogs(limit: number = 100): Promise<SystemLogDTO[]
     return apiClient.get<SystemLogDTO[]>(`/api/system/logs?limit=${limit}`);
 }
 
-export async function logAntiCheatViolation(data: unknown): Promise<{ success: boolean; error?: string }> {
+export async function logAntiCheatViolation(data: Record<string, unknown> & { message?: string }): Promise<{ success: boolean; error?: string }> {
   try {
     await apiClient.post('/api/system/logs', {
         level: 'warning',
@@ -388,7 +357,7 @@ export async function logAntiCheatViolation(data: unknown): Promise<{ success: b
     });
     return { success: true };
   } catch (error: unknown) {
-    return { success: false, error: error.message };
+    return { success: false, error: (error as Error).message };
   }
 }
 
@@ -402,7 +371,7 @@ export async function savePlannerItem(planner: Partial<PlannerItem>): Promise<{ 
         const data = await apiClient.post<PlannerItemDTO>('/api/system/planner', planner);
         return { success: true, data };
     } catch (error: unknown) {
-        return { success: false, error: error.message };
+        return { success: false, error: (error as Error).message };
     }
 }
 
@@ -416,7 +385,7 @@ export async function updateSetting(key: string, value: unknown): Promise<{ succ
         await apiClient.post('/api/system/settings', { key, value });
         return { success: true };
     } catch (error: unknown) {
-        return { success: false, error: error.message };
+        return { success: false, error: (error as Error).message };
     }
 }
 
@@ -435,19 +404,10 @@ export async function recordAttendance(liveClassId: string): Promise<{ success: 
         await apiClient.post('/api/system/attendance', { liveClassId });
         return { success: true };
   } catch (error: unknown) {
-    return { success: false, error: error.message };
+    return { success: false, error: (error as Error).message };
   }
 }
 
-// Study Sessions
-export async function saveStudySession(session: unknown, xpEarned: number): Promise<{ success: boolean; error?: string }> {
-    try {
-        await apiClient.post('/api/system/study-sessions', { session, xpEarned });
-        return { success: true };
-    } catch (error: unknown) {
-        return { success: false, error: error.message };
-    }
-}
 
 // File Upload Path
 export async function uploadFile(fileName: string, category: string): Promise<{ filePath: string }> {
@@ -460,7 +420,7 @@ export async function markNotificationAsRead(notificationId: string): Promise<{ 
         await apiClient.patch(`/api/system/notifications?id=${notificationId}`, { is_read: true });
         return { success: true };
     } catch (error: unknown) {
-        return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+        return { success: false, error: error instanceof Error ? (error as Error).message : 'Unknown error' };
     }
 }
 
@@ -469,26 +429,26 @@ export async function markAllNotificationsAsRead(userId: string): Promise<{ succ
         await apiClient.patch(`/api/system/notifications?userId=${userId}`, { markAll: true });
         return { success: true };
     } catch (error: unknown) {
-        return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+        return { success: false, error: error instanceof Error ? (error as Error).message : 'Unknown error' };
     }
 }
 
 // Auth - Password Management
-export async function updatePassword(userId: string, currentPassword: string, newPassword: string): Promise<{ success: boolean; error?: string }> {
+export async function updatePassword(currentPassword: string, newPassword: string): Promise<{ success: boolean; error?: string }> {
     try {
-        await apiClient.post('/api/auth/password', { userId, currentPassword, newPassword });
+        await apiClient.post('/api/auth/password', { currentPassword, newPassword });
         return { success: true };
     } catch (error: unknown) {
-        return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+        return { success: false, error: error instanceof Error ? (error as Error).message : 'Unknown error' };
     }
 }
 
-export async function requestPasswordReset(email: string): Promise<{ success: boolean; error?: string }> {
+export async function requestPasswordReset(email: string, reason: string, riskLevel: string): Promise<{ success: boolean; error?: string }> {
     try {
-        await apiClient.post('/api/auth/reset-request', { email, action: 'request' });
+        await apiClient.post('/api/auth/reset-request', { email, reason, riskLevel, action: 'request' });
         return { success: true };
     } catch (error: unknown) {
-        return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+        return { success: false, error: error instanceof Error ? (error as Error).message : 'Unknown error' };
     }
 }
 
@@ -498,12 +458,12 @@ export async function getRoleCount(): Promise<{ teachers: number; admins: number
 }
 
 // User Preferences
-export async function updatePreferences(userId: string, preferences: Record<string, unknown>): Promise<{ success: boolean; error?: string }> {
+export async function updatePreferences(preferences: Record<string, unknown>): Promise<{ success: boolean; error?: string }> {
     try {
-        await apiClient.post('/api/auth/preferences', { userId, preferences });
+        await apiClient.post('/api/auth/preferences', { preferences });
         return { success: true };
     } catch (error: unknown) {
-        return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+        return { success: false, error: error instanceof Error ? (error as Error).message : 'Unknown error' };
     }
 }
 
@@ -513,6 +473,6 @@ export async function createSystemLog(data: { level: string; category: string; m
         await apiClient.post('/api/system/logs', data);
         return { success: true };
     } catch (error: unknown) {
-        return { success: false, error: error instanceof Error ? error.message : 'Unknown error' };
+        return { success: false, error: error instanceof Error ? (error as Error).message : 'Unknown error' };
     }
 }

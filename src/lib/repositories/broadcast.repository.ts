@@ -8,7 +8,7 @@ export class BroadcastRepository {
         .select()
         .single();
 
-    if (error) throw new Error(error.message);
+    if (error) throw new Error((error as Error).message);
     return data as Broadcast;
   }
 
@@ -17,7 +17,7 @@ export class BroadcastRepository {
         .select('*')
         .order('created_at', { ascending: false });
 
-    if (error) throw new Error(error.message);
+    if (error) throw new Error((error as Error).message);
     return data as Broadcast[];
   }
 }

@@ -3,17 +3,14 @@
 import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
 import { useAppContext } from '@/components/AppContext';
-import { getEnrollments, getAssignments, getSubmissions, getUserBadges } from '@/lib/api-actions';
+import { getEnrollments, getAssignments, getSubmissions } from '@/lib/api-actions';
 import { StudentSidebar } from "@/components/StudentSidebar";
 import { StudentHeader } from "@/components/StudentHeader";
 import { ForcePasswordChange } from "@/components/auth/ForcePasswordChange";
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { UserDTO } from '@/lib/dto/auth.dto';
-import { EnrollmentDTO, CourseDTO } from '@/lib/dto/learning.dto';
+import { EnrollmentDTO } from '@/lib/dto/learning.dto';
 import { AssignmentDTO, SubmissionDTO } from '@/lib/dto/assessment.dto';
-import dynamic from 'next/dynamic';
-
-const StudyTimer = dynamic(() => import("@/components/student/StudyTimer").then(m => m.StudyTimer), { ssr: false });
 
 function StudentLayoutContent({
   children,
@@ -22,8 +19,8 @@ function StudentLayoutContent({
 }) {
   const { user, role, logout, isLoading: authLoading, updateProfile } = useAuth();
   const { notifications } = useAppContext();
-  const [stats, setStats] = useState({ courses: 0, dueSoon: 0, badges: 0, unreadNotifications: 0 });
-  const [enrollments, setEnrollments] = useState<EnrollmentDTO[]>([]);
+  const [stats, setStats] = useState({ courses: 0, dueSoon: 0, unreadNotifications: 0 });
+  const [enrollments, setEnrollments] = useState<EnrollmentDTO[]>();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
@@ -38,11 +35,10 @@ function StudentLayoutContent({
 
   const fetchStats = useCallback(async (u: UserDTO) => {
     try {
-      const [myEnrollments, allAssignments, mySubmissions, myBadges] = await Promise.all([
+      const [myEnrollments, allAssignments, mySubmissions] = await Promise.all([
         getEnrollments(u.id),
         getAssignments(),
-        getSubmissions(undefined, u.id),
-        getUserBadges(u.id)
+        getSubmissions(undefined, u.id)
       ]);
 
       setEnrollments(myEnrollments);
@@ -50,8 +46,7 @@ function StudentLayoutContent({
       setStats(prev => ({
         ...prev,
         courses: myEnrollments.length,
-        dueSoon: allAssignments.filter((a: AssignmentDTO) => enrolledIds.includes(a.course_id) && new Date(a.due_date as string) > new Date() && !mySubmissions.some((s: SubmissionDTO) => s.assignment_id === a.id)).length,
-        badges: myBadges.length
+        dueSoon: allAssignments.filter((a: AssignmentDTO) => enrolledIds.includes(a.course_id) && new Date(a.due_date as string) > new Date() && !mySubmissions.some((s: SubmissionDTO) => s.assignment_id === a.id)).length
       }));
     } catch (err) {
       console.error('Failed to fetch stats:', err);
@@ -104,17 +99,6 @@ function StudentLayoutContent({
         />
         <main className="flex-1 transition-all duration-300 ml-0 md:ml-[240px]">
           <StudentHeader user={user} stats={stats} notifications={notifications} onLogout={handleLogout} onMenuClick={() => setIsSidebarOpen(true)} />
-
-          {/* Background Study Timer */}
-          {enrollments.length > 0 && (
-            <div className={`${pathname === '/student' ? 'p-4 md:p-8' : 'hidden'}`}>
-                <StudyTimer
-                  userId={user.id}
-                  courses={enrollments.map(e => e.course).filter(Boolean) as CourseDTO[]}
-                  activeCourseId={isLearning ? activeCourseId : undefined}
-                />
-            </div>
-          )}
 
           <div className="content-area p-4 md:p-8 bg-[#f8fafc] min-h-[calc(100vh-70px)] overflow-x-hidden">
             {children}

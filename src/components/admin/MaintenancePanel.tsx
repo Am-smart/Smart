@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { MaintenanceDTO } from '@/lib/dto/system.dto';
+import { MaintenanceDTO, ScheduleDTO } from '@/lib/dto/system.dto';
 import { Plus, Trash2, Clock, MessageSquare } from 'lucide-react';
 import { updateMaintenance } from '@/lib/api-actions';
 
@@ -9,7 +9,7 @@ interface MaintenancePanelProps {
 }
 
 export const MaintenancePanel: React.FC<MaintenancePanelProps> = ({ maintenance, onToggle }) => {
-  const [newSchedule, setNewSchedule] = useState<unknown>({
+  const [newSchedule, setNewSchedule] = useState<ScheduleDTO>({
     start_at: '',
     end_at: '',
     reason: ''

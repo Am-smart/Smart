@@ -20,16 +20,17 @@ export class AuthController {
 
     if (rpcError) return { success: false, user: null, sessionId: null, error: 'Authentication service unavailable' };
 
-    const result = rawData as unknown;
+    const result = rawData as { success: boolean, user: User, session_id: string, error?: string };
     if (!result.success) {
       if (result.error === 'Invalid email or password') recordAttempt(normalizedEmail);
       return { success: false, user: null, sessionId: null, error: result.error };
     }
 
     resetRateLimit(normalizedEmail);
-    const user = result.user as User;
+    const user = result.user;
     const sessionId = result.session_id;
 
+    const { UserMapper } = await import('../mappers');
     return {
       success: true,
       user: UserMapper.toDTO(user),
@@ -60,12 +61,13 @@ export class AuthController {
 
     if (rpcError) return { success: false, user: null, sessionId: null, error: 'Signup service unavailable' };
 
-    const result = rawData as unknown;
+    const result = rawData as { success: boolean, user: User, session_id: string, error?: string };
     if (!result.success) return { success: false, user: null, sessionId: null, error: result.error };
 
-    const user = result.user as User;
+    const user = result.user;
     const sessionId = result.session_id;
 
+    const { UserMapper } = await import('../mappers');
     return {
       success: true,
       user: UserMapper.toDTO(user),

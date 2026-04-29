@@ -38,9 +38,9 @@ export const Hero: React.FC<HeroProps> = ({ onRoleSelect }) => {
           <p className="text-xs sm:text-sm text-[#64748b] leading-relaxed">Engage with peers and teachers in real-time through course-specific discussion boards.</p>
         </div>
         <div className="bg-white p-4 sm:p-8 rounded-xl sm:rounded-2xl border border-[#f1f5f9] transition-all hover:border-[#cbd5e1]">
-          <div className="bg-[#fff7ed] w-10 sm:w-12 h-10 sm:h-12 rounded-lg sm:rounded-xl flex items-center justify-center text-xl sm:text-2xl mb-4 sm:mb-6 text-[#f59e0b]">🏆</div>
-          <h3 className="text-base sm:text-xl font-bold text-[#1e293b] mb-2 sm:mb-4">Gamified Experience</h3>
-          <p className="text-xs sm:text-sm text-[#64748b] leading-relaxed">Earn XP, level up, and collect badges as you complete courses and assignments.</p>
+          <div className="bg-[#fff7ed] w-10 sm:w-12 h-10 sm:h-12 rounded-lg sm:rounded-xl flex items-center justify-center text-xl sm:text-2xl mb-4 sm:mb-6 text-[#f59e0b]">🎓</div>
+          <h3 className="text-base sm:text-xl font-bold text-[#1e293b] mb-2 sm:mb-4">Certified Learning</h3>
+          <p className="text-xs sm:text-sm text-[#64748b] leading-relaxed">Receive formal certificates upon successful completion of your courses and assessments.</p>
         </div>
       </div>
     </section>

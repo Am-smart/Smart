@@ -7,7 +7,7 @@ export class EnrollmentRepository {
       .select('*, courses(*), users!student_id(*)')
       .eq('student_id', studentId);
 
-    if (error) throw new Error(error.message);
+    if (error) throw new Error((error as Error).message);
     return data as Enrollment[];
   }
 
@@ -16,7 +16,7 @@ export class EnrollmentRepository {
       .select('*, courses(*), users!student_id(*)')
       .in('course_id', courseIds);
 
-    if (error) throw new Error(error.message);
+    if (error) throw new Error((error as Error).message);
     return data as Enrollment[];
   }
 
@@ -27,7 +27,7 @@ export class EnrollmentRepository {
       .eq('student_id', studentId)
       .maybeSingle();
 
-    if (error) throw new Error(error.message);
+    if (error) throw new Error((error as Error).message);
     return data as Enrollment;
   }
 
@@ -37,7 +37,7 @@ export class EnrollmentRepository {
       .select()
       .single();
 
-    if (error) throw new Error(error.message);
+    if (error) throw new Error((error as Error).message);
     return data as Enrollment;
   }
 
@@ -47,7 +47,7 @@ export class EnrollmentRepository {
       .eq('course_id', courseId)
       .eq('student_id', studentId);
 
-    if (error) throw new Error(error.message);
+    if (error) throw new Error((error as Error).message);
   }
 
   async delete(courseId: string, studentId: string, sessionId: string): Promise<void> {
@@ -56,6 +56,6 @@ export class EnrollmentRepository {
       .eq('course_id', courseId)
       .eq('student_id', studentId);
 
-    if (error) throw new Error(error.message);
+    if (error) throw new Error((error as Error).message);
   }
 }

@@ -1,13 +1,22 @@
 export type UserRole = 'student' | 'teacher' | 'admin';
 
+export interface ResetRequest {
+  status: 'pending' | 'approved' | 'denied' | 'approved_used';
+  requested_at: string;
+  reason?: string;
+  risk_level?: string;
+  temp_password?: string;
+  approved_at?: string;
+  expires_at?: string;
+  denial_reason?: string;
+}
+
 export interface User {
   id: string;
-  sessionId?: string;
+  sessionId: string;
   email: string;
   full_name: string;
   role: UserRole;
-  xp?: number;
-  level?: number;
   phone?: string;
   password?: string;
   created_at: string;
@@ -17,11 +26,11 @@ export interface User {
   lockouts?: number;
   flagged?: boolean;
   locked_until?: string | null;
-  reset_request?: Record<string, unknown> | null;
+  reset_request?: ResetRequest | null;
   notification_preferences?: Record<string, boolean>;
   active?: boolean;
   version?: number;
-  metadata?: Record<string, unknown>;
+  metadata?: Record<string, string | number | boolean>;
 }
 
 export interface Course {
@@ -36,7 +45,7 @@ export interface Course {
   created_at?: string;
   updated_at?: string;
   version?: number;
-  metadata?: Record<string, unknown>;
+  metadata?: Record<string, string | number | boolean>;
 }
 
 export interface Enrollment {
@@ -61,6 +70,13 @@ export interface Lesson {
   updated_at?: string;
 }
 
+export interface Attachment {
+  name: string;
+  url: string;
+  type: string;
+  size?: number;
+}
+
 export interface Assignment {
   id: string;
   course_id: string;
@@ -82,14 +98,16 @@ export interface Assignment {
   updated_at?: string;
   version?: number;
   questions: AssignmentQuestion[];
-  attachments?: Record<string, unknown>[];
+  attachments?: Attachment[];
   courses?: Course;
 }
 
 export interface AssignmentQuestion {
+  id: string;
   text: string;
-  type: 'essay' | 'file' | 'link';
+  type: 'essay' | 'file' | 'link' | 'mcq' | 'tf' | 'short';
   points: number;
+  correct_answer?: string | number;
   extensions?: string;
 }
 
@@ -118,11 +136,11 @@ export interface Quiz {
 
 export interface QuizQuestion {
   id: string;
-  question_text: string;
-  type: 'mcq' | 'tf' | 'short';
+  text: string;
+  type: 'mcq' | 'tf' | 'short' | 'essay' | 'file' | 'link';
   points: number;
   options?: string[];
-  correct_answer: string | number;
+  correct_answer?: string | number;
   hint?: string;
   explanation?: string;
 }
@@ -135,11 +153,11 @@ export interface Submission {
   updated_at?: string;
   submission_text?: string;
   file_url?: string;
-  answers?: Record<string, unknown>;
+  answers?: Record<string, string | number | boolean>;
   question_scores?: Record<string, number>;
   response_feedback?: Record<string, string>;
   late_penalty_applied?: number;
-  attachments?: Record<string, unknown>[];
+  attachments?: Attachment[];
   status: 'draft' | 'submitted' | 'graded' | 'returned';
   grade?: number;
   final_grade?: number;
@@ -162,8 +180,8 @@ export interface QuizSubmission {
   student_id: string;
   score: number;
   total_points: number;
-  answers: Record<string, unknown>;
-  analytics?: Record<string, unknown>;
+  answers: Record<string, string | number | boolean>;
+  analytics?: Record<string, string | number | boolean>;
   status: 'in progress' | 'submitted';
   time_spent: number;
   started_at: string;
@@ -241,42 +259,6 @@ export interface PlannerItem {
   updated_at?: string;
 }
 
-export interface Certificate {
-  id: string;
-  course_id: string;
-  student_id: string;
-  issued_at: string;
-  certificate_url: string;
-  metadata?: Record<string, unknown>;
-  courses?: { title: string };
-}
-
-export interface Badge {
-  id: string;
-  title: string;
-  description: string;
-  icon_url: string;
-  xp_required?: number;
-  version?: number;
-  created_at?: string;
-  updated_at?: string;
-}
-
-export interface UserBadge {
-  user_id: string;
-  badge_id: string;
-  awarded_at: string;
-  badges?: Badge;
-}
-
-export interface StudySession {
-  id: string;
-  user_id: string;
-  course_id: string;
-  duration: number;
-  started_at: string;
-  ended_at: string;
-}
 
 export interface LessonCompletion {
   id: string;
@@ -294,8 +276,8 @@ export interface LiveClass {
   room_name: string;
   meeting_url?: string;
   recording_url?: string;
-  recurring_config?: Record<string, unknown>;
-  metadata?: Record<string, unknown>;
+  recurring_config?: Record<string, string | number | boolean>;
+  metadata?: Record<string, string | number | boolean>;
   start_at: string;
   end_at: string;
   actual_end_at?: string | null;
@@ -352,7 +334,7 @@ export interface SystemLog {
   level: string;
   category: string;
   message: string;
-  metadata?: Record<string, unknown>;
+  metadata?: Record<string, string | number | boolean>;
   user_id?: string;
   created_at?: string;
   users?: {
@@ -363,6 +345,6 @@ export interface SystemLog {
 
 export interface Setting {
   key: string;
-  value: unknown;
+  value: string | number | boolean | Record<string, string | number | boolean>;
   updated_at?: string;
 }

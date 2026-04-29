@@ -4,7 +4,7 @@ import { QuizSubmission } from '../types';
 export class QuizSubmissionRepository {
   async findById(id: string, sessionId: string): Promise<QuizSubmission | null> {
     const { data, error } = await withSession(supabase.from('quiz_submissions').select('*, quizzes(*), users(*)').eq('id', id), sessionId).maybeSingle();
-    if (error) throw new Error(error.message);
+    if (error) throw new Error((error as Error).message);
     return data as QuizSubmission;
   }
 
@@ -16,18 +16,18 @@ export class QuizSubmissionRepository {
     if (quizId) query = query.eq('quiz_id', quizId);
     if (studentId) query = query.eq('student_id', studentId);
     const { data, error } = await query;
-    if (error) throw new Error(error.message);
+    if (error) throw new Error((error as Error).message);
     return data as QuizSubmission[];
   }
 
   async insert(submission: Partial<QuizSubmission>, sessionId: string): Promise<QuizSubmission> {
-    const { quizzes: _, users: __, ...submissionData } = submission as unknown;
+    const { quizzes: _, users: __, ...submissionData } = submission as Record<string, unknown>;
     const { data, error } = await withSession(supabase.from('quiz_submissions'), sessionId)
       .insert(submissionData)
       .select()
       .single();
 
-    if (error) throw new Error(error.message);
+    if (error) throw new Error((error as Error).message);
     return data as QuizSubmission;
   }
 
@@ -38,7 +38,7 @@ export class QuizSubmissionRepository {
       .eq('student_id', studentId)
       .order('attempt_number', { ascending: false });
 
-    if (error) throw new Error(error.message);
+    if (error) throw new Error((error as Error).message);
     return data as QuizSubmission[];
   }
 }

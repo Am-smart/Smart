@@ -4,7 +4,7 @@ import { Setting } from '../types';
 export class SettingRepository {
   async findAll(sessionId: string): Promise<Setting[]> {
     const { data, error } = await withSession(supabase.from('settings'), sessionId).select('*');
-    if (error) throw new Error(error.message);
+    if (error) throw new Error((error as Error).message);
     return data as Setting[];
   }
 
@@ -15,6 +15,6 @@ export class SettingRepository {
             p_value: value
         });
 
-    if (error) throw new Error(error.message);
+    if (error) throw new Error((error as Error).message);
   }
 }

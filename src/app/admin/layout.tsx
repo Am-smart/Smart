@@ -21,7 +21,7 @@ export default function AdminLayout({
   const router = useRouter();
   const pathname = usePathname();
 
-  const resetStatus = (user?.reset_request as unknown as ResetRequest | null)?.status;
+  const resetStatus = (user?.reset_request as ResetRequest | null)?.status;
   const isResetApproved = resetStatus === 'approved' || resetStatus === 'approved_used';
 
   useEffect(() => {

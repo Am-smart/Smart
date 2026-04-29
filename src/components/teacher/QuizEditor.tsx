@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { QuizDTO } from '@/lib/dto/assessment.dto';
+import { QuizDTO, QuestionDTO } from '@/lib/dto/assessment.dto';
 import { CourseDTO } from '@/lib/dto/learning.dto';
 import { useAppContext } from '@/components/AppContext';
 import { Plus } from 'lucide-react';
@@ -15,7 +15,9 @@ interface QuizEditorProps {
 
 export const QuizEditor: React.FC<QuizEditorProps> = ({ teacherId, quiz, courses, onSave, onCancel }) => {
     const { addToast } = useAppContext();
-    const [formData, setFormData] = useState<unknown>({
+    const [formData, setFormData] = useState<QuizDTO>({
+        id: quiz?.id || '',
+        teacher_id: teacherId,
         title: quiz?.title || '',
         description: quiz?.description || '',
         course_id: quiz?.course_id || (courses.length > 0 ? courses[0].id : ''),
@@ -29,14 +31,14 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({ teacherId, quiz, courses
         auto_submit_enabled: quiz?.auto_submit_enabled || false,
         hard_enforcement: quiz?.hard_enforcement || false,
         shuffle_questions: quiz?.shuffle_questions || false,
-        questions: (quiz?.questions as unknown[]) || []
+        questions: (quiz?.questions) || []
     });
     const [isSaving, setIsSaving] = useState(false);
 
     const handleAddQuestion = () => {
-        const newQ: unknown = {
-            id: Math.random().toString(36).substr(2, 9),
-            question_text: '',
+        const newQ: QuestionDTO = {
+            id: Math.random().toString(36).substring(2, 9),
+            text: '',
             type: 'mcq',
             points: 10,
             options: ['', '', '', ''],
@@ -47,7 +49,7 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({ teacherId, quiz, courses
         setFormData({ ...formData, questions: [...formData.questions, newQ] });
     };
 
-    const handleQuestionChange = (index: number, updates: unknown) => {
+    const handleQuestionChange = (index: number, updates: Partial<QuestionDTO>) => {
         const updated = [...formData.questions];
         updated[index] = { ...updated[index], ...updates };
         setFormData({ ...formData, questions: updated });
@@ -195,8 +197,8 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({ teacherId, quiz, courses
                                         <select
                                             value={q.type}
                                             onChange={e => {
-                                                const newType = e.target.value as 'mcq' | 'tf' | 'essay' | 'file';
-                                                const updates: unknown = { type: newType, correct_answer: '' };
+                                                const newType = e.target.value as 'mcq' | 'tf' | 'short';
+                                                const updates: Partial<QuestionDTO> = { type: newType, correct_answer: '' };
                                                 if (newType === 'tf') {
                                                     updates.options = ['True', 'False'];
                                                 } else if (newType === 'mcq') {
@@ -218,7 +220,7 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({ teacherId, quiz, courses
                                         <input type="number" value={q.points} onChange={e => handleQuestionChange(index, { points: Number(e.target.value) })} className="w-full p-3 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all bg-white" />
                                     </div>
                                 </div>
-                                <input type="text" required value={q.question_text} onChange={e => handleQuestionChange(index, { question_text: e.target.value })} className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all bg-white" placeholder="Question text..." />
+                                <input type="text" required value={q.text} onChange={e => handleQuestionChange(index, { text: e.target.value })} className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all bg-white" placeholder="Question text..." />
 
                                 {q.type === 'mcq' && (
                                 <div className="grid grid-cols-2 gap-4">

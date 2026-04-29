@@ -8,7 +8,7 @@ export class NotificationRepository {
       .eq('user_id', userId)
       .order('created_at', { ascending: false });
 
-    if (error) throw new Error(error.message);
+    if (error) throw new Error((error as Error).message);
     return data as Notification[];
   }
 
@@ -41,11 +41,11 @@ export class NotificationRepository {
         query = withSession(query, sessionId);
     }
     const { error } = await query;
-    if (error) throw new Error(error.message);
+    if (error) throw new Error((error as Error).message);
   }
 
   async broadcast(params: { n_course_id: string, n_role?: string, n_title: string, n_msg: string, n_link?: string, n_type?: string, n_expires_in?: string }, sessionId: string): Promise<void> {
     const { error } = await withSession(supabase, sessionId).rpc('broadcast_data', params);
-    if (error) throw new Error(error.message);
+    if (error) throw new Error((error as Error).message);
   }
 }

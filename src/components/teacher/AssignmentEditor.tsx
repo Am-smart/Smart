@@ -17,7 +17,9 @@ interface AssignmentEditorProps {
 export const AssignmentEditor: React.FC<AssignmentEditorProps> = ({ teacherId, assignment, courses, onSave, onCancel }) => {
     const { addToast } = useAppContext();
     const { client } = useSupabase();
-    const [formData, setFormData] = useState<unknown>({
+    const [formData, setFormData] = useState<AssignmentDTO>({
+        id: assignment?.id || '',
+        teacher_id: teacherId,
         title: assignment?.title || '',
         description: assignment?.description || '',
         course_id: assignment?.course_id || (courses.length > 0 ? courses[0].id : ''),
@@ -26,22 +28,22 @@ export const AssignmentEditor: React.FC<AssignmentEditorProps> = ({ teacherId, a
         points_possible: assignment?.points_possible || 0,
         status: assignment?.status || 'draft',
         allow_late_submissions: assignment?.allow_late_submissions !== false,
-        late_penalty_per_day: (assignment as unknown as Record<string, unknown>).late_penalty_per_day as number || 0,
+        late_penalty_per_day: assignment?.late_penalty_per_day || 0,
         anti_cheat_enabled: assignment?.anti_cheat_enabled || false,
         auto_submit_enabled: assignment?.auto_submit_enabled || false,
         hard_enforcement: assignment?.hard_enforcement || false,
         regrade_requests_enabled: assignment?.regrade_requests_enabled !== false,
         questions: assignment?.questions || [],
         attachments: assignment?.attachments || [],
-        allowed_extensions: (assignment as unknown as Record<string, unknown>).allowed_extensions as string[] || ['pdf', 'doc', 'docx', 'zip', 'jpg', 'png']
+        allowed_extensions: assignment?.allowed_extensions || ['pdf', 'doc', 'docx', 'zip', 'jpg', 'png']
     });
     const [isSaving, setIsSaving] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
 
     // Auto-calculate points_possible
     useEffect(() => {
-        const total = formData.questions.reduce((sum: number, q: unknown) => sum + (q.points || 0), 0);
-        setFormData((prev: unknown) => ({ ...prev, points_possible: total }));
+        const total = formData.questions.reduce((sum: number, q) => sum + (q.points || 0), 0);
+        setFormData((prev) => ({ ...prev, points_possible: total }));
     }, [formData.questions]);
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -64,7 +66,7 @@ export const AssignmentEditor: React.FC<AssignmentEditorProps> = ({ teacherId, a
     const addStep = () => {
         setFormData({
             ...formData,
-            questions: [...formData.questions, { text: '', type: 'essay', points: 10 }]
+            questions: [...formData.questions, { id: Math.random().toString(36).substring(2, 9), text: '', type: 'essay', points: 10 }]
         });
     };
 
@@ -74,20 +76,28 @@ export const AssignmentEditor: React.FC<AssignmentEditorProps> = ({ teacherId, a
 
         setIsUploading(true);
         try {
-            const { filePath } = await uploadFile(file.name, 'materials');
-            const { error: uploadError } = await client.storage
-                .from('lms-files')
-                .upload(filePath, file);
+            const formDataUpload = new FormData();
+            formDataUpload.append('file', file);
+            formDataUpload.append('category', 'materials');
 
-            if (uploadError) throw uploadError;
+            const res = await fetch('/api/system/upload', {
+                method: 'POST',
+                headers: {
+                    'x-session-id': (client as unknown as Record<string, unknown> & { sessionId?: string }).sessionId || '',
+                },
+                body: formDataUpload
+            });
 
-            const { data: publicUrl } = client.storage
-                .from('lms-files')
-                .getPublicUrl(filePath);
+            if (!res.ok) {
+                const errorData = await res.json();
+                throw new Error(errorData.error || 'Upload failed');
+            }
+
+            const { publicUrl } = await res.json();
 
             setFormData(prev => ({
                 ...prev,
-                attachments: [...(prev.attachments || []), { name: file.name, url: publicUrl.publicUrl, type: file.type }]
+                attachments: [...(prev.attachments || []), { name: file.name, url: publicUrl, type: file.type }]
             }));
             addToast('Attachment uploaded!', 'success');
         } catch (err) {
@@ -160,7 +170,7 @@ export const AssignmentEditor: React.FC<AssignmentEditorProps> = ({ teacherId, a
                         </div>
                         <div>
                             <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">Status</label>
-                            <select value={formData.status} onChange={e => setFormData({...formData, status: e.target.value as Assignment['status']})} className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all">
+                            <select value={formData.status} onChange={e => setFormData({...formData, status: e.target.value as AssignmentDTO['status']})} className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all">
                                 <option value="draft">Draft</option>
                                 <option value="published">Published</option>
                             </select>
@@ -169,9 +179,9 @@ export const AssignmentEditor: React.FC<AssignmentEditorProps> = ({ teacherId, a
                     <div className="space-y-4">
                         <label className="block text-sm font-bold text-slate-700 uppercase tracking-wide">Attachments (Reference Materials)</label>
                         <div className="flex flex-wrap gap-2">
-                            {formData.attachments?.map((att: Record<string, unknown>, idx: number) => (
+                        {formData.attachments?.map((att, idx) => (
                                 <div key={idx} className="flex items-center gap-2 bg-slate-100 px-3 py-1 rounded-full text-xs font-medium">
-                                    <span className="truncate max-w-[150px]">{att.name as string}</span>
+                                    <span className="truncate max-w-[150px]">{att.name}</span>
                                     <button type="button" onClick={() => {
                                         const updated = [...(formData.attachments || [])];
                                         updated.splice(idx, 1);
@@ -190,7 +200,7 @@ export const AssignmentEditor: React.FC<AssignmentEditorProps> = ({ teacherId, a
                         <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">Allowed File Extensions (Comma separated)</label>
                         <input
                             type="text"
-                            value={formData.allowed_extensions.join(', ')}
+                            value={(formData.allowed_extensions || []).join(', ')}
                             onChange={e => setFormData({ ...formData, allowed_extensions: e.target.value.split(',').map(s => s.trim()) })}
                             className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all"
                             placeholder="pdf, doc, docx, zip"

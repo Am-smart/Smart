@@ -16,8 +16,7 @@ export const UserEditor: React.FC<UserEditorProps> = ({ user, onSave, onCancel }
         full_name: user?.full_name || '',
         phone: user?.phone || '',
         role: user?.role || 'student',
-        password: '',
-        xp: user?.xp || 0
+        password: ''
     });
     const [isSaving, setIsSaving] = useState(false);
 
@@ -34,19 +33,25 @@ export const UserEditor: React.FC<UserEditorProps> = ({ user, onSave, onCancel }
                     phone: formData.phone,
                     role: formData.role as 'student' | 'teacher' | 'admin',
                     password: formData.password || undefined,
-                    xp: formData.xp,
                     active: user.active,
-                    flagged: (user as unknown as Record<string, unknown>).flagged as boolean,
+                    flagged: (user).flagged as boolean,
                     reset_request: null, // Invalidate reset request on edit
                 };
 
                 await saveUser(userData);
                 addToast('User profile updated successfully. Reset requests invalidated.', 'success');
             } else {
-                // Create New User via signup server action - assuming it exists or use generic
-                const res = { success: true }; // Placeholder
+                // Create New User
+                const res = await saveUser({
+                    email: formData.email,
+                    full_name: formData.full_name,
+                    phone: formData.phone,
+                    role: formData.role as 'student' | 'teacher' | 'admin',
+                    password: formData.password,
+                    active: true
+                });
 
-                if (res.success === false) {
+                if (!res.success) {
                     addToast(res.error || 'Failed to create user.', 'error');
                     setIsSaving(false);
                     return;
@@ -124,15 +129,6 @@ export const UserEditor: React.FC<UserEditorProps> = ({ user, onSave, onCancel }
                             type="password" required={!user?.id}
                             value={formData.password}
                             onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
-                            className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all"
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">XP Points</label>
-                        <input
-                            type="number" required
-                            value={formData.xp}
-                            onChange={(e) => setFormData(prev => ({ ...prev, xp: Number(e.target.value) }))}
                             className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all"
                         />
                     </div>

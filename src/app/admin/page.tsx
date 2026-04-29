@@ -26,10 +26,10 @@ export default function AdminDashboard() {
     setStats({
       totalUsers: allUsers.length,
       activeCourses: allCourses.filter(c => c.status === 'published').length,
-      flaggedUsers: allUsers.filter(u => (u as unknown as Record<string, unknown>).flagged).length,
+      flaggedUsers: allUsers.filter(u => (u).flagged).length,
       teachers: allUsers.filter(u => u.role === 'teacher').length,
       students: allUsers.filter(u => u.role === 'student').length,
-      pendingResets: allUsers.filter(u => (u as unknown as Record<string, unknown>).reset_request).length
+      pendingResets: allUsers.filter(u => (u).reset_request).length
     });
   }, [user]);
 

@@ -6,7 +6,7 @@ interface UserManagementProps {
   onAdd: () => void;
   onEdit: (user: UserDTO) => void;
   onDelete: (id: string) => Promise<void>;
-  onUpdate: (id: string, updates: unknown) => Promise<void>;
+  onUpdate: (id: string, updates: Partial<UserDTO>) => Promise<void>;
 }
 
 export const UserManagement: React.FC<UserManagementProps> = ({ users, onAdd, onEdit, onDelete, onUpdate }) => {
@@ -42,7 +42,7 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, onAdd, on
                                     <span className={`px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-tighter ${u.role === 'admin' ? 'bg-red-500 text-white' : u.role === 'teacher' ? 'bg-blue-600 text-white' : 'bg-slate-800 text-white'}`}>
                                         {u.role}
                                     </span>
-                                    {(u as unknown as Record<string, unknown>).flagged && <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-amber-500 text-white animate-pulse">Flagged</span>}
+                                    {u.flagged && <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-amber-500 text-white animate-pulse">Flagged</span>}
                                     {!u.active && <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-slate-400 text-white">Deactivated</span>}
                                 </div>
                             </td>
@@ -53,8 +53,8 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, onAdd, on
                             </td>
                             <td className="px-6 py-4">
                                 <div className="space-y-1">
-                                    <div className="text-[10px] text-slate-500 font-bold uppercase">Attempts: <span className="text-slate-900">{(u as unknown as Record<string, unknown>).failed_attempts || 0}</span></div>
-                                    <div className="text-[10px] text-slate-500 font-bold uppercase">Lockouts: <span className="text-slate-900">{(u as unknown as Record<string, unknown>).lockouts || 0}</span></div>
+                                    <div className="text-[10px] text-slate-500 font-bold uppercase">Attempts: <span className="text-slate-900">{u.failed_attempts || 0}</span></div>
+                                    <div className="text-[10px] text-slate-500 font-bold uppercase">Lockouts: <span className="text-slate-900">{u.lockouts || 0}</span></div>
                                     <div className="text-[10px] text-slate-500 font-bold uppercase">Joined: <span className="text-slate-900">{new Date(u.created_at).toLocaleDateString()}</span></div>
                                 </div>
                             </td>
@@ -67,8 +67,8 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, onAdd, on
                                     <button onClick={() => handleLock(u.id, 30)} className="text-[8px] font-bold uppercase tracking-wider text-slate-400 hover:text-blue-600">Lock 30m</button>
                                     <button onClick={() => handleLock(u.id, 1440)} className="text-[8px] font-bold uppercase tracking-wider text-slate-400 hover:text-blue-600">Lock 24h</button>
                                     <button onClick={() => onUpdate(u.id, { locked_until: null, failed_attempts: 0 })} className="text-[8px] font-bold uppercase tracking-wider text-slate-400 hover:text-green-600">Unlock</button>
-                                    <button onClick={() => onUpdate(u.id, { flagged: !((u as unknown as Record<string, unknown>).flagged as boolean) })} className={`text-[8px] font-bold uppercase tracking-wider ${(u as unknown as Record<string, unknown>).flagged ? 'text-amber-600' : 'text-slate-400 hover:text-amber-600'}`}>
-                                        {(u as unknown as Record<string, unknown>).flagged ? 'Unflag' : 'Flag'}
+                                    <button onClick={() => onUpdate(u.id, { flagged: !u.flagged })} className={`text-[8px] font-bold uppercase tracking-wider ${u.flagged ? 'text-amber-600' : 'text-slate-400 hover:text-amber-600'}`}>
+                                        {u.flagged ? 'Unflag' : 'Flag'}
                                     </button>
                                     <button onClick={() => onUpdate(u.id, { active: !u.active })} className={`text-[8px] font-bold uppercase tracking-wider ${u.active ? 'text-slate-400 hover:text-red-600' : 'text-green-600'}`}>
                                         {u.active ? 'Deactivate' : 'Activate'}

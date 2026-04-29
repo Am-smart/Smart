@@ -14,7 +14,7 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ initialEnr
     const [isCertModalOpen, setIsCertModalOpen] = useState(false);
     const [certData, setCertData] = useState({ course_id: '', student_id: '', student_name: '' });
 
-    const handleUnenroll = async () => {
+    const handleUnenroll = async (courseId: string, studentId: string) => {
         if (!confirm('Are you sure you want to unenroll this student?')) return;
         try {
             // Placeholder for removeEnrollment - can be implemented as needed

@@ -5,6 +5,6 @@ export class AttendanceRepository {
     const { error } = await withSession(supabase.from('attendance'), sessionId)
       .upsert(attendance, { onConflict: 'live_class_id, student_id' });
 
-    if (error) throw new Error(error.message);
+    if (error) throw new Error((error as Error).message);
   }
 }

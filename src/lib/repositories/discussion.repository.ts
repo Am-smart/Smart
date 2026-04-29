@@ -8,7 +8,7 @@ export class DiscussionRepository {
       .eq('course_id', courseId)
       .order('created_at', { ascending: true });
 
-    if (error) throw new Error(error.message);
+    if (error) throw new Error((error as Error).message);
     return data as Discussion[];
   }
 
@@ -33,7 +33,7 @@ export class DiscussionRepository {
       if (id && version && error.code === 'PGRST116') {
         throw new Error('Conflict detected: Discussion post has been updated by another user.');
       }
-      throw new Error(error.message);
+      throw new Error((error as Error).message);
     }
     return data as Discussion;
   }
@@ -44,6 +44,6 @@ export class DiscussionRepository {
       .eq('id', id)
       .eq('user_id', userId);
 
-    if (error) throw new Error(error.message);
+    if (error) throw new Error((error as Error).message);
   }
 }

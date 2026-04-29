@@ -28,7 +28,7 @@ export function withSession<T>(query: T, sessionId?: string): T {
       if (typeof headers.set === 'function') {
         headers.set('x-session-id', sessionId);
       } else {
-        q.headers['x-session-id'] = sessionId;
+        (q.headers as Record<string, string>)['x-session-id'] = sessionId;
       }
     }
   }

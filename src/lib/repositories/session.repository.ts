@@ -11,7 +11,7 @@ export class SessionRepository {
 
     if (error) {
       if (error.code === 'PGRST116') return null;
-      throw new Error(error.message);
+      throw new Error((error as Error).message);
     }
     return data as Session;
   }
@@ -26,7 +26,7 @@ export class SessionRepository {
       .select()
       .single();
 
-    if (error) throw new Error(error.message);
+    if (error) throw new Error((error as Error).message);
     return data as Session;
   }
 
@@ -36,7 +36,7 @@ export class SessionRepository {
       .delete()
       .eq('id', id);
 
-    if (error) throw new Error(error.message);
+    if (error) throw new Error((error as Error).message);
   }
 
   async findAll(sessionId: string): Promise<Session[]> {
@@ -45,7 +45,7 @@ export class SessionRepository {
       .select('*')
       .setHeader('x-session-id', sessionId);
 
-    if (error) throw new Error(error.message);
+    if (error) throw new Error((error as Error).message);
     return data as Session[];
   }
 }

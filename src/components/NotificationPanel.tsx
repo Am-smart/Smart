@@ -35,7 +35,6 @@ const parseDeepLink = (link?: string): { path: string; params?: Record<string, s
         live: `/student/live?id=${id}`,
         grading: `/teacher/grading?id=${id}`,
         students: `/teacher/students?id=${id}`,
-        badge: `/student/achievements?badge=${id}`,
       };
 
       return { path: routes[type] || '/' };

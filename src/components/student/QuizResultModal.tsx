@@ -10,7 +10,7 @@ interface QuizResultModalProps {
 
 export const QuizResultModal: React.FC<QuizResultModalProps> = ({ quiz, submission, onClose }) => {
     const questions = quiz.questions || [];
-    const answers = (submission as unknown as Record<string, unknown>).answers as Record<string, unknown> || {};
+    const answers = (submission).answers as Record<string, unknown> || {};
 
     return (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[3000] p-4">
@@ -57,7 +57,7 @@ export const QuizResultModal: React.FC<QuizResultModalProps> = ({ quiz, submissi
                                         <div className="flex justify-between items-start gap-4 mb-4">
                                             <div className="flex-1">
                                                 <div className="text-[10px] font-bold text-slate-400 uppercase mb-1">Question {idx + 1}</div>
-                                                <h5 className="font-bold text-slate-800 text-sm leading-relaxed">{q.question_text}</h5>
+                                                <h5 className="font-bold text-slate-800 text-sm leading-relaxed">{q.text}</h5>
                                             </div>
                                             {isCorrect ?
                                                 <CheckCircle2 className="text-green-500 shrink-0" size={20} /> :
