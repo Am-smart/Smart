@@ -7,7 +7,7 @@ import { getEnrollments, getAssignments, getSubmissions } from '@/lib/api-action
 import { StudentSidebar } from "@/components/StudentSidebar";
 import { StudentHeader } from "@/components/StudentHeader";
 import { ForcePasswordChange } from "@/components/auth/ForcePasswordChange";
-import { useRouter, usePathname, useSearchParams } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { UserDTO } from '@/lib/dto/auth.dto';
 import { EnrollmentDTO } from '@/lib/dto/learning.dto';
 import { AssignmentDTO, SubmissionDTO } from '@/lib/dto/assessment.dto';
@@ -20,18 +20,9 @@ function StudentLayoutContent({
   const { user, role, logout, isLoading: authLoading, updateProfile } = useAuth();
   const { notifications } = useAppContext();
   const [stats, setStats] = useState({ courses: 0, dueSoon: 0, unreadNotifications: 0 });
-  const [enrollments, setEnrollments] = useState<EnrollmentDTO[]>();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
-  const searchParams = useSearchParams();
-
-  // Determine if user is in an "Active Learning" state
-  const activeCourseId = searchParams.get('id') || undefined;
-  const isLearning = pathname.includes('/student/courses') ||
-                   pathname.includes('/student/assignments') ||
-                   pathname.includes('/student/quizzes') ||
-                   pathname.includes('/student/live');
 
   const fetchStats = useCallback(async (u: UserDTO) => {
     try {
@@ -41,7 +32,6 @@ function StudentLayoutContent({
         getSubmissions(undefined, u.id)
       ]);
 
-      setEnrollments(myEnrollments);
       const enrolledIds = myEnrollments.map((e: EnrollmentDTO) => e.course_id);
       setStats(prev => ({
         ...prev,

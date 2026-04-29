@@ -3,20 +3,14 @@ import { Course } from '../types';
 
 export class CourseRepository {
   async findById(id: string, sessionId?: string): Promise<Course | null> {
-    let query = supabase.from('courses').select('*').eq('id', id);
-    if (sessionId) {
-      query = withSession(query, sessionId);
-    }
+    const query = withSession(supabase.from('courses').select('*').eq('id', id), sessionId);
     const { data, error } = await query.maybeSingle();
     if (error) throw new Error((error as Error).message);
     return data as Course;
   }
 
   async findAll(teacherId?: string, sessionId?: string): Promise<Course[]> {
-    let query = supabase.from('courses').select('*');
-    if (sessionId) {
-      query = withSession(query, sessionId);
-    }
+    let query = withSession(supabase.from('courses').select('*'), sessionId);
     if (teacherId) {
       query = query.eq('teacher_id', teacherId);
     }

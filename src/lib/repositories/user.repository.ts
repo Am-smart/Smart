@@ -3,8 +3,8 @@ import { User } from '../types';
 
 export class UserRepository {
   async findById(id: string, sessionId?: string): Promise<User | null> {
-    const query = supabase.from('users').select('*').eq('id', id).single();
-    const { data, error } = sessionId ? await withSession(query, sessionId) : await query;
+    const query = withSession(supabase.from('users').select('*').eq('id', id).single(), sessionId);
+    const { data, error } = await query;
 
     if (error) {
       if (error.code === 'PGRST116') return null;

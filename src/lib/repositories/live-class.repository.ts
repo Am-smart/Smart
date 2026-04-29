@@ -9,10 +9,7 @@ export class LiveClassRepository {
   }
 
   async findAll(courseId?: string, teacherId?: string, sessionId?: string): Promise<LiveClass[]> {
-    let query = supabase.from('live_classes').select('*, courses(*)');
-    if (sessionId) {
-      query = withSession(query, sessionId);
-    }
+    let query = withSession(supabase.from('live_classes').select('*, courses(*)'), sessionId);
     if (courseId) query = query.eq('course_id', courseId);
     if (teacherId) query = query.eq('teacher_id', teacherId);
     const { data, error } = await query;

@@ -9,10 +9,7 @@ export class QuizSubmissionRepository {
   }
 
   async findAll(quizId?: string, studentId?: string, sessionId?: string): Promise<QuizSubmission[]> {
-    let query = supabase.from('quiz_submissions').select('*, quizzes(*), users(*)');
-    if (sessionId) {
-      query = withSession(query, sessionId);
-    }
+    let query = withSession(supabase.from('quiz_submissions').select('*, quizzes(*), users(*)'), sessionId);
     if (quizId) query = query.eq('quiz_id', quizId);
     if (studentId) query = query.eq('student_id', studentId);
     const { data, error } = await query;
@@ -21,7 +18,7 @@ export class QuizSubmissionRepository {
   }
 
   async insert(submission: Partial<QuizSubmission>, sessionId: string): Promise<QuizSubmission> {
-    const { quizzes: _, users: __, ...submissionData } = submission as Record<string, unknown>;
+    const { quizzes: _quizzes, users: _users, ...submissionData } = submission as Record<string, unknown>;
     const { data, error } = await withSession(supabase.from('quiz_submissions'), sessionId)
       .insert(submissionData)
       .select()

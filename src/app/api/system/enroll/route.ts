@@ -19,3 +19,23 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
   }
 }
+
+export async function DELETE(request: Request) {
+  const user = await getSessionUser();
+  if (!user) return handleUnauthorized();
+
+  const { searchParams } = new URL(request.url);
+  const courseId = searchParams.get('courseId');
+  const studentId = searchParams.get('studentId');
+
+  if (!courseId || !studentId) {
+    return NextResponse.json({ error: 'courseId and studentId are required' }, { status: 400 });
+  }
+
+  try {
+    await systemController.unenrollFromCourse(user, courseId, studentId);
+    return NextResponse.json({ success: true });
+  } catch (error: unknown) {
+    return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
+  }
+}

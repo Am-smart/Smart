@@ -1,23 +1,22 @@
-import React, { useState } from 'react';
-import { EnrollmentDTO, CourseDTO } from '@/lib/dto/learning.dto';
-import { Award, Trash2, FileBadge, X } from 'lucide-react';
+import React from 'react';
+import { EnrollmentDTO } from '@/lib/dto/learning.dto';
+import { Trash2 } from 'lucide-react';
 import { useAppContext } from '@/components/AppContext';
+import { unenrollStudent } from '@/lib/api-actions';
 
 interface StudentManagementProps {
     initialEnrollments: EnrollmentDTO[];
-    courses: CourseDTO[];
     onRefresh: () => void;
 }
 
-export const StudentManagement: React.FC<StudentManagementProps> = ({ initialEnrollments, courses, onRefresh }) => {
+export const StudentManagement: React.FC<StudentManagementProps> = ({ initialEnrollments, onRefresh }) => {
     const { addToast } = useAppContext();
-    const [isCertModalOpen, setIsCertModalOpen] = useState(false);
-    const [certData, setCertData] = useState({ course_id: '', student_id: '', student_name: '' });
 
     const handleUnenroll = async (courseId: string, studentId: string) => {
         if (!confirm('Are you sure you want to unenroll this student?')) return;
         try {
-            // Placeholder for removeEnrollment - can be implemented as needed
+            const res = await unenrollStudent(courseId, studentId);
+            if (!res.success) throw new Error(res.error);
             onRefresh();
             addToast('Student unenrolled successfully', 'success');
         } catch (err) {
@@ -26,50 +25,9 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ initialEnr
         }
     };
 
-    const handleIssueCert = async (e: React.FormEvent) => {
-        e.preventDefault();
-        try {
-            // Placeholder for issueCertificate
-            addToast(`Certificate issued to ${certData.student_name}!`, 'success');
-            setIsCertModalOpen(false);
-        } catch (err) {
-            console.error('Cert issuance failed:', err);
-            addToast('Failed to issue certificate.', 'error');
-        }
-    };
-
     return (
         <div className="space-y-8">
             <h2 className="text-2xl font-bold mb-8">Student Management</h2>
-
-            {isCertModalOpen && (
-                <div className="fixed inset-0 bg-slate-900/60 z-[3000] flex items-center justify-center p-4">
-                    <div className="bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl animate-in zoom-in relative">
-                        <button onClick={() => setIsCertModalOpen(false)} className="absolute top-6 right-6 p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-400"><X size={20} /></button>
-                        <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
-                            <FileBadge className="text-blue-600" />
-                            Issue Certificate
-                        </h3>
-                        <form onSubmit={handleIssueCert} className="space-y-6">
-                            <div>
-                                <label className="block text-xs font-bold uppercase text-slate-500 mb-2">Student</label>
-                                <div className="input-custom bg-slate-50 flex items-center">{certData.student_name}</div>
-                            </div>
-                            <div>
-                                <label className="block text-xs font-bold uppercase text-slate-500 mb-2">For Course</label>
-                                <select required value={certData.course_id} onChange={e => setCertData({...certData, course_id: e.target.value})} className="input-custom">
-                                    <option value="">Select Course...</option>
-                                    {courses.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
-                                </select>
-                            </div>
-                            <div className="flex gap-4 pt-4">
-                                <button type="button" onClick={() => setIsCertModalOpen(false)} className="btn-secondary flex-1">Cancel</button>
-                                <button type="submit" className="btn-primary flex-1">Issue Now</button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
 
             <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden overflow-x-auto">
                 <table className="w-full text-left min-w-[700px]">
@@ -106,16 +64,6 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ initialEnr
                                         </td>
                                         <td className="px-6 py-4 text-right">
                                             <div className="flex justify-end gap-2">
-                                                <button
-                                                    onClick={() => {
-                                                        setCertData({ course_id: e.course_id, student_id: e.student_id, student_name: student?.full_name || 'Student' });
-                                                        setIsCertModalOpen(true);
-                                                    }}
-                                                    className="p-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100 transition-colors"
-                                                    title="Issue Certificate"
-                                                >
-                                                    <Award size={16} />
-                                                </button>
                                                 <button
                                                     onClick={() => handleUnenroll(e.course_id, e.student_id)}
                                                     className="p-2 bg-red-50 text-red-500 rounded-xl hover:bg-red-100 transition-colors"

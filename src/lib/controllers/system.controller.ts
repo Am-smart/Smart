@@ -50,6 +50,11 @@ export class SystemController {
   async enrollInCourse(user: User, courseId: string): Promise<void> {
     await enrollmentService.enrollInCourse(user.id, courseId, user.sessionId);
   }
+
+  async unenrollFromCourse(user: User, courseId: string, studentId: string): Promise<void> {
+    if (!rbac.can(user, 'course:update')) throw new Error('Unauthorized');
+    await enrollmentService.removeEnrollment(user, courseId, studentId, user.sessionId);
+  }
 }
 
 export const systemController = new SystemController();

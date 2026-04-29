@@ -31,7 +31,7 @@ export const LiveClassManager: React.FC<LiveClassManagerProps> = ({ teacherId, l
         try {
             const roomName = formData.room_name || `room_${Math.random().toString(36).substr(2, 9)}`;
             let recurring = {};
-            try { if (formData.recurring_config) recurring = JSON.parse(formData.recurring_config); } catch (_e) {}
+            try { if (formData.recurring_config) recurring = JSON.parse(formData.recurring_config); } catch { /* ignore error */ }
 
             await saveLiveClass({
                 ...formData,

@@ -140,7 +140,16 @@ export async function getEnrollments(studentId?: string, courseIds?: string[]): 
 
 export async function enrollInCourse(courseId: string): Promise<{ success: boolean; error?: string }> {
   try {
-    await apiClient.post('/api/system/enroll', { courseId });
+    await apiClient.post(`/api/system/enroll?courseId=${courseId}`, {});
+    return { success: true };
+  } catch (error: unknown) {
+    return { success: false, error: (error as Error).message };
+  }
+}
+
+export async function unenrollStudent(courseId: string, studentId: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    await apiClient.delete(`/api/system/enroll?courseId=${courseId}&studentId=${studentId}`);
     return { success: true };
   } catch (error: unknown) {
     return { success: false, error: (error as Error).message };

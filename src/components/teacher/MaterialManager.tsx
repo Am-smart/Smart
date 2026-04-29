@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useSupabase } from '@/hooks/useSupabase';
 import { MaterialDTO, CourseDTO } from '@/lib/dto/learning.dto';
 import { useAppContext } from '@/components/AppContext';
-import { uploadFile, saveMaterial, deleteMaterial } from '@/lib/api-actions';
+import { saveMaterial, deleteMaterial } from '@/lib/api-actions';
 import { FileUpload } from '@/components/ui/FileUpload';
 
 interface MaterialManagerProps {

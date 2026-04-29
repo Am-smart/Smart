@@ -18,10 +18,10 @@ export class MaterialRepository {
   }
 
   async findAll(courseId?: string, sessionId?: string): Promise<Material[]> {
-    let query = supabase.from('materials').select('*, courses(*)');
+    let query = withSession(supabase.from('materials').select('*, courses(*)'), sessionId);
     if (courseId) query = query.eq('course_id', courseId);
 
-    const { data, error } = sessionId ? await withSession(query, sessionId) : await query;
+    const { data, error } = await query;
     if (error) throw new Error((error as Error).message);
     return data as Material[];
   }
