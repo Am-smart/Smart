@@ -1,4 +1,4 @@
-import { supabase } from '../supabase';
+import { supabase, withSession } from '../supabase';
 import { Session } from '../types';
 
 export class SessionRepository {
@@ -40,10 +40,9 @@ export class SessionRepository {
   }
 
   async findAll(sessionId: string): Promise<Session[]> {
-    const { data, error } = await supabase
+    const { data, error } = await withSession(supabase
       .from('sessions')
-      .select('*')
-      .setHeader('x-session-id', sessionId);
+      .select('*'), sessionId);
 
     if (error) throw new Error((error as Error).message);
     return data as Session[];

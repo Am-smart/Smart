@@ -9,10 +9,7 @@ export class QuizRepository {
   }
 
   async findAll(courseId?: string, teacherId?: string, sessionId?: string): Promise<Quiz[]> {
-    let query = supabase.from('quizzes').select('*, courses(*)');
-    if (sessionId) {
-      query = withSession(query, sessionId);
-    }
+    let query = withSession(supabase.from('quizzes').select('*, courses(*)'), sessionId);
     if (courseId) query = query.eq('course_id', courseId);
     if (teacherId) query = query.eq('teacher_id', teacherId);
     const { data, error } = await query;

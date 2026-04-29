@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { AssignmentDTO } from '@/lib/dto/assessment.dto';
 import { UserDTO } from '@/lib/dto/auth.dto';
-import { useSupabase } from '@/hooks/useSupabase';
 import { apiClient } from '@/lib/api-client';
 import { useAntiCheat } from '@/hooks/useAntiCheat';
 import { useIndexedDB } from '@/hooks/useIndexedDB';
@@ -16,7 +15,6 @@ interface AssignmentFormProps {
 }
 
 export const AssignmentForm: React.FC<AssignmentFormProps> = ({ assignment, user, onComplete, onCancel }) => {
-  const { client } = useSupabase();
   const { addToast } = useAppContext();
   const [submissionText, setSubmissionText] = useState('');
   const [answers, setAnswers] = useState<Record<number, string>>({});

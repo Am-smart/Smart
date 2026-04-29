@@ -37,7 +37,7 @@ export class AssessmentDomain {
   }
 
   static prepareAssignment(assignment: Partial<Assignment>, teacherId: string): Partial<Assignment> {
-    const { courses: _, ...rest } = assignment as Record<string, unknown>;
+    const { courses: _courses, ...rest } = assignment as Record<string, unknown>;
     return {
       ...rest,
       teacher_id: assignment.teacher_id || teacherId,
@@ -47,7 +47,7 @@ export class AssessmentDomain {
   }
 
   static prepareQuiz(quiz: Partial<Quiz>, teacherId: string): Partial<Quiz> {
-    const { courses: _, ...rest } = quiz as Record<string, unknown>;
+    const { courses: _courses, ...rest } = quiz as Record<string, unknown>;
     return {
       ...rest,
       teacher_id: quiz.teacher_id || teacherId,

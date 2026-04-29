@@ -10,7 +10,6 @@ import {
   Users,
   MessageSquare,
   Calendar,
-  Trophy,
   HelpCircle,
   CircleHelp,
   Video,

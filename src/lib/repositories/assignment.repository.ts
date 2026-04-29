@@ -9,10 +9,7 @@ export class AssignmentRepository {
   }
 
   async findAll(teacherId?: string, courseId?: string, sessionId?: string): Promise<Assignment[]> {
-    let query = supabase.from('assignments').select('*, courses(*)');
-    if (sessionId) {
-      query = withSession(query, sessionId);
-    }
+    let query = withSession(supabase.from('assignments').select('*, courses(*)'), sessionId);
     if (teacherId) query = query.eq('teacher_id', teacherId);
     if (courseId) query = query.eq('course_id', courseId);
     const { data, error } = await query;

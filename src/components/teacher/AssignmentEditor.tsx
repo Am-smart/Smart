@@ -3,7 +3,7 @@ import { AssignmentDTO } from '@/lib/dto/assessment.dto';
 import { CourseDTO } from '@/lib/dto/learning.dto';
 import { useAppContext } from '@/components/AppContext';
 import { Plus, Paperclip } from 'lucide-react';
-import { uploadFile, saveAssignment } from '@/lib/api-actions';
+import { saveAssignment } from '@/lib/api-actions';
 import { useSupabase } from '@/hooks/useSupabase';
 
 interface AssignmentEditorProps {

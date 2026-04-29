@@ -3,9 +3,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
 import { getEnrollments, getAssignments, getSubmissions } from '@/lib/api-actions';
-import { EnrollmentDTO, CourseDTO } from '@/lib/dto/learning.dto';
+import { EnrollmentDTO } from '@/lib/dto/learning.dto';
 import { AssignmentDTO } from '@/lib/dto/assessment.dto';
-import dynamic from 'next/dynamic';
 
 export default function StudentDashboard() {
   const { user } = useAuth();
