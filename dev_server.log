@@ -2,55 +2,23 @@
 > next-app@0.1.0 dev
 > next dev
 
- ⚠ Port 3000 is in use by an unknown process, using available port 3001 instead.
    ▲ Next.js 15.5.14
-   - Local:        http://localhost:3001
-   - Network:      http://192.168.0.2:3001
+   - Local:        http://localhost:3000
+   - Network:      http://192.168.0.2:3000
 
  ✓ Starting...
- ✓ Ready in 2.3s
- ○ Compiling /_not-found ...
- ✓ Compiled /_not-found in 5.2s (705 modules)
- GET /login 404 in 6644ms
+ ✓ Ready in 4.9s
+ ○ Compiling / ...
+ ✓ Compiled / in 9.6s (743 modules)
+ GET / 200 in 11384ms
  ○ Compiling /api/system/maintenance ...
- ⨯ ./src/app/api/system/maintenance/route.ts:2:1
-Module not found: Can't resolve '../api-utils'
-  1 | import { NextResponse } from 'next/server';
-> 2 | import { getSessionUser, handleUnauthorized } from '../api-utils';
-    | ^
-  3 | import { systemService } from '@/lib/services/system.service';
-  4 |
-  5 | export async function GET(request: Request) {
-
-https://nextjs.org/docs/messages/module-not-found
- ⨯ ./src/app/api/system/maintenance/route.ts:2:1
-Module not found: Can't resolve '../api-utils'
-  1 | import { NextResponse } from 'next/server';
-> 2 | import { getSessionUser, handleUnauthorized } from '../api-utils';
-    | ^
-  3 | import { systemService } from '@/lib/services/system.service';
-  4 |
-  5 | export async function GET(request: Request) {
-
-https://nextjs.org/docs/messages/module-not-found
- GET /api/auth/session 500 in 6911ms
- GET /api/system/maintenance 500 in 6903ms
- GET /login 500 in 1192ms
- GET /login 500 in 33ms
- GET /api/auth/session 500 in 74ms
- GET /login 500 in 17ms
- GET /login 500 in 32ms
- ✓ Compiled /_error in 1333ms (655 modules)
- ✓ Compil ✓ Compiled in 1710ms (654 modules)
- ✓ Compiled in 220ms (451 modules)
-<w> [webpack.cache.PackFileCacheStrategy] Caching failed for pack: Error: ENOENT: no such file or directory, rename '/app/.next/cache/webpack/client-development/3.pack.gz_' -> '/app/.next/cache/webpack/client-development/3.pack.gz'
-/session 200 in 132ms
- GET /api/system/maintenance 401 in 123ms
- GET /api/auth/session 200 in 77ms
- GET /login 404 in 102ms
- GET /api/auth/session 200 in 81ms
- GET /api/system/maintenance 401 in 100ms
- GET /api/auth/session 200 in 46ms
- ✓ Compiled in 2s (655 modules)
- ✓ Compiled in 183ms (452 modules)
-<w> [webpack.cache.PackFileCacheStrategy] Caching failed for pack: Error: ENOENT: no such file or directory, rename '/app/.next/cache/webpack/server-development/7.pack.gz_' -> '/app/.next/cache/webpack/server-development/7.pack.gz'
+ ✓ Compiled /api/system/maintenance in 2.3s (802 modules)
+ GET /api/system/maintenance 401 in 2788ms
+ GET /api/auth/session 200 in 2837ms
+ GET /api/auth/session 200 in 212ms
+ GET / 200 in 758ms
+ ✓ Compiled in 415ms (315 modules)
+ ✓ Compiled in 202ms (315 modules)
+ ✓ Compiled in 162ms (315 modules)
+ ✓ Compiled in 281ms (315 modules)
+ ✓ Compiled in 868ms (735 modules)

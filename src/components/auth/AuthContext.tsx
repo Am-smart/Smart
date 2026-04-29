@@ -30,7 +30,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const initAuth = async () => {
         // 1. Try secure session first
         try {
-          const session = await apiClient.get<unknown>('/api/auth/session');
+          const session = await apiClient.get<{ sessionId: string } | null>('/api/auth/session');
           if (session) {
               const userDTO = await apiClient.get<UserDTO>('/api/auth/me');
               if (userDTO) {
@@ -62,7 +62,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [getCache, setCache, pullData]);
 
   const login = useCallback(async (email: string, pass: string) => {
-    const result = await apiClient.post<unknown>('/api/auth/login', { email, password: pass });
+    const result = await apiClient.post<{ success: boolean, user: UserDTO, sessionId: string, error?: string }>('/api/auth/login', { email, password: pass });
     if (!result.success) {
         throw new Error(result.error);
     }
@@ -78,7 +78,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [setCache]);
 
   const signup = useCallback(async (userData: Partial<User>) => {
-    const result = await apiClient.post<unknown>('/api/auth/signup', userData);
+    const result = await apiClient.post<{ success: boolean, user: UserDTO, sessionId: string, error?: string }>('/api/auth/signup', userData);
     if (!result.success) {
         throw new Error(result.error);
     }

@@ -4,7 +4,7 @@ import { Material } from '../types';
 export class MaterialRepository {
   async findById(id: string, sessionId: string): Promise<Material | null> {
     const { data, error } = await withSession(supabase.from('materials').select('*').eq('id', id), sessionId).maybeSingle();
-    if (error) throw new Error(error.message);
+    if (error) throw new Error((error as Error).message);
     return data as Material;
   }
 
@@ -13,7 +13,7 @@ export class MaterialRepository {
       .select('*, courses(*)')
       .eq('course_id', courseId);
 
-    if (error) throw new Error(error.message);
+    if (error) throw new Error((error as Error).message);
     return data as Material[];
   }
 
@@ -22,7 +22,7 @@ export class MaterialRepository {
     if (courseId) query = query.eq('course_id', courseId);
 
     const { data, error } = sessionId ? await withSession(query, sessionId) : await query;
-    if (error) throw new Error(error.message);
+    if (error) throw new Error((error as Error).message);
     return data as Material[];
   }
 
@@ -47,7 +47,7 @@ export class MaterialRepository {
       if (id && version && error.code === 'PGRST116') {
         throw new Error('Conflict detected: Material has been updated by another user.');
       }
-      throw new Error(error.message);
+      throw new Error((error as Error).message);
     }
     return data as Material;
   }
@@ -57,6 +57,6 @@ export class MaterialRepository {
       .delete()
       .eq('id', id);
 
-    if (error) throw new Error(error.message);
+    if (error) throw new Error((error as Error).message);
   }
 }

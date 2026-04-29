@@ -4,23 +4,24 @@ import React, { useState } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
 import { Settings, Shield, Bell, Save } from 'lucide-react';
 import { useAppContext } from '@/components/AppContext';
+import { updateSetting, getSettings } from '@/lib/api-actions';
 
 export default function AdminSettingsPage() {
     const { user } = useAuth();
     const { addToast } = useAppContext();
     const [activeTab, setActiveTab] = useState<'security' | 'alerts' | 'api'>('security');
-    const [config, setConfig] = useState({
+    const [config, setConfig] = useState<Record<string, boolean>>({
         requireVerification: true,
         publicRegistration: true,
         maintenanceBypass: false
     });
-    const [alerts, setAlerts] = useState({
+    const [alerts, setAlerts] = useState<Record<string, boolean>>({
         systemErrors: true,
         newUsers: false,
         securityBreach: true,
         databaseThreshold: true
     });
-    const [apiKeys, setApiKeys] = useState({
+    const [apiKeys, setApiKeys] = useState<Record<string, string>>({
         stripePublicKey: '',
         zoomSecret: '',
         smtpHost: 'smtp.smartlms.io'

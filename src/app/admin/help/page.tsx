@@ -37,7 +37,7 @@ export default function AdminHelpPage() {
         setIsLoading(true);
         try {
             const data = await getSystemLogs(200);
-            const supportTickets = ((data as SupportTicket[]) || []).filter((log) =>
+            const supportTickets = (data as unknown as SupportTicket[] || []).filter((log) =>
                 log.category === 'management' &&
                 log.metadata?.type === 'support_ticket'
             );

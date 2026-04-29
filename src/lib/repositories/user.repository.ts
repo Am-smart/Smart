@@ -8,7 +8,7 @@ export class UserRepository {
 
     if (error) {
       if (error.code === 'PGRST116') return null;
-      throw new Error(error.message);
+      throw new Error((error as Error).message);
     }
     return data as User;
   }
@@ -22,14 +22,14 @@ export class UserRepository {
 
     if (error) {
       if (error.code === 'PGRST116') return null;
-      throw new Error(error.message);
+      throw new Error((error as Error).message);
     }
     return data as User;
   }
 
   async findAll(sessionId: string): Promise<User[]> {
     const { data, error } = await withSession(supabase.from('users').select('*'), sessionId);
-    if (error) throw new Error(error.message);
+    if (error) throw new Error((error as Error).message);
     return data as User[];
   }
 
@@ -40,7 +40,7 @@ export class UserRepository {
       .select()
       .single();
 
-    if (error) throw new Error(error.message);
+    if (error) throw new Error((error as Error).message);
     return data as User;
   }
 
@@ -63,7 +63,7 @@ export class UserRepository {
       if (version && error.code === 'PGRST116') {
         throw new Error('Conflict detected: User profile has been updated by another user.');
       }
-      throw new Error(error.message);
+      throw new Error((error as Error).message);
     }
     return data as User;
   }
@@ -73,7 +73,7 @@ export class UserRepository {
       .delete()
       .eq('id', id);
 
-    if (error) throw new Error(error.message);
+    if (error) throw new Error((error as Error).message);
   }
 
   async updateFailedAttempts(id: string, attempts: number): Promise<void> {
@@ -82,7 +82,7 @@ export class UserRepository {
       .update({ failed_attempts: attempts })
       .eq('id', id);
 
-    if (error) throw new Error(error.message);
+    if (error) throw new Error((error as Error).message);
   }
 
   async lockUser(id: string, lockedUntil: string): Promise<void> {
@@ -91,7 +91,7 @@ export class UserRepository {
       .update({ locked_until: lockedUntil })
       .eq('id', id);
 
-    if (error) throw new Error(error.message);
+    if (error) throw new Error((error as Error).message);
   }
 
   async updateLastLogin(id: string): Promise<void> {
@@ -100,6 +100,6 @@ export class UserRepository {
       .update({ last_login: new Date().toISOString(), failed_attempts: 0, locked_until: null })
       .eq('id', id);
 
-    if (error) throw new Error(error.message);
+    if (error) throw new Error((error as Error).message);
   }
 }

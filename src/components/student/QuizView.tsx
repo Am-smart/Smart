@@ -79,11 +79,11 @@ export const QuizView: React.FC<QuizViewProps> = ({ quiz, user, onComplete, onCa
 
         let score = 0;
         if (isOnline) {
-            const res = await apiClient.post<unknown>(`/api/submissions?assignmentId=${quiz.id}&type=quiz`, { ...payload, violation_count: violationCount });
+            const res = await apiClient.post<{ score: number }>(`/api/submissions?assignmentId=${quiz.id}&type=quiz`, { ...payload, violation_count: violationCount });
             score = res.score || 0;
         } else {
             // Offline estimation using unified logic
-            const questions = (quiz.questions as unknown[]) || [];
+            const questions = (quiz.questions) || [];
             const result = calculateQuizScore(questions, answers);
             score = result.score;
 
@@ -213,7 +213,7 @@ export const QuizView: React.FC<QuizViewProps> = ({ quiz, user, onComplete, onCa
             <div key={q.id} className="quiz-question">
               <h3 className="text-lg font-bold mb-4 flex items-start gap-2">
                 <span className="text-blue-600 shrink-0">{index + 1}.</span>
-                {q.question_text}
+                {q.text}
               </h3>
               <div className="grid grid-cols-1 gap-3">
                 {q.type === 'short' ? (

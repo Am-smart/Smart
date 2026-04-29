@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { SubmissionDTO } from '@/lib/dto/assessment.dto';
+import { SubmissionDTO, QuestionDTO } from '@/lib/dto/assessment.dto';
 import { useAppContext } from '@/components/AppContext';
 import { gradeSubmission } from '@/lib/api-actions';
 
@@ -16,7 +16,7 @@ export const GradingModal: React.FC<GradingModalProps> = ({ submission, onSave, 
     const submittedAt = new Date(submission.submitted_at);
     const isLate = dueDate && submittedAt > dueDate;
     const daysLate = isLate ? Math.ceil((submittedAt.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24)) : 0;
-    const penaltyPerDay = (submission.assignment as unknown as Record<string, unknown>).late_penalty_per_day as number || 0;
+    const penaltyPerDay = submission.assignment?.late_penalty_per_day || 0;
     const calculatedPenalty = isLate ? daysLate * penaltyPerDay : 0;
 
     const [formData, setFormData] = useState({
@@ -24,8 +24,8 @@ export const GradingModal: React.FC<GradingModalProps> = ({ submission, onSave, 
         feedback: submission.feedback || '',
         points_possible: submission.assignment?.points_possible || 100,
         regrade_feedback: '',
-        response_feedback: ((submission as unknown as Record<string, unknown>).response_feedback as Record<string, string>) || {},
-        question_scores: ((submission as unknown as Record<string, unknown>).question_scores as Record<string, number>) || {}
+        response_feedback: ((submission).response_feedback as Record<string, string>) || {},
+        question_scores: ((submission).question_scores as Record<string, number>) || {}
     });
     const [isSaving, setIsSaving] = useState(false);
     const [regradeStatus, setRegradeStatus] = useState<'pending' | 'resolved'>(submission.regrade_request ? 'pending' : 'resolved');
@@ -37,7 +37,7 @@ export const GradingModal: React.FC<GradingModalProps> = ({ submission, onSave, 
         e.preventDefault();
         setIsSaving(true);
         try {
-            const gradeData: Partial<Submission> = {
+            const gradeData: Partial<SubmissionDTO> = {
                 grade: Number(formData.grade),
                 feedback: formData.feedback,
                 late_penalty_applied: calculatedPenalty,
@@ -77,17 +77,17 @@ export const GradingModal: React.FC<GradingModalProps> = ({ submission, onSave, 
                     <div className="bg-blue-50 p-4 md:p-6 rounded-2xl border border-blue-100 space-y-4">
                         <h4 className="text-sm font-bold text-blue-700 uppercase mb-2">Student Submission</h4>
 
-                        {(submission as unknown as Record<string, unknown>).answers && Object.keys((submission as unknown as Record<string, unknown>).answers as Record<string, unknown>).length > 0 ? (
+                        {(submission).answers && Object.keys((submission).answers as Record<string, unknown>).length > 0 ? (
                             <div className="space-y-4">
-                                {submission.assignment?.questions.map((q: unknown, idx: number) => (
+                                {submission.assignment?.questions.map((q: QuestionDTO, idx: number) => (
                                     <div key={idx} className="bg-white p-5 rounded-2xl shadow-sm border border-blue-100/50 space-y-4">
                                         <div>
-                                            <div className="text-[10px] font-black text-blue-500 uppercase tracking-widest mb-2">Step {idx + 1}: {(q as unknown as Record<string, unknown>).text}</div>
+                                            <div className="text-[10px] font-black text-blue-500 uppercase tracking-widest mb-2">Step {idx + 1}: {(q).text}</div>
                                             <div className="text-sm text-slate-800">
-                                                {(q as unknown as Record<string, unknown>).type === 'file' ? (
-                                                    <a href={(submission as unknown as Record<string, unknown>).answers?.[idx] as string} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-bold">View Uploaded File</a>
+                                                {(q).type === 'file' ? (
+                                                    <a href={(submission).answers?.[idx] as string} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-bold">View Uploaded File</a>
                                                 ) : (
-                                                    ((submission as unknown as Record<string, unknown>).answers?.[idx] as string) || <span className="italic text-slate-400">No response</span>
+                                                    ((submission).answers?.[idx] as string) || <span className="italic text-slate-400">No response</span>
                                                 )}
                                             </div>
                                         </div>

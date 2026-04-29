@@ -68,7 +68,7 @@ export const LiveClassManager: React.FC<LiveClassManagerProps> = ({ teacherId, l
             await saveLiveClass({
                 id: lc.id,
                 status: newStatus as 'completed' | 'live',
-                actual_end_at: newStatus === 'completed' ? new Date().toISOString() : (null as unknown as string | null)
+                actual_end_at: newStatus === 'completed' ? new Date().toISOString() : (null as string | null)
             });
 
             addToast(`Class ${newStatus === 'live' ? 'is now LIVE!' : 'has ended.'}`, 'success');

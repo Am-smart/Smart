@@ -1,5 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { User, Activity, Clock } from 'lucide-react';
+import {
+    getUsers,
+    getCourses,
+    getEnrollments,
+    getSubmissions,
+    getQuizzes,
+    getQuizSubmissions,
+    getSystemLogs,
+    getLessonCompletions
+} from '@/lib/api-actions';
+
+// Mock/Helper for sessions as we don't have a direct getSessions in api-actions
+const getSessions = async () => [] as Record<string, string | number | boolean>[];
 
 export const AdminAnalytics: React.FC = () => {
     const [counts, setCounts] = useState({ users: 0, sessions: 0, courses: 0, lessonCompletions: 0, quizPasses: 0 });
@@ -18,8 +31,8 @@ export const AdminAnalytics: React.FC = () => {
                 getQuizSubmissions()
             ]);
 
-            const activeSessions = (sessions as unknown as Record<string, unknown>[]).filter((s) => new Date((s.expires_at as string)) > new Date());
-            const passedQuizzes = (quizSubmissions as unknown as Record<string, unknown>[]).filter((qs) => (qs.score as number) >= 60);
+            const activeSessions = (sessions).filter((s) => new Date((s.expires_at as string)) > new Date());
+            const passedQuizzes = (quizSubmissions).filter((qs) => (qs.score as number) >= 60);
 
             // Improved growth calculation: group users by last 7 days
             const dailyGrowth = new Array(7).fill(0);
@@ -176,7 +189,7 @@ export const SystemInfo: React.FC = () => {
         const fetchTotalRecords = async () => {
             // This is a rough estimation since we are moving away from direct counts
             const data = await Promise.all([
-                getUsers(), getCourses(), getAssignments(), getEnrollments(), getSubmissions(), getQuizzes(), getQuizSubmissions(), getSystemLogs()
+                getUsers(), getCourses(), getEnrollments(), getSubmissions(), getQuizzes(), getQuizSubmissions(), getSystemLogs()
             ]);
             const total = data.reduce((acc, d) => acc + (d?.length || 0), 0);
             setTotalRecords(total);

@@ -12,13 +12,13 @@ export interface PlannerItemDTO {
 }
 
 export interface ScheduleDTO {
-  id: string;
-  start_time: string;
-  end_time: string;
+  start_at: string;
+  end_at: string;
   reason?: string;
 }
 
 export interface MaintenanceDTO {
+  id: string;
   enabled: boolean;
   message?: string;
   schedules: ScheduleDTO[];
@@ -40,20 +40,3 @@ export interface SystemLogDTO {
   user?: UserDTO;
 }
 
-export interface CertificateDTO {
-  id: string;
-  course_id: string;
-  student_id: string;
-  issued_at: string;
-  certificate_url: string;
-  course?: { title: string };
-}
-
-export interface BadgeDTO {
-  id: string;
-  title: string;
-  description: string;
-  icon_url: string;
-  xp_required?: number;
-  created_at?: string;
-}

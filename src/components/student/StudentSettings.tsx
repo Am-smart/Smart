@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { UserDTO } from '@/lib/dto/auth.dto';
+import { User } from '@/lib/types';
 import { Bell, User as UserIcon, Lock, Save } from 'lucide-react';
 import { useAppContext } from '../AppContext';
 import { updatePassword, updatePreferences } from '@/lib/api-actions';
 
 interface StudentSettingsProps {
     user: UserDTO;
-    onUpdate: (updates: unknown) => Promise<void>;
+    onUpdate: (updates: Partial<User>) => Promise<void>;
 }
 
 export const StudentSettings: React.FC<StudentSettingsProps> = ({ user, onUpdate }) => {
@@ -16,7 +17,7 @@ export const StudentSettings: React.FC<StudentSettingsProps> = ({ user, onUpdate
         full_name: user.full_name || '',
         phone: user.phone || '',
     });
-    const [notificationPreferences, setNotificationPreferences] = useState<Record<string, boolean>>((user as unknown as Record<string, unknown>).notification_preferences as Record<string, boolean> || {
+    const [notificationPreferences, setNotificationPreferences] = useState<Record<string, boolean>>(user.notification_preferences || {
         email: true,
         push: true,
         inApp: true
@@ -118,7 +119,7 @@ export const StudentSettings: React.FC<StudentSettingsProps> = ({ user, onUpdate
                                     <div className="w-20 h-20 bg-slate-100 rounded-2xl flex items-center justify-center text-3xl">🎓</div>
                                     <div>
                                         <h3 className="font-bold text-slate-900">{user.email}</h3>
-                                        <p className="text-xs text-slate-500 font-medium uppercase tracking-widest">Student Account • Level {user.level || 1}</p>
+                                        <p className="text-xs text-slate-500 font-medium uppercase tracking-widest">Student Account</p>
                                     </div>
                                 </div>
 

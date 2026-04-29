@@ -22,7 +22,7 @@ export const CourseView: React.FC<CourseViewProps> = ({ course, lessons, onBack 
         const fetchCompletions = async () => {
             if (user) {
                 const data = await getLessonCompletions(user.id);
-                if (data) setCompletions((data as unknown as Record<string, unknown>[]).map((c) => (c.lesson_id as string)));
+                if (data) setCompletions((data).map((c) => (c.lesson_id as string)));
             }
         };
         fetchCompletions();

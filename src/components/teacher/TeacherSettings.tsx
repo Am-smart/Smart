@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { UserDTO } from '@/lib/dto/auth.dto';
+import { User } from '@/lib/types';
 import { Bell, User as UserIcon, Lock, Save } from 'lucide-react';
 import { useAppContext } from '../AppContext';
 import { updatePassword, updatePreferences } from '@/lib/api-actions';
 
 interface TeacherSettingsProps {
     user: UserDTO;
-    onUpdate: (updates: unknown) => Promise<void>;
+    onUpdate: (updates: Partial<User>) => Promise<void>;
 }
 
 export const TeacherSettings: React.FC<TeacherSettingsProps> = ({ user, onUpdate }) => {
@@ -16,7 +17,7 @@ export const TeacherSettings: React.FC<TeacherSettingsProps> = ({ user, onUpdate
         full_name: user.full_name || '',
         phone: user.phone || '',
     });
-    const [notificationPreferences, setNotificationPreferences] = useState<Record<string, boolean>>((user as unknown as Record<string, unknown>).notification_preferences as Record<string, boolean> || {
+    const [notificationPreferences, setNotificationPreferences] = useState<Record<string, boolean>>(user.notification_preferences || {
         email: true,
         push: true,
         inApp: true

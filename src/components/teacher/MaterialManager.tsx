@@ -18,18 +18,25 @@ export const MaterialManager: React.FC<MaterialManagerProps> = ({ initialMateria
     const [description, setDescription] = useState('');
 
     const performUpload = async (file: File, category: 'materials' | 'submissions' | 'thumbnails') => {
-        const { filePath } = await uploadFile(file.name, category);
-        const { error: uploadError } = await client.storage
-            .from('lms-files')
-            .upload(filePath, file);
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('category', category);
 
-        if (uploadError) throw uploadError;
+        const res = await fetch('/api/system/upload', {
+            method: 'POST',
+            headers: {
+                'x-session-id': (client as unknown as { sessionId: string }).sessionId || '',
+            },
+            body: formData
+        });
 
-        const { data: publicUrl } = client.storage
-            .from('lms-files')
-            .getPublicUrl(filePath);
+        if (!res.ok) {
+            const errorData = await res.json();
+            throw new Error(errorData.error || 'Upload failed');
+        }
 
-        return { url: publicUrl.publicUrl };
+        const { publicUrl } = await res.json();
+        return { url: publicUrl };
     };
 
     const handleUploadComplete = async (url: string, fileName: string, fileType?: string) => {

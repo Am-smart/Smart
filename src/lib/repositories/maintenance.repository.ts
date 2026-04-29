@@ -9,7 +9,7 @@ export class MaintenanceRepository {
     }
 
     const { data, error } = await query.maybeSingle();
-    if (error && error.code !== 'PGRST116') throw new Error(error.message);
+    if (error && error.code !== 'PGRST116') throw new Error((error as Error).message);
     return data as Maintenance || { enabled: false, schedules: [] };
   }
 
@@ -18,6 +18,6 @@ export class MaintenanceRepository {
         .update(maintenance)
         .eq('id', maintenance.id);
 
-    if (error) throw new Error(error.message);
+    if (error) throw new Error((error as Error).message);
   }
 }

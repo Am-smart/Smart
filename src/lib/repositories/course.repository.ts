@@ -8,7 +8,7 @@ export class CourseRepository {
       query = withSession(query, sessionId);
     }
     const { data, error } = await query.maybeSingle();
-    if (error) throw new Error(error.message);
+    if (error) throw new Error((error as Error).message);
     return data as Course;
   }
 
@@ -21,7 +21,7 @@ export class CourseRepository {
       query = query.eq('teacher_id', teacherId);
     }
     const { data, error } = await query;
-    if (error) throw new Error(error.message);
+    if (error) throw new Error((error as Error).message);
     return data as Course[];
   }
 
@@ -46,7 +46,7 @@ export class CourseRepository {
       if (id && version && error.code === 'PGRST116') {
         throw new Error('Conflict detected: Course has been updated by another user.');
       }
-      throw new Error(error.message);
+      throw new Error((error as Error).message);
     }
     return data as Course;
   }
@@ -56,6 +56,6 @@ export class CourseRepository {
       .delete()
       .eq('id', id);
 
-    if (error) throw new Error(error.message);
+    if (error) throw new Error((error as Error).message);
   }
 }

@@ -1,16 +1,21 @@
-import { UserRole } from '../types';
+import { UserRole, ResetRequest } from '../types';
 
 export interface UserDTO {
   id: string;
   email: string;
   full_name: string;
   role: UserRole;
-  xp?: number;
-  level?: number;
   phone?: string;
   created_at: string;
   active?: boolean;
-  metadata?: Record<string, unknown>;
+  notification_preferences?: Record<string, boolean>;
+  metadata?: Record<string, string | number | boolean>;
+  flagged?: boolean;
+  failed_attempts?: number;
+  lockouts?: number;
+  locked_until?: string | null;
+  reset_request?: ResetRequest | null;
+  sessionId?: string;
 }
 
 export interface AuthResponseDTO {

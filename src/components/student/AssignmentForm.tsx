@@ -47,18 +47,25 @@ export const AssignmentForm: React.FC<AssignmentFormProps> = ({ assignment, user
       throw new Error('File upload requires an active internet connection.');
     }
 
-    const { filePath } = await apiClient.post<{ filePath: string }>('/api/system/upload-path', { fileName: file.name, category });
-    const { error: uploadError } = await client.storage
-        .from('lms-files')
-        .upload(filePath, file);
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('category', category);
 
-    if (uploadError) throw uploadError;
+    const res = await fetch('/api/system/upload', {
+        method: 'POST',
+        headers: {
+            'x-session-id': user.sessionId || '',
+        },
+        body: formData
+    });
 
-    const { data } = client.storage
-        .from('lms-files')
-        .getPublicUrl(filePath);
+    if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'Upload failed');
+    }
 
-    return { url: data.publicUrl };
+    const { publicUrl } = await res.json();
+    return { url: publicUrl };
   };
 
   const handleSubmit = async () => {
@@ -77,7 +84,7 @@ export const AssignmentForm: React.FC<AssignmentFormProps> = ({ assignment, user
         };
 
         if (isOnline) {
-            const res = await apiClient.post<unknown>(`/api/submissions?assignmentId=${assignment.id}`, payload);
+            const res = await apiClient.post<{ id: string }>(`/api/submissions?assignmentId=${assignment.id}`, payload);
             addToast('Assignment submitted successfully!', 'success');
             onComplete(res.id || Math.random().toString());
         } else {

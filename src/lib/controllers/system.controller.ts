@@ -3,17 +3,18 @@ import { systemService } from '../services/system.service';
 import { communicationService } from '../services/communication.service';
 import { enrollmentService } from '../services/enrollment.service';
 import { SystemMapper, CommunicationMapper } from '../mappers/domain-to-dto.mapper';
+import { UserMapper } from '../mappers';
 import { rbac } from '../auth/rbac';
-import { User, PlannerItem } from '../types';
+import { User, PlannerItem, Discussion } from '../types';
 import { UserDTO } from '../dto/auth.dto';
 import { PlannerItemDTO } from '../dto/system.dto';
-import { DiscussionDTO, NotificationDTO } from '../dto/communication.dto';
+import { DiscussionDTO, NotificationDTO, LiveClassDTO } from '../dto/communication.dto';
 
 export class SystemController {
   async getAllUsers(user: User): Promise<UserDTO[]> {
     if (!rbac.can(user, 'user:manage')) throw new Error('Unauthorized');
     const users = await userService.getAllUsers(user, user.sessionId);
-    return users.map(BaseUserMapper.toDTO);
+    return users.map(UserMapper.toDTO);
   }
 
   async getPlannerItems(user: User, userId: string): Promise<PlannerItemDTO[]> {

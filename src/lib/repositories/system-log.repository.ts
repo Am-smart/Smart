@@ -19,7 +19,7 @@ export class SystemLogRepository {
       .order('created_at', { ascending: false })
       .limit(limit);
 
-    if (error) throw new Error(error.message);
+    if (error) throw new Error((error as Error).message);
     return data as SystemLog[];
   }
 
@@ -30,7 +30,7 @@ export class SystemLogRepository {
       .select()
       .single();
 
-    if (error) throw new Error(error.message);
+    if (error) throw new Error((error as Error).message);
     return data as SystemLog;
   }
 }

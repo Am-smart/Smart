@@ -7,7 +7,7 @@ export class PlannerRepository {
       .select('*')
       .eq('user_id', userId);
 
-    if (error) throw new Error(error.message);
+    if (error) throw new Error((error as Error).message);
     return data as PlannerItem[];
   }
 
@@ -32,7 +32,7 @@ export class PlannerRepository {
       if (id && version && error.code === 'PGRST116') {
         throw new Error('Conflict detected: Planner item has been updated by another user.');
       }
-      throw new Error(error.message);
+      throw new Error((error as Error).message);
     }
     return data as PlannerItem;
   }
@@ -43,6 +43,6 @@ export class PlannerRepository {
       .eq('id', id)
       .eq('user_id', userId);
 
-    if (error) throw new Error(error.message);
+    if (error) throw new Error((error as Error).message);
   }
 }

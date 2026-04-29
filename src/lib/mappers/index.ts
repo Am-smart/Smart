@@ -1,18 +1,16 @@
-import { User, Course, Lesson, Material } from '../types';
-import { UserDTO } from './auth.dto';
-import { CourseDTO, LessonDTO, MaterialDTO } from './learning.dto';
+import { User, Course, Lesson, Material, UserRole } from '../types';
+import { UserDTO } from '../dto/auth.dto';
+import { CourseDTO, LessonDTO, MaterialDTO } from '../dto/learning.dto';
 
 export class UserMapper {
-  static toDTO(user: User): UserDTO {
+  static toDTO(user: User | { id: string; full_name: string; email: string; role?: UserRole; phone?: string; created_at?: string; active?: boolean; metadata?: Record<string, string | number | boolean> }): UserDTO {
     return {
       id: user.id,
       email: user.email,
       full_name: user.full_name,
-      role: user.role,
-      xp: user.xp,
-      level: user.level,
+      role: user.role || 'student',
       phone: user.phone,
-      created_at: user.created_at,
+      created_at: user.created_at || new Date().toISOString(),
       active: user.active,
       metadata: user.metadata
     };

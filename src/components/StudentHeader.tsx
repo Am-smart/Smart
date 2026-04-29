@@ -8,7 +8,6 @@ import { markNotificationAsRead, markAllNotificationsAsRead } from '@/lib/api-ac
 interface HeaderStats {
   courses: number;
   dueSoon: number;
-  badges: number;
   unreadNotifications: number;
 }
 
@@ -47,17 +46,9 @@ export const StudentHeader: React.FC<HeaderProps> = ({ user, stats, notification
           <div className="text-[0.7rem] uppercase font-bold text-[#64748b] tracking-wider mb-1">Courses</div>
           <div className="text-[#1e293b] font-extrabold text-lg">{stats.courses}</div>
         </div>
-        <div className="text-center px-4 border-r border-[#e2e8f0]">
+        <div className="text-center px-4">
           <div className="text-[0.7rem] uppercase font-bold text-[#64748b] tracking-wider mb-1">Due Soon</div>
           <div className="text-[#ef4444] font-extrabold text-lg">{stats.dueSoon}</div>
-        </div>
-        <div className="text-center px-4 border-r border-[#e2e8f0]">
-          <div className="text-[0.7rem] uppercase font-bold text-[#64748b] tracking-wider mb-1">Level</div>
-          <div className="text-[#2563eb] font-extrabold text-lg">{user.level || 1}</div>
-        </div>
-        <div className="text-center px-4">
-          <div className="text-[0.7rem] uppercase font-bold text-[#64748b] tracking-wider mb-1">Badges</div>
-          <div className="text-[#f59e0b] font-extrabold text-lg">{stats.badges}</div>
         </div>
     </div>
   );

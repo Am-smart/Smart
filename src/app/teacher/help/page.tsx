@@ -3,6 +3,7 @@
 import React, { useState, useMemo } from 'react';
 import { Search, HelpCircle, Book, MessageSquare, Send, ChevronDown, ChevronUp, GraduationCap } from 'lucide-react';
 import { useAppContext } from '@/components/AppContext';
+import { createSystemLog } from '@/lib/api-actions';
 
 const TEACHER_FAQ = [
     {

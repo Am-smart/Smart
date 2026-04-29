@@ -35,6 +35,7 @@ const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
 
 export class AuthorizationEngine {
   can(user: User, permission: Permission): boolean {
+    if (!user || !user.role) return false;
     const permissions = ROLE_PERMISSIONS[user.role] || [];
     return permissions.includes(permission);
   }

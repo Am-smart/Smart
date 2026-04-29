@@ -7,13 +7,11 @@ import { EnrollmentDTO, CourseDTO } from '@/lib/dto/learning.dto';
 import { AssignmentDTO } from '@/lib/dto/assessment.dto';
 import dynamic from 'next/dynamic';
 
-const StudyTimer = dynamic(() => import("@/components/student/StudyTimer").then(m => m.StudyTimer), { ssr: false });
-
 export default function StudentDashboard() {
   const { user } = useAuth();
   const [enrollments, setEnrollments] = useState<EnrollmentDTO[]>([]);
   const [assignments, setAssignments] = useState<AssignmentDTO[]>([]);
-  const [stats, setStats] = useState({ courses: 0, dueSoon: 0, xp: 0 });
+  const [stats, setStats] = useState({ courses: 0, dueSoon: 0 });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -39,8 +37,7 @@ export default function StudentDashboard() {
         setAssignments(pendingAssignments);
         setStats({
           courses: myEnrollments.length,
-          dueSoon: pendingAssignments.length,
-          xp: user.xp || 0
+          dueSoon: pendingAssignments.length
         });
     } catch (err) {
         console.error('Failed to fetch dashboard data:', err);
@@ -83,12 +80,8 @@ export default function StudentDashboard() {
 
   return (
     <div className="space-y-8">
-      {enrollments.length > 0 && (
-        <StudyTimer userId={user.id} courses={enrollments.map(e => e.course).filter(Boolean) as CourseDTO[]} />
-      )}
-
       <h2 className="text-2xl font-bold mb-6">Welcome Back, {user.full_name}!</h2>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
           <h4 className="text-slate-500 text-sm font-bold uppercase mb-2">Enrolled Courses</h4>
           <div className="text-3xl font-bold text-slate-900">{stats.courses}</div>
@@ -96,10 +89,6 @@ export default function StudentDashboard() {
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
           <h4 className="text-slate-500 text-sm font-bold uppercase mb-2">Upcoming Assignments</h4>
           <div className="text-3xl font-bold text-slate-900">{stats.dueSoon}</div>
-        </div>
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
-          <h4 className="text-slate-500 text-sm font-bold uppercase mb-2">XP Points</h4>
-          <div className="text-3xl font-bold text-slate-900">{stats.xp}</div>
         </div>
       </div>
 

@@ -21,7 +21,7 @@ export const useSupabase = () => {
     const users = await actions.getUsers();
     const data = users.find(u => u.id === id) || null;
     if (data && data.id === user?.id) await setCache('current_user', data);
-    return data;
+    return data as User | null;
   }, [user?.id, isOnline, getCache, setCache]);
 
   const saveUser = useCallback(async (u: Partial<User>): Promise<User> => {
@@ -102,12 +102,13 @@ export const useSupabase = () => {
 
   // Notification operations
   const getNotifications = useCallback(async (userId: string): Promise<Notification[]> => {
-    return await actions.getNotifications(userId) as unknown;
+    return await actions.getNotifications(userId);
   }, []);
 
   // Maintenance operations
   const getMaintenance = useCallback(async (): Promise<Maintenance> => {
-    return await actions.getMaintenance() as unknown;
+    const data = await actions.getMaintenance();
+    return data as unknown as Maintenance;
   }, []);
 
   const proxiedClient = useMemo(() => {

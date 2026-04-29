@@ -1,6 +1,5 @@
 import { LessonRepository } from '../repositories/lesson.repository';
 import { MaterialRepository } from '../repositories/material.repository';
-import { StudySessionRepository } from '../repositories/study-session.repository';
 import { EnrollmentRepository } from '../repositories/enrollment.repository';
 import { Lesson, Material, User, LessonCompletion } from '../types';
 import { LearningDomain } from '../domain/learning.domain';
@@ -9,7 +8,6 @@ import { supabase, withSession } from '../supabase';
 export class LearningService {
   private lessonRepo = new LessonRepository();
   private materialRepo = new MaterialRepository();
-  private studySessionRepo = new StudySessionRepository();
   private enrollmentRepo = new EnrollmentRepository();
 
   // Lessons
@@ -47,7 +45,7 @@ export class LearningService {
       lesson_id: lessonId
     }), sessionId);
 
-    if (error) throw new Error(error.message);
+    if (error) throw new Error((error as Error).message);
 
     // Update progress
     const { data: lessons } = await withSession(supabase.from('lessons').select('id').eq('course_id', courseId), sessionId);
@@ -61,16 +59,8 @@ export class LearningService {
 
   async getLessonCompletions(studentId: string, sessionId: string): Promise<LessonCompletion[]> {
       const { data, error } = await withSession(supabase.from('lesson_completions').select('*').eq('student_id', studentId), sessionId);
-      if (error) throw new Error(error.message);
+      if (error) throw new Error((error as Error).message);
       return data as LessonCompletion[];
-  }
-
-  // Study Sessions
-  async saveStudySession(userId: string, session: Partial<unknown>, xpEarned: number, sessionId: string): Promise<void> {
-    await this.studySessionRepo.create({ ...(session as Record<string, unknown>), user_id: userId } as Record<string, unknown>, sessionId);
-    if (xpEarned > 0) {
-      await withSession(supabase.rpc('award_xp', { p_user_id: userId, p_amount: xpEarned }), sessionId);
-    }
   }
 }
 
