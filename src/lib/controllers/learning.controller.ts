@@ -4,6 +4,8 @@ import { CourseMapper, LearningMapper } from '../mappers';
 import { rbac } from '../auth/rbac';
 import { User, Course, Lesson, Material } from '../types';
 import { CourseDTO, LessonDTO, MaterialDTO } from '../dto/learning.dto';
+import { CourseDomain } from '../domain/course.domain';
+import { LearningDomain } from '../domain/learning.domain';
 
 export class LearningController {
   async getCourses(user: User, teacherId?: string): Promise<CourseDTO[]> {
@@ -15,6 +17,10 @@ export class LearningController {
     if (!rbac.can(user, 'course:create') && !rbac.can(user, 'course:update')) {
       throw new Error('Unauthorized');
     }
+
+    // Domain logic: validation & creation rules
+    CourseDomain.validate(courseData);
+
     const course = await courseService.saveCourse(user, courseData, user.sessionId);
     return CourseMapper.toDTO(course);
   }
@@ -31,6 +37,10 @@ export class LearningController {
 
   async saveLesson(user: User, lessonData: Partial<Lesson>): Promise<LessonDTO> {
     if (!rbac.can(user, 'lesson:manage')) throw new Error('Unauthorized');
+
+    // Domain logic: validation
+    LearningDomain.validateLesson(lessonData);
+
     const lesson = await learningService.saveLesson(lessonData, user.sessionId);
     return LearningMapper.toLessonDTO(lesson);
   }
@@ -42,6 +52,10 @@ export class LearningController {
 
   async saveMaterial(user: User, materialData: Partial<Material>): Promise<MaterialDTO> {
     if (!rbac.can(user, 'course:update')) throw new Error('Unauthorized');
+
+    // Domain logic: validation
+    LearningDomain.validateMaterial(materialData);
+
     const material = await learningService.saveMaterial(user, materialData, user.sessionId);
     return LearningMapper.toMaterialDTO(material);
   }

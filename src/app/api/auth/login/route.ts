@@ -1,35 +1,26 @@
-import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
+import { withHandler } from '@/app/api/api-utils';
 import { authController } from '@/lib/controllers/auth.controller';
-import { signData } from '@/lib/crypto';
-import { getErrorMessage } from '@/lib/api-error';
 
-export async function POST(request: Request) {
-  try {
+export const POST = withHandler(async (_user, request) => {
     const body = await request.json();
     const result = await authController.login(body);
 
-    if (result.success && result.user && result.sessionId) {
-      const sessionData = {
-        id: result.user.id,
-        sessionId: result.sessionId,
-        email: result.user.email,
-        role: result.user.role,
-        full_name: result.user.full_name
-      };
-      const token = await signData(sessionData);
+    if (result.sessionId) {
+        const { createSession } = await import('@/lib/crypto');
+        const token = await createSession({
+            id: result.user?.id,
+            role: result.user?.role,
+            sessionId: result.sessionId
+        });
 
-      const cookieStore = await cookies();
-      cookieStore.set('app-user-session', token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'lax',
-        maxAge: 60 * 60 * 24 * 7
-      });
+        const { cookies } = await import('next/headers');
+        (await cookies()).set('app-user-session', token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            maxAge: 60 * 60 * 24 * 7 // 1 week
+        });
     }
 
-    return NextResponse.json(result);
-  } catch (error: unknown) {
-    return NextResponse.json({ success: false, error: getErrorMessage(error) }, { status: 500 });
-  }
-}
+    return result;
+}, { requireAuth: false });

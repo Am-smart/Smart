@@ -1,17 +1,30 @@
-import { NextResponse } from 'next/server';
-import { getErrorMessage } from '@/lib/api-error';
-import { getSessionUser, handleUnauthorized } from '@/app/api/api-utils';
-import { communicationService } from '@/lib/services/communication.service';
+import { withHandler } from '@/app/api/api-utils';
+import { systemController } from '@/lib/controllers/system.controller';
 
-export async function POST(request: Request) {
-    const user = await getSessionUser();
-    if (!user) return handleUnauthorized();
+export const GET = withHandler(async (user, request) => {
+  const { searchParams } = new URL(request.url);
+  const userId = searchParams.get('userId');
+  if (!userId) throw new Error('userId is required');
+  return systemController.getNotifications(user, userId);
+});
 
-    try {
-        const params = await request.json();
-        const result = await communicationService.notifyUser(params, user.sessionId!);
-        return NextResponse.json(result);
-    } catch (error: unknown) {
-        return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
+export const PATCH = withHandler(async (user, request) => {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+    const userId = searchParams.get('userId');
+    const body = await request.json();
+
+    const { communicationService } = await import('@/lib/services/communication.service');
+
+    if (body.markAll && userId) {
+        await communicationService.markAllNotificationsAsRead(userId, user.sessionId!);
+        return { success: true };
     }
-}
+
+    if (id) {
+        await communicationService.markNotificationAsRead(id, user.sessionId!);
+        return { success: true };
+    }
+
+    throw new Error('id or userId (with markAll) is required');
+});

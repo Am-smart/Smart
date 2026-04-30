@@ -1,12 +1,11 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { useSupabase } from '@/hooks/useSupabase';
-import { supabase } from '@/lib/supabase';
 import { Maintenance, Notification } from '@/lib/types';
 import { useAuth } from './auth/AuthContext';
 import { useIndexedDB } from '@/hooks/useIndexedDB';
 import { Toast, ToastMessage, ToastType } from './ui/Toast';
+import * as actions from '@/lib/api-actions';
 
 interface AppContextType {
   maintenance: Maintenance;
@@ -21,7 +20,6 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { getMaintenance, getNotifications } = useSupabase();
   const { user } = useAuth();
   const { setCache, getCache, isOnline, pullData } = useIndexedDB();
   const [maintenance, setMaintenance] = useState<Maintenance>({ id: "system-config", enabled: false, schedules: [] });
@@ -52,24 +50,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       if (cachedMaint) setMaintenance(cachedMaint);
 
       if (isOnline) {
-        const m = await getMaintenance();
-        setMaintenance(m);
+        const m = await actions.getMaintenance();
+        const maintData = m as unknown as Maintenance;
+        setMaintenance(maintData);
 
         // Auto-check schedule
         const now = new Date();
-        const isInSchedule = m.schedules?.some(s => {
+        const isInSchedule = maintData.schedules?.some(s => {
             const start = new Date(s.start_at);
             const end = new Date(s.end_at);
             return now >= start && now <= end;
         });
 
-        setIsCurrentlyInMaintenance(m.enabled || !!isInSchedule);
-        await setCache('maintenance', m);
+        setIsCurrentlyInMaintenance(maintData.enabled || !!isInSchedule);
+        await setCache('maintenance', maintData);
       }
     } catch (err) {
       console.error('Failed to init app context:', err);
     }
-  }, [getMaintenance, getCache, setCache, isOnline]);
+  }, [getCache, setCache, isOnline]);
 
   const fetchNotifications = useCallback(async (userId: string) => {
     try {
@@ -82,20 +81,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       // Only fetch from server if online
       if (isOnline) {
         try {
-          const n = await getNotifications(userId);
+          const n = await actions.getNotifications(userId);
           if (n && Array.isArray(n)) {
             setNotifications(n);
             await setCache('notifications', n);
           }
         } catch (fetchErr) {
           console.error('Failed to fetch notifications from server:', fetchErr);
-          // Keep cached notifications if server fetch fails
         }
       }
     } catch (err) {
       console.error('Failed to initialize notifications:', err);
     }
-  }, [getNotifications, getCache, setCache, isOnline]);
+  }, [getCache, setCache, isOnline]);
 
   useEffect(() => {
     init();
@@ -123,99 +121,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [user, isOnline, pullData, fetchNotifications]);
 
-  // Realtime Subscriptions
-  useEffect(() => {
-    if (!user || !isOnline || !user.sessionId) return;
-
-    let debounceTimer: NodeJS.Timeout;
-    let isMounted = true;
-
-    const setupSubscriptions = async () => {
-      try {
-        const client = supabase;
-
-        // 1. Subscribe to Notifications
-        const notesChannel = client.channel(`user-notes-${user.id}`)
-          .on('postgres_changes', {
-              event: '*',
-              schema: 'public',
-              table: 'notifications',
-              filter: `user_id=eq.${user.id}`
-          }, () => {
-              clearTimeout(debounceTimer);
-              debounceTimer = setTimeout(() => {
-                if (isMounted) {
-                  fetchNotifications(user.id);
-                }
-              }, 500);
-          })
-          .subscribe((status) => {
-            if (status === 'SUBSCRIBED' && !isMounted) {
-              // Channel is ready but component unmounted, unsubscribe
-              client.removeChannel(notesChannel);
-            }
-          });
-
-        // 3. Subscribe to Enrollments & Lessons (Progress)
-        const progressChannel = client.channel(`user-progress-${user.id}`)
-          .on('postgres_changes', {
-              event: 'UPDATE',
-              schema: 'public',
-              table: 'enrollments',
-              filter: `student_id=eq.${user.id}`
-          }, () => {
-              if (isMounted) addToast('Your course progress has been updated!', 'info');
-          })
-          .subscribe();
-
-        // 4. Subscribe to Broadcasts
-        const broadcastsChannel = client.channel('global-broadcasts')
-          .on('postgres_changes', {
-              event: 'INSERT',
-              schema: 'public',
-              table: 'broadcasts'
-          }, (payload) => {
-              if (!isMounted) return;
-              
-              const newBroadcast = payload.new as { id: string; target_role: string | null; title: string; message: string; link: string | null; created_at: string };
-              if (!newBroadcast.target_role || newBroadcast.target_role === user.role) {
-                  setNotifications(prev => [{
-                      id: newBroadcast.id,
-                      user_id: user.id,
-                      title: newBroadcast.title,
-                      message: newBroadcast.message,
-                      link: newBroadcast.link || undefined,
-                      type: 'broadcast',
-                      is_read: false,
-                      created_at: newBroadcast.created_at
-                  }, ...prev]);
-              }
-          })
-          .subscribe();
-
-        // Return cleanup function
-        return () => {
-          clearTimeout(debounceTimer);
-          if (notesChannel) client.removeChannel(notesChannel);
-          if (progressChannel) client.removeChannel(progressChannel);
-          if (broadcastsChannel) client.removeChannel(broadcastsChannel);
-        };
-      } catch (err) {
-        console.error('Failed to setup subscriptions:', err);
-      }
-    };
-
-    let cleanup: (() => void) | undefined;
-    setupSubscriptions().then(fn => {
-      if (fn && isMounted) cleanup = fn;
-    });
-
-    return () => {
-      isMounted = false;
-      if (cleanup) cleanup();
-      clearTimeout(debounceTimer);
-    };
-  }, [user, isOnline, fetchNotifications, addToast]);
+  // Realtime functionality is disabled for now to enforce backend-only access.
+  // In a future step, this should be replaced with a WebSocket or Server-Sent Events implementation
+  // that is managed by the backend, rather than direct Supabase client exposure in the frontend.
 
   const toggleSidebar = useCallback(() => setIsSidebarOpen(prev => !prev), []);
 

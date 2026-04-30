@@ -1,21 +1,23 @@
-import { NextResponse } from 'next/server';
-import { getErrorMessage } from '@/lib/api-error';
-import { getSessionUser, handleUnauthorized } from '@/app/api/api-utils';
-import { assessmentService } from '@/lib/services/assessment.service';
+import { withHandler } from '@/app/api/api-utils';
+import { assessmentController } from '@/lib/controllers/assessment.controller';
 
-export async function DELETE(request: Request) {
-    const user = await getSessionUser();
-    if (!user) return handleUnauthorized();
+export const GET = withHandler(async (user, request) => {
+  const { searchParams } = new URL(request.url);
+  const courseId = searchParams.get('courseId') || undefined;
+  const teacherId = searchParams.get('teacherId') || undefined;
+  return assessmentController.getQuizzes(user, courseId, teacherId);
+});
 
-    const { searchParams } = new URL(request.url);
-    const id = searchParams.get('id');
+export const POST = withHandler(async (user, request) => {
+  const body = await request.json();
+  return assessmentController.saveQuiz(user, body);
+});
 
-    if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 });
-
-    try {
-        await assessmentService.deleteQuiz(id, user.sessionId!);
-        return NextResponse.json({ success: true });
-    } catch (error: unknown) {
-        return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
-    }
-}
+export const DELETE = withHandler(async (user, request) => {
+  const { searchParams } = new URL(request.url);
+  const id = searchParams.get('id');
+  if (!id) throw new Error('id is required');
+  const { assessmentService } = await import('@/lib/services/assessment.service');
+  await assessmentService.deleteQuiz(id, user.sessionId!);
+  return { success: true };
+});

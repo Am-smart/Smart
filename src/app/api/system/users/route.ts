@@ -1,34 +1,19 @@
-import { NextResponse } from 'next/server';
-import { getErrorMessage } from '@/lib/api-error';
-import { getSessionUser, handleUnauthorized } from '@/app/api/api-utils';
-import { userService } from '@/lib/services/user.service';
-import { UserMapper } from '@/lib/mappers';
+import { withHandler } from '@/app/api/api-utils';
+import { systemController } from '@/lib/controllers/system.controller';
 
-export async function GET() {
-  const user = await getSessionUser();
-  if (!user) return handleUnauthorized();
+export const GET = withHandler(async (user) => {
+  return systemController.getAllUsers(user);
+});
 
-  try {
-    const users = await userService.getAllUsers(user, user.sessionId!);
-    return NextResponse.json(users.map(UserMapper.toDTO));
-  } catch (error: unknown) {
-    return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
-  }
-}
-
-export async function DELETE(request: Request) {
-    const user = await getSessionUser();
-    if (!user) return handleUnauthorized();
-
+export const DELETE = withHandler(async (user, request) => {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
+    if (!id) throw new Error('id is required');
 
-    if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 });
+    const { rbac } = await import('@/lib/auth/rbac');
+    if (!rbac.can(user, 'user:manage')) throw new Error('Unauthorized');
 
-    try {
-        await userService.deleteUser(user, id, user.sessionId!);
-        return NextResponse.json({ success: true });
-    } catch (error: unknown) {
-        return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
-    }
-}
+    const { userService } = await import('@/lib/services/user.service');
+    await userService.deleteUser(user, id, user.sessionId!);
+    return { success: true };
+});

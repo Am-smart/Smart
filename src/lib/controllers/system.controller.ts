@@ -2,13 +2,14 @@ import { userService } from '../services/user.service';
 import { systemService } from '../services/system.service';
 import { communicationService } from '../services/communication.service';
 import { enrollmentService } from '../services/enrollment.service';
-import { SystemMapper, CommunicationMapper } from '../mappers/domain-to-dto.mapper';
-import { UserMapper } from '../mappers';
+import { SystemMapper, CommunicationMapper, UserMapper } from '../mappers';
 import { rbac } from '../auth/rbac';
 import { User, PlannerItem, Discussion } from '../types';
 import { UserDTO } from '../dto/auth.dto';
 import { PlannerItemDTO } from '../dto/system.dto';
 import { DiscussionDTO, NotificationDTO, LiveClassDTO } from '../dto/communication.dto';
+import { EnrollmentDomain } from '../domain/enrollment.domain';
+import { CommunicationDomain } from '../domain/communication.domain';
 
 export class SystemController {
   async getAllUsers(user: User): Promise<UserDTO[]> {
@@ -33,6 +34,9 @@ export class SystemController {
   }
 
   async saveDiscussionPost(user: User, post: Partial<Discussion>): Promise<DiscussionDTO> {
+    // Domain logic: validation
+    CommunicationDomain.validateDiscussionPost(post);
+
     const saved = await communicationService.saveDiscussionPost(user, post, user.sessionId);
     return CommunicationMapper.toDiscussionDTO(saved);
   }
@@ -48,11 +52,17 @@ export class SystemController {
   }
 
   async enrollInCourse(user: User, courseId: string): Promise<void> {
+    // Domain logic: Enrollment invariants
+    // (Check if course is published, etc. - usually handled in service or domain)
     await enrollmentService.enrollInCourse(user.id, courseId, user.sessionId);
   }
 
   async unenrollFromCourse(user: User, courseId: string, studentId: string): Promise<void> {
     if (!rbac.can(user, 'course:update')) throw new Error('Unauthorized');
+
+    // Domain logic: check if unenrollment is allowed
+    EnrollmentDomain.validateUnenrollment(user, studentId);
+
     await enrollmentService.removeEnrollment(user, courseId, studentId, user.sessionId);
   }
 }

@@ -1,49 +1,21 @@
-import { NextResponse } from 'next/server';
-import { getErrorMessage } from '@/lib/api-error';
-import { getSessionUser, handleUnauthorized } from '@/app/api/api-utils';
+import { withHandler } from '@/app/api/api-utils';
 import { learningController } from '@/lib/controllers/learning.controller';
 
-export async function GET(request: Request) {
-  const user = await getSessionUser();
-  if (!user) return handleUnauthorized();
-
+export const GET = withHandler(async (user, request) => {
   const { searchParams } = new URL(request.url);
   const teacherId = searchParams.get('teacherId') || undefined;
+  return learningController.getCourses(user, teacherId);
+});
 
-  try {
-    const courses = await learningController.getCourses(user, teacherId);
-    return NextResponse.json(courses);
-  } catch (error: unknown) {
-    return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
-  }
-}
+export const POST = withHandler(async (user, request) => {
+  const body = await request.json();
+  return learningController.saveCourse(user, body);
+});
 
-export async function DELETE(request: Request) {
-    const user = await getSessionUser();
-    if (!user) return handleUnauthorized();
-
-    const { searchParams } = new URL(request.url);
-    const id = searchParams.get('id');
-
-    if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 });
-
-    try {
-        await learningController.deleteCourse(user, id);
-        return NextResponse.json({ success: true });
-    } catch (error: unknown) {
-        return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
-    }
-}
-
-export async function POST(request: Request) {
-  const user = await getSessionUser();
-  if (!user) return handleUnauthorized();
-
-  try {
-    const body = await request.json();
-    const course = await learningController.saveCourse(user, body);
-    return NextResponse.json(course);
-  } catch (error: unknown) {
-    return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
-  }
-}
+export const DELETE = withHandler(async (user, request) => {
+  const { searchParams } = new URL(request.url);
+  const id = searchParams.get('id');
+  if (!id) throw new Error('id is required');
+  await learningController.deleteCourse(user, id);
+  return { success: true };
+});
