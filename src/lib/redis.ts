@@ -1,21 +1,32 @@
 import { Redis } from "@upstash/redis";
 
 /**
- * Upstash Redis (serverless-friendly, works on Vercel)
- * Uses REST API instead of TCP connections (no ECONNREFUSED issues)
+ * Upstash Redis (serverless-safe, Vercel-ready)
+ * - No TCP connections
+ * - No build-time crashes
+ * - Lazy initialization
  */
 
-if (!process.env.UPSTASH_REDIS_REST_URL) {
-  throw new Error("Missing UPSTASH_REDIS_REST_URL");
+let redis: Redis | null = null;
+
+export function getRedis() {
+  if (typeof window !== "undefined") {
+    throw new Error("Redis can only be used on the server");
+  }
+
+  if (redis) return redis;
+
+  const url = process.env.UPSTASH_REDIS_REST_URL;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+
+  if (!url || !token) {
+    console.warn("Redis not configured. Skipping initialization.");
+    return null;
+  }
+
+  redis = new Redis({ url, token });
+
+  return redis;
 }
 
-if (!process.env.UPSTASH_REDIS_REST_TOKEN) {
-  throw new Error("Missing UPSTASH_REDIS_REST_TOKEN");
-}
-
-const redis = new Redis({
-  url: process.env.UPSTASH_REDIS_REST_URL,
-  token: process.env.UPSTASH_REDIS_REST_TOKEN,
-});
-
-export default redis;
+export default getRedis;
