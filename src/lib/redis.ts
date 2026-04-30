@@ -1,16 +1,21 @@
-import Redis from 'ioredis';
+import { Redis } from "@upstash/redis";
 
-const REDIS_URL = process.env.REDIS_URL || 'redis://localhost:6379';
+/**
+ * Upstash Redis (serverless-friendly, works on Vercel)
+ * Uses REST API instead of TCP connections (no ECONNREFUSED issues)
+ */
 
-const redis = new Redis(REDIS_URL, {
-  maxRetriesPerRequest: 3,
-  retryStrategy: (times) => {
-    return Math.min(times * 50, 2000);
-  },
-});
+if (!process.env.UPSTASH_REDIS_REST_URL) {
+  throw new Error("Missing UPSTASH_REDIS_REST_URL");
+}
 
-redis.on('error', (err) => {
-  console.error('Redis connection error:', err);
+if (!process.env.UPSTASH_REDIS_REST_TOKEN) {
+  throw new Error("Missing UPSTASH_REDIS_REST_TOKEN");
+}
+
+const redis = new Redis({
+  url: process.env.UPSTASH_REDIS_REST_URL,
+  token: process.env.UPSTASH_REDIS_REST_TOKEN,
 });
 
 export default redis;
