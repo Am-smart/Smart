@@ -3,7 +3,8 @@ import { MaterialRepository } from '../repositories/material.repository';
 import { EnrollmentRepository } from '../repositories/enrollment.repository';
 import { Lesson, Material, User, LessonCompletion } from '../types';
 import { LearningDomain } from '../domain/learning.domain';
-import { supabase, withSession } from '../supabase';
+import { withSession } from '../supabase';
+import { supabaseServer as supabase } from '../supabase-server';
 
 export class LearningService {
   private lessonRepo = new LessonRepository();

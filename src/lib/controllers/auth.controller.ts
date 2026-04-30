@@ -5,40 +5,39 @@ import { User } from '../types';
 import { recordAttempt, isRateLimited, resetRateLimit } from '../rate-limit';
 
 export class AuthController {
-  async login(credentials: LoginRequestDTO): Promise<AuthResponseDTO> {
+  async login(credentials: LoginRequestDTO): Promise<Omit<AuthResponseDTO, 'success'>> {
     const validation = validateLoginForm(credentials.email, credentials.password || '');
     if (!validation.isValid) {
-      return { success: false, user: null, sessionId: null, error: validation.errors[0].message };
+      return { user: null, sessionId: null, error: validation.errors[0].message };
     }
 
     const normalizedEmail = normalizeEmail(credentials.email);
-    if (isRateLimited(normalizedEmail)) {
-        return { success: false, user: null, sessionId: null, error: 'Too many login attempts. Please try again later.' };
+    if (await isRateLimited(normalizedEmail)) {
+        return { user: null, sessionId: null, error: 'Too many login attempts. Please try again later.' };
     }
 
     const { data: rawData, error: rpcError } = await authService.authenticate(normalizedEmail, credentials.password || '');
 
-    if (rpcError) return { success: false, user: null, sessionId: null, error: 'Authentication service unavailable' };
+    if (rpcError) return { user: null, sessionId: null, error: 'Authentication service unavailable' };
 
     const result = rawData as { success: boolean, user: User, session_id: string, error?: string };
     if (!result.success) {
-      if (result.error === 'Invalid email or password') recordAttempt(normalizedEmail);
-      return { success: false, user: null, sessionId: null, error: result.error };
+      if (result.error === 'Invalid email or password') await recordAttempt(normalizedEmail);
+      return { user: null, sessionId: null, error: result.error };
     }
 
-    resetRateLimit(normalizedEmail);
+    await resetRateLimit(normalizedEmail);
     const user = result.user;
     const sessionId = result.session_id;
 
     const { UserMapper } = await import('../mappers');
     return {
-      success: true,
       user: UserMapper.toDTO(user),
       sessionId: sessionId
     };
   }
 
-  async signup(data: SignupRequestDTO): Promise<AuthResponseDTO> {
+  async signup(data: SignupRequestDTO): Promise<Omit<AuthResponseDTO, 'success'>> {
     const validation = validateSignupForm(
       data.full_name,
       data.email,
@@ -48,7 +47,7 @@ export class AuthController {
     );
 
     if (!validation.isValid) {
-      return { success: false, user: null, sessionId: null, error: validation.errors[0].message };
+      return { user: null, sessionId: null, error: validation.errors[0].message };
     }
 
     const { data: rawData, error: rpcError } = await authService.register({
@@ -59,17 +58,16 @@ export class AuthController {
       role: data.role || 'student'
     });
 
-    if (rpcError) return { success: false, user: null, sessionId: null, error: 'Signup service unavailable' };
+    if (rpcError) return { user: null, sessionId: null, error: 'Signup service unavailable' };
 
     const result = rawData as { success: boolean, user: User, session_id: string, error?: string };
-    if (!result.success) return { success: false, user: null, sessionId: null, error: result.error };
+    if (!result.success) return { user: null, sessionId: null, error: result.error };
 
     const user = result.user;
     const sessionId = result.session_id;
 
     const { UserMapper } = await import('../mappers');
     return {
-      success: true,
       user: UserMapper.toDTO(user),
       sessionId: sessionId
     };

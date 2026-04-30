@@ -1,41 +1,19 @@
-import { NextResponse } from 'next/server';
-import { getErrorMessage } from '@/lib/api-error';
-import { getSessionUser, handleUnauthorized } from '@/app/api/api-utils';
+import { withHandler } from '@/app/api/api-utils';
 import { systemController } from '@/lib/controllers/system.controller';
 
-export async function POST(request: Request) {
-  const user = await getSessionUser();
-  if (!user) return handleUnauthorized();
-
-  const { searchParams } = new URL(request.url);
-  const courseId = searchParams.get('courseId');
-
-  if (!courseId) return NextResponse.json({ error: 'courseId is required' }, { status: 400 });
-
-  try {
+export const POST = withHandler(async (user, request) => {
+    const { searchParams } = new URL(request.url);
+    const courseId = searchParams.get('courseId');
+    if (!courseId) throw new Error('courseId is required');
     await systemController.enrollInCourse(user, courseId);
-    return NextResponse.json({ success: true });
-  } catch (error: unknown) {
-    return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
-  }
-}
+    return { success: true };
+});
 
-export async function DELETE(request: Request) {
-  const user = await getSessionUser();
-  if (!user) return handleUnauthorized();
-
-  const { searchParams } = new URL(request.url);
-  const courseId = searchParams.get('courseId');
-  const studentId = searchParams.get('studentId');
-
-  if (!courseId || !studentId) {
-    return NextResponse.json({ error: 'courseId and studentId are required' }, { status: 400 });
-  }
-
-  try {
+export const DELETE = withHandler(async (user, request) => {
+    const { searchParams } = new URL(request.url);
+    const courseId = searchParams.get('courseId');
+    const studentId = searchParams.get('studentId');
+    if (!courseId || !studentId) throw new Error('courseId and studentId are required');
     await systemController.unenrollFromCourse(user, courseId, studentId);
-    return NextResponse.json({ success: true });
-  } catch (error: unknown) {
-    return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
-  }
-}
+    return { success: true };
+});

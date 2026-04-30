@@ -3,11 +3,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
 import { useSupabase } from '@/hooks/useSupabase';
-import { CourseManager } from "@/components/teacher/CourseManager";
 import { CourseEditor } from "@/components/teacher/CourseEditor";
 import { LessonEditor } from "@/components/teacher/LessonEditor";
 import { CourseDTO } from '@/lib/dto/learning.dto';
 import { deleteCourse } from '@/lib/api-actions';
+import { CourseList } from '@/components/common/CourseList';
+import { Button } from '@/components/ui/Button';
+import { Plus } from 'lucide-react';
 
 export default function CoursesPage() {
   const { user } = useAuth();
@@ -29,7 +31,18 @@ export default function CoursesPage() {
   }, [fetchCourses]);
 
   return (
-    <div className="relative">
+    <div className="p-6">
+        <div className="flex justify-between items-center mb-8">
+            <div>
+                <h1 className="text-3xl font-bold text-gray-900">My Courses</h1>
+                <p className="text-gray-600 mt-2">Manage your teaching curriculum and lessons.</p>
+            </div>
+            <Button onClick={() => setIsAdding(true)} className="flex items-center gap-2">
+                <Plus className="h-4 w-4" />
+                Create Course
+            </Button>
+        </div>
+
       {(isAdding || editingCourse) && (
         <CourseEditor
             teacherId={user!.id}
@@ -39,16 +52,17 @@ export default function CoursesPage() {
         />
       )}
 
-      <CourseManager
-          courses={courses}
-          onEdit={setEditingCourse}
-          onDelete={async (id) => {
-              if (!confirm('Are you sure you want to delete this course and all its lessons?')) return;
-              await deleteCourse(id);
-              fetchCourses();
-          }}
-          onCreate={() => setIsAdding(true)}
-          onManageLessons={(course) => setActiveLessonCourse(course)}
+      <CourseList
+        courses={courses}
+        onAction={(course) => setActiveLessonCourse(course)}
+        actionLabel="Manage Lessons"
+        onEdit={setEditingCourse}
+        onDelete={async (id) => {
+            if (!confirm('Are you sure you want to delete this course and all its lessons?')) return;
+            await deleteCourse(id);
+            fetchCourses();
+        }}
+        showStatus={true}
       />
 
       {activeLessonCourse && (

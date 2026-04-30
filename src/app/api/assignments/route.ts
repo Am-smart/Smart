@@ -1,21 +1,26 @@
-import { NextResponse } from 'next/server';
-import { getSessionUser, handleUnauthorized } from '@/app/api/api-utils';
-import { assessmentService } from '@/lib/services/assessment.service';
-import { getErrorMessage } from '@/lib/api-error';
+import { withHandler } from '@/app/api/api-utils';
+import { assessmentController } from '@/lib/controllers/assessment.controller';
 
-export async function DELETE(request: Request) {
-    const user = await getSessionUser();
-    if (!user) return handleUnauthorized();
+export const GET = withHandler(async (user, request) => {
+  const { searchParams } = new URL(request.url);
+  const teacherId = searchParams.get('teacherId') || undefined;
+  const courseId = searchParams.get('courseId') || undefined;
+  return assessmentController.getAssignments(user, teacherId, courseId);
+});
 
-    const { searchParams } = new URL(request.url);
-    const id = searchParams.get('id');
+export const POST = withHandler(async (user, request) => {
+  const body = await request.json();
+  return assessmentController.saveAssignment(user, body);
+});
 
-    if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 });
-
-    try {
-        await assessmentService.deleteAssignment(id, user.sessionId!);
-        return NextResponse.json({ success: true });
-    } catch (error: unknown) {
-        return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
-    }
-}
+export const DELETE = withHandler(async (user, request) => {
+  const { searchParams } = new URL(request.url);
+  const id = searchParams.get('id');
+  if (!id) throw new Error('id is required');
+  // Add deleteAssignment to assessmentController if not present,
+  // or use assessmentService directly if no controller method exists.
+  // In our assessment.controller.ts, it was missing.
+  const { assessmentService } = await import('@/lib/services/assessment.service');
+  await assessmentService.deleteAssignment(id, user.sessionId!);
+  return { success: true };
+});

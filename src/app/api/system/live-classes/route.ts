@@ -1,35 +1,34 @@
-import { NextResponse } from 'next/server';
-import { getErrorMessage } from '@/lib/api-error';
-import { getSessionUser, handleUnauthorized } from '@/app/api/api-utils';
-import { communicationService } from '@/lib/services/communication.service';
-import { CommunicationMapper } from '@/lib/mappers/domain-to-dto.mapper';
+import { withHandler } from '@/app/api/api-utils';
+import { systemController } from '@/lib/controllers/system.controller';
 
-export async function POST(request: Request) {
-    const user = await getSessionUser();
-    if (!user) return handleUnauthorized();
+export const GET = withHandler(async (user, request) => {
+    const { searchParams } = new URL(request.url);
+    const courseId = searchParams.get('courseId') || undefined;
+    const teacherId = searchParams.get('teacherId') || undefined;
+    return systemController.getLiveClasses(user, courseId, teacherId);
+});
 
-    try {
-        const body = await request.json();
-        const saved = await communicationService.saveLiveClass(user, body, user.sessionId!);
-        return NextResponse.json(CommunicationMapper.toLiveClassDTO(saved));
-    } catch (error: unknown) {
-        return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
-    }
-}
+export const POST = withHandler(async (user, request) => {
+    const body = await request.json();
+    const { communicationService } = await import('@/lib/services/communication.service');
+    const { rbac } = await import('@/lib/auth/rbac');
 
-export async function DELETE(request: Request) {
-    const user = await getSessionUser();
-    if (!user) return handleUnauthorized();
+    if (!rbac.can(user, 'course:update')) throw new Error('Unauthorized');
 
+    const { CommunicationMapper } = await import('@/lib/mappers');
+    const result = await communicationService.saveLiveClass(user, body, user.sessionId!);
+    return CommunicationMapper.toLiveClassDTO(result);
+});
+
+export const DELETE = withHandler(async (user, request) => {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
+    if (!id) throw new Error('id is required');
 
-    if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 });
+    const { rbac } = await import('@/lib/auth/rbac');
+    if (!rbac.can(user, 'course:update')) throw new Error('Unauthorized');
 
-    try {
-        await communicationService.deleteLiveClass(id, user.sessionId!);
-        return NextResponse.json({ success: true });
-    } catch (error: unknown) {
-        return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
-    }
-}
+    const { communicationService } = await import('@/lib/services/communication.service');
+    await communicationService.deleteLiveClass(id, user.sessionId!);
+    return { success: true };
+});

@@ -1,6 +1,22 @@
 import { Assignment, Quiz, QuizQuestion, QuizSubmission, Submission } from '../types';
 
 export class AssessmentDomain {
+  /**
+   * Centralized sanitizer to remove joined relation objects before persistence.
+   * Prevents PostgREST errors during upsert/insert.
+   */
+  static sanitizeEntity<T>(entity: T): T {
+    if (!entity || typeof entity !== 'object') return entity;
+    const { courses: _c, users: _u, assignments: _a, quizzes: _q, ...rest } = entity as Record<string, unknown>;
+    return rest as T;
+  }
+
+  static validateSubmission(submission: Partial<Submission>) {
+    if (!submission.submission_text && !submission.file_url) {
+      throw new Error('Submission must include either text or a file');
+    }
+  }
+
   static calculateQuizScore(questions: QuizQuestion[], answers: Record<string, unknown>) {
     if (!questions || questions.length === 0) return { score: 0, totalPoints: 0, correctCount: 0 };
 
@@ -37,7 +53,7 @@ export class AssessmentDomain {
   }
 
   static prepareAssignment(assignment: Partial<Assignment>, teacherId: string): Partial<Assignment> {
-    const { courses: _courses, ...rest } = assignment as Record<string, unknown>;
+    const rest = this.sanitizeEntity(assignment);
     return {
       ...rest,
       teacher_id: assignment.teacher_id || teacherId,
@@ -47,7 +63,7 @@ export class AssessmentDomain {
   }
 
   static prepareQuiz(quiz: Partial<Quiz>, teacherId: string): Partial<Quiz> {
-    const { courses: _courses, ...rest } = quiz as Record<string, unknown>;
+    const rest = this.sanitizeEntity(quiz);
     return {
       ...rest,
       teacher_id: quiz.teacher_id || teacherId,
@@ -57,7 +73,7 @@ export class AssessmentDomain {
   }
 
   static prepareSubmission(studentId: string, assignmentId: string, content: Partial<Submission>): Partial<Submission> {
-    const { assignments: _a, users: _u, ...rest } = content as Record<string, unknown>;
+    const rest = this.sanitizeEntity(content);
     return {
       ...rest,
       assignment_id: assignmentId,

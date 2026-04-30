@@ -1,4 +1,5 @@
-import { supabase, withSession } from '../supabase';
+import { withSession } from '../supabase';
+import { supabaseServer as supabase } from '../supabase-server';
 import { SystemLog } from '../types';
 
 export class SystemLogRepository {

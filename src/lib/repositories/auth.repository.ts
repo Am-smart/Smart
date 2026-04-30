@@ -1,4 +1,5 @@
-import { supabase, withSession } from '../supabase';
+import { withSession } from '../supabase';
+import { supabaseServer as supabase } from '../supabase-server';
 
 export class AuthRepository {
   async authenticate(email: string, password: string): Promise<{ data: unknown, error: unknown }> {

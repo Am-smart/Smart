@@ -1,38 +1,23 @@
-import { NextResponse } from 'next/server';
-import { getErrorMessage } from '@/lib/api-error';
-import { getSessionUser, handleUnauthorized } from '@/app/api/api-utils';
+import { withHandler } from '@/app/api/api-utils';
 import { systemService } from '@/lib/services/system.service';
-import { SystemMapper } from '@/lib/mappers/domain-to-dto.mapper';
 
-export async function GET(request: Request) {
-  const user = await getSessionUser();
-  if (!user) return handleUnauthorized();
-
-  const { searchParams } = new URL(request.url);
-  const limit = parseInt(searchParams.get('limit') || '100');
-
-  try {
-    const logs = await systemService.getLogs(user, limit, user.sessionId!);
-    return NextResponse.json(logs.map(SystemMapper.toSystemLogDTO));
-  } catch (error: unknown) {
-    return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
-  }
-}
-
-export async function PATCH(request: Request) {
-    const user = await getSessionUser();
-    if (!user) return handleUnauthorized();
-
+export const GET = withHandler(async (user, request) => {
     const { searchParams } = new URL(request.url);
-    const id = searchParams.get('id');
+    const limit = parseInt(searchParams.get('limit') || '100');
 
-    if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 });
+    const { rbac } = await import('@/lib/auth/rbac');
+    if (!rbac.can(user, 'system:manage')) throw new Error('Unauthorized');
 
-    try {
-        const body = await request.json();
-        const updated = await systemService.updateLog(user, id, body, user.sessionId!);
-        return NextResponse.json(SystemMapper.toSystemLogDTO(updated));
-    } catch (error: unknown) {
-        return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
-    }
-}
+    const logs = await systemService.getLogs(user, limit, user.sessionId!);
+    const { SystemMapper } = await import('@/lib/mappers');
+    return logs.map(SystemMapper.toSystemLogDTO);
+});
+
+export const POST = withHandler(async (user, request) => {
+    const body = await request.json();
+    await systemService.createLog({
+        ...body,
+        user_id: user.id
+    }, user.sessionId!);
+    return { success: true };
+});

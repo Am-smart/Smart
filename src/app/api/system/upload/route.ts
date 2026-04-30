@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getErrorMessage } from '@/lib/api-error';
 import { getSessionUser, handleUnauthorized } from '@/app/api/api-utils';
 import { systemService } from '@/lib/services/system.service';
-import { supabase } from '@/lib/supabase';
+import { supabaseServer as supabase } from '@/lib/supabase-server';
 
 export async function POST(request: Request) {
   const user = await getSessionUser();

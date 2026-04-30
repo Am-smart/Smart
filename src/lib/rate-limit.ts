@@ -1,85 +1,59 @@
+import redis from './redis';
+
 /**
- * Simple rate limiting for auth attempts
- * Stores attempt counts in memory (in production, use Redis)
+ * Rate limiting using Redis
  */
-
-interface RateLimitEntry {
-  count: number;
-  resetTime: number;
-}
-
-const rateLimitMap = new Map<string, RateLimitEntry>();
 
 // Configuration
 const MAX_ATTEMPTS = 5; // Max login attempts
-const WINDOW_MS = 15 * 60 * 1000; // 15 minute window
-const CLEANUP_INTERVAL = 60 * 1000; // Cleanup every minute
-
-// Cleanup old entries periodically
-setInterval(() => {
-  const now = Date.now();
-  for (const [key, entry] of rateLimitMap.entries()) {
-    if (entry.resetTime < now) {
-      rateLimitMap.delete(key);
-    }
-  }
-}, CLEANUP_INTERVAL);
+const WINDOW_MS = 15 * 60; // 15 minute window in seconds
 
 /**
  * Check if a request is rate limited
  */
-export function isRateLimited(identifier: string): boolean {
-  const now = Date.now();
-  const entry = rateLimitMap.get(identifier);
+export async function isRateLimited(identifier: string): Promise<boolean> {
+  const key = `ratelimit:${identifier}`;
+  const count = await redis.get(key);
 
-  if (!entry) {
+  if (!count) {
     return false;
   }
 
-  // Reset if window has expired
-  if (entry.resetTime < now) {
-    rateLimitMap.delete(identifier);
-    return false;
-  }
-
-  return entry.count >= MAX_ATTEMPTS;
+  return parseInt(count) >= MAX_ATTEMPTS;
 }
 
 /**
  * Record an attempt
  */
-export function recordAttempt(identifier: string): void {
-  const now = Date.now();
-  const entry = rateLimitMap.get(identifier);
+export async function recordAttempt(identifier: string): Promise<void> {
+  const key = `ratelimit:${identifier}`;
 
-  if (!entry || entry.resetTime < now) {
-    // New entry or window expired
-    rateLimitMap.set(identifier, {
-      count: 1,
-      resetTime: now + WINDOW_MS
-    });
+  const current = await redis.get(key);
+  if (!current) {
+    await redis.set(key, 1, 'EX', WINDOW_MS);
   } else {
-    // Increment existing entry
-    entry.count++;
+    await redis.incr(key);
   }
 }
 
 /**
- * Reset rate limit for an identifier (e.g., after successful login)
+ * Reset rate limit for an identifier
  */
-export function resetRateLimit(identifier: string): void {
-  rateLimitMap.delete(identifier);
+export async function resetRateLimit(identifier: string): Promise<void> {
+  const key = `ratelimit:${identifier}`;
+  await redis.del(key);
 }
 
 /**
  * Get remaining attempts
  */
-export function getRemainingAttempts(identifier: string): number {
-  const entry = rateLimitMap.get(identifier);
+export async function getRemainingAttempts(identifier: string): Promise<number> {
+  const key = `ratelimit:${identifier}`;
+  const count = await redis.get(key);
   
-  if (!entry || entry.resetTime < Date.now()) {
+  if (!count) {
     return MAX_ATTEMPTS;
   }
 
-  return Math.max(0, MAX_ATTEMPTS - entry.count);
+  return Math.max(0, MAX_ATTEMPTS - parseInt(count));
 }

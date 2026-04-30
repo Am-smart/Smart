@@ -1,3 +1,9 @@
+export interface ApiResponse<T> {
+  success: boolean;
+  data?: T;
+  error?: string;
+}
+
 export async function apiFetch<T>(url: string, options: RequestInit = {}, retries: number = 3): Promise<T> {
   // Get session ID from sessionStorage for authenticated requests
   const sessionId = typeof window !== 'undefined' ? sessionStorage.getItem('session_id') || '' : '';
@@ -18,13 +24,23 @@ export async function apiFetch<T>(url: string, options: RequestInit = {}, retrie
   for (let attempt = 0; attempt < retries; attempt++) {
     try {
       const response = await makeRequest();
+      const responseData = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || errorData.message || 'API request failed');
+        throw new Error(responseData.error || responseData.message || 'API request failed');
       }
 
-      return response.json();
+      // Handle standardized response format { success, data, error }
+      if (responseData && typeof responseData === 'object' && 'success' in responseData) {
+        const standardRes = responseData as ApiResponse<T>;
+        if (!standardRes.success) {
+          throw new Error(standardRes.error || 'Operation failed');
+        }
+        return standardRes.data as T;
+      }
+
+      // Fallback for non-standardized responses
+      return responseData as T;
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
       

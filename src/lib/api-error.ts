@@ -9,7 +9,22 @@ export interface ApiError {
   status?: number;
 }
 
+export class AppError extends Error implements ApiError {
+  code?: string;
+  status: number;
+
+  constructor(message: string, status: number = 500, code?: string) {
+    super(message);
+    this.name = 'AppError';
+    this.status = status;
+    this.code = code;
+  }
+}
+
 export function getErrorMessage(error: unknown): string {
+  if (error instanceof AppError) {
+    return error.message;
+  }
   if (error instanceof Error) {
     return (error as Error).message;
   }
@@ -22,14 +37,19 @@ export function getErrorMessage(error: unknown): string {
   return 'An unknown error occurred';
 }
 
-export class AppError extends Error implements ApiError {
-  code?: string;
-  status: number;
+/**
+ * Maps common database/business logic errors to appropriate HTTP status codes
+ */
+export function mapErrorToStatus(error: unknown): number {
+  const message = getErrorMessage(error).toLowerCase();
 
-  constructor(message: string, status: number = 500, code?: string) {
-    super(message);
-    this.name = 'AppError';
-    this.status = status;
-    this.code = code;
-  }
+  if (error instanceof AppError) return error.status;
+
+  if (message.includes('unauthorized') || message.includes('invalid token')) return 401;
+  if (message.includes('forbidden') || message.includes('permission denied')) return 403;
+  if (message.includes('not found')) return 404;
+  if (message.includes('duplicate') || message.includes('already exists')) return 409;
+  if (message.includes('invalid') || message.includes('required')) return 400;
+
+  return 500;
 }

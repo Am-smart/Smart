@@ -1,6 +1,5 @@
 import { useAuth } from '@/components/auth/AuthContext';
-import { useCallback, useMemo } from 'react';
-import { supabase, withSession } from '@/lib/supabase';
+import { useCallback } from 'react';
 import { User, Course, Enrollment, Assignment, Quiz, Discussion, Notification, Maintenance } from '@/lib/types';
 import { useIndexedDB } from './useIndexedDB';
 import * as actions from '@/lib/api-actions';
@@ -42,7 +41,7 @@ export const useSupabase = () => {
     const key = teacherId ? 'teacher_courses' : 'all_courses';
     if (data) await setCache(key, data);
 
-    return data || [];
+    return data as unknown as Course[] || [];
   }, [isOnline, getCache, setCache]);
 
   // Enrollment operations
@@ -54,7 +53,7 @@ export const useSupabase = () => {
 
     const data = await actions.getEnrollments(studentId);
     if (data) await setCache('my_enrollments', data);
-    return data || [];
+    return data as unknown as Enrollment[] || [];
   }, [isOnline, getCache, setCache]);
 
   const enrollInCourse = useCallback(async (courseId: string): Promise<Enrollment> => {
@@ -76,7 +75,7 @@ export const useSupabase = () => {
     const key = teacherId ? 'teacher_assignments' : 'all_assignments';
     if (data) await setCache(key, data);
 
-    return data || [];
+    return data as unknown as Assignment[] || [];
   }, [isOnline, getCache, setCache]);
 
   // Quiz operations
@@ -92,17 +91,17 @@ export const useSupabase = () => {
     const key = teacherId ? 'teacher_quizzes' : 'all_quizzes';
     if (data) await setCache(key, data);
 
-    return data || [];
+    return data as unknown as Quiz[] || [];
   }, [isOnline, getCache, setCache]);
 
   // Discussion operations
   const getDiscussions = useCallback(async (courseId: string): Promise<Discussion[]> => {
-    return await actions.getDiscussions(courseId);
+    return await actions.getDiscussions(courseId) as unknown as Discussion[];
   }, []);
 
   // Notification operations
   const getNotifications = useCallback(async (userId: string): Promise<Notification[]> => {
-    return await actions.getNotifications(userId);
+    return await actions.getNotifications(userId) as unknown as Notification[];
   }, []);
 
   // Maintenance operations
@@ -111,23 +110,8 @@ export const useSupabase = () => {
     return data as unknown as Maintenance;
   }, []);
 
-  const proxiedClient = useMemo(() => {
-    return new Proxy(supabase, {
-      get(target, prop, receiver) {
-        const value = Reflect.get(target, prop, receiver);
-        if (prop === 'from' || prop === 'rpc') {
-          return (...args: unknown[]) => {
-            const result = (value as (...args: unknown[]) => unknown).apply(target, args);
-            return withSession(result, user?.sessionId);
-          };
-        }
-        return value;
-      }
-    });
-  }, [user?.sessionId]);
-
   return {
-    client: proxiedClient,
+    user,
     getUser,
     saveUser,
     getCourses,

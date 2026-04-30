@@ -5,11 +5,11 @@ import { useAuth } from '@/components/auth/AuthContext';
 import { useSupabase } from '@/hooks/useSupabase';
 import { apiClient } from '@/lib/api-client';
 import { useIndexedDB } from '@/hooks/useIndexedDB';
-import { CourseCatalog } from "@/components/student/CourseCatalog";
 import { CourseView } from "@/components/student/CourseView";
 import { CourseDTO, LessonDTO } from '@/lib/dto/learning.dto';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAppContext } from '@/components/AppContext';
+import { CourseList } from '@/components/common/CourseList';
 
 function CatalogContent() {
   const { user } = useAuth();
@@ -50,15 +50,15 @@ function CatalogContent() {
     }
   }, [courseIdParam, courses]);
 
-  const handleEnroll = async (courseId: string) => {
+  const handleEnroll = async (course: CourseDTO) => {
     if (!user) return;
 
     try {
       if (isOnline) {
-          await apiClient.post(`/api/system/enroll?courseId=${courseId}`);
+          await apiClient.post(`/api/system/enroll?courseId=${course.id}`);
           addToast('Successfully enrolled in course!', 'success');
       } else {
-          await addToQueue('ENROLL', { course_id: courseId, student_id: user.id }, user.sessionId);
+          await addToQueue('ENROLL', { course_id: course.id, student_id: user.id }, user.sessionId);
           addToast('Offline: Enrollment queued for synchronization.', 'info');
       }
       router.push('/student/my-courses');
@@ -79,12 +79,24 @@ function CatalogContent() {
   }
 
   return (
-    <CourseCatalog
-        courses={courses}
-        enrolledCourseIds={enrolledIds}
-        onEnroll={handleEnroll}
-        onViewDetails={(id) => router.push(`/student/courses?id=${id}`)}
-    />
+    <div className="p-6">
+        <div className="mb-8">
+            <h1 className="text-3xl font-bold text-gray-900">Course Catalog</h1>
+            <p className="text-gray-600 mt-2">Explore and enroll in available courses.</p>
+        </div>
+
+        <CourseList
+            courses={courses}
+            onAction={(course) => {
+                if (enrolledIds.includes(course.id)) {
+                    router.push(`/student/courses?id=${course.id}`);
+                } else {
+                    handleEnroll(course);
+                }
+            }}
+            actionLabel="View Details"
+        />
+    </div>
   );
 }
 

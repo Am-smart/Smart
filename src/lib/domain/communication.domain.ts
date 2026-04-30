@@ -1,6 +1,11 @@
 import { LiveClass, Discussion, Broadcast } from '../types';
 
 export class CommunicationDomain {
+  static validateDiscussionPost(post: Partial<Discussion>) {
+    if (!post.content) throw new Error('Post content is required');
+    if (!post.course_id) throw new Error('Course ID is required');
+  }
+
   static prepareLiveClass(liveClass: Partial<LiveClass>, teacherId: string): Partial<LiveClass> {
     return {
       ...liveClass,

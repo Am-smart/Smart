@@ -16,7 +16,7 @@ interface AssignmentEditorProps {
 
 export const AssignmentEditor: React.FC<AssignmentEditorProps> = ({ teacherId, assignment, courses, onSave, onCancel }) => {
     const { addToast } = useAppContext();
-    const { client } = useSupabase();
+    const { user } = useSupabase();
     const [formData, setFormData] = useState<AssignmentDTO>({
         id: assignment?.id || '',
         teacher_id: teacherId,
@@ -83,7 +83,7 @@ export const AssignmentEditor: React.FC<AssignmentEditorProps> = ({ teacherId, a
             const res = await fetch('/api/system/upload', {
                 method: 'POST',
                 headers: {
-                    'x-session-id': (client as unknown as Record<string, unknown> & { sessionId?: string }).sessionId || '',
+                    'x-session-id': user?.sessionId || '',
                 },
                 body: formDataUpload
             });

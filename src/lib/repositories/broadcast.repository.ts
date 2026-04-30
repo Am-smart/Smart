@@ -1,4 +1,5 @@
-import { supabase, withSession } from '../supabase';
+import { withSession } from '../supabase';
+import { supabaseServer as supabase } from '../supabase-server';
 import { Broadcast } from '../types';
 
 export class BroadcastRepository {

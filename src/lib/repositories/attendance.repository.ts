@@ -1,4 +1,5 @@
-import { supabase, withSession } from '../supabase';
+import { withSession } from '../supabase';
+import { supabaseServer as supabase } from '../supabase-server';
 
 export class AttendanceRepository {
   async upsert(attendance: { live_class_id: string, student_id: string, join_time: string, is_present: boolean }, sessionId: string): Promise<void> {

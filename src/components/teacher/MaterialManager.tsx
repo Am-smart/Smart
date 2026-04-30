@@ -12,7 +12,7 @@ interface MaterialManagerProps {
 }
 
 export const MaterialManager: React.FC<MaterialManagerProps> = ({ initialMaterials, courses, onRefresh }) => {
-    const { client } = useSupabase();
+    const { user } = useSupabase();
     const { addToast } = useAppContext();
     const [selectedCourseId, setSelectedCourseId] = useState('');
     const [description, setDescription] = useState('');
@@ -25,7 +25,7 @@ export const MaterialManager: React.FC<MaterialManagerProps> = ({ initialMateria
         const res = await fetch('/api/system/upload', {
             method: 'POST',
             headers: {
-                'x-session-id': (client as unknown as { sessionId: string }).sessionId || '',
+                'x-session-id': user?.sessionId || '',
             },
             body: formData
         });
