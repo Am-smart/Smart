@@ -3,7 +3,9 @@
  * Works with custom session-based auth (no JWT dependency)
  */
 
-const REQUIRED_SERVER_ENV_VARS = [] as const;
+const REQUIRED_SERVER_ENV_VARS = [
+  'SESSION_SECRET',
+] as const;
 
 const REQUIRED_PUBLIC_ENV_VARS = [
   'NEXT_PUBLIC_SUPABASE_URL',
@@ -25,7 +27,7 @@ export function validateEnv() {
   // (Edge can behave differently with process.env resolution)
   const isEdgeRuntime =
     typeof globalThis !== 'undefined' &&
-    // @ts-ignore
+    // @ts-expect-error - EdgeRuntime is not in globalThis types
     globalThis.EdgeRuntime !== undefined;
 
   if (!isEdgeRuntime) {
@@ -48,7 +50,7 @@ export function validateEnv() {
 /**
  * Wrapper for auth/session-protected logic
  */
-export function withEnvValidation<T extends (...args: any[]) => any>(fn: T) {
+export function withEnvValidation<T extends (...args: unknown[]) => unknown>(fn: T) {
   return (...args: Parameters<T>) => {
     validateEnv();
     return fn(...args);
