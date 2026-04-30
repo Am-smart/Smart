@@ -7,8 +7,9 @@ export class UserService {
   private userRepo = new UserRepository();
 
   async getCurrentUser(id: string, sessionId: string): Promise<User> {
+    const client = redis();
     const cacheKey = `user:${id}:${sessionId}`;
-    const cached = await redis.get(cacheKey);
+    const cached = client ? await client.get<string>(cacheKey) : null;
 
     if (cached) {
       return JSON.parse(cached);
@@ -20,7 +21,9 @@ export class UserService {
     const userWithSession = { ...user, sessionId };
 
     // Cache for 5 minutes
-    await redis.set(cacheKey, JSON.stringify(userWithSession), 'EX', 300);
+    if (client) {
+      await client.set(cacheKey, JSON.stringify(userWithSession), { ex: 300 });
+    }
 
     return userWithSession;
   }
@@ -41,7 +44,10 @@ export class UserService {
     const result = await this.userRepo.update(userId, filteredUpdates, sessionId, targetUser.version);
 
     // Invalidate cache
-    await redis.del(`user:${userId}:${sessionId}`);
+    const client = redis();
+    if (client) {
+      await client.del(`user:${userId}:${sessionId}`);
+    }
 
     return result;
   }
@@ -49,13 +55,19 @@ export class UserService {
   async toggleUserStatus(currentUser: User, userId: string, active: boolean, sessionId: string): Promise<void> {
     if (!UserDomain.canManageUsers(currentUser)) throw new Error('Forbidden');
     await this.userRepo.update(userId, { active }, sessionId);
-    await redis.del(`user:${userId}:${sessionId}`);
+    const client = redis();
+    if (client) {
+      await client.del(`user:${userId}:${sessionId}`);
+    }
   }
 
   async deleteUser(currentUser: User, userId: string, sessionId: string): Promise<void> {
     if (!UserDomain.canManageUsers(currentUser)) throw new Error('Forbidden');
     await this.userRepo.delete(userId, sessionId);
-    await redis.del(`user:${userId}:${sessionId}`);
+    const client = redis();
+    if (client) {
+      await client.del(`user:${userId}:${sessionId}`);
+    }
   }
 }
 
