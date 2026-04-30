@@ -1,10 +1,10 @@
 import { Redis } from "@upstash/redis";
 
 /**
- * Upstash Redis (serverless-safe, Vercel-ready)
- * - No TCP connections
+ * Upstash Redis (Vercel-safe, lazy initialization)
  * - No build-time crashes
- * - Lazy initialization
+ * - No Edge runtime issues
+ * - Only initializes when actually used
  */
 
 let redis: Redis | null = null;
@@ -20,7 +20,7 @@ export function getRedis() {
   const token = process.env.UPSTASH_REDIS_REST_TOKEN;
 
   if (!url || !token) {
-    console.warn("Redis not configured. Skipping initialization.");
+    console.warn("[Redis] Missing env vars. Redis disabled.");
     return null;
   }
 
@@ -29,4 +29,8 @@ export function getRedis() {
   return redis;
 }
 
+/**
+ * Optional default export for convenience
+ * (still lazy internally)
+ */
 export default getRedis;
