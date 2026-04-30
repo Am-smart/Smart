@@ -12,9 +12,11 @@ const WINDOW_SECONDS = 15 * 60; // 15 minutes
  * Check if request is rate limited
  */
 export async function isRateLimited(identifier: string): Promise<boolean> {
+  const client = redis();
+  if (!client) return false;
   const key = `ratelimit:${identifier}`;
 
-  const count = await redis.get<number>(key);
+  const count = await client.get<number>(key);
 
   if (!count) return false;
 
@@ -25,15 +27,17 @@ export async function isRateLimited(identifier: string): Promise<boolean> {
  * Record an attempt
  */
 export async function recordAttempt(identifier: string): Promise<void> {
+  const client = redis();
+  if (!client) return;
   const key = `ratelimit:${identifier}`;
 
-  const current = await redis.get<number>(key);
+  const current = await client.get<number>(key);
 
   if (!current) {
     // set with expiration (Upstash format)
-    await redis.set(key, 1, { ex: WINDOW_SECONDS });
+    await client.set(key, 1, { ex: WINDOW_SECONDS });
   } else {
-    await redis.incr(key);
+    await client.incr(key);
   }
 }
 
@@ -41,17 +45,21 @@ export async function recordAttempt(identifier: string): Promise<void> {
  * Reset rate limit
  */
 export async function resetRateLimit(identifier: string): Promise<void> {
+  const client = redis();
+  if (!client) return;
   const key = `ratelimit:${identifier}`;
-  await redis.del(key);
+  await client.del(key);
 }
 
 /**
  * Get remaining attempts
  */
 export async function getRemainingAttempts(identifier: string): Promise<number> {
+  const client = redis();
+  if (!client) return MAX_ATTEMPTS;
   const key = `ratelimit:${identifier}`;
 
-  const count = await redis.get<number>(key);
+  const count = await client.get<number>(key);
 
   if (!count) return MAX_ATTEMPTS;
 
