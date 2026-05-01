@@ -3,9 +3,8 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { User } from '@/lib/types';
 import { useIndexedDB } from '@/hooks/useIndexedDB';
-import { apiClient } from '@/lib/api-client';
+import * as actions from '@/lib/api-actions';
 import { sessionManager } from '@/lib/session-manager';
-import { UserDTO } from '@/lib/dto/auth.dto';
 
 interface AuthState {
   user: User | null;
@@ -30,9 +29,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const initAuth = async () => {
         // 1. Try secure session first
         try {
-          const session = await apiClient.get<{ sessionId: string } | null>('/api/auth/session');
+          const session = await actions.getSession();
           if (session) {
-              const userDTO = await apiClient.get<UserDTO>('/api/auth/me');
+              const userDTO = await actions.getMe();
               if (userDTO) {
                   const user = { ...userDTO, sessionId: session.sessionId } as User;
                   await setCache('current_user', user);
@@ -62,12 +61,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [getCache, setCache, pullData]);
 
   const login = useCallback(async (email: string, pass: string) => {
-    const result = await apiClient.post<{ success: boolean, user: UserDTO, sessionId: string, error?: string }>('/api/auth/login', { email, password: pass });
+    const result = await actions.login({ email, password: pass });
     if (!result.success) {
         throw new Error(result.error);
     }
 
-    const u = { ...result.user, sessionId: result.sessionId } as User;
+    const u = { ...result.data!.user, sessionId: result.data!.sessionId } as User;
     await setCache('current_user', u);
     setState(prev => ({
         ...prev,
@@ -78,12 +77,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, [setCache]);
 
   const signup = useCallback(async (userData: Partial<User>) => {
-    const result = await apiClient.post<{ success: boolean, user: UserDTO, sessionId: string, error?: string }>('/api/auth/signup', userData);
+    const result = await actions.signup(userData);
     if (!result.success) {
         throw new Error(result.error);
     }
 
-    const u = { ...result.user, sessionId: result.sessionId } as User;
+    const u = { ...result.data!.user, sessionId: result.data!.sessionId } as User;
     await setCache('current_user', u);
     setState(prev => ({
         ...prev,
@@ -95,7 +94,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = useCallback(async () => {
     sessionManager.cleanupSession();
-    await apiClient.post('/api/auth/logout');
+    const res = await actions.logout();
+    if (!res.success) {
+        console.error('Logout failed:', res.error);
+    }
     await setCache('current_user', null);
     setState({
         user: null,
@@ -113,7 +115,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setState(prev => ({ ...prev, user: updatedUser }));
 
     if (isOnline) {
-        await apiClient.post('/api/auth/profile', updates);
+        const res = await actions.updateProfile(updates);
+        if (!res.success) {
+            throw new Error(res.error);
+        }
     } else {
         await addToQueue('PROFILE_UPDATE', { id: state.user.id, ...updates }, state.user.sessionId);
     }
