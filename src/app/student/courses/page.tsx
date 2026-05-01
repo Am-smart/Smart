@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
 import { useSupabase } from '@/hooks/useSupabase';
-import { apiClient } from '@/lib/api-client';
+import * as actions from '@/lib/api-actions';
 import { useIndexedDB } from '@/hooks/useIndexedDB';
 import { CourseView } from "@/components/student/CourseView";
 import { CourseDTO, LessonDTO } from '@/lib/dto/learning.dto';
@@ -43,7 +43,7 @@ function CatalogContent() {
         const c = courses.find(item => item.id === courseIdParam);
         if (c) {
             setActiveCourse(c);
-            apiClient.get<LessonDTO[]>(`/api/lessons?courseId=${c.id}`).then(data => setLessons(data || []));
+            actions.getLessons(c.id).then(data => setLessons(data || []));
         }
     } else {
         setActiveCourse(null);
@@ -55,8 +55,12 @@ function CatalogContent() {
 
     try {
       if (isOnline) {
-          await apiClient.post(`/api/system/enroll?courseId=${course.id}`);
-          addToast('Successfully enrolled in course!', 'success');
+          const res = await actions.enrollInCourse(course.id);
+          if (res.success) {
+            addToast('Successfully enrolled in course!', 'success');
+          } else {
+            throw new Error(res.error);
+          }
       } else {
           await addToQueue('ENROLL', { course_id: course.id, student_id: user.id }, user.sessionId);
           addToast('Offline: Enrollment queued for synchronization.', 'info');

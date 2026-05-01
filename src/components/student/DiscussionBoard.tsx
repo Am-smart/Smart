@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { DiscussionDTO } from '@/lib/dto/communication.dto';
 import { MessageSquare, Send, Trash2 } from 'lucide-react';
-import { apiClient } from '@/lib/api-client';
+import * as actions from '@/lib/api-actions';
 
 interface DiscussionBoardProps {
   courseId?: string;
@@ -13,7 +13,7 @@ export const DiscussionBoard: React.FC<DiscussionBoardProps> = ({ courseId, user
   const [message, setMessage] = useState('');
 
   const fetchDiscussions = useCallback(async () => {
-    const data = await apiClient.get<DiscussionDTO[]>(`/api/system/discussions?courseId=${courseId || 'global'}`);
+    const data = await actions.getDiscussions(courseId || 'global');
     setDiscussions(data || []);
   }, [courseId]);
 
@@ -23,12 +23,14 @@ export const DiscussionBoard: React.FC<DiscussionBoardProps> = ({ courseId, user
     e.preventDefault();
     if (!message.trim()) return;
     try {
-      await apiClient.post('/api/system/discussions', {
+      const res = await actions.saveDiscussionPost({
         course_id: courseId || undefined,
         content: message
       });
-      setMessage('');
-      fetchDiscussions();
+      if (res.success) {
+        setMessage('');
+        fetchDiscussions();
+      }
     } catch (err) {
       console.error('Failed to post message:', err);
     }
@@ -36,8 +38,10 @@ export const DiscussionBoard: React.FC<DiscussionBoardProps> = ({ courseId, user
 
   const handleDelete = async (id: string) => {
       try {
-        await apiClient.delete(`/api/system/discussions?id=${id}`);
-        fetchDiscussions();
+        const res = await actions.deleteDiscussionPost(id);
+        if (res.success) {
+            fetchDiscussions();
+        }
       } catch (err) {
         console.error('Failed to delete message:', err);
       }

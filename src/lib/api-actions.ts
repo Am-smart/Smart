@@ -26,6 +26,59 @@ import {
 import { User, Course, Assignment, Quiz, Submission, QuizSubmission, Material, Discussion, PlannerItem, LiveClass } from './types';
 
 // Auth / Users
+export async function login(credentials: { email: string; password?: string }): Promise<{ success: boolean; data?: { user: UserDTO; sessionId: string }; error?: string }> {
+  try {
+    const result = await apiClient.post<{ user: UserDTO; sessionId: string; error?: string }>('/api/auth/login', credentials);
+    // apiClient already throws if success is false, but we catch it here
+    return { success: true, data: result as { user: UserDTO; sessionId: string } };
+  } catch (error: unknown) {
+    return { success: false, error: (error as Error).message };
+  }
+}
+
+export async function signup(userData: Partial<User>): Promise<{ success: boolean; data?: { user: UserDTO; sessionId: string }; error?: string }> {
+  try {
+    const result = await apiClient.post<{ user: UserDTO; sessionId: string; error?: string }>('/api/auth/signup', userData);
+    return { success: true, data: result as { user: UserDTO; sessionId: string } };
+  } catch (error: unknown) {
+    return { success: false, error: (error as Error).message };
+  }
+}
+
+export async function logout(): Promise<{ success: boolean; error?: string }> {
+  try {
+    await apiClient.post('/api/auth/logout');
+    return { success: true };
+  } catch (error: unknown) {
+    return { success: false, error: (error as Error).message };
+  }
+}
+
+export async function getMe(): Promise<UserDTO | null> {
+    try {
+        return await apiClient.get<UserDTO>('/api/auth/me');
+    } catch {
+        return null;
+    }
+}
+
+export async function getSession(): Promise<{ sessionId: string } | null> {
+    try {
+        return await apiClient.get<{ sessionId: string }>('/api/auth/session');
+    } catch {
+        return null;
+    }
+}
+
+export async function updateProfile(updates: Partial<User>): Promise<{ success: boolean; error?: string }> {
+    try {
+        await apiClient.post('/api/auth/profile', updates);
+        return { success: true };
+    } catch (error: unknown) {
+        return { success: false, error: (error as Error).message };
+    }
+}
+
 export async function getUsers(): Promise<UserDTO[]> {
   return apiClient.get<UserDTO[]>('/api/system/users');
 }
@@ -321,6 +374,15 @@ export async function saveDiscussionPost(discussion: Partial<Discussion>): Promi
   } catch (error: unknown) {
     return { success: false, error: (error as Error).message };
   }
+}
+
+export async function deleteDiscussionPost(id: string): Promise<{ success: boolean; error?: string }> {
+    try {
+        await apiClient.delete(`/api/system/discussions?id=${id}`);
+        return { success: true };
+    } catch (error: unknown) {
+        return { success: false, error: (error as Error).message };
+    }
 }
 
 // Notifications

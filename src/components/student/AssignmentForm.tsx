@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { AssignmentDTO } from '@/lib/dto/assessment.dto';
 import { UserDTO } from '@/lib/dto/auth.dto';
-import { apiClient } from '@/lib/api-client';
+import * as actions from '@/lib/api-actions';
 import { useAntiCheat } from '@/hooks/useAntiCheat';
 import { useIndexedDB } from '@/hooks/useIndexedDB';
 import { useAppContext } from '@/components/AppContext';
@@ -82,9 +82,13 @@ export const AssignmentForm: React.FC<AssignmentFormProps> = ({ assignment, user
         };
 
         if (isOnline) {
-            const res = await apiClient.post<{ id: string }>(`/api/submissions?assignmentId=${assignment.id}`, payload);
-            addToast('Assignment submitted successfully!', 'success');
-            onComplete(res.id || Math.random().toString());
+            const res = await actions.submitAssignment(assignment.id, payload);
+            if (res.success) {
+                addToast('Assignment submitted successfully!', 'success');
+                onComplete(res.data?.id || Math.random().toString());
+            } else {
+                throw new Error(res.error);
+            }
         } else {
             await addToQueue('SUBMISSION', payload, user.sessionId);
             addToast('Offline: Submission queued for synchronization.', 'info');

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { AlertTriangle, Shield, CheckCircle, X, Clock } from 'lucide-react';
 import { QuizDTO } from '@/lib/dto/assessment.dto';
 import { UserDTO } from '@/lib/dto/auth.dto';
-import { apiClient } from '@/lib/api-client';
+import * as actions from '@/lib/api-actions';
 import { calculateQuizScore } from '@/lib/scoring-util';
 import { useAntiCheat } from '@/hooks/useAntiCheat';
 import { useIndexedDB } from '@/hooks/useIndexedDB';
@@ -79,8 +79,12 @@ export const QuizView: React.FC<QuizViewProps> = ({ quiz, user, onComplete, onCa
 
         let score = 0;
         if (isOnline) {
-            const res = await apiClient.post<{ score: number }>(`/api/submissions?assignmentId=${quiz.id}&type=quiz`, { ...payload, violation_count: violationCount });
-            score = res.score || 0;
+            const res = await actions.submitQuiz(quiz.id, { ...payload, violation_count: violationCount });
+            if (res.success) {
+                score = res.score || 0;
+            } else {
+                throw new Error(res.error);
+            }
         } else {
             // Offline estimation using unified logic
             const questions = (quiz.questions) || [];
