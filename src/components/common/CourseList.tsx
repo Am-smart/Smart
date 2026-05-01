@@ -1,6 +1,7 @@
 "use client";
 
 import React from 'react';
+import Image from 'next/image';
 import { CourseDTO } from '@/lib/dto/learning.dto';
 import {
   Card,
@@ -11,7 +12,7 @@ import {
   CardTitle
 } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { BookOpen, User, Calendar, Trash2, Edit } from 'lucide-react';
+import { BookOpen, Calendar, Trash2, Edit } from 'lucide-react';
 
 interface CourseListProps {
   courses: CourseDTO[];
@@ -46,10 +47,11 @@ export function CourseList({
         <Card key={course.id} className="overflow-hidden hover:shadow-md transition-shadow">
           <div className="h-40 bg-gray-100 relative">
             {course.thumbnail_url ? (
-              <img
+              <Image
                 src={course.thumbnail_url}
                 alt={course.title}
-                className="w-full h-full object-cover"
+                fill
+                className="object-cover"
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center bg-indigo-50">
