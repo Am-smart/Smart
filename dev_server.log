@@ -7,9 +7,106 @@
    - Network:      http://192.168.0.2:3000
 
  ✓ Starting...
- ✓ Ready in 1999ms
- ○ Compiling / ...
- ✓ Compiled / in 7.9s (658 modules)
- GET / 200 in 9442ms
- ○ Compiling /api/system ...
- ✓ Compiled /api/system in 2.2s (725 modules)
+ ✓ Ready in 2.2s
+ ○ Compiling /student/courses ...
+ ✓ Compiled /student/courses in 11.2s (766 modules)
+ GET /student/courses 200 in 13345ms
+ ○ Compiling /api/learning ...
+ ✓ Compiled /api/learning in 3.2s (838 modules)
+ GET /api/system?action=planner&userId=student-1 500 in 3520ms
+ GET /api/system?action=live-classes 500 in 3510ms
+ GET /api/assessment?action=assignments 401 in 3559ms
+ GET /api/assessment?action=quizzes 401 in 3581ms
+ GET /api/learning?action=materials 401 in 3586ms
+ GET /api/system?action=discussions&courseId=global 500 in 84ms
+ GET /api/assessment?action=assignments 401 in 124ms
+ GET /api/assessment?action=submissions&studentId=student-1 401 in 112ms
+ GET /api/system?action=lesson-completions&userId=student-1 500 in 158ms
+ GET /api/assessment?action=assignments 401 in 146ms
+ GET /api/system?action=planner&userId=student-1 500 in 111ms
+ GET /api/assessment?action=quizzes 401 in 154ms
+ GET /api/learning?action=materials 401 in 138ms
+ GET /api/system?action=live-classes 500 in 133ms
+ GET /api/system?action=discussions&courseId=global 500 in 114ms
+ GET /api/system?action=notifications&userId=student-1 500 in 109ms
+ GET /api/system?action=lesson-completions&userId=student-1 500 in 109ms
+ GET /api/assessment?action=assignments 401 in 120ms
+ GET /api/assessment?action=quizzes 401 in 141ms
+ GET /api/learning?action=materials 401 in 117ms
+ GET /api/system?action=planner&userId=student-1 500 in 72ms
+ GET /api/system?action=live-classes 500 in 71ms
+ GET /api/system?action=discussions&courseId=global 500 in 110ms
+ GET /api/system?action=lesson-completions&userId=student-1 500 in 133ms
+ GET /api/assessment?action=assignments 401 in 113ms
+ GET /api/assessment?action=submissions&studentId=student-1 401 in 102ms
+ GET /api/assessment?action=assignments 401 in 106ms
+ GET /api/assessment?action=quizzes 401 in 106ms
+ GET /api/learning?action=materials 401 in 93ms
+ GET /api/system?action=planner&userId=student-1 500 in 87ms
+ GET /api/system?action=live-classes 500 in 85ms
+ GET /api/system?action=discussions&courseId=global 500 in 84ms
+ GET /api/system?action=maintenance 200 in 4587ms
+ GET /api/system?action=lesson-completions&userId=student-1 500 in 147ms
+ GET /api/system?action=notifications&userId=student-1 500 in 167ms
+ GET /student/courses 200 in 408ms
+ ○ Compiling /student/my-courses ...
+ ✓ Compiled /student/my-courses in 829ms (847 modules)
+ GET /student/my-courses 200 in 1122ms
+ ○ Compiling /_not-found ...
+ ✓ Compiled /_not-found in 735ms (772 modules)
+ GET /api/system?action=planner 404 in 1443ms
+ ✓ Compiled in 1647ms (328 modules)
+ ✓ Compiled in 321ms (328 modules)
+ ✓ Compiled in 1528ms (328 modules)
+ ✓ Compiled in 422ms (328 modules)
+ ✓ Compiled in 248ms (328 modules)
+ ○ Compiling /student/courses ...
+ ✓ Compiled /student/courses in 626ms (433 modules)
+ ⨯ Error: Could not find the module "/app/node_modules/next/dist/next-devtools/userspace/app/segment-explorer-node.js#SegmentViewNode" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '3051581955'
+}
+ ⨯ Error: Could not find the module "/app/node_modules/next/dist/next-devtools/userspace/app/segment-explorer-node.js#SegmentViewNode" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>)
+    at stringify (<anonymous>) {
+  digest: '2075436546'
+}
+ ⨯ Error: Could not find the module "/app/node_modules/next/dist/next-devtools/userspace/app/segment-explorer-node.js#SegmentViewNode" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>)
+    at stringify (<anonymous>) {
+  digest: '2075436546'
+}
+ ⨯ Error: Could not find the module "/app/node_modules/next/dist/next-devtools/userspace/app/segment-explorer-node.js#SegmentViewNode" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>)
+    at stringify (<anonymous>) {
+  digest: '2075436546'
+}
+ ⨯ Error: Could not find the module "/app/node_modules/next/dist/next-devtools/userspace/app/segment-explorer-node.js#SegmentViewNode" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '3051581955'
+}
+ ⨯ Error: Could not find the module "/app/node_modules/next/dist/next-devtools/userspace/app/segment-explorer-node.js#SegmentViewNode" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '3051581955'
+}
+ ⨯ Error: Could not find the module "/app/node_modules/next/dist/next-devtools/userspace/app/segment-explorer-node.js#SegmentViewNode" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '3051581955'
+}
+ ⨯ [TypeError: __webpack_modules__[moduleId] is not a function] {
+  digest: '2584309794'
+}
+ ⨯ Error: Could not find the module "/app/node_modules/next/dist/next-devtools/userspace/app/segment-explorer-node.js#SegmentViewNode" in the React Client Manifest. This is probably a bug in the React Server Components bundler.
+    at stringify (<anonymous>) {
+  digest: '3051581955'
+}
+[TypeError: __webpack_modules__[moduleId] is not a function]
+ ⨯ [TypeError: __webpack_modules__[moduleId] is not a function]
+ ⨯ [TypeError: __webpack_modules__[moduleId] is not a function] {
+  page: '/student/courses'
+}
+ ○ Compiling /_error ...
+ ✓ Compiled /_error in 3s (1093 modules)
+ GET /student/courses 500 in 9299ms
+ ✓ Compiled in 374ms (480 modules)
+ GET /student/courses 200 in 443ms

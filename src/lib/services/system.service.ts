@@ -63,7 +63,16 @@ export class SystemService {
   }
 
   // Enrollments (Merged from EnrollmentService)
-  async enrollInCourse(studentId: string, courseId: string, sessionId: string): Promise<Enrollment> {
+  async enrollInCourse(studentId: string, courseId: string, sessionId: string, enrollmentCode?: string): Promise<Enrollment> {
+    const course = await learningDb.findCourseById(courseId, sessionId);
+    if (!course) throw new Error('Course not found');
+
+    if (course.course_id && course.course_id.trim() !== '') {
+      if (course.course_id !== enrollmentCode) {
+        throw new Error('Invalid enrollment code');
+      }
+    }
+
     const enrollmentToSave = EnrollmentDomain.create(studentId, courseId);
     return learningDb.upsertEnrollment(enrollmentToSave, sessionId);
   }
@@ -139,23 +148,6 @@ export class SystemService {
     return systemDb.createBroadcast(broadcastToSave, sessionId);
   }
 
-  async getLessonCompletions(userId: string, sessionId: string): Promise<unknown[]> {
-      return learningDb.getLessonCompletions(userId, sessionId);
-  }
-
-  async markLessonComplete(studentId: string, lessonId: string, courseId: string, sessionId: string): Promise<{ success: boolean }> {
-      await learningDb.markLessonComplete(studentId, lessonId, sessionId);
-
-      // Update progress
-      const lessons = await learningDb.findLessonsByCourseId(courseId, sessionId);
-      const lessonIds = lessons.map(l => l.id);
-      const completedIds = await learningDb.findLessonCompletions(studentId, lessonIds, sessionId);
-
-      const progress = Math.round(((completedIds.length || 0) / (lessons.length || 1)) * 100);
-      await learningDb.updateEnrollmentProgress(studentId, courseId, progress, sessionId);
-
-      return { success: true };
-  }
 }
 
 export const systemService = new SystemService();

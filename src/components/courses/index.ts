@@ -1,4 +1,3 @@
-export * from './CourseCatalog';
 export * from './MaterialManager';
 export * from './CourseEditor';
 export * from './LessonEditor';
