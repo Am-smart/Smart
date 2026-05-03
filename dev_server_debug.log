@@ -51,7 +51,3 @@
  GET /student/courses 200 in 304ms
  ✓ Compiled /student/my-courses in 446ms (847 modules)
  GET /student/my-courses 200 in 655ms
- ✓ Compiled in 8.6s (328 modules)
- ✓ Compiled in 486ms (328 modules)
- ✓ Compiled in 305ms (328 modules)
- ✓ Compiled in 309ms (328 modules)
