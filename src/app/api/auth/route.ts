@@ -2,6 +2,7 @@ import { withHandler } from '@/app/api/api-utils';
 import { authService } from '@/lib/services/auth.service';
 import { UserMapper } from '@/lib/mappers';
 import { cookies } from 'next/headers';
+import { USER_ROLES } from '@/lib/constants';
 import { verifyToken, createSession } from '@/lib/crypto';
 import { supabaseServer as supabase } from '@/lib/supabase-server';
 import { validateLoginForm, normalizeEmail, validateSignupForm, normalizeInput } from '@/lib/validation';
@@ -22,8 +23,8 @@ export const GET = withHandler(async (user, request) => {
         }
         case 'role-count': {
             const [teachers, admins, total] = await Promise.all([
-                supabase.from('users').select('*', { count: 'exact', head: true }).eq('role', 'teacher'),
-                supabase.from('users').select('*', { count: 'exact', head: true }).eq('role', 'admin'),
+                supabase.from('users').select('*', { count: 'exact', head: true }).eq('role', USER_ROLES.TEACHER),
+                supabase.from('users').select('*', { count: 'exact', head: true }).eq('role', USER_ROLES.ADMIN),
                 supabase.from('users').select('*', { count: 'exact', head: true })
             ]);
             return {
@@ -95,7 +96,7 @@ export const POST = withHandler(async (user, request) => {
               email: normalizeEmail(data.email),
               password: data.password || '',
               phone: data.phone ? normalizeInput(data.phone) : undefined,
-              role: data.role || 'student'
+              role: data.role || USER_ROLES.STUDENT
             });
 
             if (rpcError) return { user: null, sessionId: null, error: 'Signup service unavailable' };

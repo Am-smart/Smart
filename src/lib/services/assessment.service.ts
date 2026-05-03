@@ -1,6 +1,7 @@
 import { assessmentDb } from '../database/assessment.db';
 import { Assignment, Quiz, Submission, QuizSubmission, User, QuizQuestion } from '../types';
 import { AssessmentDomain } from '../domain/assessment.domain';
+import { SUBMISSION_STATUS } from '../constants';
 
 export class AssessmentService {
   // Assignments
@@ -46,7 +47,7 @@ export class AssessmentService {
     return assessmentDb.upsertSubmission({
       ...rest,
       id: submissionId,
-      status: 'graded',
+      status: SUBMISSION_STATUS.GRADED,
       graded_at: new Date().toISOString(),
     } as Partial<Submission>, sessionId);
   }

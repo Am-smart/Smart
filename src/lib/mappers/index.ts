@@ -97,7 +97,7 @@ export class AssessmentMapper {
       questions: assignment.questions,
       attachments: assignment.attachments,
       course: assignment.courses ? CourseMapper.toDTO(assignment.courses) : undefined,
-      metadata: (assignment as unknown as Record<string, unknown>).metadata as Record<string, string | number | boolean> || {}
+      metadata: assignment.metadata || {}
     };
   }
 
@@ -119,7 +119,7 @@ export class AssessmentMapper {
       end_at: quiz.end_at,
       questions: quiz.questions,
       course: quiz.courses ? CourseMapper.toDTO(quiz.courses) : undefined,
-      metadata: (quiz as unknown as Record<string, unknown>).metadata as Record<string, string | number | boolean> || {}
+      metadata: quiz.metadata || {}
     };
   }
 

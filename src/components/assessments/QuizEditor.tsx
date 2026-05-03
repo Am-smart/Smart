@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { QuizDTO, QuestionDTO } from '@/lib/types';
 import { CourseDTO } from '@/lib/types';
 import { useAppContext } from '@/components/AppContext';
-import { Plus } from 'lucide-react';
+import { Plus, Settings } from 'lucide-react';
 import { saveQuiz } from '@/lib/api-actions';
 
 interface QuizEditorProps {
@@ -30,9 +30,11 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({ teacherId, quiz, courses
         anti_cheat_enabled: quiz?.anti_cheat_enabled || false,
         hard_enforcement: quiz?.hard_enforcement || false,
         shuffle_questions: quiz?.shuffle_questions || false,
-        questions: (quiz?.questions) || []
+        questions: (quiz?.questions) || [],
+        metadata: quiz?.metadata || {}
     });
     const [isSaving, setIsSaving] = useState(false);
+    const [metadataText, setMetadataText] = useState(JSON.stringify(quiz?.metadata || {}, null, 2));
 
     const handleAddQuestion = () => {
         const newQ: QuestionDTO = {
@@ -62,10 +64,28 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({ teacherId, quiz, courses
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        // Validate metadata
+        let parsedMetadata = {};
+        try {
+            parsedMetadata = JSON.parse(metadataText);
+        } catch (_err) {
+            addToast('Invalid JSON in metadata field', 'error');
+            return;
+        }
+
         setIsSaving(true);
         try {
-            const payload = { ...formData, teacher_id: teacherId, id: quiz?.id || '' };
-            await saveQuiz(payload);
+            const payload = {
+                ...formData,
+                teacher_id: teacherId,
+                id: quiz?.id || '',
+                metadata: parsedMetadata
+            };
+            const result = await saveQuiz(payload);
+            if (!result.success) {
+                throw new Error(result.error || 'Failed to save quiz');
+            }
             addToast('Quiz saved successfully!', 'success');
             onSave();
         } catch (err: unknown) {
@@ -178,6 +198,18 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({ teacherId, quiz, courses
                                     <p className="text-[10px] text-purple-500 font-medium">Randomize order</p>
                                 </div>
                             </div>
+                        </div>
+
+                        <div className="space-y-4">
+                            <label className="flex items-center gap-2 text-sm font-bold text-slate-700 uppercase tracking-wide">
+                                <Settings size={16} /> Advanced Metadata (JSON)
+                            </label>
+                            <textarea
+                                value={metadataText}
+                                onChange={e => setMetadataText(e.target.value)}
+                                className="w-full h-32 p-4 rounded-xl border-2 border-white focus:border-blue-500 outline-none transition-all font-mono text-xs shadow-sm bg-slate-100"
+                                placeholder='{"key": "value"}'
+                            />
                         </div>
                     </div>
 

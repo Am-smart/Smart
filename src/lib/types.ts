@@ -179,6 +179,7 @@ export interface Assignment {
   version?: number;
   questions: AssignmentQuestion[];
   attachments?: Attachment[];
+  metadata?: Record<string, string | number | boolean>;
   courses?: Course;
 }
 
@@ -244,6 +245,7 @@ export interface Quiz {
   updated_at?: string;
   version?: number;
   questions: QuizQuestion[];
+  metadata?: Record<string, string | number | boolean>;
   courses?: Course;
 }
 
@@ -610,4 +612,29 @@ export interface Setting {
 export interface SettingDTO {
   key: string;
   value: string | number | boolean | Record<string, unknown>;
+}
+
+/**
+ * Type Guards
+ */
+export function isAssignment(obj: unknown): obj is Assignment {
+    return (obj as Assignment)?.questions !== undefined &&
+           (obj as Assignment)?.due_date !== undefined &&
+           !Object.prototype.hasOwnProperty.call(obj, 'attempts_allowed');
+}
+
+export function isQuiz(obj: unknown): obj is Quiz {
+    return (obj as Quiz)?.questions !== undefined &&
+           (obj as Quiz)?.attempts_allowed !== undefined;
+}
+
+export function isAssignmentDTO(obj: unknown): obj is AssignmentDTO {
+    return (obj as AssignmentDTO)?.questions !== undefined &&
+           (obj as AssignmentDTO)?.due_date !== undefined &&
+           !Object.prototype.hasOwnProperty.call(obj, 'attempts_allowed');
+}
+
+export function isQuizDTO(obj: unknown): obj is QuizDTO {
+    return (obj as QuizDTO)?.questions !== undefined &&
+           (obj as QuizDTO)?.attempts_allowed !== undefined;
 }

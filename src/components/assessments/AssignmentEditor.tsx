@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { AssignmentDTO } from '@/lib/types';
 import { CourseDTO } from '@/lib/types';
 import { useAppContext } from '@/components/AppContext';
-import { Plus, Paperclip } from 'lucide-react';
+import { Plus, Paperclip, Settings } from 'lucide-react';
 import { saveAssignment } from '@/lib/api-actions';
 import { useAuth } from '@/components/auth/AuthContext';
 
@@ -34,9 +34,11 @@ export const AssignmentEditor: React.FC<AssignmentEditorProps> = ({ teacherId, a
         regrade_requests_enabled: assignment?.regrade_requests_enabled !== false,
         questions: assignment?.questions || [],
         attachments: assignment?.attachments || [],
-        allowed_extensions: assignment?.allowed_extensions || ['pdf', 'doc', 'docx', 'zip', 'jpg', 'png']
+        allowed_extensions: assignment?.allowed_extensions || ['pdf', 'doc', 'docx', 'zip', 'jpg', 'png'],
+        metadata: assignment?.metadata || {}
     });
     const [isSaving, setIsSaving] = useState(false);
+    const [metadataText, setMetadataText] = useState(JSON.stringify(assignment?.metadata || {}, null, 2));
     const [isUploading, setIsUploading] = useState(false);
 
     // Auto-calculate points_possible
@@ -47,10 +49,28 @@ export const AssignmentEditor: React.FC<AssignmentEditorProps> = ({ teacherId, a
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        // Validate metadata
+        let parsedMetadata = {};
+        try {
+            parsedMetadata = JSON.parse(metadataText);
+        } catch (_err) {
+            addToast('Invalid JSON in metadata field', 'error');
+            return;
+        }
+
         setIsSaving(true);
         try {
-            const payload = { ...formData, teacher_id: teacherId, id: assignment?.id || '' };
-            await saveAssignment(payload);
+            const payload = {
+                ...formData,
+                teacher_id: teacherId,
+                id: assignment?.id || '',
+                metadata: parsedMetadata
+            };
+            const result = await saveAssignment(payload);
+            if (!result.success) {
+                throw new Error(result.error || 'Failed to save assignment');
+            }
             addToast('Assignment saved successfully!', 'success');
             onSave();
         } catch (err: unknown) {
@@ -221,6 +241,18 @@ export const AssignmentEditor: React.FC<AssignmentEditorProps> = ({ teacherId, a
                                 onChange={e => setFormData({ ...formData, allowed_extensions: e.target.value.split(',').map(s => s.trim()) })}
                                 className="w-full p-4 rounded-xl border-2 border-white focus:border-blue-500 outline-none transition-all shadow-sm"
                                 placeholder="Allowed extensions: pdf, doc, docx, zip"
+                            />
+                        </div>
+
+                        <div className="space-y-4">
+                            <label className="flex items-center gap-2 text-sm font-bold text-slate-700 uppercase tracking-wide">
+                                <Settings size={16} /> Advanced Metadata (JSON)
+                            </label>
+                            <textarea
+                                value={metadataText}
+                                onChange={e => setMetadataText(e.target.value)}
+                                className="w-full h-32 p-4 rounded-xl border-2 border-white focus:border-blue-500 outline-none transition-all font-mono text-xs shadow-sm bg-slate-100"
+                                placeholder='{"key": "value"}'
                             />
                         </div>
                     </div>

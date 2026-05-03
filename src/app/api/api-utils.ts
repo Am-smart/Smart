@@ -4,6 +4,7 @@ import { verifyToken } from '@/lib/crypto';
 import { authService } from '@/lib/services/auth.service';
 import { User } from '@/lib/types';
 import { getErrorMessage, mapErrorToStatus } from '@/lib/api-error';
+import { headers } from 'next/headers';
 
 export interface ApiResponse<T = unknown> {
   success: boolean;
@@ -45,9 +46,30 @@ export function handleError(error: unknown) {
  */
 export function withHandler<T>(
   handler: (user: User, request: Request) => Promise<T>,
-  options: { requireAuth?: boolean } = { requireAuth: true }
+  options: { requireAuth?: boolean; checkCSRF?: boolean } = { requireAuth: true, checkCSRF: true }
 ) {
   return async (request: Request) => {
+    // CSRF Protection
+    if (options.checkCSRF && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method)) {
+        const headerList = await headers();
+        const origin = headerList.get('origin');
+        const referer = headerList.get('referer');
+        const host = headerList.get('host');
+
+        // Basic check: Origin must match Host if present
+        if (origin) {
+            const originHost = new URL(origin).host;
+            if (originHost !== host) {
+                return NextResponse.json({ success: false, error: 'CSRF Protection: Invalid Origin' }, { status: 403 });
+            }
+        } else if (referer) {
+            const refererHost = new URL(referer).host;
+            if (refererHost !== host) {
+                return NextResponse.json({ success: false, error: 'CSRF Protection: Invalid Referer' }, { status: 403 });
+            }
+        }
+    }
+
     let user: User | null = null;
 
     if (options.requireAuth) {

@@ -3,6 +3,7 @@ import { assessmentService } from '@/lib/services/assessment.service';
 import { AssessmentMapper } from '@/lib/mappers';
 import { rbac } from '@/lib/auth/rbac';
 import { AssessmentDomain } from '@/lib/domain/assessment.domain';
+import { sanitizeObject } from '@/lib/validation';
 
 export const GET = withHandler(async (user, request) => {
   const { searchParams } = new URL(request.url);
@@ -33,7 +34,8 @@ export const GET = withHandler(async (user, request) => {
 });
 
 export const POST = withHandler(async (user, request) => {
-  const body = await request.json();
+  const rawBody = await request.json();
+  const body = sanitizeObject(rawBody);
   const { action, ...data } = body;
 
   switch (action) {
@@ -95,7 +97,8 @@ export const PATCH = withHandler(async (user, request) => {
     const { searchParams } = new URL(request.url);
     const action = searchParams.get('action');
     const id = searchParams.get('id');
-    const body = await request.json();
+    const rawBody = await request.json();
+    const body = sanitizeObject(rawBody);
 
     if (!id) throw new Error('id is required');
 
