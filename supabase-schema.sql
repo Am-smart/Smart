@@ -91,10 +91,10 @@ CREATE TABLE IF NOT EXISTS assignments (
   attachments JSONB DEFAULT '[]'::jsonb,
   status VARCHAR(50) DEFAULT 'draft' CHECK (status IN ('draft', 'published')),
   anti_cheat_enabled BOOLEAN DEFAULT FALSE,
-  auto_submit_enabled BOOLEAN DEFAULT FALSE,
   hard_enforcement BOOLEAN DEFAULT FALSE,
   regrade_requests_enabled BOOLEAN DEFAULT TRUE,
-  version INTEGER DEFAULT 1
+  version INTEGER DEFAULT 1,
+  metadata JSONB DEFAULT '{}'::jsonb
 );
 
 CREATE TABLE IF NOT EXISTS submissions (
@@ -166,13 +166,13 @@ CREATE TABLE IF NOT EXISTS quizzes (
   shuffle_questions BOOLEAN DEFAULT FALSE,
   status VARCHAR(50) DEFAULT 'draft' CHECK (status IN ('draft', 'published')),
   anti_cheat_enabled BOOLEAN DEFAULT FALSE,
-  auto_submit_enabled BOOLEAN DEFAULT FALSE,
   hard_enforcement BOOLEAN DEFAULT FALSE,
   start_at TIMESTAMP WITH TIME ZONE,
   end_at TIMESTAMP WITH TIME ZONE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  version INTEGER DEFAULT 1
+  version INTEGER DEFAULT 1,
+  metadata JSONB DEFAULT '{}'::jsonb
 );
 
 CREATE TABLE IF NOT EXISTS quiz_submissions (
@@ -306,17 +306,23 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'assignments' AND column_name = 'anti_cheat_enabled') THEN
         ALTER TABLE assignments ADD COLUMN anti_cheat_enabled BOOLEAN DEFAULT FALSE;
     END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'assignments' AND column_name = 'auto_submit_enabled') THEN
-        ALTER TABLE assignments ADD COLUMN auto_submit_enabled BOOLEAN DEFAULT FALSE;
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'assignments' AND column_name = 'auto_submit_enabled') THEN
+        ALTER TABLE assignments DROP COLUMN auto_submit_enabled;
     END IF;
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'assignments' AND column_name = 'hard_enforcement') THEN
         ALTER TABLE assignments ADD COLUMN hard_enforcement BOOLEAN DEFAULT FALSE;
     END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'assignments' AND column_name = 'metadata') THEN
+        ALTER TABLE assignments ADD COLUMN metadata JSONB DEFAULT '{}'::jsonb;
+    END IF;
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'quizzes' AND column_name = 'anti_cheat_enabled') THEN
         ALTER TABLE quizzes ADD COLUMN anti_cheat_enabled BOOLEAN DEFAULT FALSE;
     END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'quizzes' AND column_name = 'auto_submit_enabled') THEN
-        ALTER TABLE quizzes ADD COLUMN auto_submit_enabled BOOLEAN DEFAULT FALSE;
+    IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'quizzes' AND column_name = 'auto_submit_enabled') THEN
+        ALTER TABLE quizzes DROP COLUMN auto_submit_enabled;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'quizzes' AND column_name = 'metadata') THEN
+        ALTER TABLE quizzes ADD COLUMN metadata JSONB DEFAULT '{}'::jsonb;
     END IF;
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'quizzes' AND column_name = 'hard_enforcement') THEN
         ALTER TABLE quizzes ADD COLUMN hard_enforcement BOOLEAN DEFAULT FALSE;

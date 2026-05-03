@@ -204,3 +204,28 @@ export function normalizeInput(input: string): string {
 export function normalizeEmail(email: string): string {
   return normalizeInput(email).toLowerCase();
 }
+
+/**
+ * Recursively sanitizes an object's string properties
+ */
+export function sanitizeObject<T>(obj: T): T {
+    if (obj === null || obj === undefined) return obj;
+
+    if (typeof obj === 'string') {
+        return sanitizeInput(obj) as unknown as T;
+    }
+
+    if (Array.isArray(obj)) {
+        return obj.map(item => sanitizeObject(item)) as unknown as T;
+    }
+
+    if (typeof obj === 'object') {
+        const sanitized: Record<string, unknown> = {};
+        for (const [key, value] of Object.entries(obj)) {
+            sanitized[key] = sanitizeObject(value);
+        }
+        return sanitized as T;
+    }
+
+    return obj;
+}
