@@ -98,6 +98,7 @@ export interface CourseDTO {
   created_at?: string;
   updated_at?: string;
   version?: number;
+  metadata?: Record<string, string | number | boolean>;
 }
 
 export interface Enrollment {
@@ -214,6 +215,7 @@ export interface AssignmentDTO {
   questions: QuestionDTO[];
   attachments?: AttachmentDTO[];
   course?: CourseDTO;
+  metadata?: Record<string, string | number | boolean>;
 }
 
 export interface AssignmentQuestion {
@@ -266,6 +268,7 @@ export interface QuizDTO {
   end_at?: string;
   questions: QuestionDTO[];
   course?: CourseDTO;
+  metadata?: Record<string, string | number | boolean>;
 }
 
 export interface QuizQuestion {

@@ -20,7 +20,12 @@ export class UserMapper {
       phone: user.phone,
       created_at: user.created_at || new Date().toISOString(),
       active: user.active,
-      metadata: user.metadata
+      metadata: user.metadata || {},
+      flagged: (user as User).flagged,
+      failed_attempts: (user as User).failed_attempts,
+      lockouts: (user as User).lockouts,
+      locked_until: (user as User).locked_until,
+      reset_request: (user as User).reset_request
     };
   }
 }
@@ -29,6 +34,8 @@ export class CourseMapper {
   static toDTO(course: Course): CourseDTO {
     return {
       id: course.id,
+      course_id: course.course_id,
+      created_by: course.created_by,
       title: course.title,
       description: course.description,
       status: course.status,
@@ -36,7 +43,8 @@ export class CourseMapper {
       thumbnail_url: course.thumbnail_url,
       created_at: course.created_at,
       updated_at: course.updated_at,
-      version: course.version
+      version: course.version,
+      metadata: course.metadata || {}
     };
   }
 }
@@ -81,13 +89,16 @@ export class AssessmentMapper {
       status: assignment.status,
       points_possible: assignment.points_possible,
       allow_late_submissions: assignment.allow_late_submissions,
+      late_penalty_per_day: assignment.late_penalty_per_day,
+      allowed_extensions: assignment.allowed_extensions,
       anti_cheat_enabled: assignment.anti_cheat_enabled,
       auto_submit_enabled: assignment.auto_submit_enabled,
       hard_enforcement: assignment.hard_enforcement,
       regrade_requests_enabled: assignment.regrade_requests_enabled,
       questions: assignment.questions,
       attachments: assignment.attachments,
-      course: assignment.courses ? CourseMapper.toDTO(assignment.courses) : undefined
+      course: assignment.courses ? CourseMapper.toDTO(assignment.courses) : undefined,
+      metadata: (assignment as unknown as Record<string, unknown>).metadata as Record<string, string | number | boolean> || {}
     };
   }
 
@@ -109,7 +120,8 @@ export class AssessmentMapper {
       start_at: quiz.start_at,
       end_at: quiz.end_at,
       questions: quiz.questions,
-      course: quiz.courses ? CourseMapper.toDTO(quiz.courses) : undefined
+      course: quiz.courses ? CourseMapper.toDTO(quiz.courses) : undefined,
+      metadata: (quiz as unknown as Record<string, unknown>).metadata as Record<string, string | number | boolean> || {}
     };
   }
 
@@ -122,9 +134,15 @@ export class AssessmentMapper {
       status: submission.status,
       grade: submission.grade,
       final_grade: submission.final_grade,
+      late_penalty_applied: submission.late_penalty_applied,
       feedback: submission.feedback,
+      regrade_request: submission.regrade_request,
       submission_text: submission.submission_text,
       file_url: submission.file_url,
+      answers: submission.answers,
+      question_scores: submission.question_scores,
+      response_feedback: submission.response_feedback,
+      violation_count: submission.violation_count,
       assignment: submission.assignments ? this.toAssignmentDTO(submission.assignments) : undefined,
       student: submission.users ? UserMapper.toDTO(submission.users) : undefined
     };
@@ -140,7 +158,9 @@ export class AssessmentMapper {
       status: submission.status,
       time_spent: submission.time_spent,
       started_at: submission.started_at,
+      answers: submission.answers,
       submitted_at: submission.submitted_at,
+      violation_count: submission.violation_count,
       quiz: submission.quizzes ? this.toQuizDTO(submission.quizzes) : undefined,
       student: submission.users ? UserMapper.toDTO(submission.users) : undefined
     };

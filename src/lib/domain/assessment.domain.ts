@@ -7,7 +7,17 @@ export class AssessmentDomain {
    */
   static sanitizeEntity<T>(entity: T): T {
     if (!entity || typeof entity !== 'object') return entity;
-    const { courses: _c, users: _u, assignments: _a, quizzes: _q, ...rest } = entity as Record<string, unknown>;
+    const {
+        courses: _c,
+        course: _c2,
+        users: _u,
+        student: _s,
+        assignments: _a,
+        assignment: _a2,
+        quizzes: _q,
+        quiz: _q2,
+        ...rest
+    } = entity as Record<string, unknown>;
     return rest as T;
   }
 

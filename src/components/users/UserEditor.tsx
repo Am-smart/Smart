@@ -16,7 +16,8 @@ export const UserEditor: React.FC<UserEditorProps> = ({ user, onSave, onCancel }
         full_name: user?.full_name || '',
         phone: user?.phone || '',
         role: user?.role || 'student',
-        password: ''
+        password: '',
+        metadata: user?.metadata || {}
     });
     const [isSaving, setIsSaving] = useState(false);
 
@@ -36,6 +37,7 @@ export const UserEditor: React.FC<UserEditorProps> = ({ user, onSave, onCancel }
                     active: user.active,
                     flagged: (user).flagged as boolean,
                     reset_request: null, // Invalidate reset request on edit
+                    metadata: formData.metadata
                 };
 
                 await saveUser(userData);
@@ -130,6 +132,22 @@ export const UserEditor: React.FC<UserEditorProps> = ({ user, onSave, onCancel }
                             value={formData.password}
                             onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
                             className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">Metadata (JSON format)</label>
+                        <textarea
+                            value={JSON.stringify(formData.metadata, null, 2)}
+                            onChange={(e) => {
+                                try {
+                                    const metadata = JSON.parse(e.target.value);
+                                    setFormData(prev => ({ ...prev, metadata }));
+                                } catch (_err) {
+                                    // Allow invalid JSON while typing
+                                }
+                            }}
+                            className="w-full h-32 p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all font-mono text-xs"
+                            placeholder='{ "key": "value" }'
                         />
                     </div>
                     <footer className="pt-8 border-t flex justify-between gap-4">
