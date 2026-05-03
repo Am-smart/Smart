@@ -70,7 +70,7 @@ export const CourseEditor: React.FC<CourseEditorProps> = ({ course, teacherId, o
                         </div>
                     )}
                     <div>
-                        <label className="block text-xs font-bold text-slate-700 uppercase mb-3 tracking-wide">Course Title</label>
+                        <label className="block text-xs font-bold text-slate-700 uppercase mb-3 tracking-wide">Course Title *</label>
                         <input
                             type="text" required
                             value={formData.title}
@@ -80,7 +80,7 @@ export const CourseEditor: React.FC<CourseEditorProps> = ({ course, teacherId, o
                         />
                     </div>
                     <div>
-                        <label className="block text-xs font-bold text-slate-700 uppercase mb-3 tracking-wide">Description</label>
+                        <label className="block text-xs font-bold text-slate-700 uppercase mb-3 tracking-wide">Description *</label>
                         <textarea
                             required
                             value={formData.description}
@@ -131,7 +131,7 @@ export const CourseEditor: React.FC<CourseEditorProps> = ({ course, teacherId, o
                                 try {
                                     const metadata = JSON.parse(e.target.value);
                                     setFormData(prev => ({ ...prev, metadata }));
-                                } catch (_err) {
+                                } catch (_error) {
                                     // Allow invalid JSON while typing
                                 }
                             }}

@@ -1,0 +1,57 @@
+
+> next-app@0.1.0 dev
+> next dev
+
+ ⚠ Port 3000 is in use by an unknown process, using available port 3002 instead.
+   ▲ Next.js 15.5.15
+   - Local:        http://localhost:3002
+   - Network:      http://192.168.0.2:3002
+
+ ✓ Starting...
+ ✓ Ready in 3.2s
+ ○ Compiling /student/courses ...
+ ✓ Compiled /student/courses in 8.3s (766 modules)
+ GET /student/courses 200 in 10093ms
+ ○ Compiling /api/learning ...
+ ✓ Compiled /api/learning in 2.4s (838 modules)
+ GET /api/system?action=planner&userId=student-1 401 in 2854ms
+ GET /api/system?action=live-classes 401 in 2854ms
+ GET /api/system?action=discussions&courseId=global 401 in 2852ms
+ GET /api/assessment?action=quizzes 401 in 2876ms
+ GET /api/assessment?action=assignments 401 in 2882ms
+ GET /api/learning?action=materials 401 in 2884ms
+ GET /api/system?action=lesson-completions&userId=student-1 401 in 55ms
+ GET /api/assessment?action=assignments 401 in 82ms
+ GET /api/assessment?action=submissions&studentId=student-1 401 in 85ms
+ GET /api/assessment?action=assignments 401 in 86ms
+ GET /api/assessment?action=quizzes 401 in 90ms
+ GET /api/learning?action=materials 401 in 87ms
+ GET /api/system?action=planner&userId=student-1 401 in 55ms
+ GET /api/system?action=live-classes 401 in 93ms
+ GET /api/system?action=discussions&courseId=global 401 in 91ms
+ GET /api/system?action=lesson-completions&userId=student-1 401 in 80ms
+ GET /api/system?action=notifications&userId=student-1 401 in 77ms
+ GET /api/assessment?action=assignments 401 in 88ms
+ GET /api/assessment?action=quizzes 401 in 98ms
+ GET /api/learning?action=materials 401 in 93ms
+ GET /api/system?action=planner&userId=student-1 401 in 123ms
+ GET /api/system?action=live-classes 401 in 124ms
+ GET /api/system?action=discussions&courseId=global 401 in 123ms
+ GET /api/system?action=lesson-completions&userId=student-1 401 in 121ms
+ GET /api/assessment?action=assignments 401 in 92ms
+ GET /api/assessment?action=submissions&studentId=student-1 401 in 69ms
+ GET /api/system?action=planner&userId=student-1 401 in 91ms
+ GET /api/assessment?action=quizzes 401 in 133ms
+ GET /api/assessment?action=assignments 401 in 136ms
+ GET /api/learning?action=materials 401 in 129ms
+ GET /api/system?action=live-classes 401 in 122ms
+ GET /api/system?action=discussions&courseId=global 401 in 127ms
+ GET /api/system?action=lesson-completions&userId=student-1 401 in 113ms
+ GET /api/system?action=notifications&userId=student-1 401 in 150ms
+ GET /student/courses 200 in 304ms
+ ✓ Compiled /student/my-courses in 446ms (847 modules)
+ GET /student/my-courses 200 in 655ms
+ ✓ Compiled in 8.6s (328 modules)
+ ✓ Compiled in 486ms (328 modules)
+ ✓ Compiled in 305ms (328 modules)
+ ✓ Compiled in 309ms (328 modules)
