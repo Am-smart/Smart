@@ -142,7 +142,7 @@ export const UserEditor: React.FC<UserEditorProps> = ({ user, onSave, onCancel }
                                 try {
                                     const metadata = JSON.parse(e.target.value);
                                     setFormData(prev => ({ ...prev, metadata }));
-                                } catch (_err) {
+                                } catch (_error) {
                                     // Allow invalid JSON while typing
                                 }
                             }}

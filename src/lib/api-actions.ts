@@ -192,9 +192,9 @@ export async function getEnrollments(studentId?: string, courseIds?: string[]): 
   return apiClient.get<EnrollmentDTO[]>(url);
 }
 
-export async function enrollInCourse(courseId: string): Promise<{ success: boolean; error?: string }> {
+export async function enrollInCourse(courseId: string, enrollmentCode?: string): Promise<{ success: boolean; error?: string }> {
   try {
-    await apiClient.post('/api/system', { action: 'enroll', courseId });
+    await apiClient.post('/api/system', { action: 'enroll', courseId, enrollmentCode });
     return { success: true };
   } catch (error: unknown) {
     return { success: false, error: (error as Error).message };

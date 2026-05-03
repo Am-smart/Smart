@@ -1,5 +1,6 @@
 import { withHandler } from '@/app/api/api-utils';
 import { systemService } from '@/lib/services/system.service';
+import { learningService } from '@/lib/services/learning.service';
 import { authService } from '@/lib/services/auth.service';
 import { assessmentService } from '@/lib/services/assessment.service';
 import { rbac } from '@/lib/auth/rbac';
@@ -9,6 +10,12 @@ export const GET = withHandler(async (user, request) => {
   const { searchParams } = new URL(request.url);
   const action = searchParams.get('action');
 
+  if (action === 'maintenance') {
+    return systemService.getMaintenance(user?.sessionId);
+  }
+
+  if (!user) throw new Error('Unauthorized');
+
   switch (action) {
     case 'logs': {
       const limit = parseInt(searchParams.get('limit') || '100');
@@ -16,10 +23,8 @@ export const GET = withHandler(async (user, request) => {
       const logs = await systemService.getLogs(user, limit, user.sessionId!);
       return logs.map(SystemMapper.toSystemLogDTO);
     }
-    case 'maintenance': {
-      return systemService.getMaintenance(user?.sessionId);
-    }
     case 'sessions': {
+        if (!user) throw new Error('Unauthorized');
         const { authDb } = await import('@/lib/database/auth.db');
         return authDb.findAllSessions(user.sessionId!);
     }
@@ -75,12 +80,12 @@ export const GET = withHandler(async (user, request) => {
     }
     case 'lesson-completions': {
         const userId = searchParams.get('userId') || user.id;
-        return systemService.getLessonCompletions(userId, user.sessionId!);
+        return learningService.getLessonCompletions(userId, user.sessionId!);
     }
     default:
       throw new Error('Invalid GET action');
   }
-}, { requireAuth: false }); // Maintenance can be public
+}, { requireAuth: false });
 
 export const POST = withHandler(async (user, request) => {
   const body = await request.json();
@@ -118,7 +123,7 @@ export const POST = withHandler(async (user, request) => {
         return CommunicationMapper.toDiscussionDTO(saved);
     }
     case 'enroll': {
-        await systemService.enrollInCourse(user.id, data.courseId, user.sessionId!);
+        await systemService.enrollInCourse(user.id, data.courseId, user.sessionId!, data.enrollmentCode);
         return { success: true };
     }
     case 'attendance': {
@@ -131,7 +136,7 @@ export const POST = withHandler(async (user, request) => {
         return { success: true };
     }
     case 'lesson-completion': {
-        await systemService.markLessonComplete(user.id, data.lessonId, data.courseId, user.sessionId!);
+        await learningService.markLessonComplete(user.id, data.lessonId, data.courseId, user.sessionId!);
         return { success: true };
     }
     case 'upload-path': {

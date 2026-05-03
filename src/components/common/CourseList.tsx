@@ -17,7 +17,7 @@ import { BookOpen, Calendar, Trash2, Edit } from 'lucide-react';
 interface CourseListProps {
   courses: CourseDTO[];
   onAction: (course: CourseDTO) => void;
-  actionLabel: string;
+  actionLabel?: string | ((course: CourseDTO) => string);
   onEdit?: (course: CourseDTO) => void;
   onDelete?: (id: string) => void;
   showStatus?: boolean;
@@ -26,7 +26,7 @@ interface CourseListProps {
 export function CourseList({
   courses,
   onAction,
-  actionLabel,
+  actionLabel = "View",
   onEdit,
   onDelete,
   showStatus = false
@@ -69,7 +69,10 @@ export function CourseList({
 
           <CardHeader>
             <CardTitle className="line-clamp-1">{course.title}</CardTitle>
-            <CardDescription className="line-clamp-2 h-10">
+            <CardDescription className="line-clamp-1 text-xs font-bold text-slate-400 uppercase tracking-widest">
+              BY {course.created_by || 'Instructor'}
+            </CardDescription>
+            <CardDescription className="line-clamp-2 h-10 mt-2">
               {course.description}
             </CardDescription>
           </CardHeader>
@@ -90,7 +93,7 @@ export function CourseList({
                 className="flex-1"
                 onClick={() => onAction(course)}
             >
-              {actionLabel}
+              {typeof actionLabel === 'function' ? actionLabel(course) : actionLabel}
             </Button>
 
             {(onEdit || onDelete) && (
