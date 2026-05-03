@@ -3,8 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
 import { getSubmissions, getQuizSubmissions } from '@/lib/api-actions';
-import { AntiCheatRecord } from "@/components/student/AntiCheatRecord";
-import { SubmissionDTO, QuizSubmissionDTO } from '@/lib/dto/assessment.dto';
+import { AntiCheatRecord } from "@/components/system/AntiCheatRecord";
+import { SubmissionDTO, QuizSubmissionDTO } from '@/lib/types';
 
 export default function AntiCheatPage() {
   const { user } = useAuth();

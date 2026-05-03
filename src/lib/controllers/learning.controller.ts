@@ -1,15 +1,13 @@
-import { courseService } from '../services/course.service';
 import { learningService } from '../services/learning.service';
 import { CourseMapper, LearningMapper } from '../mappers';
 import { rbac } from '../auth/rbac';
-import { User, Course, Lesson, Material } from '../types';
-import { CourseDTO, LessonDTO, MaterialDTO } from '../dto/learning.dto';
+import { User, Course, Lesson, Material, CourseDTO, LessonDTO, MaterialDTO } from '../types';
 import { CourseDomain } from '../domain/course.domain';
 import { LearningDomain } from '../domain/learning.domain';
 
 export class LearningController {
   async getCourses(user: User, teacherId?: string): Promise<CourseDTO[]> {
-    const courses = await courseService.getCourses(teacherId, user.sessionId);
+    const courses = await learningService.getCourses(teacherId, user.sessionId);
     return courses.map(CourseMapper.toDTO);
   }
 
@@ -21,13 +19,13 @@ export class LearningController {
     // Domain logic: validation & creation rules
     CourseDomain.validate(courseData);
 
-    const course = await courseService.saveCourse(user, courseData, user.sessionId);
+    const course = await learningService.saveCourse(user, courseData, user.sessionId);
     return CourseMapper.toDTO(course);
   }
 
   async deleteCourse(user: User, courseId: string): Promise<void> {
     if (!rbac.can(user, 'course:delete')) throw new Error('Unauthorized');
-    await courseService.deleteCourse(courseId, user.sessionId);
+    await learningService.deleteCourse(courseId, user.sessionId);
   }
 
   async getLessons(user: User, courseId: string): Promise<LessonDTO[]> {

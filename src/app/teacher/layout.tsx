@@ -2,8 +2,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
-import { TeacherSidebar } from "@/components/TeacherSidebar";
-import { TeacherHeader } from "@/components/TeacherHeader";
+import { UnifiedSidebar } from "@/components/common/UnifiedSidebar"
+import { UserRole } from "@/lib/types";
+import { TeacherHeader } from "@/components/layout/TeacherHeader";
 import { ForcePasswordChange } from "@/components/auth/ForcePasswordChange";
 import { useRouter, usePathname } from 'next/navigation';
 
@@ -49,7 +50,7 @@ export default function TeacherLayout({
           <ForcePasswordChange onSuccess={() => updateProfile({ reset_request: null })} />
       )}
       <div className="flex">
-        <TeacherSidebar
+        <UnifiedSidebar role={role as UserRole}
           activePage={activePage === 'teacher' ? 'dashboard' : activePage}
           onNavigate={(page) => router.push(`/teacher/${page === 'dashboard' ? '' : page}`)}
           isOpen={isSidebarOpen}

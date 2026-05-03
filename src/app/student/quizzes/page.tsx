@@ -3,12 +3,12 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
 import { getEnrollments, getQuizzes, getQuizSubmissions } from '@/lib/api-actions';
-import { QuizzesList } from "@/components/student/QuizzesList";
-import { QuizDTO, QuizSubmissionDTO } from '@/lib/dto/assessment.dto';
+import { QuizzesList } from "@/components/assessments/QuizzesList";
+import { QuizDTO, QuizSubmissionDTO } from '@/lib/types';
 import dynamic from 'next/dynamic';
-import { QuizResultModal } from '@/components/student/QuizResultModal';
+import { QuizResultModal } from '@/components/assessments/QuizResultModal';
 
-const QuizView = dynamic(() => import("@/components/student/QuizView").then(m => m.QuizView), { ssr: false });
+const QuizView = dynamic(() => import("@/components/assessments/QuizView").then(m => m.QuizView), { ssr: false });
 
 export default function QuizzesPage() {
   const { user } = useAuth();

@@ -3,8 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
 import { getEnrollments, getMaterials } from '@/lib/api-actions';
-import { MaterialsList } from "@/components/student/MaterialsList";
-import { MaterialDTO } from '@/lib/dto/learning.dto';
+import { MaterialsList } from "@/components/courses/MaterialsList";
+import { MaterialDTO } from '@/lib/types';
 
 export default function MaterialsPage() {
   const { user } = useAuth();

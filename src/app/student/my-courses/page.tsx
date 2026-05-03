@@ -3,8 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
 import { getEnrollments } from '@/lib/api-actions';
-import { MyCourses } from "@/components/student/MyCourses";
-import { EnrollmentDTO } from '@/lib/dto/learning.dto';
+import { MyCourses } from "@/components/courses/MyCourses";
+import { EnrollmentDTO } from '@/lib/types';
 import { useRouter } from 'next/navigation';
 
 export default function MyCoursesPage() {

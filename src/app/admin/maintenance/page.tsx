@@ -2,10 +2,10 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { getCourses, getMaintenance } from '@/lib/api-actions';
-import { MaintenancePanel } from "@/components/admin/MaintenancePanel";
-import { BroadcastManager } from "@/components/admin/BroadcastManager";
-import { CourseDTO } from '@/lib/dto/learning.dto';
-import { MaintenanceDTO } from '@/lib/dto/system.dto';
+import { MaintenancePanel } from "@/components/system/MaintenancePanel";
+import { BroadcastManager } from "@/components/communication/BroadcastManager";
+import { CourseDTO } from '@/lib/types';
+import { MaintenanceDTO } from '@/lib/types';
 
 export default function MaintenancePage() {
   const [courses, setCourses] = useState<CourseDTO[]>([]);

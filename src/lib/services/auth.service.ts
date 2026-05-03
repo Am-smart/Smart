@@ -1,58 +1,121 @@
-import { UserRepository } from '../repositories/user.repository';
-import { SessionRepository } from '../repositories/session.repository';
-import { AuthRepository } from '../repositories/auth.repository';
+import { authDb } from '../database/auth.db';
+import { systemDb } from '../database/system.db';
+import { User } from '../types';
+import { UserDomain } from '../domain/user.domain';
+import redis from '../redis';
 
 export class AuthService {
-  private userRepo = new UserRepository();
-  private sessionRepo = new SessionRepository();
-  private authRepo = new AuthRepository();
-
   async validateSession(sessionId: string): Promise<Record<string, unknown> | null> {
-    const session = await this.sessionRepo.findById(sessionId);
+    const session = await authDb.findSessionById(sessionId);
     if (!session || new Date(session.expires_at) < new Date()) {
       return null;
     }
-    const user = await this.userRepo.findById(session.user_id);
+    const user = await systemDb.findUserById(session.user_id);
     if (!user) return null;
     return { id: user.id, sessionId: session.id, email: user.email, role: user.role, full_name: user.full_name };
   }
 
   async createSession(userId: string): Promise<string> {
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
-    const session = await this.sessionRepo.create(userId, expiresAt);
+    const session = await authDb.createSession(userId, expiresAt);
     return session.id;
   }
 
   async logout(sessionId: string): Promise<void> {
-    await this.sessionRepo.delete(sessionId);
+    await authDb.deleteSession(sessionId);
   }
 
-  async authenticate(email: string, password: string) {
-    return this.authRepo.authenticate(email, password);
+  async authenticate(email: string, password?: string) {
+    return authDb.authenticate(email, password);
   }
 
-  async register(data: { full_name: string; email: string; password: string; phone?: string; role: string }) {
-    return this.authRepo.register(data);
+  async register(data: { full_name: string; email: string; password?: string; phone?: string; role: string }) {
+    return authDb.register(data);
   }
 
   async updatePassword(currentPass: string, newPass: string, sessionId: string) {
-    return this.authRepo.updatePassword(currentPass, newPass, sessionId);
+    return authDb.updatePassword(currentPass, newPass, sessionId);
   }
 
   async requestPasswordReset(email: string, reason: string, riskLevel: string) {
-    return this.authRepo.requestPasswordReset(email, reason, riskLevel);
+    return authDb.requestPasswordReset(email, reason, riskLevel);
   }
 
   async approvePasswordReset(userId: string, tempPassword: string, sessionId: string) {
-    return this.authRepo.approvePasswordReset(userId, tempPassword, sessionId);
+    return authDb.approvePasswordReset(userId, tempPassword, sessionId);
   }
 
   async denyPasswordReset(userId: string, reason: string, sessionId: string) {
-    return this.authRepo.denyPasswordReset(userId, reason, sessionId);
+    return authDb.denyPasswordReset(userId, reason, sessionId);
   }
 
   async updatePreferences(preferences: object, sessionId: string) {
-    return this.authRepo.updatePreferences(preferences, sessionId);
+    return authDb.updatePreferences(preferences, sessionId);
+  }
+
+  // Merged from UserService
+  async getCurrentUser(id: string, sessionId: string): Promise<User> {
+    const client = redis();
+    const cacheKey = `user:${id}:${sessionId}`;
+    const cached = client ? await client.get<string>(cacheKey) : null;
+
+    if (cached) {
+      return JSON.parse(cached);
+    }
+
+    const user = await systemDb.findUserById(id, sessionId);
+    if (!user) throw new Error('User not found');
+
+    const userWithSession = { ...user, sessionId };
+
+    // Cache for 5 minutes
+    if (client) {
+      await client.set(cacheKey, JSON.stringify(userWithSession), { ex: 300 });
+    }
+
+    return userWithSession;
+  }
+
+  async getAllUsers(currentUser: User, sessionId: string): Promise<User[]> {
+    if (!UserDomain.canManageUsers(currentUser)) throw new Error('Forbidden');
+    return systemDb.findAllUsers(sessionId);
+  }
+
+  async updateUserProfile(currentUser: User, userId: string, updates: Partial<User>, sessionId: string): Promise<User> {
+    const targetUser = await systemDb.findUserById(userId, sessionId);
+    if (!targetUser) throw new Error('User not found');
+
+    UserDomain.validateUpdate(currentUser, userId);
+
+    const filteredUpdates = UserDomain.filterUpdateFields(currentUser, updates);
+
+    const result = await systemDb.updateUser(userId, filteredUpdates, sessionId, targetUser.version);
+
+    // Invalidate cache
+    const client = redis();
+    if (client) {
+      await client.del(`user:${userId}:${sessionId}`);
+    }
+
+    return result;
+  }
+
+  async toggleUserStatus(currentUser: User, userId: string, active: boolean, sessionId: string): Promise<void> {
+    if (!UserDomain.canManageUsers(currentUser)) throw new Error('Forbidden');
+    await systemDb.updateUser(userId, { active }, sessionId);
+    const client = redis();
+    if (client) {
+      await client.del(`user:${userId}:${sessionId}`);
+    }
+  }
+
+  async deleteUser(currentUser: User, userId: string, sessionId: string): Promise<void> {
+    if (!UserDomain.canManageUsers(currentUser)) throw new Error('Forbidden');
+    await systemDb.deleteUser(userId, sessionId);
+    const client = redis();
+    if (client) {
+      await client.del(`user:${userId}:${sessionId}`);
+    }
   }
 }
 

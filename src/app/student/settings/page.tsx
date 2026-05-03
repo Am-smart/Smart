@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
-import { StudentSettings } from "@/components/student/StudentSettings";
+import { StudentSettings } from "@/components/system/StudentSettings";
 
 export default function SettingsPage() {
   const { user, updateProfile } = useAuth();

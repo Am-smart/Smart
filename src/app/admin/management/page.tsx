@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react';
-import { SystemHealth, SystemInfo } from "@/components/admin/SystemMisc";
+import { SystemHealth, SystemInfo } from "@/components/system/SystemMisc";
 import { Shield, Settings, Database } from 'lucide-react';
 import { useAppContext } from '@/components/AppContext';
 import { createSystemLog } from '@/lib/api-actions';

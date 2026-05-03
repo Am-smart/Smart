@@ -2,11 +2,10 @@
 
 import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
-import { useSupabase } from '@/hooks/useSupabase';
 import * as actions from '@/lib/api-actions';
 import { useIndexedDB } from '@/hooks/useIndexedDB';
-import { CourseView } from "@/components/student/CourseView";
-import { CourseDTO, LessonDTO } from '@/lib/dto/learning.dto';
+import { CourseView } from "@/components/courses/CourseView";
+import { CourseDTO, LessonDTO } from '@/lib/types';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAppContext } from '@/components/AppContext';
 import { CourseList } from '@/components/common/CourseList';
@@ -14,7 +13,6 @@ import { CourseList } from '@/components/common/CourseList';
 function CatalogContent() {
   const { user } = useAuth();
   const { addToast } = useAppContext();
-  const { getCourses, getEnrollments } = useSupabase();
   const { isOnline, addToQueue } = useIndexedDB();
   const [courses, setCourses] = useState<CourseDTO[]>([]);
   const [enrolledIds, setEnrolledIds] = useState<string[]>([]);
@@ -26,13 +24,17 @@ function CatalogContent() {
 
   const fetchData = useCallback(async () => {
     if (!user) return;
-    const [all, enrolled] = await Promise.all([
-      getCourses(),
-      getEnrollments(user.id!)
-    ]);
-    setCourses(all.filter(c => c.status === 'published'));
-    setEnrolledIds(enrolled.map(item => item.course_id));
-  }, [user, getCourses, getEnrollments]);
+    try {
+        const [all, enrolled] = await Promise.all([
+          actions.getCourses(),
+          actions.getEnrollments(user.id!)
+        ]);
+        setCourses(all.filter(c => c.status === 'published'));
+        setEnrolledIds(enrolled.map(item => item.course_id));
+    } catch (err) {
+        console.error('Failed to fetch catalog data:', err);
+    }
+  }, [user]);
 
   useEffect(() => {
     fetchData();

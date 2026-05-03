@@ -2,7 +2,7 @@ import { assessmentService } from '../services/assessment.service';
 import { AssessmentMapper } from '../mappers';
 import { rbac } from '../auth/rbac';
 import { User, Assignment, Quiz, Submission, QuizSubmission } from '../types';
-import { AssignmentDTO, QuizDTO, SubmissionDTO, QuizSubmissionDTO } from '../dto/assessment.dto';
+import { AssignmentDTO, QuizDTO, SubmissionDTO, QuizSubmissionDTO } from '../types';
 import { AssessmentDomain } from '../domain/assessment.domain';
 
 export class AssessmentController {

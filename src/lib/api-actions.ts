@@ -1,35 +1,37 @@
 import { apiClient } from './api-client';
-import { UserDTO } from './dto/auth.dto';
 import {
+  User,
+  Course,
+  Assignment,
+  Quiz,
+  Submission,
+  QuizSubmission,
+  Material,
+  Discussion,
+  PlannerItem,
+  LiveClass,
+  UserDTO,
   CourseDTO,
   MaterialDTO,
   EnrollmentDTO,
-  LessonDTO
-} from './dto/learning.dto';
-import {
+  LessonDTO,
   AssignmentDTO,
   QuizDTO,
   SubmissionDTO,
-  QuizSubmissionDTO
-} from './dto/assessment.dto';
-import {
+  QuizSubmissionDTO,
   NotificationDTO,
   DiscussionDTO,
-  LiveClassDTO
-} from './dto/communication.dto';
-import {
+  LiveClassDTO,
   PlannerItemDTO,
   MaintenanceDTO,
   SettingDTO,
   SystemLogDTO
-} from './dto/system.dto';
-import { User, Course, Assignment, Quiz, Submission, QuizSubmission, Material, Discussion, PlannerItem, LiveClass } from './types';
+} from './types';
 
 // Auth / Users
 export async function login(credentials: { email: string; password?: string }): Promise<{ success: boolean; data?: { user: UserDTO; sessionId: string }; error?: string }> {
   try {
     const result = await apiClient.post<{ user: UserDTO; sessionId: string; error?: string }>('/api/auth/login', credentials);
-    // apiClient already throws if success is false, but we catch it here
     return { success: true, data: result as { user: UserDTO; sessionId: string } };
   } catch (error: unknown) {
     return { success: false, error: (error as Error).message };
@@ -80,12 +82,12 @@ export async function updateProfile(updates: Partial<User>): Promise<{ success: 
 }
 
 export async function getUsers(): Promise<UserDTO[]> {
-  return apiClient.get<UserDTO[]>('/api/system/users');
+  return apiClient.get<UserDTO[]>('/api/system?action=users');
 }
 
 export async function deleteUser(id: string): Promise<{ success: boolean; error?: string }> {
     try {
-        await apiClient.delete(`/api/system/users?id=${id}`);
+        await apiClient.delete(`/api/system?action=user&id=${id}`);
         return { success: true };
     } catch (error: unknown) {
         return { success: false, error: (error as Error).message };
@@ -94,7 +96,7 @@ export async function deleteUser(id: string): Promise<{ success: boolean; error?
 
 export async function saveUser(user: Partial<User> & { id?: string }): Promise<{ success: boolean; data?: UserDTO; error?: string }> {
   try {
-    const data = await apiClient.post<UserDTO>('/api/system/users/update', user);
+    const data = await apiClient.post<UserDTO>('/api/system', { action: 'save-user', ...user });
     return { success: true, data };
   } catch (error: unknown) {
     return { success: false, error: (error as Error).message };
@@ -110,7 +112,6 @@ export async function approveResetRequest(userId: string, tempPass: string): Pro
     }
 }
 
-
 export async function denyResetRequest(userId: string, reason: string): Promise<{ success: boolean; error?: string }> {
     try {
         await apiClient.post('/api/auth/reset-request', { userId, reason, action: 'deny' });
@@ -122,7 +123,7 @@ export async function denyResetRequest(userId: string, reason: string): Promise<
 
 export async function saveLiveClass(liveClass: Partial<LiveClass>): Promise<{ success: boolean; data?: LiveClassDTO; error?: string }> {
     try {
-        const data = await apiClient.post<LiveClassDTO>('/api/system/live-classes', liveClass);
+        const data = await apiClient.post<LiveClassDTO>('/api/system', { action: 'save-live-class', ...liveClass });
         return { success: true, data };
     } catch (error: unknown) {
         return { success: false, error: (error as Error).message };
@@ -131,7 +132,7 @@ export async function saveLiveClass(liveClass: Partial<LiveClass>): Promise<{ su
 
 export async function deleteLiveClass(id: string): Promise<{ success: boolean; error?: string }> {
     try {
-        await apiClient.delete(`/api/system/live-classes?id=${id}`);
+        await apiClient.delete(`/api/system?action=live-class&id=${id}`);
         return { success: true };
     } catch (error: unknown) {
         return { success: false, error: (error as Error).message };
@@ -149,7 +150,7 @@ export async function deleteAssignment(id: string): Promise<{ success: boolean; 
 
 export async function deletePlannerItem(id: string): Promise<{ success: boolean; error?: string }> {
     try {
-        await apiClient.delete(`/api/system/planner?id=${id}`);
+        await apiClient.delete(`/api/system?action=planner&id=${id}`);
         return { success: true };
     } catch (error: unknown) {
         return { success: false, error: (error as Error).message };
@@ -182,18 +183,15 @@ export async function deleteQuiz(id: string): Promise<{ success: boolean; error?
 
 // Enrollments
 export async function getEnrollments(studentId?: string, courseIds?: string[]): Promise<EnrollmentDTO[]> {
-  let url = '/api/system/enrollments';
-  const params = new URLSearchParams();
-  if (studentId) params.append('studentId', studentId);
-  if (courseIds) params.append('courseIds', courseIds.join(','));
-
-  if (params.toString()) url += `?${params.toString()}`;
+  let url = '/api/system?action=enrollments';
+  if (studentId) url += `&studentId=${studentId}`;
+  if (courseIds) url += `&courseIds=${courseIds.join(',')}`;
   return apiClient.get<EnrollmentDTO[]>(url);
 }
 
 export async function enrollInCourse(courseId: string): Promise<{ success: boolean; error?: string }> {
   try {
-    await apiClient.post(`/api/system/enroll?courseId=${courseId}`, {});
+    await apiClient.post('/api/system', { action: 'enroll', courseId });
     return { success: true };
   } catch (error: unknown) {
     return { success: false, error: (error as Error).message };
@@ -202,7 +200,7 @@ export async function enrollInCourse(courseId: string): Promise<{ success: boole
 
 export async function unenrollStudent(courseId: string, studentId: string): Promise<{ success: boolean; error?: string }> {
   try {
-    await apiClient.delete(`/api/system/enroll?courseId=${courseId}&studentId=${studentId}`);
+    await apiClient.delete(`/api/system?action=enrollment&id=${courseId}&studentId=${studentId}`);
     return { success: true };
   } catch (error: unknown) {
     return { success: false, error: (error as Error).message };
@@ -293,11 +291,9 @@ export async function submitQuiz(quizId: string, content: Partial<QuizSubmission
 }
 
 export async function getQuizSubmissions(quizId?: string, studentId?: string): Promise<QuizSubmissionDTO[]> {
-    let url = '/api/system/quiz-submissions';
-    const params = new URLSearchParams();
-    if (quizId) params.append('quizId', quizId);
-    if (studentId) params.append('studentId', studentId);
-    if (params.toString()) url += `?${params.toString()}`;
+    let url = '/api/system?action=quiz-submissions';
+    if (quizId) url += `&quizId=${quizId}`;
+    if (studentId) url += `&studentId=${studentId}`;
     return apiClient.get<QuizSubmissionDTO[]>(url);
 }
 
@@ -350,7 +346,7 @@ export async function saveLesson(lesson: Partial<LessonDTO>): Promise<{ success:
 
 export async function markLessonComplete(lessonId: string, courseId: string): Promise<{ success: boolean; error?: string }> {
     try {
-        await apiClient.post('/api/system/lesson-completions', { lessonId, courseId });
+        await apiClient.post('/api/system', { action: 'lesson-completion', lessonId, courseId });
         return { success: true };
     } catch (error: unknown) {
         return { success: false, error: (error as Error).message };
@@ -358,18 +354,19 @@ export async function markLessonComplete(lessonId: string, courseId: string): Pr
 }
 
 export async function getLessonCompletions(userId?: string): Promise<Record<string, unknown>[]> {
-    const url = userId ? `/api/system/lesson-completions?userId=${userId}` : '/api/system/lesson-completions';
+    let url = '/api/system?action=lesson-completions';
+    if (userId) url += `&userId=${userId}`;
     return apiClient.get<Record<string, unknown>[]>(url);
 }
 
 // Discussions
 export async function getDiscussions(courseId: string): Promise<DiscussionDTO[]> {
-  return apiClient.get<DiscussionDTO[]>(`/api/system/discussions?courseId=${courseId}`);
+  return apiClient.get<DiscussionDTO[]>(`/api/system?action=discussions&courseId=${courseId}`);
 }
 
 export async function saveDiscussionPost(discussion: Partial<Discussion>): Promise<{ success: boolean; data?: DiscussionDTO; error?: string }> {
   try {
-    const data = await apiClient.post<DiscussionDTO>('/api/system/discussions', discussion);
+    const data = await apiClient.post<DiscussionDTO>('/api/system', { action: 'save-discussion', ...discussion });
     return { success: true, data };
   } catch (error: unknown) {
     return { success: false, error: (error as Error).message };
@@ -378,7 +375,7 @@ export async function saveDiscussionPost(discussion: Partial<Discussion>): Promi
 
 export async function deleteDiscussionPost(id: string): Promise<{ success: boolean; error?: string }> {
     try {
-        await apiClient.delete(`/api/system/discussions?id=${id}`);
+        await apiClient.delete(`/api/system?action=discussion&id=${id}`);
         return { success: true };
     } catch (error: unknown) {
         return { success: false, error: (error as Error).message };
@@ -387,12 +384,12 @@ export async function deleteDiscussionPost(id: string): Promise<{ success: boole
 
 // Notifications
 export async function getNotifications(userId: string): Promise<NotificationDTO[]> {
-  return apiClient.get<NotificationDTO[]>(`/api/system/notifications?userId=${userId}`);
+  return apiClient.get<NotificationDTO[]>(`/api/system?action=notifications&userId=${userId}`);
 }
 
 export async function createBroadcast(broadcast: unknown): Promise<{ success: boolean; error?: string }> {
     try {
-        await apiClient.post('/api/system/broadcasts', broadcast);
+        await apiClient.post('/api/system', { action: 'broadcast', ...broadcast as object });
         return { success: true };
     } catch (error: unknown) {
         return { success: false, error: (error as Error).message };
@@ -406,7 +403,7 @@ export async function getMaintenance(): Promise<MaintenanceDTO> {
 
 export async function updateMaintenance(data: unknown): Promise<{ success: boolean; error?: string }> {
     try {
-        await apiClient.post('/api/system/maintenance', data);
+        await apiClient.post('/api/system', { action: 'update-maintenance', ...data as object });
         return { success: true };
     } catch (error: unknown) {
         return { success: false, error: (error as Error).message };
@@ -415,12 +412,13 @@ export async function updateMaintenance(data: unknown): Promise<{ success: boole
 
 // System Logs & Anti-Cheat
 export async function getSystemLogs(limit: number = 100): Promise<SystemLogDTO[]> {
-    return apiClient.get<SystemLogDTO[]>(`/api/system/logs?limit=${limit}`);
+    return apiClient.get<SystemLogDTO[]>(`/api/system?action=logs&limit=${limit}`);
 }
 
 export async function logAntiCheatViolation(data: Record<string, unknown> & { message?: string }): Promise<{ success: boolean; error?: string }> {
   try {
-    await apiClient.post('/api/system/logs', {
+    await apiClient.post('/api/system', {
+        action: 'log',
         level: 'warning',
         category: 'anti-cheat',
         message: data.message || 'Anti-cheat violation detected',
@@ -434,12 +432,12 @@ export async function logAntiCheatViolation(data: Record<string, unknown> & { me
 
 // Planner
 export async function getPlannerItems(userId: string): Promise<PlannerItemDTO[]> {
-    return apiClient.get<PlannerItemDTO[]>(`/api/system/planner?userId=${userId}`);
+    return apiClient.get<PlannerItemDTO[]>(`/api/system?action=planner&userId=${userId}`);
 }
 
 export async function savePlannerItem(planner: Partial<PlannerItem>): Promise<{ success: boolean; data?: PlannerItemDTO; error?: string }> {
     try {
-        const data = await apiClient.post<PlannerItemDTO>('/api/system/planner', planner);
+        const data = await apiClient.post<PlannerItemDTO>('/api/system', { action: 'save-planner', ...planner });
         return { success: true, data };
     } catch (error: unknown) {
         return { success: false, error: (error as Error).message };
@@ -448,12 +446,12 @@ export async function savePlannerItem(planner: Partial<PlannerItem>): Promise<{ 
 
 // Settings
 export async function getSettings(): Promise<SettingDTO[]> {
-    return apiClient.get<SettingDTO[]>('/api/system/settings');
+    return apiClient.get<SettingDTO[]>('/api/system?action=settings');
 }
 
 export async function updateSetting(key: string, value: unknown): Promise<{ success: boolean; error?: string }> {
     try {
-        await apiClient.post('/api/system/settings', { key, value });
+        await apiClient.post('/api/system', { action: 'update-setting', key, value });
         return { success: true };
     } catch (error: unknown) {
         return { success: false, error: (error as Error).message };
@@ -462,23 +460,20 @@ export async function updateSetting(key: string, value: unknown): Promise<{ succ
 
 // Live Classes
 export async function getLiveClasses(courseId?: string, teacherId?: string): Promise<LiveClassDTO[]> {
-    let url = '/api/system/live-classes';
-    const params = new URLSearchParams();
-    if (courseId) params.append('courseId', courseId);
-    if (teacherId) params.append('teacherId', teacherId);
-    if (params.toString()) url += `?${params.toString()}`;
+    let url = '/api/system?action=live-classes';
+    if (courseId) url += `&courseId=${courseId}`;
+    if (teacherId) url += `&teacherId=${teacherId}`;
     return apiClient.get<LiveClassDTO[]>(url);
 }
 
 export async function recordAttendance(liveClassId: string): Promise<{ success: boolean; error?: string }> {
     try {
-        await apiClient.post('/api/system/attendance', { liveClassId });
+        await apiClient.post('/api/system', { action: 'attendance', liveClassId });
         return { success: true };
   } catch (error: unknown) {
     return { success: false, error: (error as Error).message };
   }
 }
-
 
 // File Upload Path
 export async function uploadFile(fileName: string, category: string): Promise<{ filePath: string }> {
@@ -488,7 +483,7 @@ export async function uploadFile(fileName: string, category: string): Promise<{ 
 // Notifications
 export async function markNotificationAsRead(notificationId: string): Promise<{ success: boolean; error?: string }> {
     try {
-        await apiClient.patch(`/api/system/notifications?id=${notificationId}`, { is_read: true });
+        await apiClient.patch(`/api/system?action=notification&id=${notificationId}`, {});
         return { success: true };
     } catch (error: unknown) {
         return { success: false, error: error instanceof Error ? (error as Error).message : 'Unknown error' };
@@ -497,7 +492,7 @@ export async function markNotificationAsRead(notificationId: string): Promise<{ 
 
 export async function markAllNotificationsAsRead(userId: string): Promise<{ success: boolean; error?: string }> {
     try {
-        await apiClient.patch(`/api/system/notifications?userId=${userId}`, { markAll: true });
+        await apiClient.patch(`/api/system?action=notification&userId=${userId}`, { markAll: true });
         return { success: true };
     } catch (error: unknown) {
         return { success: false, error: error instanceof Error ? (error as Error).message : 'Unknown error' };
@@ -541,7 +536,7 @@ export async function updatePreferences(preferences: Record<string, unknown>): P
 // System Logging
 export async function createSystemLog(data: { level: string; category: string; message: string; metadata?: unknown }): Promise<{ success: boolean; error?: string }> {
     try {
-        await apiClient.post('/api/system/logs', data);
+        await apiClient.post('/api/system', { action: 'log', ...data });
         return { success: true };
     } catch (error: unknown) {
         return { success: false, error: error instanceof Error ? (error as Error).message : 'Unknown error' };

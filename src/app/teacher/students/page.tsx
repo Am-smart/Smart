@@ -3,8 +3,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
 import { getCourses, getEnrollments } from '@/lib/api-actions';
-import { StudentManagement } from "@/components/teacher/StudentManagement";
-import { EnrollmentDTO } from '@/lib/dto/learning.dto';
+import { StudentManagement } from "@/components/users/StudentManagement";
+import { EnrollmentDTO } from '@/lib/types';
 
 export default function StudentManagementPage() {
   const { user } = useAuth();

@@ -2,24 +2,23 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
-import { useSupabase } from '@/hooks/useSupabase';
-import { DiscussionBoard } from "@/components/student/DiscussionBoard";
-import { CourseDTO } from '@/lib/dto/learning.dto';
+import * as actions from '@/lib/api-actions';
+import { DiscussionBoard } from "@/components/communication/DiscussionBoard";
+import { CourseDTO } from '@/lib/types';
 
 export default function DiscussionsPage() {
   const { user } = useAuth();
-  const { getCourses } = useSupabase();
   const [courses, setCourses] = useState<CourseDTO[]>([]);
   const [selectedCourseId, setSelectedCourseId] = useState<string>('');
 
   useEffect(() => {
     if (user) {
-        getCourses(user.id!).then(c => {
+        actions.getCourses(user.id!).then(c => {
             setCourses(c);
             if (c.length > 0) setSelectedCourseId(c[0].id);
         });
     }
-  }, [user, getCourses]);
+  }, [user]);
 
   if (!user) return null;
 

@@ -3,9 +3,9 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
 import { getCourses, getAssignments, getQuizzes, getSystemLogs, getSubmissions, getQuizSubmissions } from '@/lib/api-actions';
-import { AntiCheatRecord } from "@/components/student/AntiCheatRecord";
-import { SubmissionDTO, QuizSubmissionDTO } from '@/lib/dto/assessment.dto';
-import { SystemLogDTO } from '@/lib/dto/system.dto';
+import { AntiCheatRecord } from "@/components/system/AntiCheatRecord";
+import { SubmissionDTO, QuizSubmissionDTO } from '@/lib/types';
+import { SystemLogDTO } from '@/lib/types';
 
 export default function AntiCheatPage() {
   const { user } = useAuth();

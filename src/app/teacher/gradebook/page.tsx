@@ -3,8 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
 import { getCourses, getEnrollments, getSubmissions, getQuizSubmissions } from '@/lib/api-actions';
-import { EnrollmentDTO } from '@/lib/dto/learning.dto';
-import { SubmissionDTO, QuizSubmissionDTO } from '@/lib/dto/assessment.dto';
+import { EnrollmentDTO } from '@/lib/types';
+import { SubmissionDTO, QuizSubmissionDTO } from '@/lib/types';
 
 export default function GradeBookPage() {
   const { user } = useAuth();

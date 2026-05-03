@@ -3,9 +3,9 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
 import { getEnrollments, getSubmissions, getQuizSubmissions } from '@/lib/api-actions';
-import { StudentAnalytics } from "@/components/student/StudentAnalytics";
-import { EnrollmentDTO } from '@/lib/dto/learning.dto';
-import { SubmissionDTO, QuizSubmissionDTO } from '@/lib/dto/assessment.dto';
+import { StudentAnalytics } from "@/components/system/StudentAnalytics";
+import { EnrollmentDTO } from '@/lib/types';
+import { SubmissionDTO, QuizSubmissionDTO } from '@/lib/types';
 
 export default function AnalyticsPage() {
   const { user } = useAuth();

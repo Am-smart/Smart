@@ -2,13 +2,13 @@ import {
   User, Course, Lesson, Material, UserRole,
   Assignment, Quiz, Submission, QuizSubmission,
   Notification, Broadcast, LiveClass, Discussion,
-  PlannerItem, Maintenance, Setting, SystemLog
+  PlannerItem, Enrollment, Maintenance, Setting, SystemLog
 } from '../types';
-import { UserDTO } from '../dto/auth.dto';
-import { CourseDTO, LessonDTO, MaterialDTO } from '../dto/learning.dto';
-import { AssignmentDTO, QuizDTO, SubmissionDTO, QuizSubmissionDTO } from '../dto/assessment.dto';
-import { NotificationDTO, BroadcastDTO, LiveClassDTO, DiscussionDTO } from '../dto/communication.dto';
-import { PlannerItemDTO, MaintenanceDTO, SettingDTO, SystemLogDTO } from '../dto/system.dto';
+import { UserDTO } from '../types';
+import { CourseDTO, LessonDTO, MaterialDTO } from '../types';
+import { AssignmentDTO, QuizDTO, SubmissionDTO, QuizSubmissionDTO } from '../types';
+import { NotificationDTO, BroadcastDTO, LiveClassDTO, DiscussionDTO } from '../types';
+import { PlannerItemDTO, EnrollmentDTO, MaintenanceDTO, SettingDTO, SystemLogDTO } from '../types';
 
 export class UserMapper {
   static toDTO(user: User | { id: string; full_name: string; email: string; role?: UserRole; phone?: string; created_at?: string; active?: boolean; metadata?: Record<string, string | number | boolean> }): UserDTO {
@@ -245,6 +245,18 @@ export class SystemMapper {
       user_id: sl.user_id,
       created_at: sl.created_at,
       user: (sl.users && sl.user_id) ? UserMapper.toDTO({ id: sl.user_id, ...sl.users }) : undefined
+    };
+  }
+
+  static toEnrollmentDTO(e: Enrollment): EnrollmentDTO {
+    return {
+      course_id: e.course_id,
+      student_id: e.student_id,
+      enrolled_at: e.enrolled_at,
+      progress: e.progress,
+      completed: e.completed,
+      course: e.courses ? CourseMapper.toDTO(e.courses) : undefined,
+      student: e.users ? UserMapper.toDTO(e.users) : undefined
     };
   }
 }

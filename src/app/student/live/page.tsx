@@ -3,8 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
 import { getEnrollments, getLiveClasses, recordAttendance } from '@/lib/api-actions';
-import { LiveClassesList } from "@/components/student/LiveClassesList";
-import { LiveClassDTO } from '@/lib/dto/communication.dto';
+import { LiveClassesList } from "@/components/communication/LiveClassesList";
+import { LiveClassDTO } from '@/lib/types';
 import { useAppContext } from '@/components/AppContext';
 
 export default function LiveClassesPage() {

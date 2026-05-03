@@ -1,5 +1,5 @@
 import { authService } from '../services/auth.service';
-import { LoginRequestDTO, SignupRequestDTO, AuthResponseDTO } from '../dto/auth.dto';
+import { LoginRequestDTO, SignupRequestDTO, AuthResponseDTO } from '../types';
 import { validateSignupForm, normalizeEmail, normalizeInput, validateLoginForm } from '../validation';
 import { User } from '../types';
 import { recordAttempt, isRateLimited, resetRateLimit } from '../rate-limit';

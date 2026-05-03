@@ -2,8 +2,9 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
-import { AdminSidebar } from "@/components/AdminSidebar";
-import { AdminHeader } from "@/components/AdminHeader";
+import { UnifiedSidebar } from "@/components/common/UnifiedSidebar"
+import { UserRole } from "@/lib/types";
+import { AdminHeader } from "@/components/layout/AdminHeader";
 import { ForcePasswordChange } from "@/components/auth/ForcePasswordChange";
 import { useRouter, usePathname } from 'next/navigation';
 
@@ -49,7 +50,7 @@ export default function AdminLayout({
           <ForcePasswordChange onSuccess={() => updateProfile({ reset_request: null })} />
       )}
       <div className="flex">
-        <AdminSidebar
+        <UnifiedSidebar role={role as UserRole}
           activePage={activePage === 'admin' ? 'dashboard' : activePage}
           onNavigate={(page) => router.push(`/admin/${page === 'dashboard' ? '' : page}`)}
           isOpen={isSidebarOpen}

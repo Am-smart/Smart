@@ -2,17 +2,15 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
-import { useSupabase } from '@/hooks/useSupabase';
-import { AssignmentEditor } from "@/components/teacher/AssignmentEditor";
-import { AssignmentDTO } from '@/lib/dto/assessment.dto';
-import { CourseDTO } from '@/lib/dto/learning.dto';
+import * as actions from '@/lib/api-actions';
+import { AssignmentEditor } from "@/components/assessments/AssignmentEditor";
+import { AssignmentDTO } from '@/lib/types';
+import { CourseDTO } from '@/lib/types';
 import { Trash2, Edit } from 'lucide-react';
 import { useAppContext } from '@/components/AppContext';
-import { deleteAssignment } from '@/lib/api-actions';
 
 export default function AssignmentsPage() {
   const { user } = useAuth();
-  const { getCourses, getAssignments } = useSupabase();
   const { addToast } = useAppContext();
   const [courses, setCourses] = useState<CourseDTO[]>([]);
   const [assignments, setAssignments] = useState<AssignmentDTO[]>([]);
@@ -21,11 +19,15 @@ export default function AssignmentsPage() {
 
   const fetchData = useCallback(async () => {
       if (!user) return;
-      const myCourses = await getCourses(user.id);
-      setCourses(myCourses);
-      const myAssignments = await getAssignments(user.id);
-      setAssignments(myAssignments);
-  }, [user, getCourses, getAssignments]);
+      try {
+          const myCourses = await actions.getCourses(user.id);
+          setCourses(myCourses);
+          const myAssignments = await actions.getAssignments(user.id);
+          setAssignments(myAssignments);
+      } catch (err) {
+          console.error('Failed to fetch assignments:', err);
+      }
+  }, [user]);
 
   useEffect(() => {
     fetchData();
@@ -34,7 +36,7 @@ export default function AssignmentsPage() {
   const handleDelete = async (id: string) => {
       if (!confirm('Are you sure you want to delete this assignment?')) return;
       try {
-          await deleteAssignment(id);
+          await actions.deleteAssignment(id);
           addToast('Assignment deleted successfully', 'success');
           fetchData();
       } catch (err: unknown) {

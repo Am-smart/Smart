@@ -1,9 +1,9 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { UserManagement } from "@/components/admin/UserManagement";
-import { UserEditor } from "@/components/admin/UserEditor";
-import { UserDTO } from '@/lib/dto/auth.dto';
+import { UserManagement } from "@/components/users/UserManagement";
+import { UserEditor } from "@/components/users/UserEditor";
+import { UserDTO } from '@/lib/types';
 import { getUsers, deleteUser, saveUser } from '@/lib/api-actions';
 
 export default function UsersPage() {

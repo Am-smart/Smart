@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
 import { getEnrollments } from '@/lib/api-actions';
-import { PlannerView } from "@/components/student/PlannerView";
+import { PlannerView } from "@/components/planner/PlannerView";
 
 export default function PlannerPage() {
   const { user } = useAuth();

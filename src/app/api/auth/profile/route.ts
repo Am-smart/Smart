@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getErrorMessage } from '@/lib/api-error';
 import { getSessionUser, handleUnauthorized } from '@/app/api/api-utils';
-import { userService } from '@/lib/services/user.service';
+import { authService } from '@/lib/services/auth.service';
 import { UserMapper } from '@/lib/mappers';
 
 export async function POST(request: Request) {
@@ -10,7 +10,7 @@ export async function POST(request: Request) {
 
   try {
     const updates = await request.json();
-    const updated = await userService.updateUserProfile(user, user.id, updates, user.sessionId!);
+    const updated = await authService.updateUserProfile(user, user.id, updates, user.sessionId!);
     return NextResponse.json(UserMapper.toDTO(updated));
   } catch (error: unknown) {
     return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
