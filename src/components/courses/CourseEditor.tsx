@@ -20,7 +20,8 @@ export const CourseEditor: React.FC<CourseEditorProps> = ({ course, teacherId, o
         description: course?.description || '',
         course_id: course?.course_id || '',
         status: course?.status || 'draft',
-        thumbnail_url: course?.thumbnail_url || 'https://images.unsplash.com/photo-1516116216624-53e697fedbea?w=800&auto=format&fit=crop&q=60'
+        thumbnail_url: course?.thumbnail_url || 'https://images.unsplash.com/photo-1516116216624-53e697fedbea?w=800&auto=format&fit=crop&q=60',
+        metadata: course?.metadata || {}
     });
     const [isSaving, setIsSaving] = useState(false);
     const { addToQueue, isOnline } = useIndexedDB();
@@ -120,6 +121,22 @@ export const CourseEditor: React.FC<CourseEditorProps> = ({ course, teacherId, o
                             value={formData.thumbnail_url}
                             onChange={(e) => setFormData(prev => ({ ...prev, thumbnail_url: e.target.value }))}
                             className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all text-sm"
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-xs font-bold text-slate-700 uppercase mb-3 tracking-wide">Metadata (JSON format)</label>
+                        <textarea
+                            value={JSON.stringify(formData.metadata, null, 2)}
+                            onChange={(e) => {
+                                try {
+                                    const metadata = JSON.parse(e.target.value);
+                                    setFormData(prev => ({ ...prev, metadata }));
+                                } catch (_err) {
+                                    // Allow invalid JSON while typing
+                                }
+                            }}
+                            className="w-full h-32 p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all font-mono text-xs"
+                            placeholder='{ "key": "value" }'
                         />
                     </div>
                 </form>

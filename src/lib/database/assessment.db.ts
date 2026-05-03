@@ -20,13 +20,14 @@ export const assessmentDb = {
   },
 
   async upsertAssignment(assignment: Partial<Assignment>, sessionId: string): Promise<Assignment> {
-    const { version, id, courses: _courses, ...assignmentData } = assignment;
+    const { version, id, courses: _courses, course: _course, ...assignmentData } = assignment as Record<string, unknown>;
+    const currentVersion = typeof version === 'number' ? version : 0;
     let query = withSession(supabase.from('assignments'), sessionId)
       .upsert({
         ...assignmentData,
         ...(id ? { id } : {}),
         updated_at: new Date().toISOString(),
-        version: (version || 0) + 1
+        version: currentVersion + 1
       } as Record<string, unknown>);
 
     if (id && version) {
@@ -65,13 +66,14 @@ export const assessmentDb = {
   },
 
   async upsertQuiz(quiz: Partial<Quiz>, sessionId: string): Promise<Quiz> {
-    const { version, id, courses: _courses, ...quizData } = quiz;
+    const { version, id, courses: _courses, course: _course, ...quizData } = quiz as Record<string, unknown>;
+    const currentVersion = typeof version === 'number' ? version : 0;
     let query = withSession(supabase.from('quizzes'), sessionId)
       .upsert({
         ...quizData,
         ...(id ? { id } : {}),
         updated_at: new Date().toISOString(),
-        version: (version || 0) + 1
+        version: currentVersion + 1
       } as Record<string, unknown>);
 
     if (id && version) {
@@ -110,13 +112,14 @@ export const assessmentDb = {
   },
 
   async upsertSubmission(submission: Partial<Submission>, sessionId: string): Promise<Submission> {
-    const { version, id, assignments: _assignments, users: _users, ...submissionData } = submission;
+    const { version, id, assignments: _assignments, assignment: _assignment, users: _users, student: _student, ...submissionData } = submission as Record<string, unknown>;
+    const currentVersion = typeof version === 'number' ? version : 0;
     let query = withSession(supabase.from('submissions'), sessionId)
       .upsert({
         ...submissionData,
         ...(id ? { id } : {}),
         updated_at: new Date().toISOString(),
-        version: (version || 0) + 1
+        version: currentVersion + 1
       } as Record<string, unknown>, { onConflict: 'assignment_id, student_id' });
 
     if (id && version) {
@@ -155,7 +158,7 @@ export const assessmentDb = {
   },
 
   async insertQuizSubmission(submission: Partial<QuizSubmission>, sessionId: string): Promise<QuizSubmission> {
-    const { quizzes: _quizzes, users: _users, ...submissionData } = submission as Record<string, unknown>;
+    const { quizzes: _quizzes, quiz: _quiz, users: _users, student: _student, ...submissionData } = submission as Record<string, unknown>;
     const { data, error } = await withSession(supabase.from('quiz_submissions'), sessionId)
       .insert(submissionData)
       .select()
