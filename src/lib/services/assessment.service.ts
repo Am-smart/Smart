@@ -1,57 +1,49 @@
-import { AssignmentRepository } from '../repositories/assignment.repository';
-import { QuizRepository } from '../repositories/quiz.repository';
-import { SubmissionRepository } from '../repositories/submission.repository';
-import { QuizSubmissionRepository } from '../repositories/quiz-submission.repository';
+import { assessmentDb } from '../database/assessment.db';
 import { Assignment, Quiz, Submission, QuizSubmission, User, QuizQuestion } from '../types';
 import { AssessmentDomain } from '../domain/assessment.domain';
 
 export class AssessmentService {
-  private assignmentRepo = new AssignmentRepository();
-  private quizRepo = new QuizRepository();
-  private submissionRepo = new SubmissionRepository();
-  private quizSubmissionRepo = new QuizSubmissionRepository();
-
   // Assignments
   async getAssignments(teacherId?: string, courseId?: string, sessionId?: string): Promise<Assignment[]> {
-    return this.assignmentRepo.findAll(teacherId, courseId, sessionId);
+    return assessmentDb.findAllAssignments(teacherId, courseId, sessionId);
   }
 
   async saveAssignment(currentUser: User, assignment: Partial<Assignment>, sessionId: string): Promise<Assignment> {
     const assignmentToSave = AssessmentDomain.prepareAssignment(assignment, currentUser.id);
-    return this.assignmentRepo.upsert(assignmentToSave, sessionId);
+    return assessmentDb.upsertAssignment(assignmentToSave, sessionId);
   }
 
   async deleteAssignment(assignmentId: string, sessionId: string): Promise<void> {
-    await this.assignmentRepo.delete(assignmentId, sessionId);
+    await assessmentDb.deleteAssignment(assignmentId, sessionId);
   }
 
   // Quizzes
   async getQuizzes(courseId?: string, teacherId?: string, sessionId?: string): Promise<Quiz[]> {
-    return this.quizRepo.findAll(courseId, teacherId, sessionId);
+    return assessmentDb.findAllQuizzes(courseId, teacherId, sessionId);
   }
 
   async saveQuiz(currentUser: User, quiz: Partial<Quiz>, sessionId: string): Promise<Quiz> {
     const quizToSave = AssessmentDomain.prepareQuiz(quiz, currentUser.id);
-    return this.quizRepo.upsert(quizToSave, sessionId);
+    return assessmentDb.upsertQuiz(quizToSave, sessionId);
   }
 
   async deleteQuiz(quizId: string, sessionId: string): Promise<void> {
-    await this.quizRepo.delete(quizId, sessionId);
+    await assessmentDb.deleteQuiz(quizId, sessionId);
   }
 
   // Submissions
   async getSubmissions(assignmentId?: string, studentId?: string, sessionId?: string): Promise<Submission[]> {
-    return this.submissionRepo.findAll(assignmentId, studentId, sessionId);
+    return assessmentDb.findAllSubmissions(assignmentId, studentId, sessionId);
   }
 
   async submitAssignment(studentId: string, assignmentId: string, content: Partial<Submission>, sessionId: string): Promise<Submission> {
     const submissionToSave = AssessmentDomain.prepareSubmission(studentId, assignmentId, content);
-    return this.submissionRepo.upsert(submissionToSave, sessionId);
+    return assessmentDb.upsertSubmission(submissionToSave, sessionId);
   }
 
   async gradeSubmission(submissionId: string, gradeData: Partial<Submission>, sessionId: string): Promise<Submission> {
     const { assignments: _assignments, users: _users, ...rest } = gradeData as Record<string, unknown>;
-    return this.submissionRepo.upsert({
+    return assessmentDb.upsertSubmission({
       ...rest,
       id: submissionId,
       status: 'graded',
@@ -61,14 +53,14 @@ export class AssessmentService {
 
   // Quiz Submissions
   async getQuizSubmissions(quizId?: string, studentId?: string, sessionId?: string): Promise<QuizSubmission[]> {
-    return this.quizSubmissionRepo.findAll(quizId, studentId, sessionId);
+    return assessmentDb.findAllQuizSubmissions(quizId, studentId, sessionId);
   }
 
   async submitQuiz(studentId: string, quizId: string, submissionData: Partial<QuizSubmission>, sessionId: string): Promise<{ success: boolean, score: number }> {
-    const quiz = await this.quizRepo.findById(quizId, sessionId);
+    const quiz = await assessmentDb.findQuizById(quizId, sessionId);
     if (!quiz) throw new Error('Quiz not found');
 
-    const existingSubmissions = await this.quizSubmissionRepo.findAttempts(quizId, studentId, sessionId);
+    const existingSubmissions = await assessmentDb.findQuizAttempts(quizId, studentId, sessionId);
     const currentAttempts = existingSubmissions.length;
 
     AssessmentDomain.validateQuizAttempt(quiz, currentAttempts);
@@ -88,7 +80,7 @@ export class AssessmentService {
       submissionData
     );
 
-    await this.quizSubmissionRepo.insert(submissionToSave, sessionId);
+    await assessmentDb.insertQuizSubmission(submissionToSave, sessionId);
 
     return { success: true, score: calculatedScore };
   }

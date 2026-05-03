@@ -3,9 +3,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
 import { getCourses, getLiveClasses } from '@/lib/api-actions';
-import { LiveClassManager } from "@/components/teacher/LiveClassManager";
-import { LiveClassDTO } from '@/lib/dto/communication.dto';
-import { CourseDTO } from '@/lib/dto/learning.dto';
+import { LiveClassManager } from "@/components/communication/LiveClassManager";
+import { LiveClassDTO } from '@/lib/types';
+import { CourseDTO } from '@/lib/types';
 
 export default function LiveClassesPage() {
   const { user } = useAuth();

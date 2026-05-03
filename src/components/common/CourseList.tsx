@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Image from 'next/image';
-import { CourseDTO } from '@/lib/dto/learning.dto';
+import { CourseDTO } from '@/lib/types';
 import {
   Card,
   CardContent,

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { getSystemLogs } from '@/lib/api-actions';
-import { SystemInfo } from "@/components/admin/SystemMisc";
+import { SystemInfo } from "@/components/system/SystemMisc";
 
 export default function SystemPage() {
   const [logs, setLogs] = useState<{id: string, created_at: string, message: string}[]>([]);

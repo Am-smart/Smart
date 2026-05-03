@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { getUsers, getCourses } from '@/lib/api-actions';
-import { AdminAnalytics } from "@/components/admin/SystemMisc";
+import { AdminAnalytics } from "@/components/system/SystemMisc";
 
 export default function AnalyticsPage() {
   const [isLoading, setIsLoading] = useState(true);

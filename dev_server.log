@@ -1,0 +1,30 @@
+
+> next-app@0.1.0 dev
+> next dev
+
+   ▲ Next.js 15.5.14
+   - Local:        http://localhost:3000
+   - Network:      http://192.168.0.2:3000
+
+ ✓ Starting...
+ ✓ Ready in 2s
+ ○ Compiling / ...
+ ✓ Compiled / in 6.9s (658 modules)
+ GET / 200 in 8676ms
+ ○ Compiling /api/system/maintenance ...
+ ✓ Compiled /api/system/maintenance in 1749ms (723 modules)
+ GET /api/auth/session 200 in 2336ms
+ GET /api/auth/session 200 in 162ms
+ GET / 200 in 731ms
+ GET /api/system/maintenance 200 in 3322ms
+ GET / 200 in 326ms
+ GET /api/auth/session 200 in 95ms
+ GET /api/auth/session 200 in 72ms
+ GET /api/system/maintenance 200 in 983ms
+ GET / 200 in 116ms
+ GET /api/auth/session 200 in 108ms
+ GET /api/system/maintenance 200 in 321ms
+ ○ Compiling /api/auth/role-count ...
+ ✓ Compiled /api/auth/role-count in 929ms (725 modules)
+ GET /api/auth/session 200 in 1040ms
+ GET /api/auth/role-count 200 in 1217ms

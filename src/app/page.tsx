@@ -2,14 +2,14 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
-import { Hero } from "@/components/Hero";
-import { LandingSections } from "@/components/LandingSections";
-import { LandingFooter } from "@/components/LandingFooter";
+import { Hero } from "@/components/layout/Hero";
+import { LandingSections } from "@/components/layout/LandingSections";
+import { LandingFooter } from "@/components/layout/LandingFooter";
 import { LoginForm } from '@/components/auth/LoginForm';
 import { SignupForm } from '@/components/auth/SignupForm';
 import { ResetPasswordForm } from '@/components/auth/ResetPasswordForm';
 import { useRouter } from 'next/navigation';
-import { LandingHeader } from "@/components/LandingHeader";
+import { LandingHeader } from "@/components/layout/LandingHeader";
 
 export default function Home() {
   const [showAuth, setShowAuth] = useState(false);

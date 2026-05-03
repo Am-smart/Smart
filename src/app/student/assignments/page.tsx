@@ -3,13 +3,13 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
 import { getEnrollments, getAssignments, getSubmissions } from '@/lib/api-actions';
-import { AssignmentsList } from "@/components/student/AssignmentsList";
-import { AssignmentDTO, SubmissionDTO } from '@/lib/dto/assessment.dto';
+import { AssignmentsList } from "@/components/assessments/AssignmentsList";
+import { AssignmentDTO, SubmissionDTO } from '@/lib/types';
 import dynamic from 'next/dynamic';
 import { useAppContext } from '@/components/AppContext';
-import { FeedbackModal } from '@/components/student/FeedbackModal';
+import { FeedbackModal } from '@/components/assessments/FeedbackModal';
 
-const AssignmentForm = dynamic(() => import("@/components/student/AssignmentForm").then(m => m.AssignmentForm), { ssr: false });
+const AssignmentForm = dynamic(() => import("@/components/assessments/AssignmentForm").then(m => m.AssignmentForm), { ssr: false });
 
 export default function AssignmentsPage() {
   const { user } = useAuth();

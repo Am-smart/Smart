@@ -2,13 +2,12 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
-import { useSupabase } from '@/hooks/useSupabase';
-import { DiscussionBoard } from "@/components/student/DiscussionBoard";
-import { EnrollmentDTO } from '@/lib/dto/learning.dto';
+import { DiscussionBoard } from "@/components/communication/DiscussionBoard";
+import { EnrollmentDTO } from '@/lib/types';
+import { getEnrollments } from '@/lib/api-actions';
 
 export default function DiscussionsPage() {
   const { user } = useAuth();
-  const { getEnrollments } = useSupabase();
   const [enrollments, setEnrollments] = useState<EnrollmentDTO[]>([]);
   const [selectedCourseId, setSelectedCourseId] = useState<string>('');
 
@@ -19,7 +18,7 @@ export default function DiscussionsPage() {
             if (e.length > 0) setSelectedCourseId(e[0].course_id);
         });
     }
-  }, [user, getEnrollments]);
+  }, [user]);
 
   if (!user) return null;
 

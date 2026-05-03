@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { verifyToken } from '@/lib/crypto';
-import { userService } from '@/lib/services/user.service';
+import { authService } from '@/lib/services/auth.service';
 import { User } from '@/lib/types';
 import { getErrorMessage, mapErrorToStatus } from '@/lib/api-error';
 
@@ -19,7 +19,7 @@ export async function getSessionUser(): Promise<User | null> {
   const session = await verifyToken(token.value);
   if (!session || !session.sessionId) return null;
 
-  return userService.getCurrentUser(session.id as string, session.sessionId as string);
+  return authService.getCurrentUser(session.id as string, session.sessionId as string);
 }
 
 export function handleUnauthorized() {

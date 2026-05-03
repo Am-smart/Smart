@@ -3,9 +3,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
 import { getSubmissions } from '@/lib/api-actions';
-import { GradingQueue } from "@/components/teacher/GradingQueue";
-import { GradingModal } from "@/components/teacher/GradingModal";
-import { SubmissionDTO } from '@/lib/dto/assessment.dto';
+import { GradingQueue } from "@/components/assessments/GradingQueue";
+import { GradingModal } from "@/components/assessments/GradingModal";
+import { SubmissionDTO } from '@/lib/types';
 
 export default function GradingPage() {
   const { user } = useAuth();

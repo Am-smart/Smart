@@ -4,8 +4,8 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
 import { getCourses, getAssignments, getQuizzes, getLiveClasses } from '@/lib/api-actions';
 import { CalendarView } from "@/components/ui/CalendarView";
-import { AssignmentDTO, QuizDTO } from '@/lib/dto/assessment.dto';
-import { LiveClassDTO } from '@/lib/dto/communication.dto';
+import { AssignmentDTO, QuizDTO } from '@/lib/types';
+import { LiveClassDTO } from '@/lib/types';
 
 interface CalendarEvent {
     id: string;

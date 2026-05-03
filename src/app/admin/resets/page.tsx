@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { PasswordReset } from "@/components/admin/PasswordReset";
-import { UserDTO } from '@/lib/dto/auth.dto';
+import { PasswordReset } from "@/components/system/PasswordReset";
+import { UserDTO } from '@/lib/types';
 import { getUsers } from '@/lib/api-actions';
 
 export default function ResetsPage() {

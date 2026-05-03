@@ -2,17 +2,15 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
-import { useSupabase } from '@/hooks/useSupabase';
-import { QuizEditor } from "@/components/teacher/QuizEditor";
-import { QuizDTO } from '@/lib/dto/assessment.dto';
-import { CourseDTO } from '@/lib/dto/learning.dto';
+import * as actions from '@/lib/api-actions';
+import { QuizEditor } from "@/components/assessments/QuizEditor";
+import { QuizDTO } from '@/lib/types';
+import { CourseDTO } from '@/lib/types';
 import { Trash2, Edit } from 'lucide-react';
 import { useAppContext } from '@/components/AppContext';
-import { deleteQuiz } from '@/lib/api-actions';
 
 export default function QuizzesPage() {
   const { user } = useAuth();
-  const { getCourses, getQuizzes } = useSupabase();
   const { addToast } = useAppContext();
   const [courses, setCourses] = useState<CourseDTO[]>([]);
   const [quizzes, setQuizzes] = useState<QuizDTO[]>([]);
@@ -21,11 +19,15 @@ export default function QuizzesPage() {
 
   const fetchData = useCallback(async () => {
       if (!user) return;
-      const myCourses = await getCourses(user.id);
-      setCourses(myCourses);
-      const myQuizzes = await getQuizzes(undefined, user.id);
-      setQuizzes(myQuizzes);
-  }, [user, getCourses, getQuizzes]);
+      try {
+          const myCourses = await actions.getCourses(user.id);
+          setCourses(myCourses);
+          const myQuizzes = await actions.getQuizzes(undefined, user.id);
+          setQuizzes(myQuizzes);
+      } catch (err) {
+          console.error('Failed to fetch quizzes:', err);
+      }
+  }, [user]);
 
   useEffect(() => {
     fetchData();
@@ -34,7 +36,7 @@ export default function QuizzesPage() {
   const handleDelete = async (id: string) => {
       if (!confirm('Are you sure you want to delete this quiz?')) return;
       try {
-          await deleteQuiz(id);
+          await actions.deleteQuiz(id);
           addToast('Quiz deleted successfully', 'success');
           fetchData();
       } catch (err: unknown) {

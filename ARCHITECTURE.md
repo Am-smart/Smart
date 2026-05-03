@@ -1,284 +1,83 @@
-# Smart LMS - Layered Architecture Documentation
+# Smart LMS - Consolidated Architecture Documentation
 
 ## Overview
 
-This project implements a **strict three-layer architecture** that enforces complete separation of concerns:
+This project implements a **strict three-layer architecture** with a consolidated design for improved maintainability, scalability, and reusability. It is designed to be database-agnostic through an adapter layer, facilitating future migrations (e.g., to Oracle Cloud).
 
 ```
 ┌─────────────────────────────────────────┐
 │  FRONTEND LAYER (Client-Side)           │
-│  - React Components (src/components)    │
+│  - Feature-Based Components             │
 │  - Next.js Pages (src/app)              │
-│  - Client Logic & State Management      │
+│  - API Actions (src/lib/api-actions.ts) │
 └─────────────────┬───────────────────────┘
                   │
-                  │ API Calls Only
+                  │ Standard HTTP (JSON)
                   ↓
 ┌─────────────────────────────────────────┐
-│  API ROUTE LAYER (Backend/Route Handler)│
-│  - Next.js API Routes (src/app/api)     │
+│  API ROUTE LAYER (Control Plane)        │
+│  - Consolidated Action-Based Routes     │
+│  - Authentication & RBAC/ABAC           │
 │  - Request Validation                   │
-│  - Authentication & Authorization       │
-│  - Business Logic Orchestration         │
 └─────────────────┬───────────────────────┘
                   │
-                  │ Service Layer Access
+                  │ Service Orchestration
                   ↓
 ┌─────────────────────────────────────────┐
-│  DATABASE LAYER (Data Persistence)      │
-│  - Services (src/lib/services)          │
-│  - Controllers (src/lib/controllers)    │
-│  - Database Models & Queries            │
-│  - Data Access Objects (DAOs)           │
+│  DOMAIN SERVICE LAYER                   │
+│  - Auth, Learning, Assessment, System   │
+│  - Business Logic & Invariants          │
+└─────────────────┬───────────────────────┘
+                  │
+                  │ Database Abstraction
+                  ↓
+┌─────────────────────────────────────────┐
+│  DATABASE ADAPTER LAYER                 │
+│  - Domain-Grouped Adapters              │
+│  - Supabase/PostgreSQL Implementation   │
+│  - Extensible for Oracle Cloud          │
 └─────────────────────────────────────────┘
 ```
 
+## Key Architectural Principles
+
+### 1. Frontend - Backend - Database Flow
+Data operations must follow the strict flow: UI ➔ API Action ➔ API Route ➔ Service ➔ Database Adapter ➔ Database. Direct database access from frontend components is prohibited.
+
+### 2. Consolidated API Routing
+Instead of hundreds of route files, API routes are consolidated by domain (e.g., `/api/system`) and use an `action` parameter to dispatch requests to the appropriate handlers.
+
+### 3. Database Adapters
+All database operations are encapsulated in `src/lib/database/`. This layer abstracts the underlying database technology, ensuring the core business logic in services remains decoupled from infrastructure details.
+
+### 4. Feature-Based Components
+Components are organized by feature (e.g., `courses`, `assessments`) rather than by user role. They use role-based props and authorization checks to provide dynamic interfaces.
+
+### 5. Unified Sidebar
+A single, configurable sidebar (`UnifiedSidebar`) provides consistent navigation across all user roles, driven by a central configuration.
+
 ## Layer Details
 
-### 1. Frontend Layer (`src/` - Components & Pages)
+### Frontend Layer (`src/components/`, `src/app/`)
+- **Responsibility:** User interface and client-side logic.
+- **Rules:** Must only use `src/lib/api-actions.ts` for data operations. No direct Supabase client usage.
 
-**Responsibility:** User interface and client-side logic
+### API Route Layer (`src/app/api/`)
+- **Responsibility:** Handling HTTP requests, session validation, and authorization.
+- **Rules:** Consolidate routes into action-based handlers. Use `withHandler` utility for standardized error handling and auth.
 
-**Files/Directories:**
-- `src/components/` - React components
-- `src/app/` - Next.js page routes (student, teacher, admin)
-- `src/lib/api-actions.ts` - **API calls wrapper** (ONLY way frontend accesses backend)
-- `src/lib/api-client.ts` - HTTP client (low-level fetch wrapper)
+### Service Layer (`src/lib/services/`)
+- **Responsibility:** Business logic orchestration and domain invariant enforcement.
+- **Rules:** Grouped into four domains: `AuthService`, `LearningService`, `AssessmentService`, and `SystemService`.
 
-**Key Rules:**
-- ✅ Can import from `api-actions.ts` for API calls
-- ✅ Can use local state management (useState, useContext)
-- ✅ Can call browser APIs (localStorage, sessionStorage, etc.)
-- ❌ **CANNOT directly access database files**
-- ❌ **CANNOT import from `src/app/api`**
-- ❌ **CANNOT import from `src/lib/services`**
-- ❌ **CANNOT import from `src/lib/controllers`**
+### Database Layer (`src/lib/database/`)
+- **Responsibility:** Direct data persistence and retrieval.
+- **Rules:** Implemented as domain-grouped objects (e.g., `learningDb`). Uses Supabase RPCs and table queries, but provides a clean interface for services.
 
-**Example:**
-```typescript
-// ✅ CORRECT - Using api-actions
-import { getCourses, saveCourse } from '@/lib/api-actions';
+## Summary of Consolidation
 
-const courses = await getCourses();
-const result = await saveCourse(courseData);
-```
-
-```typescript
-// ❌ WRONG - Direct database access
-import { courseService } from '@/lib/services/course.service';
-const courses = await courseService.getCourses(); // ERROR!
-```
-
-### 2. API Route Layer (`src/app/api/` - Route Handlers)
-
-**Responsibility:** HTTP endpoint handling, request validation, authentication
-
-**Files/Directories:**
-- `src/app/api/` - All API routes
-- Organized by domain: `auth/`, `courses/`, `assignments/`, `system/`, etc.
-
-**Key Rules:**
-- ✅ Can import services and controllers
-- ✅ Must validate requests
-- ✅ Must check authentication/authorization
-- ✅ Must return standardized JSON responses
-- ✅ Can import from `api-error.ts` for error handling
-- ❌ **CANNOT do heavy business logic here**
-- ❌ **Cannot query database directly**
-
-**Example - Correct API Route:**
-```typescript
-// src/app/api/courses/route.ts
-import { courseService } from '@/lib/services/course.service';
-import { getErrorMessage } from '@/lib/api-error';
-
-export async function GET() {
-  try {
-    const user = await getSessionUser(); // Auth check
-    if (!user) return handleUnauthorized();
-    
-    const courses = await courseService.getCourses(user.id); // Service call
-    return NextResponse.json(courses);
-  } catch (error: unknown) {
-    return NextResponse.json(
-      { error: getErrorMessage(error) }, 
-      { status: 500 }
-    );
-  }
-}
-```
-
-### 3. Database/Service Layer (`src/lib/services/`, `src/lib/controllers/`)
-
-**Responsibility:** Business logic, data access, database operations
-
-**Files/Directories:**
-- `src/lib/services/` - Business logic services
-- `src/lib/controllers/` - Request orchestration
-- `src/lib/api-error.ts` - Error types and helpers
-
-**Key Rules:**
-- ✅ Can directly access database
-- ✅ Can perform complex business logic
-- ✅ Can validate data
-- ✅ Should throw typed errors
-- ❌ **CANNOT import from frontend components**
-- ❌ **CANNOT access browser APIs**
-- ❌ **CANNOT make HTTP calls directly**
-
-**Example - Service Layer:**
-```typescript
-// src/lib/services/course.service.ts
-export const courseService = {
-  async getCourses(userId: string): Promise<CourseDTO[]> {
-    // Business logic & database access
-    const courses = await db.query('courses WHERE created_by = ?', [userId]);
-    return courses.map(formatCourseDTO);
-  }
-};
-```
-
-## Data Flow Examples
-
-### Example 1: Fetching Courses
-
-```
-1. FRONTEND - User clicks "View Courses"
-   ↓
-2. Component calls: getCourses() from api-actions.ts
-   ↓
-3. api-actions.ts calls: apiClient.get('/api/courses')
-   ↓
-4. FRONTEND sends HTTP GET to /api/courses
-   ↓
-5. API ROUTE - src/app/api/courses/route.ts handles request
-   ├─ Validates session/auth
-   ├─ Calls courseService.getCourses(userId)
-   └─ Returns JSON response
-   ↓
-6. SERVICE LAYER - courseService.getCourses()
-   ├─ Queries database
-   ├─ Formats response
-   └─ Returns data
-   ↓
-7. API ROUTE sends response back
-   ↓
-8. FRONTEND receives data in getCourses() callback
-   ↓
-9. Component state updates and re-renders
-```
-
-### Example 2: Saving a Course
-
-```
-User submits form
-    ↓
-Component: saveCourse(courseData)
-    ↓
-api-actions.ts: apiClient.post('/api/courses', courseData)
-    ↓
-API Route validates + calls courseService.saveCourse()
-    ↓
-Service: validates, saves to DB, returns saved object
-    ↓
-API Route: returns JSON response
-    ↓
-Component receives result and updates UI
-```
-
-## Enforcement Mechanisms
-
-### 1. Import Path Restrictions
-
-Using TypeScript and eslint, enforce:
-- Frontend files only import from `api-actions`
-- Services only imported from API routes
-- No cross-layer imports
-
-### 2. API-Only Communication
-
-All data flows through HTTP:
-- Frontend ← API Routes → Services/Database
-- No direct service imports in components
-
-### 3. Type Safety
-
-- All API responses use DTOs
-- Error handling via `ApiError` type
-- TypeScript strict mode enforces typing
-
-## File Organization
-
-```
-src/
-├── app/
-│   ├── api/                          # API Routes ONLY
-│   │   ├── auth/
-│   │   ├── courses/
-│   │   ├── assignments/
-│   │   ├── system/
-│   │   └── api-utils.ts              # Auth helpers for routes
-│   ├── student/                      # Frontend pages
-│   ├── teacher/
-│   ├── admin/
-│   └── layout.tsx
-├── components/                       # React components
-│   ├── StudentHeader.tsx             # Can only use api-actions
-│   ├── TeacherHeader.tsx
-│   └── admin/
-├── lib/
-│   ├── api-client.ts                 # HTTP client (use in api-actions)
-│   ├── api-actions.ts                # ✅ FRONTEND uses this
-│   ├── api-error.ts                  # Error types
-│   ├── services/                     # ❌ FRONTEND cannot use
-│   │   ├── course.service.ts
-│   │   ├── auth.service.ts
-│   │   └── ...
-│   ├── controllers/                  # ❌ FRONTEND cannot use
-│   │   ├── auth.controller.ts
-│   │   └── ...
-│   ├── dto/                          # Data Transfer Objects
-│   ├── types.ts                      # Frontend types only
-│   └── validation.ts
-```
-
-## Database Access Pattern
-
-```
-                FRONTEND (Browser)
-                        ↓
-                   api-actions.ts
-                        ↓
-                    HTTP Request
-                        ↓
-                   API Route Handler
-                    /api/courses
-                        ↓
-            courseService.getCourses()
-                        ↓
-                  Database Query
-                (Actual DB Access)
-                        ↓
-                   JSON Response
-                        ↓
-                        HTTP
-                        ↓
-                   Frontend receives
-                   & updates state
-```
-
-## Summary
-
-✅ **Enforced:** 
-- Frontend ONLY uses `api-actions.ts`
-- API routes handle HTTP and auth
-- Services contain all business logic
-- Database access ONLY through services
-- No direct frontend-to-database access
-
-This architecture ensures:
-1. **Security** - Authentication and authorization at API layer
-2. **Maintainability** - Clear separation of concerns
-3. **Scalability** - Easy to add features without breaking layers
-4. **Testability** - Each layer can be tested independently
-5. **Type Safety** - DTOs and TypeScript types enforce contracts
+- **DTOs & Types:** All interfaces and DTOs merged into `src/lib/types.ts`.
+- **Services:** Consolidated from 8+ files into 4 domain-based services.
+- **Repositories:** Eliminated in favor of domain-based Database Adapters.
+- **API Routes:** Drastically reduced file count through action-based grouping.
+- **UI:** Unified sidebar and feature-based component organization.

@@ -2,18 +2,16 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
-import { useSupabase } from '@/hooks/useSupabase';
-import { CourseEditor } from "@/components/teacher/CourseEditor";
-import { LessonEditor } from "@/components/teacher/LessonEditor";
-import { CourseDTO } from '@/lib/dto/learning.dto';
-import { deleteCourse } from '@/lib/api-actions';
+import * as actions from '@/lib/api-actions';
+import { CourseEditor } from "@/components/courses/CourseEditor";
+import { LessonEditor } from "@/components/courses/LessonEditor";
+import { CourseDTO } from '@/lib/types';
 import { CourseList } from '@/components/common/CourseList';
 import { Button } from '@/components/ui/Button';
 import { Plus } from 'lucide-react';
 
 export default function CoursesPage() {
   const { user } = useAuth();
-  const { getCourses } = useSupabase();
   const [courses, setCourses] = useState<CourseDTO[]>([]);
   const [editingCourse, setEditingCourse] = useState<CourseDTO | null>(null);
   const [activeLessonCourse, setActiveLessonCourse] = useState<CourseDTO | null>(null);
@@ -21,10 +19,10 @@ export default function CoursesPage() {
 
   const fetchCourses = useCallback(async () => {
     if (user) {
-        const data = await getCourses(user.id);
+        const data = await actions.getCourses(user.id);
         setCourses(data);
     }
-  }, [user, getCourses]);
+  }, [user]);
 
   useEffect(() => {
     fetchCourses();
@@ -59,7 +57,7 @@ export default function CoursesPage() {
         onEdit={setEditingCourse}
         onDelete={async (id) => {
             if (!confirm('Are you sure you want to delete this course and all its lessons?')) return;
-            await deleteCourse(id);
+            await actions.deleteCourse(id);
             fetchCourses();
         }}
         showStatus={true}

@@ -4,13 +4,14 @@ import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
 import { useAppContext } from '@/components/AppContext';
 import { getEnrollments, getAssignments, getSubmissions } from '@/lib/api-actions';
-import { StudentSidebar } from "@/components/StudentSidebar";
-import { StudentHeader } from "@/components/StudentHeader";
+import { UnifiedSidebar } from "@/components/common/UnifiedSidebar"
+import { UserRole } from "@/lib/types";
+import { StudentHeader } from "@/components/layout/StudentHeader";
 import { ForcePasswordChange } from "@/components/auth/ForcePasswordChange";
 import { useRouter, usePathname } from 'next/navigation';
-import { UserDTO } from '@/lib/dto/auth.dto';
-import { EnrollmentDTO } from '@/lib/dto/learning.dto';
-import { AssignmentDTO, SubmissionDTO } from '@/lib/dto/assessment.dto';
+import { UserDTO } from '@/lib/types';
+import { EnrollmentDTO } from '@/lib/types';
+import { AssignmentDTO, SubmissionDTO } from '@/lib/types';
 
 function StudentLayoutContent({
   children,
@@ -81,7 +82,7 @@ function StudentLayoutContent({
       )}
 
       <div className="flex">
-        <StudentSidebar
+        <UnifiedSidebar role={role as UserRole}
           activePage={activePage === 'student' ? 'dashboard' : activePage}
           onNavigate={(page) => router.push(`/student/${page === 'dashboard' ? '' : page}`)}
           isOpen={isSidebarOpen}
