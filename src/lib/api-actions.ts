@@ -9,6 +9,7 @@ import {
   Material,
   Discussion,
   PlannerItem,
+  Session,
   LiveClass,
   UserDTO,
   CourseDTO,
@@ -31,7 +32,7 @@ import {
 // Auth / Users
 export async function login(credentials: { email: string; password?: string }): Promise<{ success: boolean; data?: { user: UserDTO; sessionId: string }; error?: string }> {
   try {
-    const result = await apiClient.post<{ user: UserDTO; sessionId: string; error?: string }>('/api/auth/login', credentials);
+    const result = await apiClient.post<{ user: UserDTO; sessionId: string; error?: string }>('/api/auth', { action: 'login', ...credentials });
     return { success: true, data: result as { user: UserDTO; sessionId: string } };
   } catch (error: unknown) {
     return { success: false, error: (error as Error).message };
@@ -40,7 +41,7 @@ export async function login(credentials: { email: string; password?: string }): 
 
 export async function signup(userData: Partial<User>): Promise<{ success: boolean; data?: { user: UserDTO; sessionId: string }; error?: string }> {
   try {
-    const result = await apiClient.post<{ user: UserDTO; sessionId: string; error?: string }>('/api/auth/signup', userData);
+    const result = await apiClient.post<{ user: UserDTO; sessionId: string; error?: string }>('/api/auth', { action: 'signup', ...userData });
     return { success: true, data: result as { user: UserDTO; sessionId: string } };
   } catch (error: unknown) {
     return { success: false, error: (error as Error).message };
@@ -49,7 +50,7 @@ export async function signup(userData: Partial<User>): Promise<{ success: boolea
 
 export async function logout(): Promise<{ success: boolean; error?: string }> {
   try {
-    await apiClient.post('/api/auth/logout');
+    await apiClient.post('/api/auth', { action: 'logout' });
     return { success: true };
   } catch (error: unknown) {
     return { success: false, error: (error as Error).message };
@@ -58,15 +59,19 @@ export async function logout(): Promise<{ success: boolean; error?: string }> {
 
 export async function getMe(): Promise<UserDTO | null> {
     try {
-        return await apiClient.get<UserDTO>('/api/auth/me');
+        return await apiClient.get<UserDTO>('/api/auth?action=me');
     } catch {
         return null;
     }
 }
 
+export async function getSessions(): Promise<Session[]> {
+    return apiClient.get<Session[]>('/api/system?action=sessions');
+}
+
 export async function getSession(): Promise<{ sessionId: string } | null> {
     try {
-        return await apiClient.get<{ sessionId: string }>('/api/auth/session');
+        return await apiClient.get<{ sessionId: string }>('/api/auth?action=session');
     } catch {
         return null;
     }
@@ -74,7 +79,7 @@ export async function getSession(): Promise<{ sessionId: string } | null> {
 
 export async function updateProfile(updates: Partial<User>): Promise<{ success: boolean; error?: string }> {
     try {
-        await apiClient.post('/api/auth/profile', updates);
+        await apiClient.post('/api/auth', { action: 'profile', ...updates });
         return { success: true };
     } catch (error: unknown) {
         return { success: false, error: (error as Error).message };
@@ -105,7 +110,7 @@ export async function saveUser(user: Partial<User> & { id?: string }): Promise<{
 
 export async function approveResetRequest(userId: string, tempPass: string): Promise<{ success: boolean; error?: string }> {
     try {
-        await apiClient.post('/api/auth/reset-request', { userId, tempPass, action: 'approve' });
+        await apiClient.post('/api/auth', { userId, tempPassword: tempPass, action: 'reset-request', subAction: 'approve' });
         return { success: true };
     } catch (error: unknown) {
         return { success: false, error: (error as Error).message };
@@ -114,7 +119,7 @@ export async function approveResetRequest(userId: string, tempPass: string): Pro
 
 export async function denyResetRequest(userId: string, reason: string): Promise<{ success: boolean; error?: string }> {
     try {
-        await apiClient.post('/api/auth/reset-request', { userId, reason, action: 'deny' });
+        await apiClient.post('/api/auth', { userId, reason, action: 'reset-request', subAction: 'deny' });
         return { success: true };
     } catch (error: unknown) {
         return { success: false, error: (error as Error).message };
@@ -141,7 +146,7 @@ export async function deleteLiveClass(id: string): Promise<{ success: boolean; e
 
 export async function deleteAssignment(id: string): Promise<{ success: boolean; error?: string }> {
     try {
-        await apiClient.delete(`/api/assignments?id=${id}`);
+        await apiClient.delete(`/api/assessment?action=assignment&id=${id}`);
         return { success: true };
     } catch (error: unknown) {
         return { success: false, error: (error as Error).message };
@@ -159,13 +164,13 @@ export async function deletePlannerItem(id: string): Promise<{ success: boolean;
 
 // Courses
 export async function getCourses(teacherId?: string): Promise<CourseDTO[]> {
-  const url = teacherId ? `/api/courses?teacherId=${teacherId}` : '/api/courses';
+  const url = teacherId ? `/api/learning?action=courses&teacherId=${teacherId}` : '/api/learning?action=courses';
   return apiClient.get<CourseDTO[]>(url);
 }
 
 export async function saveCourse(course: Partial<Course>): Promise<{ success: boolean; data?: CourseDTO; error?: string }> {
   try {
-    const data = await apiClient.post<CourseDTO>('/api/courses', course);
+    const data = await apiClient.post<CourseDTO>('/api/learning', { action: 'save-course', ...course });
     return { success: true, data };
   } catch (error: unknown) {
     return { success: false, error: (error as Error).message };
@@ -174,7 +179,7 @@ export async function saveCourse(course: Partial<Course>): Promise<{ success: bo
 
 export async function deleteQuiz(id: string): Promise<{ success: boolean; error?: string }> {
     try {
-        await apiClient.delete(`/api/quizzes?id=${id}`);
+        await apiClient.delete(`/api/assessment?action=quiz&id=${id}`);
         return { success: true };
     } catch (error: unknown) {
         return { success: false, error: (error as Error).message };
@@ -209,7 +214,7 @@ export async function unenrollStudent(courseId: string, studentId: string): Prom
 
 export async function deleteCourse(id: string): Promise<{ success: boolean; error?: string }> {
     try {
-        await apiClient.delete(`/api/courses?id=${id}`);
+        await apiClient.delete(`/api/learning?action=course&id=${id}`);
         return { success: true };
     } catch (error: unknown) {
         return { success: false, error: (error as Error).message };
@@ -218,17 +223,15 @@ export async function deleteCourse(id: string): Promise<{ success: boolean; erro
 
 // Assignments
 export async function getAssignments(teacherId?: string, courseId?: string): Promise<AssignmentDTO[]> {
-  let url = '/api/assignments';
-  const params = new URLSearchParams();
-  if (teacherId) params.append('teacherId', teacherId);
-  if (courseId) params.append('courseId', courseId);
-  if (params.toString()) url += `?${params.toString()}`;
+  let url = '/api/assessment?action=assignments';
+  if (teacherId) url += `&teacherId=${teacherId}`;
+  if (courseId) url += `&courseId=${courseId}`;
   return apiClient.get<AssignmentDTO[]>(url);
 }
 
 export async function saveAssignment(assignment: Partial<Assignment>): Promise<{ success: boolean; data?: AssignmentDTO; error?: string }> {
   try {
-    const data = await apiClient.post<AssignmentDTO>('/api/assignments', assignment);
+    const data = await apiClient.post<AssignmentDTO>('/api/assessment', { action: 'save-assignment', ...assignment });
     return { success: true, data };
   } catch (error: unknown) {
     return { success: false, error: (error as Error).message };
@@ -237,7 +240,7 @@ export async function saveAssignment(assignment: Partial<Assignment>): Promise<{
 
 export async function submitAssignment(assignmentId: string, content: Partial<Submission>): Promise<{ success: boolean; data?: SubmissionDTO; error?: string }> {
   try {
-    const data = await apiClient.post<SubmissionDTO>(`/api/submissions?assignmentId=${assignmentId}`, content);
+    const data = await apiClient.post<SubmissionDTO>('/api/assessment', { action: 'submit-assignment', assignmentId, ...content });
     return { success: true, data };
   } catch (error: unknown) {
     return { success: false, error: (error as Error).message };
@@ -245,17 +248,15 @@ export async function submitAssignment(assignmentId: string, content: Partial<Su
 }
 
 export async function getSubmissions(assignmentId?: string, studentId?: string): Promise<SubmissionDTO[]> {
-    let url = '/api/submissions';
-    const params = new URLSearchParams();
-    if (assignmentId) params.append('assignmentId', assignmentId);
-    if (studentId) params.append('studentId', studentId);
-    if (params.toString()) url += `?${params.toString()}`;
+    let url = '/api/assessment?action=submissions';
+    if (assignmentId) url += `&assignmentId=${assignmentId}`;
+    if (studentId) url += `&studentId=${studentId}`;
     return apiClient.get<SubmissionDTO[]>(url);
 }
 
 export async function gradeSubmission(id: string, gradeData: Partial<Submission>): Promise<{ success: boolean; error?: string }> {
     try {
-        await apiClient.patch(`/api/submissions?id=${id}`, gradeData);
+        await apiClient.patch(`/api/assessment?action=grade-submission&id=${id}`, gradeData);
         return { success: true };
     } catch (error: unknown) {
         return { success: false, error: (error as Error).message };
@@ -264,17 +265,15 @@ export async function gradeSubmission(id: string, gradeData: Partial<Submission>
 
 // Quizzes
 export async function getQuizzes(courseId?: string, teacherId?: string): Promise<QuizDTO[]> {
-  let url = '/api/quizzes';
-  const params = new URLSearchParams();
-  if (courseId) params.append('courseId', courseId);
-  if (teacherId) params.append('teacherId', teacherId);
-  if (params.toString()) url += `?${params.toString()}`;
+  let url = '/api/assessment?action=quizzes';
+  if (courseId) url += `&courseId=${courseId}`;
+  if (teacherId) url += `&teacherId=${teacherId}`;
   return apiClient.get<QuizDTO[]>(url);
 }
 
 export async function saveQuiz(quiz: Partial<Quiz>): Promise<{ success: boolean; data?: QuizDTO; error?: string }> {
   try {
-    const data = await apiClient.post<QuizDTO>('/api/quizzes', quiz);
+    const data = await apiClient.post<QuizDTO>('/api/assessment', { action: 'save-quiz', ...quiz });
     return { success: true, data };
   } catch (error: unknown) {
     return { success: false, error: (error as Error).message };
@@ -283,7 +282,7 @@ export async function saveQuiz(quiz: Partial<Quiz>): Promise<{ success: boolean;
 
 export async function submitQuiz(quizId: string, content: Partial<QuizSubmission>): Promise<{ success: boolean; score?: number; error?: string }> {
   try {
-    const result = await apiClient.post<{ score: number }>(`/api/submissions?assignmentId=${quizId}&type=quiz`, content);
+    const result = await apiClient.post<{ score: number }>('/api/assessment', { action: 'submit-quiz', quizId, ...content });
     return { success: true, score: result.score };
   } catch (error: unknown) {
     return { success: false, error: (error as Error).message };
@@ -299,13 +298,13 @@ export async function getQuizSubmissions(quizId?: string, studentId?: string): P
 
 // Materials
 export async function getMaterials(courseId?: string): Promise<MaterialDTO[]> {
-  const url = courseId ? `/api/materials?courseId=${courseId}` : '/api/materials';
+  const url = courseId ? `/api/learning?action=materials&courseId=${courseId}` : '/api/learning?action=materials';
   return apiClient.get<MaterialDTO[]>(url);
 }
 
 export async function saveMaterial(material: Partial<Material>): Promise<{ success: boolean; data?: MaterialDTO; error?: string }> {
   try {
-    const data = await apiClient.post<MaterialDTO>('/api/materials', material);
+    const data = await apiClient.post<MaterialDTO>('/api/learning', { action: 'save-material', ...material });
     return { success: true, data };
   } catch (error: unknown) {
     return { success: false, error: (error as Error).message };
@@ -314,7 +313,7 @@ export async function saveMaterial(material: Partial<Material>): Promise<{ succe
 
 export async function deleteMaterial(id: string): Promise<{ success: boolean; error?: string }> {
     try {
-        await apiClient.delete(`/api/materials?id=${id}`);
+        await apiClient.delete(`/api/learning?action=material&id=${id}`);
         return { success: true };
     } catch (error: unknown) {
         return { success: false, error: (error as Error).message };
@@ -323,7 +322,7 @@ export async function deleteMaterial(id: string): Promise<{ success: boolean; er
 
 export async function deleteLesson(id: string): Promise<{ success: boolean; error?: string }> {
     try {
-        await apiClient.delete(`/api/lessons?id=${id}`);
+        await apiClient.delete(`/api/learning?action=lesson&id=${id}`);
         return { success: true };
     } catch (error: unknown) {
         return { success: false, error: (error as Error).message };
@@ -332,12 +331,12 @@ export async function deleteLesson(id: string): Promise<{ success: boolean; erro
 
 // Lessons
 export async function getLessons(courseId: string): Promise<LessonDTO[]> {
-    return apiClient.get<LessonDTO[]>(`/api/lessons?courseId=${courseId}`);
+    return apiClient.get<LessonDTO[]>(`/api/learning?action=lessons&courseId=${courseId}`);
 }
 
 export async function saveLesson(lesson: Partial<LessonDTO>): Promise<{ success: boolean; data?: LessonDTO; error?: string }> {
     try {
-        const data = await apiClient.post<LessonDTO>('/api/lessons', lesson);
+        const data = await apiClient.post<LessonDTO>('/api/learning', { action: 'save-lesson', ...lesson });
         return { success: true, data };
     } catch (error: unknown) {
         return { success: false, error: (error as Error).message };
@@ -398,7 +397,7 @@ export async function createBroadcast(broadcast: unknown): Promise<{ success: bo
 
 // Maintenance
 export async function getMaintenance(): Promise<MaintenanceDTO> {
-  return apiClient.get<MaintenanceDTO>('/api/system/maintenance');
+  return apiClient.get<MaintenanceDTO>('/api/system?action=maintenance');
 }
 
 export async function updateMaintenance(data: unknown): Promise<{ success: boolean; error?: string }> {
@@ -477,7 +476,7 @@ export async function recordAttendance(liveClassId: string): Promise<{ success: 
 
 // File Upload Path
 export async function uploadFile(fileName: string, category: string): Promise<{ filePath: string }> {
-    return apiClient.post<{ filePath: string }>('/api/system/upload-path', { fileName, category });
+    return apiClient.post<{ filePath: string }>('/api/system', { action: 'upload-path', fileName, category });
 }
 
 // Notifications
@@ -502,7 +501,7 @@ export async function markAllNotificationsAsRead(userId: string): Promise<{ succ
 // Auth - Password Management
 export async function updatePassword(currentPassword: string, newPassword: string): Promise<{ success: boolean; error?: string }> {
     try {
-        await apiClient.post('/api/auth/password', { currentPassword, newPassword });
+        await apiClient.post('/api/auth', { action: 'password', currentPassword, newPassword });
         return { success: true };
     } catch (error: unknown) {
         return { success: false, error: error instanceof Error ? (error as Error).message : 'Unknown error' };
@@ -511,7 +510,7 @@ export async function updatePassword(currentPassword: string, newPassword: strin
 
 export async function requestPasswordReset(email: string, reason: string, riskLevel: string): Promise<{ success: boolean; error?: string }> {
     try {
-        await apiClient.post('/api/auth/reset-request', { email, reason, riskLevel, action: 'request' });
+        await apiClient.post('/api/auth', { action: 'reset-request', subAction: 'request', email, reason, riskLevel });
         return { success: true };
     } catch (error: unknown) {
         return { success: false, error: error instanceof Error ? (error as Error).message : 'Unknown error' };
@@ -520,13 +519,13 @@ export async function requestPasswordReset(email: string, reason: string, riskLe
 
 // Auth - User Info
 export async function getRoleCount(): Promise<{ teachers: number; admins: number; total: number }> {
-    return apiClient.get<{ teachers: number; admins: number; total: number }>('/api/auth/role-count');
+    return apiClient.get<{ teachers: number; admins: number; total: number }>('/api/auth?action=role-count');
 }
 
 // User Preferences
 export async function updatePreferences(preferences: Record<string, unknown>): Promise<{ success: boolean; error?: string }> {
     try {
-        await apiClient.post('/api/auth/preferences', { preferences });
+        await apiClient.post('/api/auth', { action: 'preferences', preferences });
         return { success: true };
     } catch (error: unknown) {
         return { success: false, error: error instanceof Error ? (error as Error).message : 'Unknown error' };
