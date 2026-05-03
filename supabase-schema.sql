@@ -1,11 +1,15 @@
 -- SmartLMS Supabase Schema (Comprehensive Consolidated Script)
 -- This script safely updates the database without losing data and aligns with backend actions.
 
+-- ==========================================
 -- 1. Extensions
+-- ==========================================
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
+-- ==========================================
 -- 2. Utility Functions
+-- ==========================================
 DROP FUNCTION IF EXISTS update_updated_at_column() CASCADE;
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
@@ -15,7 +19,10 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
--- 3. Tables (idempotent creation)
+-- ==========================================
+-- 3. Core Tables (Idempotent Creation)
+-- ==========================================
+
 CREATE TABLE IF NOT EXISTS users (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   email VARCHAR(255) UNIQUE NOT NULL,
@@ -39,7 +46,7 @@ CREATE TABLE IF NOT EXISTS users (
 
 CREATE TABLE IF NOT EXISTS courses (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  course_id VARCHAR(100),
+  course_id VARCHAR(100), -- Acts as Enrollment Code
   created_by VARCHAR(255),
   title VARCHAR(255) NOT NULL,
   description TEXT,
@@ -274,7 +281,6 @@ CREATE TABLE IF NOT EXISTS planner (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
-
 CREATE TABLE IF NOT EXISTS lesson_completions (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   student_id UUID REFERENCES users(id) ON UPDATE CASCADE ON DELETE CASCADE,
@@ -299,7 +305,9 @@ CREATE TABLE IF NOT EXISTS settings (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- 4. Migrations (safe column additions)
+-- ==========================================
+-- 4. Safe Migrations (Column Additions/Removals)
+-- ==========================================
 DO $$
 BEGIN
     -- Anti-cheat and violation tracking
@@ -397,7 +405,9 @@ BEGIN
     END IF;
 END $$;
 
--- 5. Indexes (idempotent)
+-- ==========================================
+-- 5. Indexes (Idempotent)
+-- ==========================================
 CREATE INDEX IF NOT EXISTS idx_sessions_id ON sessions(id);
 CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions(expires_at);
 CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
@@ -416,7 +426,9 @@ CREATE INDEX IF NOT EXISTS idx_submissions_assignment ON submissions(assignment_
 CREATE INDEX IF NOT EXISTS idx_materials_course ON materials(course_id);
 CREATE INDEX IF NOT EXISTS idx_planner_user_date ON planner(user_id, due_date);
 
--- 6. Helper Functions
+-- ==========================================
+-- 6. RPC Functions (Logic Layers)
+-- ==========================================
 
 -- Custom App User Resolver
 DROP FUNCTION IF EXISTS current_app_user() CASCADE;
@@ -563,6 +575,7 @@ BEGIN
 
   v_hashed_password := crypt(p_password, gen_salt('bf', 10));
 
+  -- Creation limits for non-admin callers
   IF v_caller_role != 'admin' THEN
     IF p_role IN ('teacher', 'admin') THEN
       SELECT COUNT(*) INTO v_count FROM users WHERE role IN ('teacher', 'admin');
@@ -751,6 +764,9 @@ BEGIN
   v_hashed_password := crypt(p_new_password, gen_salt('bf', 10));
   UPDATE users SET password = v_hashed_password, reset_request = NULL, updated_at = NOW() WHERE id = v_user_id;
 
+  -- Invalidate other sessions for this user on password change
+  DELETE FROM sessions WHERE user_id = v_user_id AND id != (current_setting('request.headers', true)::json->>'x-session-id')::uuid;
+
   RETURN jsonb_build_object('success', true);
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -791,7 +807,10 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+-- ==========================================
 -- 7. Notifications & Broadcasting
+-- ==========================================
+
 DROP FUNCTION IF EXISTS notify_user(target_id UUID, n_title TEXT, n_msg TEXT, n_link TEXT, n_type TEXT);
 CREATE OR REPLACE FUNCTION notify_user(target_id UUID, n_title TEXT, n_msg TEXT, n_link TEXT DEFAULT NULL, n_type TEXT DEFAULT 'system')
 RETURNS VOID AS $$
@@ -810,13 +829,14 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- 8. Triggers
+-- ==========================================
+-- 8. Triggers & Automation
+-- ==========================================
 
--- Protect Grades
+-- Grade Protection
 CREATE OR REPLACE FUNCTION tr_check_grade_protection() RETURNS TRIGGER AS $$
 BEGIN
     IF current_app_role() = 'student' THEN
-        -- Prevent students from changing grade-related fields
         IF TG_TABLE_NAME = 'submissions' THEN
             IF (NEW.grade IS DISTINCT FROM OLD.grade) OR
                (NEW.final_grade IS DISTINCT FROM OLD.final_grade) OR
@@ -840,7 +860,7 @@ CREATE TRIGGER tr_protect_asgn_grades BEFORE UPDATE ON submissions FOR EACH ROW 
 DROP TRIGGER IF EXISTS tr_protect_quiz_scores ON quiz_submissions;
 CREATE TRIGGER tr_protect_quiz_scores BEFORE UPDATE ON quiz_submissions FOR EACH ROW EXECUTE PROCEDURE tr_check_grade_protection();
 
--- Auto Flag for Lockouts
+-- Lockout Management
 CREATE OR REPLACE FUNCTION tr_check_lockouts_flag() RETURNS TRIGGER AS $$
 BEGIN
   IF NEW.lockouts >= 3 AND OLD.lockouts < 3 THEN
@@ -853,17 +873,15 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 DROP TRIGGER IF EXISTS tr_users_lockout_flag ON users;
 CREATE TRIGGER tr_users_lockout_flag BEFORE UPDATE ON users FOR EACH ROW EXECUTE PROCEDURE tr_check_lockouts_flag();
 
--- Notify Live Class
+-- Broadcast Automation
 CREATE OR REPLACE FUNCTION tr_notify_live_class() RETURNS TRIGGER AS $$
 BEGIN
   IF (NEW.status = 'live' AND (OLD.status IS NULL OR OLD.status != 'live')) THEN
-    PERFORM broadcast_data(NEW.course_id, 'student', 'Live Class Started', 'The class "' || NEW.title || '" has started! Join now.', '/student?page=live', 'live_class', INTERVAL '1 day');
+    PERFORM broadcast_data(NEW.course_id, 'student', 'Live Class Started', 'The class "' || NEW.title || '" has started! Join now.', '/student/live', 'live_class', INTERVAL '1 day');
   ELSIF (NEW.status = 'scheduled' AND OLD.status IS NULL) THEN
-    PERFORM broadcast_data(NEW.course_id, 'student', 'Live Class Scheduled', 'A new live class "' || NEW.title || '" has been scheduled for ' || NEW.start_at, '/student?page=live', 'live_class', INTERVAL '7 days');
-  ELSIF (NEW.status = 'scheduled' AND OLD.status = 'live') THEN
-    PERFORM broadcast_data(NEW.course_id, 'student', 'Teacher Left Room', 'The teacher has left the session for "' || NEW.title || '". Please wait for them to rejoin.', '/student?page=live', 'teacher_left', INTERVAL '1 hour');
+    PERFORM broadcast_data(NEW.course_id, 'student', 'Live Class Scheduled', 'A new live class "' || NEW.title || '" has been scheduled for ' || NEW.start_at, '/student/live', 'live_class', INTERVAL '7 days');
   ELSIF (NEW.status = 'completed' AND OLD.status = 'live') THEN
-    PERFORM broadcast_data(NEW.course_id, 'student', 'Class Ended', 'The live class "' || NEW.title || '" has ended.', '/student?page=live', 'class_ended', INTERVAL '1 day');
+    PERFORM broadcast_data(NEW.course_id, 'student', 'Class Ended', 'The live class "' || NEW.title || '" has ended.', '/student/live', 'class_ended', INTERVAL '1 day');
   END IF;
   RETURN NEW;
 END;
@@ -872,11 +890,10 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 DROP TRIGGER IF EXISTS tr_live_class_event ON live_classes;
 CREATE TRIGGER tr_live_class_event AFTER INSERT OR UPDATE ON live_classes FOR EACH ROW EXECUTE PROCEDURE tr_notify_live_class();
 
--- Notify Assignment
 CREATE OR REPLACE FUNCTION tr_notify_assignment() RETURNS TRIGGER AS $$
 BEGIN
   IF (NEW.status = 'published' AND (OLD.status IS NULL OR OLD.status != 'published')) THEN
-    PERFORM broadcast_data(NEW.course_id, 'student', 'New Assignment', 'A new assignment "' || NEW.title || '" has been published.', '/student?page=assignments', 'assignment_published', INTERVAL '14 days');
+    PERFORM broadcast_data(NEW.course_id, 'student', 'New Assignment', 'A new assignment "' || NEW.title || '" has been published.', '/student/assignments', 'assignment_published', INTERVAL '14 days');
   END IF;
   RETURN NEW;
 END;
@@ -885,11 +902,10 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 DROP TRIGGER IF EXISTS tr_assignment_published ON assignments;
 CREATE TRIGGER tr_assignment_published AFTER INSERT OR UPDATE ON assignments FOR EACH ROW EXECUTE PROCEDURE tr_notify_assignment();
 
--- Notify Quiz
 CREATE OR REPLACE FUNCTION tr_notify_quiz() RETURNS TRIGGER AS $$
 BEGIN
   IF (NEW.status = 'published' AND (OLD.status IS NULL OR OLD.status != 'published')) THEN
-    PERFORM broadcast_data(NEW.course_id, 'student', 'New Quiz Available', 'A new quiz "' || NEW.title || '" has been published.', '/student?page=quizzes', 'quiz_published', INTERVAL '14 days');
+    PERFORM broadcast_data(NEW.course_id, 'student', 'New Quiz Available', 'A new quiz "' || NEW.title || '" has been published.', '/student/quizzes', 'quiz_published', INTERVAL '14 days');
   END IF;
   RETURN NEW;
 END;
@@ -898,38 +914,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 DROP TRIGGER IF EXISTS tr_quiz_published ON quizzes;
 CREATE TRIGGER tr_quiz_published AFTER INSERT OR UPDATE ON quizzes FOR EACH ROW EXECUTE PROCEDURE tr_notify_quiz();
 
--- Notify Submission
-CREATE OR REPLACE FUNCTION tr_notify_submission() RETURNS TRIGGER AS $$
-DECLARE
-  v_teacher_id UUID;
-BEGIN
-  SELECT c.teacher_id INTO v_teacher_id FROM courses c JOIN assignments a ON c.id = a.course_id WHERE a.id = NEW.assignment_id;
-  IF (NEW.status = 'submitted' AND (OLD.status IS NULL OR OLD.status != 'submitted')) THEN
-    IF v_teacher_id IS NOT NULL THEN
-      PERFORM notify_user(v_teacher_id, 'New Submission', 'A student has submitted an assignment.', '/teacher?page=grading', 'submission_received');
-    END IF;
-  END IF;
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
-DROP TRIGGER IF EXISTS tr_submission_received ON submissions;
-CREATE TRIGGER tr_submission_received AFTER INSERT OR UPDATE ON submissions FOR EACH ROW EXECUTE PROCEDURE tr_notify_submission();
-
--- Notify Grade
-CREATE OR REPLACE FUNCTION tr_notify_grade() RETURNS TRIGGER AS $$
-BEGIN
-  IF (NEW.status = 'graded' AND (OLD.status IS NULL OR OLD.status != 'graded')) THEN
-    PERFORM notify_user(NEW.student_id, 'Assignment Graded', 'Your assignment has been graded. Score: ' || NEW.final_grade || '%', '/student?page=assignments', 'grade_posted');
-  END IF;
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
-
-DROP TRIGGER IF EXISTS tr_grade_posted ON submissions;
-CREATE TRIGGER tr_grade_posted AFTER INSERT OR UPDATE ON submissions FOR EACH ROW EXECUTE PROCEDURE tr_notify_grade();
-
--- Enforce User Creation Limits
+-- User Creation Limits
 DROP FUNCTION IF EXISTS enforce_user_creation_limits() CASCADE;
 CREATE OR REPLACE FUNCTION enforce_user_creation_limits() RETURNS TRIGGER AS $$
 DECLARE
@@ -937,11 +922,7 @@ DECLARE
   v_caller_role TEXT;
 BEGIN
   v_caller_role := current_app_role();
-  IF v_caller_role = 'admin' THEN
-    RETURN NEW;
-  END IF;
-
-  IF NEW.role = 'student' THEN
+  IF v_caller_role = 'admin' OR NEW.role = 'student' THEN
     RETURN NEW;
   END IF;
 
@@ -959,7 +940,9 @@ CREATE TRIGGER tr_user_creation_limit
   BEFORE INSERT ON users
   FOR EACH ROW EXECUTE PROCEDURE enforce_user_creation_limits();
 
+-- ==========================================
 -- 9. Storage Setup
+-- ==========================================
 INSERT INTO storage.buckets (id, name, public)
 VALUES ('lms-files', 'lms-files', true)
 ON CONFLICT (id) DO NOTHING;
@@ -980,9 +963,10 @@ BEGIN
 EXCEPTION WHEN OTHERS THEN NULL;
 END $$;
 
--- 10. Security (RLS & Permissions)
+-- ==========================================
+-- 10. Security (RLS Policies)
+-- ==========================================
 
--- Enable RLS on all tables
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE courses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE lessons ENABLE ROW LEVEL SECURITY;
@@ -1004,74 +988,56 @@ ALTER TABLE lesson_completions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE system_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE settings ENABLE ROW LEVEL SECURITY;
 
--- Grant permissions to anonymous role for PostgREST access
 GRANT ALL ON ALL TABLES IN SCHEMA public TO anon;
 GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon;
 
--- RLS Helper Functions (Avoid recursion)
-CREATE OR REPLACE FUNCTION check_is_course_teacher(p_course_id UUID) RETURNS BOOLEAN AS $$
-  SELECT EXISTS (
-    SELECT 1 FROM courses WHERE id = p_course_id AND teacher_id = current_app_user()
-  );
-$$ LANGUAGE sql STABLE SECURITY DEFINER;
+-- STRICT BACKEND-ONLY ACCESS POLICIES
+-- Data access is proxied through our API/Service layer using withSession(x-session-id).
 
-CREATE OR REPLACE FUNCTION check_is_enrolled(p_course_id UUID) RETURNS BOOLEAN AS $$
-  SELECT EXISTS (
-    SELECT 1 FROM enrollments WHERE course_id = p_course_id AND student_id = current_app_user()
-  );
-$$ LANGUAGE sql STABLE SECURITY DEFINER;
-
-CREATE OR REPLACE FUNCTION check_assignment_course_teacher(p_assignment_id UUID) RETURNS BOOLEAN AS $$
-  SELECT EXISTS (
-    SELECT 1 FROM assignments a
-    JOIN courses c ON a.course_id = c.id
-    WHERE a.id = p_assignment_id AND c.teacher_id = current_app_user()
-  );
-$$ LANGUAGE sql STABLE SECURITY DEFINER;
-
-CREATE OR REPLACE FUNCTION check_assignment_submission_allowed(p_assignment_id UUID) RETURNS BOOLEAN AS $$
-  SELECT EXISTS (
-    SELECT 1 FROM assignments
-    WHERE id = p_assignment_id
-    AND (allow_late_submissions = TRUE OR due_date IS NULL OR due_date >= NOW())
-  );
-$$ LANGUAGE sql STABLE SECURITY DEFINER;
-
-CREATE OR REPLACE FUNCTION check_quiz_submission_allowed(p_quiz_id UUID) RETURNS BOOLEAN AS $$
-  SELECT EXISTS (
-    SELECT 1 FROM quizzes
-    WHERE id = p_quiz_id
-    AND (end_at IS NULL OR end_at >= NOW())
-  );
-$$ LANGUAGE sql STABLE SECURITY DEFINER;
-
--- RLS Policies
--- RLS Policies (STRICT BACKEND-ONLY ACCESS)
--- All tables are restricted from direct anon access.
--- Security is handled primarily at the API/Service layer.
-
+DROP POLICY IF EXISTS "Strict Backend Access" ON users;
 CREATE POLICY "Strict Backend Access" ON users FOR ALL TO anon USING (false);
+DROP POLICY IF EXISTS "Strict Backend Access" ON courses;
 CREATE POLICY "Strict Backend Access" ON courses FOR ALL TO anon USING (false);
+DROP POLICY IF EXISTS "Strict Backend Access" ON lessons;
 CREATE POLICY "Strict Backend Access" ON lessons FOR ALL TO anon USING (false);
+DROP POLICY IF EXISTS "Strict Backend Access" ON enrollments;
 CREATE POLICY "Strict Backend Access" ON enrollments FOR ALL TO anon USING (false);
+DROP POLICY IF EXISTS "Strict Backend Access" ON assignments;
 CREATE POLICY "Strict Backend Access" ON assignments FOR ALL TO anon USING (false);
+DROP POLICY IF EXISTS "Strict Backend Access" ON submissions;
 CREATE POLICY "Strict Backend Access" ON submissions FOR ALL TO anon USING (false);
+DROP POLICY IF EXISTS "Strict Backend Access" ON live_classes;
 CREATE POLICY "Strict Backend Access" ON live_classes FOR ALL TO anon USING (false);
+DROP POLICY IF EXISTS "Strict Backend Access" ON attendance;
 CREATE POLICY "Strict Backend Access" ON attendance FOR ALL TO anon USING (false);
+DROP POLICY IF EXISTS "Strict Backend Access" ON quizzes;
 CREATE POLICY "Strict Backend Access" ON quizzes FOR ALL TO anon USING (false);
+DROP POLICY IF EXISTS "Strict Backend Access" ON quiz_submissions;
 CREATE POLICY "Strict Backend Access" ON quiz_submissions FOR ALL TO anon USING (false);
+DROP POLICY IF EXISTS "Strict Backend Access" ON materials;
 CREATE POLICY "Strict Backend Access" ON materials FOR ALL TO anon USING (false);
+DROP POLICY IF EXISTS "Strict Backend Access" ON discussions;
 CREATE POLICY "Strict Backend Access" ON discussions FOR ALL TO anon USING (false);
+DROP POLICY IF EXISTS "Strict Backend Access" ON notifications;
 CREATE POLICY "Strict Backend Access" ON notifications FOR ALL TO anon USING (false);
+DROP POLICY IF EXISTS "Strict Backend Access" ON sessions;
 CREATE POLICY "Strict Backend Access" ON sessions FOR ALL TO anon USING (false);
+DROP POLICY IF EXISTS "Strict Backend Access" ON broadcasts;
 CREATE POLICY "Strict Backend Access" ON broadcasts FOR ALL TO anon USING (false);
+DROP POLICY IF EXISTS "Strict Backend Access" ON maintenance;
 CREATE POLICY "Strict Backend Access" ON maintenance FOR ALL TO anon USING (false);
+DROP POLICY IF EXISTS "Strict Backend Access" ON planner;
 CREATE POLICY "Strict Backend Access" ON planner FOR ALL TO anon USING (false);
+DROP POLICY IF EXISTS "Strict Backend Access" ON lesson_completions;
 CREATE POLICY "Strict Backend Access" ON lesson_completions FOR ALL TO anon USING (false);
+DROP POLICY IF EXISTS "Strict Backend Access" ON system_logs;
 CREATE POLICY "Strict Backend Access" ON system_logs FOR ALL TO anon USING (false);
+DROP POLICY IF EXISTS "Strict Backend Access" ON settings;
 CREATE POLICY "Strict Backend Access" ON settings FOR ALL TO anon USING (false);
 
+-- ==========================================
 -- 11. Initial Data
+-- ==========================================
 INSERT INTO maintenance (enabled, schedules)
 SELECT false, '[]'::jsonb
 WHERE NOT EXISTS (SELECT 1 FROM maintenance);
