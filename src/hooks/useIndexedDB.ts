@@ -142,11 +142,13 @@ export const useIndexedDB = () => {
             if (courseRes.success) success = true;
             break;
           case 'ASSIGNMENT_SAVE':
-            const assignRes = await actions.saveAssignment(item.payload as Partial<Assignment>);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const assignRes = await actions.saveAssignment(item.payload as any);
             if (assignRes.success) success = true;
             break;
           case 'QUIZ_SAVE':
-            const qRes = await actions.saveQuiz(item.payload as Partial<Quiz>);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const qRes = await actions.saveQuiz(item.payload as any);
             if (qRes.success) success = true;
             break;
           case 'DISCUSSION_POST':

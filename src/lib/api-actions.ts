@@ -2,8 +2,6 @@ import { apiClient } from './api-client';
 import {
   User,
   Course,
-  Assignment,
-  Quiz,
   Submission,
   QuizSubmission,
   Material,
@@ -229,7 +227,7 @@ export async function getAssignments(teacherId?: string, courseId?: string): Pro
   return apiClient.get<AssignmentDTO[]>(url);
 }
 
-export async function saveAssignment(assignment: Partial<Assignment>): Promise<{ success: boolean; data?: AssignmentDTO; error?: string }> {
+export async function saveAssignment(assignment: Omit<AssignmentDTO, 'course' | 'metadata'>): Promise<{ success: boolean; data?: AssignmentDTO; error?: string }> {
   try {
     const data = await apiClient.post<AssignmentDTO>('/api/assessment', { action: 'save-assignment', ...assignment });
     return { success: true, data };
@@ -271,7 +269,7 @@ export async function getQuizzes(courseId?: string, teacherId?: string): Promise
   return apiClient.get<QuizDTO[]>(url);
 }
 
-export async function saveQuiz(quiz: Partial<Quiz>): Promise<{ success: boolean; data?: QuizDTO; error?: string }> {
+export async function saveQuiz(quiz: Omit<QuizDTO, 'course' | 'metadata'>): Promise<{ success: boolean; data?: QuizDTO; error?: string }> {
   try {
     const data = await apiClient.post<QuizDTO>('/api/assessment', { action: 'save-quiz', ...quiz });
     return { success: true, data };

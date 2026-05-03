@@ -28,7 +28,6 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({ teacherId, quiz, courses
         end_at: quiz?.end_at ? new Date(quiz.end_at).toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16),
         status: quiz?.status || 'draft',
         anti_cheat_enabled: quiz?.anti_cheat_enabled || false,
-        auto_submit_enabled: quiz?.auto_submit_enabled || false,
         hard_enforcement: quiz?.hard_enforcement || false,
         shuffle_questions: quiz?.shuffle_questions || false,
         questions: (quiz?.questions) || []
@@ -65,7 +64,7 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({ teacherId, quiz, courses
         e.preventDefault();
         setIsSaving(true);
         try {
-            const payload = { ...formData, teacher_id: teacherId, id: quiz?.id };
+            const payload = { ...formData, teacher_id: teacherId, id: quiz?.id || '' };
             await saveQuiz(payload);
             addToast('Quiz saved successfully!', 'success');
             onSave();
@@ -86,51 +85,61 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({ teacherId, quiz, courses
                     <button onClick={onCancel} className="p-2 hover:bg-slate-200 rounded-full transition-colors">✕</button>
                 </header>
                 <form onSubmit={handleSubmit} className="p-4 md:p-8 space-y-6 overflow-y-auto flex-1">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                            <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">Quiz Title</label>
-                            <input type="text" required value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all" />
+                    <div className="bg-slate-50 p-6 rounded-3xl border-2 border-slate-100 space-y-6">
+                        <h3 className="text-lg font-bold text-slate-900 border-b pb-4 mb-4">Quiz Settings</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">Quiz Title</label>
+                                <input type="text" required value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} className="w-full p-4 rounded-xl border-2 border-white focus:border-blue-500 outline-none transition-all shadow-sm" />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">Course</label>
+                                <select value={formData.course_id} onChange={e => setFormData({...formData, course_id: e.target.value})} className="w-full p-4 rounded-xl border-2 border-white focus:border-blue-500 outline-none transition-all shadow-sm">
+                                    {courses.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
+                                </select>
+                            </div>
                         </div>
-                        <div>
-                            <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">Course</label>
-                            <select value={formData.course_id} onChange={e => setFormData({...formData, course_id: e.target.value})} className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all">
-                                {courses.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
-                            </select>
-                        </div>
-                    </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
-                            <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">Start At</label>
-                            <input type="datetime-local" required value={formData.start_at} onChange={e => setFormData({...formData, start_at: e.target.value})} className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all" />
+                            <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">Description</label>
+                            <textarea value={formData.description || ''} onChange={e => setFormData({...formData, description: e.target.value})} className="w-full p-4 rounded-xl border-2 border-white focus:border-blue-500 outline-none transition-all shadow-sm h-24 resize-none" placeholder="Describe the quiz expectations..." />
                         </div>
-                        <div>
-                            <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">End At</label>
-                            <input type="datetime-local" required value={formData.end_at} onChange={e => setFormData({...formData, end_at: e.target.value})} className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all" />
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">Start At</label>
+                                <input type="datetime-local" required value={formData.start_at} onChange={e => setFormData({...formData, start_at: e.target.value})} className="w-full p-4 rounded-xl border-2 border-white focus:border-blue-500 outline-none transition-all shadow-sm" />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">End At</label>
+                                <input type="datetime-local" required value={formData.end_at} onChange={e => setFormData({...formData, end_at: e.target.value})} className="w-full p-4 rounded-xl border-2 border-white focus:border-blue-500 outline-none transition-all shadow-sm" />
+                            </div>
                         </div>
-                    </div>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
-                        <div>
-                            <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">Time Limit (mins)</label>
-                            <input type="number" required value={formData.time_limit} onChange={e => setFormData({...formData, time_limit: Number(e.target.value)})} className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all" />
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
+                            <div>
+                                <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">Time Limit (mins)</label>
+                                <input type="number" required value={formData.time_limit} onChange={e => setFormData({...formData, time_limit: Number(e.target.value)})} className="w-full p-4 rounded-xl border-2 border-white focus:border-blue-500 outline-none transition-all shadow-sm" />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">Attempts</label>
+                                <input type="number" required value={formData.attempts_allowed} onChange={e => setFormData({...formData, attempts_allowed: Number(e.target.value)})} className="w-full p-4 rounded-xl border-2 border-white focus:border-blue-500 outline-none transition-all shadow-sm" />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">Passing Score (%)</label>
+                                <input type="number" required value={formData.passing_score} onChange={e => setFormData({...formData, passing_score: Number(e.target.value)})} className="w-full p-4 rounded-xl border-2 border-white focus:border-blue-500 outline-none transition-all shadow-sm" />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">Status</label>
+                                <select value={formData.status} onChange={e => setFormData({...formData, status: e.target.value as 'draft' | 'published'})} className="w-full p-4 rounded-xl border-2 border-white focus:border-blue-500 outline-none transition-all shadow-sm">
+                                    <option value="draft">Draft</option>
+                                    <option value="published">Published</option>
+                                </select>
+                            </div>
                         </div>
-                        <div>
-                            <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">Attempts</label>
-                            <input type="number" required value={formData.attempts_allowed} onChange={e => setFormData({...formData, attempts_allowed: Number(e.target.value)})} className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all" />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">Passing Score (%)</label>
-                            <input type="number" required value={formData.passing_score} onChange={e => setFormData({...formData, passing_score: Number(e.target.value)})} className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all" />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">Status</label>
-                            <select value={formData.status} onChange={e => setFormData({...formData, status: e.target.value as 'draft' | 'published'})} className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all">
-                                <option value="draft">Draft</option>
-                                <option value="published">Published</option>
-                            </select>
-                        </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 md:col-span-4">
-                            <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-xl border-2 border-slate-100">
+
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <div className="flex items-center gap-4 p-4 bg-white rounded-xl border-2 border-slate-100">
                                 <input
                                     type="checkbox"
                                     id="anti_cheat"
@@ -143,19 +152,6 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({ teacherId, quiz, courses
                                     <p className="text-[10px] text-slate-500 font-medium">Monitor actions</p>
                                 </div>
                             </div>
-                            <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-xl border-2 border-slate-100">
-                                <input
-                                    type="checkbox"
-                                    id="auto_submit"
-                                    checked={formData.auto_submit_enabled}
-                                    onChange={e => setFormData({...formData, auto_submit_enabled: e.target.checked})}
-                                    className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                                />
-                                <div>
-                                    <label htmlFor="auto_submit" className="block text-sm font-bold text-slate-700 uppercase tracking-wide">Auto-Submit</label>
-                                    <p className="text-[10px] text-slate-500 font-medium">Auto submit on exit</p>
-                                </div>
-                            </div>
                             <div className="flex items-center gap-4 p-4 bg-red-50 rounded-xl border-2 border-red-100">
                                 <input
                                     type="checkbox"
@@ -165,8 +161,8 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({ teacherId, quiz, courses
                                     className="w-5 h-5 rounded border-slate-300 text-red-600 focus:ring-red-500"
                                 />
                                 <div>
-                                    <label htmlFor="hard_enforcement" className="block text-sm font-bold text-red-700 uppercase tracking-wide text-red-700">Hard Enforcement</label>
-                                    <p className="text-[10px] text-red-500 font-medium">Force submit on 5 violations</p>
+                                    <label htmlFor="hard_enforcement" className="block text-sm font-bold text-red-700 uppercase tracking-wide">Hard Enforcement</label>
+                                    <p className="text-[10px] text-red-500 font-medium">Auto-submit on timeout/violation</p>
                                 </div>
                             </div>
                             <div className="flex items-center gap-4 p-4 bg-purple-50 rounded-xl border-2 border-purple-100">

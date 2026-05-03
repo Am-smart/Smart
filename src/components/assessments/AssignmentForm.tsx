@@ -6,6 +6,7 @@ import { useAntiCheat } from '@/hooks/useAntiCheat';
 import { useIndexedDB } from '@/hooks/useIndexedDB';
 import { useAppContext } from '@/components/AppContext';
 import { FileUpload } from '@/components/ui/FileUpload';
+import { Shield } from 'lucide-react';
 
 interface AssignmentFormProps {
   assignment: AssignmentDTO;
@@ -23,11 +24,16 @@ export const AssignmentForm: React.FC<AssignmentFormProps> = ({ assignment, user
   const { addToQueue, isOnline } = useIndexedDB();
 
   const { violationCount } = useAntiCheat(assignment.anti_cheat_enabled, assignment.title);
+  const isLocked = assignment.anti_cheat_enabled && assignment.hard_enforcement && violationCount >= 5;
 
   // Anti-cheat: Feedback and detection
   React.useEffect(() => {
     if (assignment.anti_cheat_enabled && violationCount > 0) {
         addToast(`Security Warning: Violation detected (${violationCount}). This submission has been flagged for review.`, 'info');
+    }
+
+    if (isLocked) {
+        addToast('Security Threshold Reached: Assignment has been locked due to multiple violations.', 'error', 10000);
     }
 
     const handleViolation = (e: Event) => {
@@ -38,7 +44,7 @@ export const AssignmentForm: React.FC<AssignmentFormProps> = ({ assignment, user
     };
     window.addEventListener('anti-cheat-violation', handleViolation);
     return () => window.removeEventListener('anti-cheat-violation', handleViolation);
-  }, [violationCount, assignment.anti_cheat_enabled, addToast]);
+  }, [violationCount, assignment.anti_cheat_enabled, addToast, isLocked]);
 
   const performUpload = async (file: File, category: 'materials' | 'submissions' | 'thumbnails') => {
     if (!isOnline) {
@@ -104,7 +110,22 @@ export const AssignmentForm: React.FC<AssignmentFormProps> = ({ assignment, user
 
   return (
     <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center z-50 p-2 md:p-4">
-      <div className="bg-white w-full max-w-2xl rounded-2xl md:rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300 flex flex-col max-h-[95vh]">
+      <div className="bg-white w-full max-w-2xl rounded-2xl md:rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300 flex flex-col max-h-[95vh] relative">
+        {isLocked && (
+            <div className="absolute inset-0 bg-slate-900/80 backdrop-blur-sm z-[60] flex items-center justify-center p-6 text-center">
+                <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl animate-in zoom-in duration-300">
+                    <Shield size={64} className="text-red-600 mx-auto mb-6" />
+                    <h2 className="text-2xl font-black text-slate-900 mb-2 uppercase">Assignment Locked</h2>
+                    <p className="text-slate-500 mb-8 font-medium">This assignment has been locked due to security violations. Please contact your instructor.</p>
+                    <button
+                        onClick={onCancel}
+                        className="btn-primary w-full py-4 rounded-xl font-bold shadow-lg shadow-blue-500/20"
+                    >
+                        Return to Dashboard
+                    </button>
+                </div>
+            </div>
+        )}
         <header className="p-6 md:p-8 border-b bg-slate-50 flex justify-between items-center shrink-0">
           <div>
             <h2 className="text-xl md:text-2xl font-bold text-slate-900">{assignment.title}</h2>

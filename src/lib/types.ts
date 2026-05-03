@@ -169,7 +169,6 @@ export interface Assignment {
   points_possible: number;
   allow_late_submissions: boolean;
   anti_cheat_enabled: boolean;
-  auto_submit_enabled: boolean;
   hard_enforcement: boolean;
   regrade_requests_enabled: boolean;
   late_penalty_applied?: number; // Added from Submission
@@ -209,7 +208,6 @@ export interface AssignmentDTO {
   late_penalty_per_day?: number;
   allowed_extensions?: string[];
   anti_cheat_enabled: boolean;
-  auto_submit_enabled: boolean;
   hard_enforcement: boolean;
   regrade_requests_enabled: boolean;
   questions: QuestionDTO[];
@@ -221,7 +219,7 @@ export interface AssignmentDTO {
 export interface AssignmentQuestion {
   id: string;
   text: string;
-  type: 'essay' | 'file' | 'link' | 'mcq' | 'tf' | 'short';
+  type: 'essay' | 'file' | 'link';
   points: number;
   correct_answer?: string | number;
   extensions?: string;
@@ -238,7 +236,6 @@ export interface Quiz {
   time_limit: number;
   passing_score: number;
   anti_cheat_enabled: boolean;
-  auto_submit_enabled: boolean;
   hard_enforcement: boolean;
   shuffle_questions: boolean;
   start_at?: string;
@@ -261,7 +258,6 @@ export interface QuizDTO {
   time_limit: number;
   passing_score: number;
   anti_cheat_enabled: boolean;
-  auto_submit_enabled: boolean;
   hard_enforcement: boolean;
   shuffle_questions: boolean;
   start_at?: string;
@@ -274,7 +270,7 @@ export interface QuizDTO {
 export interface QuizQuestion {
   id: string;
   text: string;
-  type: 'mcq' | 'tf' | 'short' | 'essay' | 'file' | 'link';
+  type: 'mcq' | 'tf' | 'short';
   points: number;
   options?: string[];
   correct_answer?: string | number;
