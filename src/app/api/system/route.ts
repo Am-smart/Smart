@@ -19,6 +19,10 @@ export const GET = withHandler(async (user, request) => {
     case 'maintenance': {
       return systemService.getMaintenance(user?.sessionId);
     }
+    case 'sessions': {
+        const { authDb } = await import('@/lib/database/auth.db');
+        return authDb.findAllSessions(user.sessionId!);
+    }
     case 'settings': {
       if (!rbac.can(user, 'system:manage')) throw new Error('Unauthorized');
       return systemService.getSettings(user, user.sessionId!);
@@ -76,7 +80,7 @@ export const GET = withHandler(async (user, request) => {
     default:
       throw new Error('Invalid GET action');
   }
-}, { requireAuth: true }); // Maintenance can be public, handled separately if needed
+}, { requireAuth: false }); // Maintenance can be public
 
 export const POST = withHandler(async (user, request) => {
   const body = await request.json();
@@ -129,6 +133,21 @@ export const POST = withHandler(async (user, request) => {
     case 'lesson-completion': {
         await systemService.markLessonComplete(user.id, data.lessonId, data.courseId, user.sessionId!);
         return { success: true };
+    }
+    case 'upload-path': {
+        const { fileName, category } = data;
+        const filePath = `${category}/${user.id}/${Date.now()}_${fileName}`;
+        await systemService.createLogAsync({
+            level: 'info',
+            category: 'management',
+            message: `File upload initiated: ${fileName} in category ${category}`,
+            user_id: user.id
+        });
+        return { filePath };
+    }
+    case 'upload': {
+        // This usually requires multipart/form-data, keep separate route for physical uploads
+        throw new Error('Physical uploads must use /api/system/upload');
     }
     default:
       throw new Error('Invalid POST action');

@@ -2,7 +2,6 @@ import { authDb } from '../database/auth.db';
 import { systemDb } from '../database/system.db';
 import { User } from '../types';
 import { UserDomain } from '../domain/user.domain';
-import redis from '../redis';
 
 export class AuthService {
   async validateSession(sessionId: string): Promise<Record<string, unknown> | null> {
@@ -55,25 +54,10 @@ export class AuthService {
 
   // Merged from UserService
   async getCurrentUser(id: string, sessionId: string): Promise<User> {
-    const client = redis();
-    const cacheKey = `user:${id}:${sessionId}`;
-    const cached = client ? await client.get<string>(cacheKey) : null;
-
-    if (cached) {
-      return JSON.parse(cached);
-    }
-
     const user = await systemDb.findUserById(id, sessionId);
     if (!user) throw new Error('User not found');
 
-    const userWithSession = { ...user, sessionId };
-
-    // Cache for 5 minutes
-    if (client) {
-      await client.set(cacheKey, JSON.stringify(userWithSession), { ex: 300 });
-    }
-
-    return userWithSession;
+    return { ...user, sessionId };
   }
 
   async getAllUsers(currentUser: User, sessionId: string): Promise<User[]> {
@@ -89,33 +73,17 @@ export class AuthService {
 
     const filteredUpdates = UserDomain.filterUpdateFields(currentUser, updates);
 
-    const result = await systemDb.updateUser(userId, filteredUpdates, sessionId, targetUser.version);
-
-    // Invalidate cache
-    const client = redis();
-    if (client) {
-      await client.del(`user:${userId}:${sessionId}`);
-    }
-
-    return result;
+    return systemDb.updateUser(userId, filteredUpdates, sessionId, targetUser.version);
   }
 
   async toggleUserStatus(currentUser: User, userId: string, active: boolean, sessionId: string): Promise<void> {
     if (!UserDomain.canManageUsers(currentUser)) throw new Error('Forbidden');
     await systemDb.updateUser(userId, { active }, sessionId);
-    const client = redis();
-    if (client) {
-      await client.del(`user:${userId}:${sessionId}`);
-    }
   }
 
   async deleteUser(currentUser: User, userId: string, sessionId: string): Promise<void> {
     if (!UserDomain.canManageUsers(currentUser)) throw new Error('Forbidden');
     await systemDb.deleteUser(userId, sessionId);
-    const client = redis();
-    if (client) {
-      await client.del(`user:${userId}:${sessionId}`);
-    }
   }
 }
 
