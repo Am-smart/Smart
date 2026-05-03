@@ -30,7 +30,6 @@ export const AssignmentEditor: React.FC<AssignmentEditorProps> = ({ teacherId, a
         allow_late_submissions: assignment?.allow_late_submissions !== false,
         late_penalty_per_day: assignment?.late_penalty_per_day || 0,
         anti_cheat_enabled: assignment?.anti_cheat_enabled || false,
-        auto_submit_enabled: assignment?.auto_submit_enabled || false,
         hard_enforcement: assignment?.hard_enforcement || false,
         regrade_requests_enabled: assignment?.regrade_requests_enabled !== false,
         questions: assignment?.questions || [],
@@ -50,7 +49,7 @@ export const AssignmentEditor: React.FC<AssignmentEditorProps> = ({ teacherId, a
         e.preventDefault();
         setIsSaving(true);
         try {
-            const payload = { ...formData, teacher_id: teacherId, id: assignment?.id };
+            const payload = { ...formData, teacher_id: teacherId, id: assignment?.id || '' };
             await saveAssignment(payload);
             addToast('Assignment saved successfully!', 'success');
             onSave();
@@ -115,114 +114,114 @@ export const AssignmentEditor: React.FC<AssignmentEditorProps> = ({ teacherId, a
                     <h2 className="text-2xl font-bold text-slate-900">{assignment?.id ? 'Edit Assignment' : 'Create New Assignment'}</h2>
                     <button onClick={onCancel} className="p-2 hover:bg-slate-200 rounded-full transition-colors">✕</button>
                 </header>
-                <form onSubmit={handleSubmit} className="p-8 space-y-6 max-h-[70vh] overflow-y-auto">
-                    <div>
-                        <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">Assignment Title</label>
-                        <input type="text" required value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all" />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">Description</label>
-                        <textarea required value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} className="w-full h-32 p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all resize-none" />
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                            <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">Course</label>
-                            <select value={formData.course_id} onChange={e => setFormData({...formData, course_id: e.target.value})} className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all">
-                                {courses.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
-                            </select>
-                        </div>
-                        <div className="grid grid-cols-2 gap-4">
+                <form onSubmit={handleSubmit} className="p-4 md:p-8 space-y-6 overflow-y-auto flex-1">
+                    <div className="bg-slate-50 p-6 rounded-3xl border-2 border-slate-100 space-y-6">
+                        <h3 className="text-lg font-bold text-slate-900 border-b pb-4 mb-4">Assignment Settings</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
-                                <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">Start At</label>
-                                <input type="datetime-local" required value={formData.start_at} onChange={e => setFormData({...formData, start_at: e.target.value})} className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all" />
+                                <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">Assignment Title</label>
+                                <input type="text" required value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} className="w-full p-4 rounded-xl border-2 border-white focus:border-blue-500 outline-none transition-all shadow-sm" />
                             </div>
                             <div>
-                                <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">Due Date</label>
-                                <input type="datetime-local" required value={formData.due_date} onChange={e => setFormData({...formData, due_date: e.target.value})} className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all" />
+                                <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">Course</label>
+                                <select value={formData.course_id} onChange={e => setFormData({...formData, course_id: e.target.value})} className="w-full p-4 rounded-xl border-2 border-white focus:border-blue-500 outline-none transition-all shadow-sm">
+                                    {courses.map(c => <option key={c.id} value={c.id}>{c.title}</option>)}
+                                </select>
                             </div>
                         </div>
-                    </div>
-
-                    <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 space-y-4">
-                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Late Submission Settings</h4>
-                        <div className="flex items-center gap-3">
-                            <input type="checkbox" id="allowLate" checked={formData.allow_late_submissions} onChange={e => setFormData({...formData, allow_late_submissions: e.target.checked})} className="w-5 h-5 text-blue-600 rounded" />
-                            <label htmlFor="allowLate" className="text-sm font-bold text-slate-700 cursor-pointer">Allow Late Submissions</label>
-                        </div>
-
-                        {formData.allow_late_submissions && (
-                            <div className="animate-in slide-in-from-top-2 duration-200">
-                                <label className="block text-[10px] font-bold uppercase text-slate-400 mb-2">Penalty Per Day (%)</label>
-                                <input
-                                    type="number" min="0" max="100"
-                                    value={formData.late_penalty_per_day}
-                                    onChange={e => setFormData({...formData, late_penalty_per_day: Number(e.target.value)})}
-                                    className="w-full p-3 rounded-xl border border-slate-200 focus:border-blue-500 outline-none transition-all text-sm"
-                                    placeholder="e.g. 5"
-                                />
-                            </div>
-                        )}
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
-                            <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">Points Possible (Auto-calculated)</label>
-                            <input type="number" readOnly value={formData.points_possible} className="w-full p-4 rounded-xl border-2 border-slate-50 bg-slate-50 text-slate-500 outline-none transition-all font-bold" />
+                            <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">Description</label>
+                            <textarea required value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} className="w-full h-32 p-4 rounded-xl border-2 border-white focus:border-blue-500 outline-none transition-all resize-none shadow-sm" placeholder="Assignment instructions..." />
                         </div>
-                        <div>
-                            <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">Status</label>
-                            <select value={formData.status} onChange={e => setFormData({...formData, status: e.target.value as AssignmentDTO['status']})} className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all">
-                                <option value="draft">Draft</option>
-                                <option value="published">Published</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div className="space-y-4">
-                        <label className="block text-sm font-bold text-slate-700 uppercase tracking-wide">Attachments (Reference Materials)</label>
-                        <div className="flex flex-wrap gap-2">
-                        {formData.attachments?.map((att, idx) => (
-                                <div key={idx} className="flex items-center gap-2 bg-slate-100 px-3 py-1 rounded-full text-xs font-medium">
-                                    <span className="truncate max-w-[150px]">{att.name}</span>
-                                    <button type="button" onClick={() => {
-                                        const updated = [...(formData.attachments || [])];
-                                        updated.splice(idx, 1);
-                                        setFormData({ ...formData, attachments: updated });
-                                    }} className="text-red-500 font-bold hover:bg-red-100 rounded-full w-4 h-4 flex items-center justify-center">×</button>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">Start At</label>
+                                    <input type="datetime-local" required value={formData.start_at} onChange={e => setFormData({...formData, start_at: e.target.value})} className="w-full p-4 rounded-xl border-2 border-white focus:border-blue-500 outline-none transition-all shadow-sm" />
                                 </div>
-                            ))}
-                            <label className={`flex items-center gap-2 bg-blue-50 text-blue-600 px-3 py-1 rounded-full text-xs font-bold cursor-pointer hover:bg-blue-100 transition-colors ${isUploading ? 'opacity-50 pointer-events-none' : ''}`}>
-                                <input type="file" className="hidden" onChange={handleAttachmentUpload} disabled={isUploading} />
-                                <Paperclip size={12} /> {isUploading ? 'Uploading...' : 'Add Attachment'}
-                            </label>
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">Due Date</label>
+                                    <input type="datetime-local" required value={formData.due_date} onChange={e => setFormData({...formData, due_date: e.target.value})} className="w-full p-4 rounded-xl border-2 border-white focus:border-blue-500 outline-none transition-all shadow-sm" />
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">Points Possible</label>
+                                    <input type="number" readOnly value={formData.points_possible} className="w-full p-4 rounded-xl border-2 border-white bg-slate-100 text-slate-500 outline-none transition-all font-bold shadow-sm" />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">Status</label>
+                                    <select value={formData.status} onChange={e => setFormData({...formData, status: e.target.value as AssignmentDTO['status']})} className="w-full p-4 rounded-xl border-2 border-white focus:border-blue-500 outline-none transition-all shadow-sm">
+                                        <option value="draft">Draft</option>
+                                        <option value="published">Published</option>
+                                    </select>
+                                </div>
+                            </div>
                         </div>
-                    </div>
 
-                    <div>
-                        <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">Allowed File Extensions (Comma separated)</label>
-                        <input
-                            type="text"
-                            value={(formData.allowed_extensions || []).join(', ')}
-                            onChange={e => setFormData({ ...formData, allowed_extensions: e.target.value.split(',').map(s => s.trim()) })}
-                            className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all"
-                            placeholder="pdf, doc, docx, zip"
-                        />
-                    </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div className="bg-white p-6 rounded-2xl border-2 border-slate-50 space-y-4 shadow-sm">
+                                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Late Submissions</h4>
+                                <div className="flex items-center gap-3">
+                                    <input type="checkbox" id="allowLate" checked={formData.allow_late_submissions} onChange={e => setFormData({...formData, allow_late_submissions: e.target.checked})} className="w-5 h-5 text-blue-600 rounded" />
+                                    <label htmlFor="allowLate" className="text-sm font-bold text-slate-700 cursor-pointer">Allow Late Submissions</label>
+                                </div>
+                                {formData.allow_late_submissions && (
+                                    <div className="animate-in slide-in-from-top-2 duration-200">
+                                        <label className="block text-[10px] font-bold uppercase text-slate-400 mb-2">Penalty Per Day (%)</label>
+                                        <input
+                                            type="number" min="0" max="100"
+                                            value={formData.late_penalty_per_day}
+                                            onChange={e => setFormData({...formData, late_penalty_per_day: Number(e.target.value)})}
+                                            className="w-full p-3 rounded-xl border border-slate-200 focus:border-blue-500 outline-none transition-all text-sm"
+                                        />
+                                    </div>
+                                )}
+                            </div>
+                            <div className="bg-white p-6 rounded-2xl border-2 border-slate-50 space-y-4 shadow-sm">
+                                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Enforcement & Options</h4>
+                                <div className="grid grid-cols-1 gap-3">
+                                    <div className="flex items-center gap-3">
+                                        <input type="checkbox" id="antiCheat" checked={formData.anti_cheat_enabled} onChange={e => setFormData({...formData, anti_cheat_enabled: e.target.checked})} className="w-5 h-5 text-blue-600" />
+                                        <label htmlFor="antiCheat" className="text-sm font-bold text-slate-700 cursor-pointer">Anti-Cheat Monitoring</label>
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                        <input type="checkbox" id="hardEnforce" checked={formData.hard_enforcement} onChange={e => setFormData({...formData, hard_enforcement: e.target.checked})} className="w-5 h-5 text-red-600" />
+                                        <label htmlFor="hardEnforce" className="text-sm font-bold text-slate-700 cursor-pointer">Hard Enforcement (Lock on violation)</label>
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                        <input type="checkbox" id="regradeEnabled" checked={formData.regrade_requests_enabled} onChange={e => setFormData({...formData, regrade_requests_enabled: e.target.checked})} className="w-5 h-5 text-blue-600" />
+                                        <label htmlFor="regradeEnabled" className="text-sm font-bold text-slate-700 cursor-pointer">Allow Regrade Requests</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div className="flex items-center gap-3 p-4 bg-amber-50 rounded-xl border border-amber-100">
-                            <input type="checkbox" id="antiCheat" checked={formData.anti_cheat_enabled} onChange={e => setFormData({...formData, anti_cheat_enabled: e.target.checked})} className="w-5 h-5 text-blue-600" />
-                            <label htmlFor="antiCheat" className="text-sm font-bold text-amber-900 cursor-pointer">Anti-Cheat</label>
-                        </div>
-                        <div className="flex items-center gap-3 p-4 bg-blue-50 rounded-xl border border-blue-100">
-                            <input type="checkbox" id="regradeEnabled" checked={formData.regrade_requests_enabled} onChange={e => setFormData({...formData, regrade_requests_enabled: e.target.checked})} className="w-5 h-5 text-blue-600" />
-                            <label htmlFor="regradeEnabled" className="text-sm font-bold text-blue-900 cursor-pointer">Regrade Requests</label>
-                        </div>
-                        <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-xl border border-slate-100">
-                            <input type="checkbox" id="autoSubmit" checked={formData.auto_submit_enabled} onChange={e => setFormData({...formData, auto_submit_enabled: e.target.checked})} className="w-5 h-5 text-blue-600" />
-                            <label htmlFor="autoSubmit" className="text-sm font-bold text-slate-700 cursor-pointer">Auto-Submit</label>
-                        </div>
-                        <div className="flex items-center gap-3 p-4 bg-red-50 rounded-xl border border-red-100">
-                            <input type="checkbox" id="hardEnforce" checked={formData.hard_enforcement} onChange={e => setFormData({...formData, hard_enforcement: e.target.checked})} className="w-5 h-5 text-red-600" />
-                            <label htmlFor="hardEnforce" className="text-sm font-bold text-red-900 cursor-pointer">Hard Enforce</label>
+                        <div className="space-y-4">
+                            <label className="block text-sm font-bold text-slate-700 uppercase tracking-wide">Attachments & Restrictions</label>
+                            <div className="flex flex-wrap gap-2">
+                                {formData.attachments?.map((att, idx) => (
+                                    <div key={idx} className="flex items-center gap-2 bg-white px-3 py-1 rounded-full text-xs font-medium border border-slate-100">
+                                        <span className="truncate max-w-[150px]">{att.name}</span>
+                                        <button type="button" onClick={() => {
+                                            const updated = [...(formData.attachments || [])];
+                                            updated.splice(idx, 1);
+                                            setFormData({ ...formData, attachments: updated });
+                                        }} className="text-red-500 font-bold hover:bg-red-100 rounded-full w-4 h-4 flex items-center justify-center">×</button>
+                                    </div>
+                                ))}
+                                <label className={`flex items-center gap-2 bg-blue-50 text-blue-600 px-3 py-1 rounded-full text-xs font-bold cursor-pointer hover:bg-blue-100 transition-colors ${isUploading ? 'opacity-50 pointer-events-none' : ''}`}>
+                                    <input type="file" className="hidden" onChange={handleAttachmentUpload} disabled={isUploading} />
+                                    <Paperclip size={12} /> {isUploading ? 'Uploading...' : 'Add Attachment'}
+                                </label>
+                            </div>
+                            <input
+                                type="text"
+                                value={(formData.allowed_extensions || []).join(', ')}
+                                onChange={e => setFormData({ ...formData, allowed_extensions: e.target.value.split(',').map(s => s.trim()) })}
+                                className="w-full p-4 rounded-xl border-2 border-white focus:border-blue-500 outline-none transition-all shadow-sm"
+                                placeholder="Allowed extensions: pdf, doc, docx, zip"
+                            />
                         </div>
                     </div>
 
@@ -238,7 +237,7 @@ export const AssignmentEditor: React.FC<AssignmentEditorProps> = ({ teacherId, a
                                         value={q.type}
                                         onChange={e => {
                                             const updated = [...formData.questions];
-                                            updated[index].type = e.target.value as 'essay' | 'file' | 'mcq';
+                                            updated[index].type = e.target.value as 'essay' | 'file' | 'link';
                                             setFormData({ ...formData, questions: updated });
                                         }}
                                         className="p-3 rounded-xl border border-slate-200 bg-white text-sm"

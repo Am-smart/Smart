@@ -21,7 +21,7 @@ export const QuizView: React.FC<QuizViewProps> = ({ quiz, user, onComplete, onCa
   const [questions, setQuestions] = useState(quiz.questions || []);
   const [timeLeft, setTimeLeft] = useState<number | null>(quiz.time_limit ? quiz.time_limit * 60 : null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [result, setResult] = useState<{ score: number; passed: boolean; isTimeout?: boolean } | null>(null);
+  const [result, setResult] = useState<{ score: number; passed: boolean; reason: 'manual' | 'timeout' | 'violation' } | null>(null);
   const { addToQueue, setCache, getCache, isOnline } = useIndexedDB();
   const [startedAt] = useState(new Date().toISOString());
 
@@ -64,7 +64,7 @@ export const QuizView: React.FC<QuizViewProps> = ({ quiz, user, onComplete, onCa
     await setCache(`quiz_progress_${quiz.id}`, newAnswers);
   }, [answers, quiz.id, setCache]);
 
-  const handleSubmit = useCallback(async (isTimeout = false) => {
+  const handleSubmit = useCallback(async (reason: 'manual' | 'timeout' | 'violation' = 'manual') => {
     if (isSubmitting || result) return;
     setIsSubmitting(true);
 
@@ -87,7 +87,8 @@ export const QuizView: React.FC<QuizViewProps> = ({ quiz, user, onComplete, onCa
             }
         } else {
             // Offline estimation using unified logic
-            const questions = (quiz.questions) || [];
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const questions = (quiz.questions as any) || [];
             const result = calculateQuizScore(questions, answers);
             score = result.score;
 
@@ -105,7 +106,7 @@ export const QuizView: React.FC<QuizViewProps> = ({ quiz, user, onComplete, onCa
 
         // Clean up progress cache
         await setCache(`quiz_progress_${quiz.id}`, null);
-        setResult({ score, passed, isTimeout });
+        setResult({ score, passed, reason });
         setIsSubmitting(false);
     } catch (err: unknown) {
         console.error('Failed to submit quiz:', err);
@@ -124,14 +125,14 @@ export const QuizView: React.FC<QuizViewProps> = ({ quiz, user, onComplete, onCa
     // Use hard_enforcement flag from database (Step 1)
     if (quiz.anti_cheat_enabled && quiz.hard_enforcement && violationCount >= 5 && !isSubmitting && !result) {
         addToast('Security Threshold Reached: Assessment locked and auto-submitted due to multiple violations.', 'error', 10000);
-        handleSubmit(false);
+        handleSubmit('violation');
     }
   }, [violationCount, quiz, addToast, isSubmitting, result, handleSubmit]);
 
   useEffect(() => {
     if (timeLeft === null) return;
     if (timeLeft <= 0) {
-        handleSubmit(true);
+        handleSubmit('timeout');
         return;
     }
     const timer = setInterval(() => setTimeLeft(prev => prev! - 1), 1000);
@@ -149,15 +150,21 @@ export const QuizView: React.FC<QuizViewProps> = ({ quiz, user, onComplete, onCa
         <div className="fixed inset-0 bg-slate-900/90 z-[100] flex items-center justify-center p-4 backdrop-blur-md">
             <div className="bg-white rounded-3xl p-10 max-w-md w-full text-center shadow-2xl animate-in zoom-in duration-300">
                 <div className="flex justify-center mb-6">
-                    {result.isTimeout ? (
+                    {result.reason === 'timeout' ? (
                         <Clock size={64} className="text-red-500" />
+                    ) : result.reason === 'violation' ? (
+                        <Shield size={64} className="text-red-600" />
                     ) : result.passed ? (
                         <CheckCircle size={64} className="text-green-500 animate-bounce" />
                     ) : (
                         <AlertTriangle size={64} className="text-amber-500" />
                     )}
                 </div>
-                {result.isTimeout && <div className="text-red-500 font-bold uppercase tracking-widest text-xs mb-2">Time&apos;s Up!</div>}
+
+                {result.reason === 'timeout' && <div className="text-red-500 font-bold uppercase tracking-widest text-xs mb-2">Time&apos;s Up!</div>}
+                {result.reason === 'violation' && <div className="text-red-600 font-bold uppercase tracking-widest text-xs mb-2">Security Violation Submission</div>}
+                {result.reason === 'manual' && <div className="text-blue-600 font-bold uppercase tracking-widest text-xs mb-2">Submission Complete</div>}
+
                 <h2 className="text-3xl font-black mb-2">{result.passed ? 'PASSED!' : 'TRY AGAIN'}</h2>
                 <p className="text-slate-500 font-medium mb-8">You scored {result.score}% in this attempt.</p>
 
@@ -260,7 +267,7 @@ export const QuizView: React.FC<QuizViewProps> = ({ quiz, user, onComplete, onCa
                 {Object.keys(answers).length} of {questions.length} answered
             </p>
             <button
-                onClick={() => handleSubmit(false)}
+                onClick={() => handleSubmit('manual')}
                 disabled={isSubmitting}
                 className="btn-primary w-full md:w-auto px-10 py-4"
             >
