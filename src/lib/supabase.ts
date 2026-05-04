@@ -6,10 +6,17 @@
 export function withSession<T>(query: T, sessionId?: string): T {
   if (!sessionId) return query;
 
+  // For Supabase v2 PostgREST queries, use .headers() if available
+  const qHeaders = query as unknown as { headers: (headers: Record<string, string>) => T };
+  if (qHeaders && typeof qHeaders.headers === 'function') {
+    return qHeaders.headers({ 'x-session-id': sessionId });
+  }
+
+  // Handle other types of query objects with setHeader or internal headers object
   const q = query as unknown as { setHeader: (key: string, value: string) => void };
   if (q && typeof q.setHeader === 'function') {
-      q.setHeader('x-session-id', sessionId);
-      return query;
+    q.setHeader('x-session-id', sessionId);
+    return query;
   }
 
   if (query && typeof query === 'object' && 'headers' in query) {

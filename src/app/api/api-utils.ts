@@ -13,14 +13,18 @@ export interface ApiResponse<T = unknown> {
 }
 
 export async function getSessionUser(): Promise<User | null> {
-  const cookieStore = await cookies();
-  const token = cookieStore.get('app-user-session');
-  if (!token) return null;
+  try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get('app-user-session');
+    if (!token) return null;
 
-  const session = await verifyToken(token.value);
-  if (!session || !session.sessionId) return null;
+    const session = await verifyToken(token.value);
+    if (!session || !session.sessionId) return null;
 
-  return authService.getCurrentUser(session.id as string, session.sessionId as string);
+    return await authService.getCurrentUser(session.id as string, session.sessionId as string);
+  } catch {
+    return null;
+  }
 }
 
 export function handleUnauthorized() {
@@ -72,12 +76,12 @@ export function withHandler<T>(
 
     let user: User | null = null;
 
-    if (options.requireAuth) {
-      user = await getSessionUser();
-      if (!user) return handleUnauthorized();
-    }
-
     try {
+      user = await getSessionUser();
+      if (options.requireAuth && !user) {
+        return handleUnauthorized();
+      }
+
       const result = await handler(user as User, request);
       return handleSuccess(result);
     } catch (error: unknown) {
