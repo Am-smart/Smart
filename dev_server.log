@@ -7,18 +7,18 @@
    - Network:      http://192.168.0.2:3000
 
  ✓ Starting...
- ✓ Ready in 2.1s
- ○ Compiling / ...
- ✓ Compiled / in 6.2s (660 modules)
- HEAD / 200 in 6832ms
- GET / 200 in 151ms
+ ✓ Ready in 2.3s
+ ○ Compiling /student/anti-cheat ...
+ ✓ Compiled /student/anti-cheat in 9.3s (716 modules)
+ GET /student/anti-cheat 200 in 11110ms
  ○ Compiling /api/system ...
- ✓ Compiled /api/system in 2.8s (732 modules)
- GET /api/system?action=maintenance 200 in 3455ms
- GET /api/auth?action=session 200 in 3513ms
- GET / 200 in 306ms
- GET /api/auth?action=session 200 in 71ms
- GET /api/auth?action=session 200 in 100ms
- GET /api/system?action=maintenance 200 in 609ms
- GET /api/auth?action=role-count 200 in 426ms
- GET /api/auth?action=role-count 200 in 401ms
+ ✓ Compiled /teacher/anti-cheat in 2.8s (803 modules)
+ GET /api/auth?action=session 200 in 3388ms
+ GET /api/system?action=maintenance 200 in 3712ms
+ GET /teacher/anti-cheat 200 in 1899ms
+ ○ Compiling / ...
+ ✓ Compiled / in 771ms (828 modules)
+ GET /api/auth?action=session 200 in 168ms
+ GET /api/auth?action=session 200 in 135ms
+ GET / 200 in 72ms
+ GET /api/system?action=maintenance 200 in 432ms

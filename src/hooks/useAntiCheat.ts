@@ -14,6 +14,7 @@ export const useAntiCheat = (enabled: boolean = false, assessmentTitle: string =
   const wasFocused = useRef(true);
   const focusLossTimer = useRef<NodeJS.Timeout | null>(null);
   const tabChannel = useRef<BroadcastChannel | null>(null);
+  const visibilityHiddenAt = useRef<number | null>(null);
 
   const reportViolation = useCallback(async (type: string, metadata: Record<string, unknown> = {}) => {
     const now = Date.now();
@@ -46,11 +47,19 @@ export const useAntiCheat = (enabled: boolean = false, assessmentTitle: string =
     // 1. Tab Switching & Multi-tab Detection
     const handleVisibilityChange = () => {
       if (document.hidden) {
+        visibilityHiddenAt.current = Date.now();
         focusLossTimer.current = setTimeout(() => {
           reportViolation('TAB_SWITCH', { duration: 'threshold_exceeded' });
         }, 3000);
       } else if (focusLossTimer.current) {
         clearTimeout(focusLossTimer.current);
+        if (visibilityHiddenAt.current) {
+          const duration = Date.now() - visibilityHiddenAt.current;
+          if (duration > 1000) {
+            reportViolation('TAB_SWITCH', { duration });
+          }
+          visibilityHiddenAt.current = null;
+        }
       }
     };
 
@@ -80,6 +89,22 @@ export const useAntiCheat = (enabled: boolean = false, assessmentTitle: string =
       const pingInterval = setInterval(() => tabChannel.current?.postMessage('PING'), 5000);
 
       // 2. Event Blocking (Clipboard, Context Menu, Drag)
+      const handleContextMenu = (e: MouseEvent) => {
+        e.preventDefault();
+        reportViolation('RIGHT_CLICK', {
+            x: e.clientX,
+            y: e.clientY,
+            target: (e.target as HTMLElement).tagName
+        });
+      };
+
+      const handleCopyPaste = (e: ClipboardEvent | Event) => {
+        e.preventDefault();
+        reportViolation(`${e.type.toUpperCase()}_ATTEMPT`, {
+            target: (e.target as HTMLElement).tagName
+        });
+      };
+
       const preventDefault = (e: Event) => {
         e.preventDefault();
         reportViolation(`${e.type.toUpperCase()}_ATTEMPT`);
@@ -93,7 +118,8 @@ export const useAntiCheat = (enabled: boolean = false, assessmentTitle: string =
         // DevTools
         if (e.key === 'F12' || (ctrl && shift && ['I', 'J', 'C'].includes(e.key.toUpperCase())) || (ctrl && alt && e.key.toUpperCase() === 'U')) {
           e.preventDefault();
-          reportViolation('DEVTOOLS_SHORTCUT');
+          const shortcut = e.key === 'F12' ? 'F12' : `${ctrl ? 'Ctrl+' : ''}${shift ? 'Shift+' : ''}${e.key.toUpperCase()}`;
+          reportViolation('DEVTOOLS_ATTEMPT', { shortcut });
         }
         // Clipboard
         if (ctrl && ['C', 'V', 'X'].includes(e.key.toUpperCase())) {
@@ -121,10 +147,10 @@ export const useAntiCheat = (enabled: boolean = false, assessmentTitle: string =
       window.addEventListener('visibilitychange', handleVisibilityChange);
       window.addEventListener('blur', handleBlur);
       window.addEventListener('focus', handleFocus);
-      window.addEventListener('contextmenu', preventDefault);
-      window.addEventListener('copy', preventDefault);
-      window.addEventListener('paste', preventDefault);
-      window.addEventListener('cut', preventDefault);
+      window.addEventListener('contextmenu', handleContextMenu);
+      window.addEventListener('copy', handleCopyPaste);
+      window.addEventListener('paste', handleCopyPaste);
+      window.addEventListener('cut', handleCopyPaste);
       window.addEventListener('dragstart', preventDefault);
       window.addEventListener('drop', preventDefault);
       window.addEventListener('keydown', handleKeyDown);
@@ -140,10 +166,10 @@ export const useAntiCheat = (enabled: boolean = false, assessmentTitle: string =
         window.removeEventListener('visibilitychange', handleVisibilityChange);
         window.removeEventListener('blur', handleBlur);
         window.removeEventListener('focus', handleFocus);
-        window.removeEventListener('contextmenu', preventDefault);
-        window.removeEventListener('copy', preventDefault);
-        window.removeEventListener('paste', preventDefault);
-        window.removeEventListener('cut', preventDefault);
+        window.removeEventListener('contextmenu', handleContextMenu);
+        window.removeEventListener('copy', handleCopyPaste);
+        window.removeEventListener('paste', handleCopyPaste);
+        window.removeEventListener('cut', handleCopyPaste);
         window.removeEventListener('dragstart', preventDefault);
         window.removeEventListener('drop', preventDefault);
         window.removeEventListener('keydown', handleKeyDown);

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { SubmissionDTO, QuizSubmissionDTO } from '@/lib/types';
 import { SystemLogDTO } from '@/lib/types';
 
@@ -10,6 +10,8 @@ interface AntiCheatRecordProps {
 }
 
 export const AntiCheatRecord: React.FC<AntiCheatRecordProps> = ({ submissions, quizSubmissions, logs, isTeacher }) => {
+  const [selectedAssessment, setSelectedAssessment] = useState<{ id: string, title: string, studentId?: string } | null>(null);
+
   const allAssessments = [
     ...submissions.map(s => ({
         id: s.id,
@@ -18,7 +20,8 @@ export const AntiCheatRecord: React.FC<AntiCheatRecordProps> = ({ submissions, q
         violations: (s).violation_count as number || 0,
         status: s.status,
         submittedAt: s.submitted_at,
-        student: s.student?.full_name
+        student: s.student?.full_name,
+        studentId: s.student_id
     })),
     ...quizSubmissions.map(s => ({
         id: s.id,
@@ -27,11 +30,19 @@ export const AntiCheatRecord: React.FC<AntiCheatRecordProps> = ({ submissions, q
         violations: (s).violation_count as number || 0,
         status: (s).status as string,
         submittedAt: s.submitted_at,
-        student: s.student?.full_name
+        student: s.student?.full_name,
+        studentId: s.student_id
     }))
   ].filter(s => s.status === 'submitted' || s.status === 'graded');
 
   allAssessments.sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime());
+
+  const filteredLogs = selectedAssessment && logs
+    ? logs.filter(l =>
+        (l.metadata?.assessmentTitle === selectedAssessment.title || l.message?.includes(selectedAssessment.title)) &&
+        (!isTeacher || l.user_id === selectedAssessment.studentId)
+      ).sort((a, b) => new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime())
+    : [];
 
   return (
     <div className="space-y-8">
@@ -68,7 +79,11 @@ export const AntiCheatRecord: React.FC<AntiCheatRecordProps> = ({ submissions, q
                 </tr>
               ) : (
                 allAssessments.map(record => (
-                  <tr key={`${record.type}-${record.id}`} className="hover:bg-slate-50 transition-colors">
+                  <tr
+                    key={`${record.type}-${record.id}`}
+                    className={`hover:bg-slate-50 transition-colors cursor-pointer ${selectedAssessment?.id === record.id ? 'bg-slate-50' : ''}`}
+                    onClick={() => setSelectedAssessment({ id: record.id, title: record.title, studentId: record.studentId })}
+                  >
                     <td className="px-6 py-4">
                       <div className="font-semibold text-slate-900">{record.title}</div>
                     </td>
@@ -98,10 +113,79 @@ export const AntiCheatRecord: React.FC<AntiCheatRecordProps> = ({ submissions, q
           </table>
         </div>
 
-        {isTeacher && logs && (
+        {selectedAssessment && (
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+            <div className="p-6 border-b border-slate-50 flex justify-between items-center bg-slate-50/50">
+              <h3 className="font-bold text-slate-900">Violation Details: {selectedAssessment.title}</h3>
+              <button
+                onClick={() => setSelectedAssessment(null)}
+                className="text-xs font-bold text-slate-400 hover:text-slate-600 uppercase tracking-widest"
+              >
+                Close Details
+              </button>
+            </div>
+            <div className="max-h-[600px] overflow-y-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-slate-50/30 text-slate-500 text-[10px] font-bold uppercase tracking-wider border-b border-slate-100">
+                    <th className="px-6 py-3 w-12">#</th>
+                    <th className="px-6 py-3 w-48">Time</th>
+                    <th className="px-6 py-3">Violation Type</th>
+                    <th className="px-6 py-3 w-24">Score</th>
+                    <th className="px-6 py-3">Details</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {filteredLogs.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="px-6 py-12 text-center text-slate-400 italic text-sm">
+                        No violations recorded for this assessment.
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredLogs.map((log, index) => (
+                      <tr key={log.id} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="px-6 py-4 text-sm font-bold text-slate-900">
+                          {index + 1}
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="text-xs font-mono text-slate-600 leading-none mb-1">
+                            {log.created_at ? new Date(log.created_at).toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' }) + '.' + new Date(log.created_at).getMilliseconds().toString().padStart(3, '0') : 'N/A'}
+                          </div>
+                          <div className="text-[10px] font-mono text-slate-400 leading-none">
+                            {log.created_at ? (new Date(log.created_at).getTime() / 1000).toFixed(3) : 'N/A'}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="text-xs font-bold text-red-600 uppercase tracking-tight">
+                            {String(log.metadata?.type || 'Violation').replace(/_/g, ' ')}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="text-sm font-black text-red-500">
+                            + 1
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 text-[11px] text-slate-500 font-mono italic">
+                          {log.metadata?.duration ? `duration: ${log.metadata.duration}` :
+                           log.metadata?.x ? `x: ${log.metadata.x}, y: ${log.metadata.y}, target: ${log.metadata.target}` :
+                           log.metadata?.target ? `target: ${log.metadata.target}` :
+                           log.metadata?.shortcut ? `shortcut: ${log.metadata.shortcut}` :
+                           log.message}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {isTeacher && logs && !selectedAssessment && (
           <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
             <div className="p-6 border-b border-slate-50">
-              <h3 className="font-bold text-slate-900">Real-time Violation Logs</h3>
+              <h3 className="font-bold text-slate-900">Recent Security Logs</h3>
             </div>
             <div className="max-h-[500px] overflow-y-auto">
               <table className="w-full text-left">
