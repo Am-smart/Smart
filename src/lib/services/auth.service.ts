@@ -2,16 +2,29 @@ import { authDb } from '../database/auth.db';
 import { systemDb } from '../database/system.db';
 import { User } from '../types';
 import { UserDomain } from '../domain/user.domain';
+import { validatePassword } from '../validation';
+import { sessionManager } from '../auth/session-cache';
+import { UserMapper } from '../mappers';
 
 export class AuthService {
   async validateSession(sessionId: string): Promise<Record<string, unknown> | null> {
+    // Check cache first
+    const cachedUser = sessionManager.get(sessionId);
+    if (cachedUser) {
+        return { ...cachedUser, sessionId };
+    }
+
     const session = await authDb.findSessionById(sessionId);
     if (!session || new Date(session.expires_at) < new Date()) {
       return null;
     }
     const user = await systemDb.findUserById(session.user_id);
     if (!user) return null;
-    return { id: user.id, sessionId: session.id, email: user.email, role: user.role, full_name: user.full_name };
+
+    const userDTO = UserMapper.toDTO(user);
+    sessionManager.set(sessionId, userDTO);
+
+    return { ...userDTO, sessionId };
   }
 
   async createSession(userId: string): Promise<string> {
@@ -29,6 +42,12 @@ export class AuthService {
   }
 
   async register(data: { full_name: string; email: string; password?: string; phone?: string; role: string }) {
+    if (data.password) {
+      const passwordValidation = validatePassword(data.password);
+      if (!passwordValidation.isValid) {
+        throw new Error(passwordValidation.errors[0].message);
+      }
+    }
     return authDb.register(data);
   }
 

@@ -20,8 +20,8 @@ export default function CalendarPage() {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
 
   useEffect(() => {
-    if (user) {
-        getCourses(user.id!).then(async myCourses => {
+    if (user && user.id) {
+        getCourses(user.id).then(async myCourses => {
             const courseIds = myCourses.map(c => c.id);
             if (courseIds.length === 0) return;
 

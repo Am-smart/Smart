@@ -16,6 +16,7 @@ function CatalogContent() {
   const { isOnline, addToQueue } = useIndexedDB();
   const [courses, setCourses] = useState<CourseDTO[]>([]);
   const [enrolledIds, setEnrolledIds] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [activeCourse, setActiveCourse] = useState<CourseDTO | null>(null);
   const [lessons, setLessons] = useState<LessonDTO[]>([]);
   const [showEnrollModal, setShowEnrollModal] = useState<CourseDTO | null>(null);
@@ -25,16 +26,19 @@ function CatalogContent() {
   const courseIdParam = searchParams.get('id');
 
   const fetchData = useCallback(async () => {
-    if (!user) return;
+    if (!user?.id) return;
+    setIsLoading(true);
     try {
         const [all, enrolled] = await Promise.all([
           actions.getCourses(),
-          actions.getEnrollments(user.id!)
+          actions.getEnrollments(user.id)
         ]);
         setCourses(all.filter(c => c.status === 'published'));
         setEnrolledIds(enrolled.map(item => item.course_id));
     } catch (err) {
         console.error('Failed to fetch catalog data:', err);
+    } finally {
+        setIsLoading(false);
     }
   }, [user]);
 
@@ -96,6 +100,7 @@ function CatalogContent() {
 
         <CourseList
             courses={courses}
+            isLoading={isLoading}
             onAction={(course) => {
                 if (enrolledIds.includes(course.id)) {
                     router.push(`/student/courses?id=${course.id}`);

@@ -21,7 +21,7 @@ export const CourseEditor: React.FC<CourseEditorProps> = ({ course, teacherId, o
         course_id: course?.course_id || '',
         status: course?.status || 'draft',
         thumbnail_url: course?.thumbnail_url || 'https://images.unsplash.com/photo-1516116216624-53e697fedbea?w=800&auto=format&fit=crop&q=60',
-        metadata: course?.metadata || {}
+        metadata: course?.metadata ? JSON.parse(JSON.stringify(course.metadata)) : {}
     });
     const [isSaving, setIsSaving] = useState(false);
     const { addToQueue, isOnline } = useIndexedDB();

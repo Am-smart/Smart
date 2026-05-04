@@ -119,8 +119,8 @@ export const useIndexedDB = () => {
         let success = false;
         switch (item.type) {
           case 'ENROLL':
-            const { course_id } = item.payload as { course_id: string };
-            const enrollRes = await actions.enrollInCourse(course_id);
+            const { course_id, enrollmentCode } = item.payload as { course_id: string, enrollmentCode?: string };
+            const enrollRes = await actions.enrollInCourse(course_id, enrollmentCode);
             if (enrollRes.success) success = true;
             break;
           case 'SUBMISSION':
@@ -182,8 +182,10 @@ export const useIndexedDB = () => {
       } catch (err: unknown) {
         console.error('Sync failed for item:', item, err);
         const error = err as Error;
-        // If conflict detected or another terminal error, remove from queue to prevent stuck sync
-        if ((error.message.includes('Conflict detected') || error.message.includes('Forbidden') || error.message.includes('Unauthorized')) && item.id) {
+        const terminalErrors = ['Conflict detected', 'Forbidden', 'Unauthorized', 'Invalid enrollment code', 'Course not found', 'User not found'];
+        const isTerminal = terminalErrors.some(msg => error.message?.includes(msg));
+
+        if (isTerminal && item.id) {
           console.warn('Terminal error during sync, removing item from queue:', item, error.message);
           await removeFromQueue(item.id);
         }

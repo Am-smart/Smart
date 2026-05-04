@@ -105,7 +105,7 @@ export const CourseView: React.FC<CourseViewProps> = ({ course, lessons, onBack 
                             {activeLesson.video_url && (
                                 <div className="aspect-video bg-slate-900 rounded-3xl overflow-hidden shadow-2xl border-4 border-white">
                                     <iframe
-                                        src={getEmbedUrl(activeLesson.video_url)!}
+                                        src={getEmbedUrl(activeLesson.video_url) || ''}
                                         className="w-full h-full"
                                         allowFullScreen
                                     />
@@ -136,15 +136,21 @@ export const CourseView: React.FC<CourseViewProps> = ({ course, lessons, onBack 
 
                             <div className="flex justify-between items-center pt-8 border-t border-slate-200">
                                 <button
-                                    disabled={lessons.indexOf(activeLesson) === 0}
-                                    onClick={() => setActiveLesson(lessons[lessons.indexOf(activeLesson) - 1])}
+                                    disabled={lessons.findIndex(l => l.id === activeLesson.id) <= 0}
+                                    onClick={() => {
+                                        const idx = lessons.findIndex(l => l.id === activeLesson.id);
+                                        if (idx > 0) setActiveLesson(lessons[idx - 1]);
+                                    }}
                                     className="btn-secondary px-8 py-3 text-xs disabled:opacity-30"
                                 >
                                     Previous Lesson
                                 </button>
                                 <button
-                                    disabled={lessons.indexOf(activeLesson) === lessons.length - 1}
-                                    onClick={() => setActiveLesson(lessons[lessons.indexOf(activeLesson) + 1])}
+                                    disabled={lessons.findIndex(l => l.id === activeLesson.id) === -1 || lessons.findIndex(l => l.id === activeLesson.id) >= lessons.length - 1}
+                                    onClick={() => {
+                                        const idx = lessons.findIndex(l => l.id === activeLesson.id);
+                                        if (idx !== -1 && idx < lessons.length - 1) setActiveLesson(lessons[idx + 1]);
+                                    }}
                                     className="btn-primary px-8 py-3 text-xs disabled:opacity-30"
                                 >
                                     Next Lesson

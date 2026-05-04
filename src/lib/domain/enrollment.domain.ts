@@ -17,4 +17,13 @@ export class EnrollmentDomain {
       completed: false
     };
   }
+
+  static validateEnrollmentCode(expectedCode: string | undefined, providedCode: string | undefined): void {
+    const trimmedExpected = expectedCode?.trim();
+    if (trimmedExpected && trimmedExpected !== '') {
+      if (trimmedExpected !== providedCode?.trim()) {
+        throw new Error('Invalid enrollment code');
+      }
+    }
+  }
 }

@@ -31,12 +31,16 @@ export function CourseList({
   onDelete,
   showStatus = false
 }: CourseListProps) {
+  const [imageErrors, setImageErrors] = React.useState<Record<string, boolean>>({});
+
   if (courses.length === 0) {
     return (
-      <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
-        <BookOpen className="mx-auto h-12 w-12 text-gray-400" />
-        <h3 className="mt-2 text-sm font-medium text-gray-900">No courses found</h3>
-        <p className="mt-1 text-sm text-gray-500">Get started by browsing or creating a course.</p>
+      <div className="text-center py-16 bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200 animate-in fade-in duration-500">
+        <div className="w-20 h-20 bg-white rounded-full shadow-sm flex items-center justify-center mx-auto mb-6">
+            <BookOpen className="h-10 w-10 text-slate-300" />
+        </div>
+        <h3 className="text-lg font-bold text-slate-900">No courses found</h3>
+        <p className="mt-1 text-sm text-slate-500 font-medium">Get started by browsing or creating a course.</p>
       </div>
     );
   }
@@ -44,14 +48,16 @@ export function CourseList({
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       {courses.map((course) => (
-        <Card key={course.id} className="overflow-hidden hover:shadow-md transition-shadow">
-          <div className="h-40 bg-gray-100 relative">
-            {course.thumbnail_url ? (
+        <Card key={course.id} className="overflow-hidden hover:shadow-xl transition-all duration-300 border-slate-100 group">
+          <div className="h-48 bg-slate-100 relative overflow-hidden">
+            {course.thumbnail_url && !imageErrors[course.id] ? (
               <Image
                 src={course.thumbnail_url}
                 alt={course.title}
                 fill
-                className="object-cover"
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                className="object-cover group-hover:scale-105 transition-transform duration-500"
+                onError={() => setImageErrors(prev => ({ ...prev, [course.id]: true }))}
               />
             ) : (
               <div className="w-full h-full flex items-center justify-center bg-indigo-50">

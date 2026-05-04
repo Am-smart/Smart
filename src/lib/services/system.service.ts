@@ -67,11 +67,7 @@ export class SystemService {
     const course = await learningDb.findCourseById(courseId, sessionId);
     if (!course) throw new Error('Course not found');
 
-    if (course.course_id && course.course_id.trim() !== '') {
-      if (course.course_id !== enrollmentCode) {
-        throw new Error('Invalid enrollment code');
-      }
-    }
+    EnrollmentDomain.validateEnrollmentCode(course.course_id, enrollmentCode);
 
     const enrollmentToSave = EnrollmentDomain.create(studentId, courseId);
     return learningDb.upsertEnrollment(enrollmentToSave, sessionId);

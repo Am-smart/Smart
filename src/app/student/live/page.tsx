@@ -14,7 +14,7 @@ export default function LiveClassesPage() {
 
   useEffect(() => {
     if (user) {
-        getEnrollments(user.id!).then(enrollments => {
+        getEnrollments(user.id).then(enrollments => {
             const courseIds = enrollments.map(e => e.course_id);
             if (courseIds.length > 0) {
                 getLiveClasses().then(data => {

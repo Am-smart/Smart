@@ -12,8 +12,8 @@ export default function DiscussionsPage() {
   const [selectedCourseId, setSelectedCourseId] = useState<string>('');
 
   useEffect(() => {
-    if (user) {
-        actions.getCourses(user.id!).then(c => {
+    if (user && user.id) {
+        actions.getCourses(user.id).then(c => {
             setCourses(c);
             if (c.length > 0) setSelectedCourseId(c[0].id);
         });

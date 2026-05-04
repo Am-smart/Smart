@@ -41,7 +41,7 @@ export class CourseMapper {
       status: course.status,
       teacher_id: course.teacher_id,
       thumbnail_url: course.thumbnail_url,
-      created_at: course.created_at,
+      created_at: course.created_at || new Date().toISOString(),
       updated_at: course.updated_at,
       version: course.version,
       metadata: course.metadata || {}
@@ -58,7 +58,7 @@ export class LearningMapper {
       content: lesson.content,
       video_url: lesson.video_url,
       order_index: lesson.order_index,
-      created_at: lesson.created_at
+      created_at: lesson.created_at || new Date().toISOString()
     };
   }
 
@@ -271,8 +271,8 @@ export class SystemMapper {
       course_id: e.course_id,
       student_id: e.student_id,
       enrolled_at: e.enrolled_at,
-      progress: e.progress,
-      completed: e.completed,
+      progress: e.progress || 0,
+      completed: e.completed || false,
       course: e.courses ? CourseMapper.toDTO(e.courses) : undefined,
       student: e.users ? UserMapper.toDTO(e.users) : undefined
     };
