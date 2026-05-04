@@ -75,7 +75,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onClose, onShowSignup, onS
         ref={modalRef}
         role="dialog"
         aria-modal="true"
-        className="bg-white w-full max-w-md rounded-xl sm:rounded-2xl p-4 sm:p-8 relative shadow-2xl"
+        className="bg-white w-full max-w-md rounded-xl sm:rounded-2xl p-4 sm:p-8 relative shadow-2xl max-h-[90vh] overflow-y-auto"
     >
       <button
         onClick={onClose}

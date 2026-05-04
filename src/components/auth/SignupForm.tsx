@@ -180,19 +180,19 @@ export const SignupForm: React.FC<SignupFormProps> = ({ initialRole, onClose, on
 
         <div className="space-y-2">
           <p className="text-xs sm:text-sm font-semibold text-slate-700">Select your role:</p>
-          <div className="flex gap-1 sm:gap-2">
+          <div className="grid grid-cols-3 gap-1 sm:gap-2">
             {(['student', 'teacher', 'admin'] as UserRole[]).map((r) => {
               const isLimitReached = roleCounts.total >= 3 && (r === 'teacher' || r === 'admin');
               const isDisabled = isLoading || isLimitReached;
 
               return (
-                <div key={r} className="flex-1 relative">
+                <div key={r} className="relative">
                   <button
                     type="button"
                     onClick={() => handleRoleChange(r)}
                     disabled={isDisabled}
                     title={isLimitReached ? 'Teacher and admin creation limit reached (3)' : ''}
-                    className={`w-full py-1.5 sm:py-2 rounded-lg sm:rounded-xl border-2 transition-all text-xs sm:text-sm font-bold capitalize disabled:opacity-50 disabled:cursor-not-allowed ${
+                    className={`w-full py-2 sm:py-2.5 rounded-lg sm:rounded-xl border-2 transition-all text-[10px] sm:text-sm font-bold capitalize disabled:opacity-50 disabled:cursor-not-allowed ${
                       formData.role === r
                         ? 'border-primary bg-primary/5 text-primary'
                         : 'border-slate-100 text-slate-400 hover:border-slate-200'
@@ -201,7 +201,7 @@ export const SignupForm: React.FC<SignupFormProps> = ({ initialRole, onClose, on
                     {r}
                   </button>
                   {isLimitReached && (
-                    <span className="absolute -top-5 left-0 right-0 text-center text-red-500 text-xs whitespace-nowrap">Limit reached</span>
+                    <span className="absolute -top-4 left-0 right-0 text-center text-red-500 text-[8px] sm:text-xs whitespace-nowrap">Limit reached</span>
                   )}
                 </div>
               );

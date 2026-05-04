@@ -148,7 +148,7 @@ export const QuizView: React.FC<QuizViewProps> = ({ quiz, user, onComplete, onCa
   if (result) {
     return (
         <div className="fixed inset-0 bg-slate-900/90 z-[100] flex items-center justify-center p-4 backdrop-blur-md">
-            <div className="bg-white rounded-3xl p-10 max-w-md w-full text-center shadow-2xl animate-in zoom-in duration-300">
+            <div className="bg-white rounded-3xl p-6 md:p-10 max-w-md w-full text-center shadow-2xl animate-in zoom-in duration-300 max-h-[90vh] overflow-y-auto">
                 <div className="flex justify-center mb-6">
                     {result.reason === 'timeout' ? (
                         <Clock size={64} className="text-red-500" />
@@ -187,15 +187,15 @@ export const QuizView: React.FC<QuizViewProps> = ({ quiz, user, onComplete, onCa
   return (
     <div className="fixed inset-0 bg-white z-50 overflow-y-auto" aria-busy={isSubmitting}>
       <div className="max-w-3xl mx-auto p-4 md:p-8">
-        <header className="flex flex-col md:flex-row justify-between items-center mb-8 pb-4 border-b gap-4">
+        <header className="flex flex-col md:flex-row justify-between items-center mb-6 md:mb-8 pb-4 border-b gap-2 md:gap-4 shrink-0">
           <div>
             <h1 className="text-xl md:text-2xl font-bold text-center md:text-left">{quiz.title}</h1>
             <p className="text-slate-500 text-sm text-center md:text-left">{quiz.questions?.length || 0} Questions</p>
           </div>
           <div className="text-center md:text-right">
             {timeLeft !== null && (
-              <div className={`text-2xl font-mono font-bold flex items-center justify-center md:justify-end gap-2 ${timeLeft < 60 ? 'text-red-500 animate-pulse' : 'text-slate-700'}`}>
-                <Clock size={24} />
+              <div className={`text-xl md:text-2xl font-mono font-bold flex items-center justify-center md:justify-end gap-2 ${timeLeft < 60 ? 'text-red-500 animate-pulse' : 'text-slate-700'}`}>
+                <Clock size={20} className="md:size-6" />
                 {formatTime(timeLeft)}
               </div>
             )}
