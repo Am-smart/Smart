@@ -120,6 +120,7 @@ export const useIndexedDB = () => {
         switch (item.type) {
           case 'ENROLL':
             const { course_id, enrollmentCode } = item.payload as { course_id: string, enrollmentCode?: string };
+            console.log('Syncing enrollment:', course_id, enrollmentCode);
             const enrollRes = await actions.enrollInCourse(course_id, enrollmentCode);
             if (enrollRes.success) success = true;
             break;

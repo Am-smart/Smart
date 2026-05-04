@@ -16,6 +16,7 @@ import { BookOpen, Calendar, Trash2, Edit } from 'lucide-react';
 
 interface CourseListProps {
   courses: CourseDTO[];
+  isLoading?: boolean;
   onAction: (course: CourseDTO) => void;
   actionLabel?: string | ((course: CourseDTO) => string);
   onEdit?: (course: CourseDTO) => void;
@@ -25,6 +26,7 @@ interface CourseListProps {
 
 export function CourseList({
   courses,
+  isLoading = false,
   onAction,
   actionLabel = "View",
   onEdit,
@@ -32,6 +34,29 @@ export function CourseList({
   showStatus = false
 }: CourseListProps) {
   const [imageErrors, setImageErrors] = React.useState<Record<string, boolean>>({});
+
+  if (isLoading) {
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+        {[1, 2, 3].map((i) => (
+          <Card key={i} className="overflow-hidden animate-pulse">
+            <div className="h-48 bg-slate-200" />
+            <CardHeader className="space-y-3">
+              <div className="h-6 bg-slate-200 rounded w-3/4" />
+              <div className="h-3 bg-slate-200 rounded w-1/4" />
+              <div className="h-10 bg-slate-200 rounded" />
+            </CardHeader>
+            <CardContent>
+              <div className="h-4 bg-slate-200 rounded w-1/2" />
+            </CardContent>
+            <CardFooter className="border-t pt-4">
+              <div className="h-10 bg-slate-200 rounded w-full" />
+            </CardFooter>
+          </Card>
+        ))}
+      </div>
+    );
+  }
 
   if (courses.length === 0) {
     return (
@@ -46,7 +71,7 @@ export function CourseList({
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
       {courses.map((course) => (
         <Card key={course.id} className="overflow-hidden hover:shadow-xl transition-all duration-300 border-slate-100 group">
           <div className="h-48 bg-slate-100 relative overflow-hidden">

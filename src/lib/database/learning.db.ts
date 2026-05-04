@@ -25,16 +25,7 @@ export const learningDb = {
   },
 
   async upsertCourse(course: Partial<Course>, sessionId: string): Promise<Course> {
-    const upsertData = dbUtils.prepareUpsert(course);
-    const query = dbUtils.applyVersionCheck(
-      withSession(supabase.from('courses'), sessionId).upsert(upsertData as Record<string, unknown>),
-      course.id,
-      course.version
-    );
-
-    const { data, error } = await query.select().single();
-    if (error) dbUtils.handleUpsertError(error, 'Course', course.id, course.version);
-    return data as Course;
+    return dbUtils.upsert(supabase.from('courses'), course, 'Course', sessionId);
   },
 
   async deleteCourse(id: string, sessionId: string): Promise<void> {
@@ -61,16 +52,7 @@ export const learningDb = {
   },
 
   async upsertLesson(lesson: Partial<Lesson>, sessionId: string): Promise<Lesson> {
-    const upsertData = dbUtils.prepareUpsert(lesson);
-    const query = dbUtils.applyVersionCheck(
-      withSession(supabase.from('lessons'), sessionId).upsert(upsertData as Record<string, unknown>),
-      lesson.id,
-      lesson.version
-    );
-
-    const { data, error } = await query.select().single();
-    if (error) dbUtils.handleUpsertError(error, 'Lesson', lesson.id, lesson.version);
-    return data as Lesson;
+    return dbUtils.upsert(supabase.from('lessons'), lesson, 'Lesson', sessionId);
   },
 
   async deleteLesson(id: string, sessionId: string): Promise<void> {
@@ -119,16 +101,7 @@ export const learningDb = {
   },
 
   async upsertMaterial(material: Partial<Material>, sessionId: string): Promise<Material> {
-    const upsertData = dbUtils.prepareUpsert(material, ['courses']);
-    const query = dbUtils.applyVersionCheck(
-      withSession(supabase.from('materials'), sessionId).upsert(upsertData as Record<string, unknown>),
-      material.id,
-      material.version
-    );
-
-    const { data, error } = await query.select().single();
-    if (error) dbUtils.handleUpsertError(error, 'Material', material.id, material.version);
-    return data as Material;
+    return dbUtils.upsert(supabase.from('materials'), material, 'Material', sessionId, { excludeFields: ['courses'] });
   },
 
   async deleteMaterial(id: string, sessionId: string): Promise<void> {
@@ -165,7 +138,7 @@ export const learningDb = {
 
   async upsertEnrollment(enrollment: Partial<Enrollment>, sessionId: string): Promise<Enrollment> {
     const { data, error } = await withSession(supabase.from('enrollments'), sessionId)
-      .upsert(enrollment)
+      .upsert(enrollment, { onConflict: 'course_id_student_id' })
       .select()
       .single();
     if (error) throw new Error(error.message);

@@ -1,5 +1,3 @@
-import { PostgrestFilterBuilder } from '@supabase/postgrest-js';
-
 export const dbUtils = {
   /**
    * Prepares upsert data with version increment and updated_at
@@ -22,18 +20,21 @@ export const dbUtils = {
       ...cleanedData,
       ...(id ? { id } : {}),
       updated_at: new Date().toISOString(),
-      version: (version || 0) + 1
-    };
+      version: (Number(version) || 0) + 1
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } as any;
   },
 
   /**
    * Applies optimistic concurrency control (version check) to a query
    */
-  applyVersionCheck<T, R>(
-    query: PostgrestFilterBuilder<Record<string, unknown>, T, R>,
+  applyVersionCheck(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    query: any,
     id?: string,
     version?: number
-  ): PostgrestFilterBuilder<Record<string, unknown>, T, R> {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  ): any {
     if (id && version !== undefined) {
       return query.eq('id', id).eq('version', version);
     }
@@ -48,5 +49,37 @@ export const dbUtils = {
       throw new Error(`Conflict detected: ${entityName} has been updated by another user.`);
     }
     throw new Error(error.message);
+  },
+
+  /**
+   * Generic upsert handler with version checking and standardized error handling.
+   */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async upsert<T extends { id?: string; version?: number } | any>(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    table: any,
+    entity: Partial<T>,
+    entityName: string,
+    sessionId: string,
+    options: { onConflict?: string; excludeFields?: string[] } = {}
+  ): Promise<T> {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { withSession } = require('../supabase');
+    const upsertData = this.prepareUpsert(entity, options.excludeFields);
+
+    let query = withSession(table, sessionId).upsert(upsertData, {
+      onConflict: options.onConflict
+    });
+
+    const entityWithVersion = entity as { id?: string; version?: number };
+    query = this.applyVersionCheck(query, entityWithVersion.id, entityWithVersion.version);
+
+    const { data, error } = await query.select().single();
+
+    if (error) {
+      this.handleUpsertError(error, entityName, entityWithVersion.id, entityWithVersion.version);
+    }
+
+    return data as T;
   }
 };

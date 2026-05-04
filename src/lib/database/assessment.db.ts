@@ -21,16 +21,7 @@ export const assessmentDb = {
   },
 
   async upsertAssignment(assignment: Partial<Assignment>, sessionId: string): Promise<Assignment> {
-    const upsertData = dbUtils.prepareUpsert(assignment, ['courses', 'course']);
-    const query = dbUtils.applyVersionCheck(
-      withSession(supabase.from('assignments'), sessionId).upsert(upsertData as Record<string, unknown>),
-      assignment.id,
-      assignment.version
-    );
-
-    const { data, error } = await query.select().single();
-    if (error) dbUtils.handleUpsertError(error, 'Assignment', assignment.id, assignment.version);
-    return data as Assignment;
+    return dbUtils.upsert(supabase.from('assignments'), assignment, 'Assignment', sessionId, { excludeFields: ['courses', 'course'] });
   },
 
   async deleteAssignment(id: string, sessionId: string): Promise<void> {
@@ -55,16 +46,7 @@ export const assessmentDb = {
   },
 
   async upsertQuiz(quiz: Partial<Quiz>, sessionId: string): Promise<Quiz> {
-    const upsertData = dbUtils.prepareUpsert(quiz, ['courses', 'course']);
-    const query = dbUtils.applyVersionCheck(
-      withSession(supabase.from('quizzes'), sessionId).upsert(upsertData as Record<string, unknown>),
-      quiz.id,
-      quiz.version
-    );
-
-    const { data, error } = await query.select().single();
-    if (error) dbUtils.handleUpsertError(error, 'Quiz', quiz.id, quiz.version);
-    return data as Quiz;
+    return dbUtils.upsert(supabase.from('quizzes'), quiz, 'Quiz', sessionId, { excludeFields: ['courses', 'course'] });
   },
 
   async deleteQuiz(id: string, sessionId: string): Promise<void> {
@@ -89,16 +71,10 @@ export const assessmentDb = {
   },
 
   async upsertSubmission(submission: Partial<Submission>, sessionId: string): Promise<Submission> {
-    const upsertData = dbUtils.prepareUpsert(submission, ['assignments', 'assignment', 'users', 'student']);
-    const query = dbUtils.applyVersionCheck(
-      withSession(supabase.from('submissions'), sessionId).upsert(upsertData as Record<string, unknown>, { onConflict: 'assignment_id_student_id' }),
-      submission.id,
-      submission.version
-    );
-
-    const { data, error } = await query.select().single();
-    if (error) dbUtils.handleUpsertError(error, 'Submission', submission.id, submission.version);
-    return data as Submission;
+    return dbUtils.upsert(supabase.from('submissions'), submission, 'Submission', sessionId, {
+      onConflict: 'assignment_id_student_id',
+      excludeFields: ['assignments', 'assignment', 'users', 'student']
+    });
   },
 
   async deleteSubmission(id: string, sessionId: string): Promise<void> {
