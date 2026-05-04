@@ -57,6 +57,7 @@ export const GET = withHandler(async (user, request) => {
     case 'discussions': {
       const courseId = searchParams.get('courseId');
       if (!courseId) throw new Error('courseId is required');
+      if (courseId === 'global') return [];
       const discussions = await systemService.getDiscussions(courseId, user.sessionId!);
       return discussions.map(CommunicationMapper.toDiscussionDTO);
     }
@@ -70,7 +71,7 @@ export const GET = withHandler(async (user, request) => {
         const enrollments = await systemService.getCourseEnrollments(user, courseIds, user.sessionId!);
         return enrollments.map(SystemMapper.toEnrollmentDTO);
       }
-      throw new Error('studentId or courseIds required');
+      return [];
     }
     case 'quiz-submissions': {
         const quizId = searchParams.get('quizId') || undefined;
