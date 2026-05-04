@@ -56,13 +56,13 @@ export const assessmentDb = {
 
   // Submission Operations
   async findSubmissionById(id: string, sessionId: string): Promise<Submission | null> {
-    const { data, error } = await withSession(supabase.from('submissions').select('*, assignments(*), users(*)').eq('id', id), sessionId).maybeSingle();
+    const { data, error } = await withSession(supabase.from('submissions').select('*, assignments(*), users!student_id(*)').eq('id', id), sessionId).maybeSingle();
     if (error) throw new Error(error.message);
     return data as Submission;
   },
 
   async findAllSubmissions(assignmentId?: string, studentId?: string, sessionId?: string): Promise<Submission[]> {
-    let query = withSession(supabase.from('submissions').select('*, assignments(*), users(*)'), sessionId);
+    let query = withSession(supabase.from('submissions').select('*, assignments(*), users!student_id(*)'), sessionId);
     if (assignmentId) query = query.eq('assignment_id', assignmentId);
     if (studentId) query = query.eq('student_id', studentId);
     const { data, error } = await query;
@@ -84,13 +84,13 @@ export const assessmentDb = {
 
   // Quiz Submission Operations
   async findQuizSubmissionById(id: string, sessionId: string): Promise<QuizSubmission | null> {
-    const { data, error } = await withSession(supabase.from('quiz_submissions').select('*, quizzes(*), users(*)').eq('id', id), sessionId).maybeSingle();
+    const { data, error } = await withSession(supabase.from('quiz_submissions').select('*, quizzes(*), users!student_id(*)').eq('id', id), sessionId).maybeSingle();
     if (error) throw new Error(error.message);
     return data as QuizSubmission;
   },
 
   async findAllQuizSubmissions(quizId?: string, studentId?: string, sessionId?: string): Promise<QuizSubmission[]> {
-    let query = withSession(supabase.from('quiz_submissions').select('*, quizzes(*), users(*)'), sessionId);
+    let query = withSession(supabase.from('quiz_submissions').select('*, quizzes(*), users!student_id(*)'), sessionId);
     if (quizId) query = query.eq('quiz_id', quizId);
     if (studentId) query = query.eq('student_id', studentId);
     const { data, error } = await query;
