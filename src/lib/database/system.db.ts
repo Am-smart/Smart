@@ -164,7 +164,7 @@ export const systemDb = {
   // Discussion Operations
   async findDiscussionsByCourseId(courseId: string, sessionId: string): Promise<Discussion[]> {
     const { data, error } = await withSession(supabase.from('discussions'), sessionId)
-      .select('*, users(full_name, email)')
+      .select('*, users!user_id(full_name, email)')
       .eq('course_id', courseId)
       .order('created_at', { ascending: true });
     if (error) throw new Error(error.message);
@@ -253,7 +253,7 @@ export const systemDb = {
 
   async findAllSystemLogs(limit = 100, sessionId: string): Promise<SystemLog[]> {
     const { data, error } = await withSession(supabase.from('system_logs'), sessionId)
-      .select('*, users(full_name, email)')
+      .select('*, users!user_id(full_name, email)')
       .order('created_at', { ascending: false })
       .limit(limit);
     if (error) throw new Error(error.message);

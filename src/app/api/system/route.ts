@@ -63,11 +63,13 @@ export const GET = withHandler(async (user, request) => {
     }
     case 'enrollments': {
       const studentId = searchParams.get('studentId');
-      const courseIds = searchParams.get('courseIds')?.split(',');
+      const courseIdsStr = searchParams.get('courseIds');
+      const courseIds = courseIdsStr ? courseIdsStr.split(',').filter(id => id.trim() !== '') : undefined;
+
       if (studentId) {
         const enrollments = await systemService.getStudentEnrollments(studentId, user.sessionId!);
         return enrollments.map(SystemMapper.toEnrollmentDTO);
-      } else if (courseIds) {
+      } else if (courseIds && courseIds.length > 0) {
         const enrollments = await systemService.getCourseEnrollments(user, courseIds, user.sessionId!);
         return enrollments.map(SystemMapper.toEnrollmentDTO);
       }
