@@ -20,6 +20,15 @@ export const GET = withHandler(async (user, request) => {
     case 'logs': {
       const limit = parseInt(searchParams.get('limit') || '100');
       if (!rbac.can(user, 'system:logs:view')) throw new Error('Unauthorized');
+
+      const filters = {
+        user_id: searchParams.get('userId') || undefined,
+        course_id: searchParams.get('courseId') || undefined,
+        resource_id: searchParams.get('resourceId') || undefined,
+        category: searchParams.get('category') || undefined,
+      };
+
+      const logs = await systemService.getLogs(user, limit, user.sessionId!, filters);
       const logs = await systemService.getLogs(user, limit, user.sessionId!);
       return logs.map(SystemMapper.toSystemLogDTO);
     }
@@ -192,6 +201,17 @@ export const DELETE = withHandler(async (user, request) => {
             const studentId = searchParams.get('studentId');
             if (!studentId) throw new Error('studentId required');
             await systemService.removeEnrollment(user, id, studentId, user.sessionId!);
+            return { success: true };
+        }
+        case 'logs': {
+            if (!rbac.can(user, 'system:manage')) throw new Error('Unauthorized');
+            const filters = {
+                course_id: searchParams.get('courseId') || undefined,
+                resource_id: searchParams.get('resourceId') || undefined,
+                category: searchParams.get('category') || undefined,
+                before: searchParams.get('before') || undefined,
+            };
+            await systemService.clearLogs(user, user.sessionId!, filters);
             return { success: true };
         }
         default:

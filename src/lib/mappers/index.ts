@@ -261,6 +261,8 @@ export class SystemMapper {
       message: sl.message,
       metadata: sl.metadata,
       user_id: sl.user_id,
+      course_id: sl.course_id,
+      resource_id: sl.resource_id,
       created_at: sl.created_at,
       user: (sl.users && sl.user_id) ? UserMapper.toDTO({ id: sl.user_id, ...sl.users }) : undefined
     };

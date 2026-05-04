@@ -585,6 +585,8 @@ export interface SystemLog {
   message: string;
   metadata?: Record<string, string | number | boolean>;
   user_id?: string;
+  course_id?: string;
+  resource_id?: string;
   created_at?: string;
   users?: {
     full_name: string;
@@ -599,6 +601,8 @@ export interface SystemLogDTO {
   message: string;
   metadata?: Record<string, unknown>;
   user_id?: string;
+  course_id?: string;
+  resource_id?: string;
   created_at?: string;
   user?: UserDTO;
 }

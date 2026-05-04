@@ -270,6 +270,21 @@ export const systemDb = {
     return data as SystemLog[];
   },
 
+  async deleteSystemLogs(
+    sessionId: string,
+    filters: { course_id?: string; resource_id?: string; category?: string; before?: string } = {}
+  ): Promise<void> {
+    let query = withSession(supabase.from('system_logs'), sessionId).delete();
+
+    if (filters.course_id) query = query.eq('course_id', filters.course_id);
+    if (filters.resource_id) query = query.eq('resource_id', filters.resource_id);
+    if (filters.category) query = query.eq('category', filters.category);
+    if (filters.before) query = query.lte('created_at', filters.before);
+
+    const { error } = await query;
+    if (error) throw new Error(error.message);
+  },
+
   async updateSystemLog(id: string, updates: Partial<SystemLog>, sessionId: string): Promise<SystemLog> {
     const { data, error } = await withSession(supabase.from('system_logs'), sessionId).update(updates).eq('id', id).select().single();
     if (error) throw new Error(error.message);

@@ -296,8 +296,15 @@ CREATE TABLE IF NOT EXISTS system_logs (
   message TEXT,
   metadata JSONB DEFAULT '{}'::jsonb,
   user_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  course_id UUID REFERENCES courses(id) ON DELETE SET NULL,
+  resource_id UUID, -- References Assignment or Quiz ID
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+CREATE INDEX IF NOT EXISTS idx_system_logs_user ON system_logs(user_id);
+CREATE INDEX IF NOT EXISTS idx_system_logs_course ON system_logs(course_id);
+CREATE INDEX IF NOT EXISTS idx_system_logs_resource ON system_logs(resource_id);
+CREATE INDEX IF NOT EXISTS idx_system_logs_category ON system_logs(category);
 
 CREATE TABLE IF NOT EXISTS settings (
   key VARCHAR(255) PRIMARY KEY,

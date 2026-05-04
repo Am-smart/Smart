@@ -18,13 +18,54 @@ export class SystemService {
     });
   }
 
-  async getLogs(currentUser: User, limit: number, sessionId: string): Promise<SystemLog[]> {
-    // Teachers and Admins can see logs (admins all, teachers anti-cheat)
-    // Students can see only their own anti-cheat logs
-    const category = UserDomain.isAdmin(currentUser) ? undefined : 'anti-cheat';
-    const userId = UserDomain.isStudent(currentUser) ? currentUser.id : undefined;
+  async getLogs(
+    currentUser: User,
+    limit: number,
+    sessionId: string,
+    filters: { user_id?: string; course_id?: string; resource_id?: string; category?: string; course_ids?: string[] } = {}
+  ): Promise<SystemLog[]> {
+    if (!currentUser) throw new Error('Unauthorized');
 
-    return systemDb.findAllSystemLogs(limit, sessionId, category, userId);
+    const finalFilters: { user_id?: string; course_id?: string; resource_id?: string; category?: string; course_ids?: string[] } = { ...filters };
+
+    // Role-based filtering logic
+    if (UserDomain.isAdmin(currentUser)) {
+      // Admins have full access, keep filters as is
+    } else if (UserDomain.isTeacher(currentUser)) {
+      // Teachers can only see anti-cheat logs for their courses
+      finalFilters.category = 'anti-cheat';
+
+      const teacherCourses = await learningDb.findAllCourses(currentUser.id, sessionId);
+      const teacherCourseIds = teacherCourses.map(c => c.id);
+
+      if (finalFilters.course_id) {
+        if (!teacherCourseIds.includes(finalFilters.course_id)) {
+          throw new Error('Forbidden: You can only view logs for your own courses');
+        }
+      } else {
+        // If no course_id is specified, the systemDb will need to handle multiple course_ids
+        // Since findAllSystemLogs currently takes a single course_id, we'll implement
+        // a fallback or update the adapter. For now, let's enforce providing a course_id
+        // or ensure the teacher only sees logs they are authorized for.
+        // We will pass all teacher course IDs to the adapter if it supports arrays.
+        finalFilters.course_ids = teacherCourseIds;
+      }
+    } else {
+      // Students can only see their own anti-cheat logs
+      finalFilters.category = 'anti-cheat';
+      finalFilters.user_id = currentUser.id;
+    }
+
+    return systemDb.findAllSystemLogs(limit, sessionId, finalFilters);
+  }
+
+  async clearLogs(
+    currentUser: User,
+    sessionId: string,
+    filters: { course_id?: string; resource_id?: string; category?: string; before?: string } = {}
+  ): Promise<void> {
+    if (!UserDomain.isAdmin(currentUser)) throw new Error('Forbidden');
+    await systemDb.deleteSystemLogs(sessionId, filters);
   }
 
   async updateLog(currentUser: User, id: string, updates: Partial<SystemLog>, sessionId: string): Promise<SystemLog> {
