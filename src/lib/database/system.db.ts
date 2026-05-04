@@ -1,6 +1,7 @@
 import { withSession } from '../supabase';
 import { supabaseServer as supabase } from '../supabase-server';
 import { User, LiveClass, Notification, Broadcast, Discussion, PlannerItem, Maintenance, Setting, SystemLog } from '../types';
+import { dbUtils } from './db-utils';
 
 export const systemDb = {
   // User Operations
@@ -36,23 +37,15 @@ export const systemDb = {
   },
 
   async updateUser(id: string, updates: Partial<User>, sessionId: string, version?: number): Promise<User> {
-    let query = withSession(supabase.from('users'), sessionId)
-      .update({
-        ...updates,
-        version: (version || 1) + 1,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', id);
-
-    if (version) query = query.eq('version', version);
+    const upsertData = dbUtils.prepareUpsert({ ...updates, id, version });
+    const query = dbUtils.applyVersionCheck(
+      withSession(supabase.from('users'), sessionId).update(upsertData as Record<string, unknown>).eq('id', id),
+      id,
+      version
+    );
 
     const { data, error } = await query.select().single();
-    if (error) {
-      if (version && error.code === 'PGRST116') {
-        throw new Error('Conflict detected: User profile has been updated by another user.');
-      }
-      throw new Error(error.message);
-    }
+    if (error) dbUtils.handleUpsertError(error, 'User profile', id, version);
     return data as User;
   },
 
@@ -97,26 +90,15 @@ export const systemDb = {
   },
 
   async upsertLiveClass(liveClass: Partial<LiveClass>, sessionId: string): Promise<LiveClass> {
-    const { version, id, ...liveClassData } = liveClass;
-    const cleanedId = id && id.trim() !== "" ? id : undefined;
-
-    let query = withSession(supabase.from('live_classes'), sessionId)
-      .upsert({
-        ...liveClassData,
-        ...(cleanedId ? { id: cleanedId } : {}),
-        updated_at: new Date().toISOString(),
-        version: (version || 0) + 1
-      });
-
-    if (cleanedId && version) query = query.eq('id', cleanedId).eq('version', version);
+    const upsertData = dbUtils.prepareUpsert(liveClass, ['courses']);
+    const query = dbUtils.applyVersionCheck(
+      withSession(supabase.from('live_classes'), sessionId).upsert(upsertData as Record<string, unknown>),
+      liveClass.id,
+      liveClass.version
+    );
 
     const { data, error } = await query.select().single();
-    if (error) {
-      if (cleanedId && version && error.code === 'PGRST116') {
-        throw new Error('Conflict detected: Live class has been updated by another user.');
-      }
-      throw new Error(error.message);
-    }
+    if (error) dbUtils.handleUpsertError(error, 'Live class', liveClass.id, liveClass.version);
     return data as LiveClass;
   },
 
@@ -127,7 +109,7 @@ export const systemDb = {
 
   // Attendance Operations
   async upsertAttendance(attendance: { live_class_id: string, student_id: string, join_time: string, is_present: boolean }, sessionId: string): Promise<void> {
-    const { error } = await withSession(supabase.from('attendance'), sessionId).upsert(attendance, { onConflict: 'live_class_id, student_id' });
+    const { error } = await withSession(supabase.from('attendance'), sessionId).upsert(attendance, { onConflict: 'live_class_id_student_id' });
     if (error) throw new Error(error.message);
   },
 
@@ -190,24 +172,15 @@ export const systemDb = {
   },
 
   async upsertDiscussion(post: Partial<Discussion>, sessionId: string): Promise<Discussion> {
-    const { version, id, ...postData } = post;
-    let query = withSession(supabase.from('discussions'), sessionId)
-      .upsert({
-        ...postData,
-        ...(id ? { id } : {}),
-        updated_at: new Date().toISOString(),
-        version: (version || 0) + 1
-      });
-
-    if (id && version) query = query.eq('id', id).eq('version', version);
+    const upsertData = dbUtils.prepareUpsert(post, ['users']);
+    const query = dbUtils.applyVersionCheck(
+      withSession(supabase.from('discussions'), sessionId).upsert(upsertData as Record<string, unknown>),
+      post.id,
+      post.version
+    );
 
     const { data, error } = await query.select().single();
-    if (error) {
-      if (id && version && error.code === 'PGRST116') {
-        throw new Error('Conflict detected: Discussion post has been updated by another user.');
-      }
-      throw new Error(error.message);
-    }
+    if (error) dbUtils.handleUpsertError(error, 'Discussion post', post.id, post.version);
     return data as Discussion;
   },
 
@@ -224,24 +197,15 @@ export const systemDb = {
   },
 
   async upsertPlannerItem(item: Partial<PlannerItem>, sessionId: string): Promise<PlannerItem> {
-    const { version, id, ...itemData } = item;
-    let query = withSession(supabase.from('planner'), sessionId)
-      .upsert({
-        ...itemData,
-        ...(id ? { id } : {}),
-        updated_at: new Date().toISOString(),
-        version: (version || 0) + 1
-      });
-
-    if (id && version) query = query.eq('id', id).eq('version', version);
+    const upsertData = dbUtils.prepareUpsert(item);
+    const query = dbUtils.applyVersionCheck(
+      withSession(supabase.from('planner'), sessionId).upsert(upsertData as Record<string, unknown>),
+      item.id,
+      item.version
+    );
 
     const { data, error } = await query.select().single();
-    if (error) {
-      if (id && version && error.code === 'PGRST116') {
-        throw new Error('Conflict detected: Planner item has been updated by another user.');
-      }
-      throw new Error(error.message);
-    }
+    if (error) dbUtils.handleUpsertError(error, 'Planner item', item.id, item.version);
     return data as PlannerItem;
   },
 

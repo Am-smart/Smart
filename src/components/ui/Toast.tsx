@@ -17,9 +17,11 @@ interface ToastProps {
 
 export const Toast: React.FC<ToastProps> = ({ toasts, removeToast }) => {
     return (
-        <div className="fixed bottom-6 right-6 z-[9999] flex flex-col gap-3 max-w-md w-full sm:w-auto">
+        <div className="fixed bottom-6 right-6 z-[9999] flex flex-col-reverse gap-3 max-w-md w-full sm:w-auto pointer-events-none">
             {toasts.map((toast) => (
-                <ToastItem key={toast.id} toast={toast} onRemove={() => removeToast(toast.id)} />
+                <div key={toast.id} className="pointer-events-auto">
+                    <ToastItem toast={toast} onRemove={() => removeToast(toast.id)} />
+                </div>
             ))}
         </div>
     );

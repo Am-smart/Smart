@@ -85,7 +85,7 @@ export const AssignmentEditor: React.FC<AssignmentEditorProps> = ({ teacherId, a
     const addStep = () => {
         setFormData({
             ...formData,
-            questions: [...formData.questions, { id: Math.random().toString(36).substring(2, 9), text: '', type: 'essay', points: 10 }]
+            questions: [...formData.questions, { id: crypto.randomUUID(), text: '', type: 'essay', points: 10 }]
         });
     };
 

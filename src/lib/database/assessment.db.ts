@@ -1,6 +1,7 @@
 import { withSession } from '../supabase';
 import { supabaseServer as supabase } from '../supabase-server';
 import { Assignment, Quiz, Submission, QuizSubmission } from '../types';
+import { dbUtils } from './db-utils';
 
 export const assessmentDb = {
   // Assignment Operations
@@ -20,27 +21,15 @@ export const assessmentDb = {
   },
 
   async upsertAssignment(assignment: Partial<Assignment>, sessionId: string): Promise<Assignment> {
-    const { version, id, courses: _courses, course: _course, ...assignmentData } = assignment as Record<string, unknown>;
-    const currentVersion = typeof version === 'number' ? version : 0;
-    let query = withSession(supabase.from('assignments'), sessionId)
-      .upsert({
-        ...assignmentData,
-        ...(id ? { id } : {}),
-        updated_at: new Date().toISOString(),
-        version: currentVersion + 1
-      } as Record<string, unknown>);
-
-    if (id && version) {
-      query = query.eq('id', id).eq('version', version);
-    }
+    const upsertData = dbUtils.prepareUpsert(assignment, ['courses', 'course']);
+    const query = dbUtils.applyVersionCheck(
+      withSession(supabase.from('assignments'), sessionId).upsert(upsertData as Record<string, unknown>),
+      assignment.id,
+      assignment.version
+    );
 
     const { data, error } = await query.select().single();
-    if (error) {
-      if (id && version && error.code === 'PGRST116') {
-        throw new Error('Conflict detected: Assignment has been updated by another user.');
-      }
-      throw new Error(error.message);
-    }
+    if (error) dbUtils.handleUpsertError(error, 'Assignment', assignment.id, assignment.version);
     return data as Assignment;
   },
 
@@ -66,27 +55,15 @@ export const assessmentDb = {
   },
 
   async upsertQuiz(quiz: Partial<Quiz>, sessionId: string): Promise<Quiz> {
-    const { version, id, courses: _courses, course: _course, ...quizData } = quiz as Record<string, unknown>;
-    const currentVersion = typeof version === 'number' ? version : 0;
-    let query = withSession(supabase.from('quizzes'), sessionId)
-      .upsert({
-        ...quizData,
-        ...(id ? { id } : {}),
-        updated_at: new Date().toISOString(),
-        version: currentVersion + 1
-      } as Record<string, unknown>);
-
-    if (id && version) {
-      query = query.eq('id', id).eq('version', version);
-    }
+    const upsertData = dbUtils.prepareUpsert(quiz, ['courses', 'course']);
+    const query = dbUtils.applyVersionCheck(
+      withSession(supabase.from('quizzes'), sessionId).upsert(upsertData as Record<string, unknown>),
+      quiz.id,
+      quiz.version
+    );
 
     const { data, error } = await query.select().single();
-    if (error) {
-      if (id && version && error.code === 'PGRST116') {
-        throw new Error('Conflict detected: Quiz has been updated by another user.');
-      }
-      throw new Error(error.message);
-    }
+    if (error) dbUtils.handleUpsertError(error, 'Quiz', quiz.id, quiz.version);
     return data as Quiz;
   },
 
@@ -112,27 +89,15 @@ export const assessmentDb = {
   },
 
   async upsertSubmission(submission: Partial<Submission>, sessionId: string): Promise<Submission> {
-    const { version, id, assignments: _assignments, assignment: _assignment, users: _users, student: _student, ...submissionData } = submission as Record<string, unknown>;
-    const currentVersion = typeof version === 'number' ? version : 0;
-    let query = withSession(supabase.from('submissions'), sessionId)
-      .upsert({
-        ...submissionData,
-        ...(id ? { id } : {}),
-        updated_at: new Date().toISOString(),
-        version: currentVersion + 1
-      } as Record<string, unknown>, { onConflict: 'assignment_id, student_id' });
-
-    if (id && version) {
-      query = query.eq('id', id).eq('version', version);
-    }
+    const upsertData = dbUtils.prepareUpsert(submission, ['assignments', 'assignment', 'users', 'student']);
+    const query = dbUtils.applyVersionCheck(
+      withSession(supabase.from('submissions'), sessionId).upsert(upsertData as Record<string, unknown>, { onConflict: 'assignment_id_student_id' }),
+      submission.id,
+      submission.version
+    );
 
     const { data, error } = await query.select().single();
-    if (error) {
-      if (id && version && error.code === 'PGRST116') {
-        throw new Error('Conflict detected: Submission has been updated by another user.');
-      }
-      throw new Error(error.message);
-    }
+    if (error) dbUtils.handleUpsertError(error, 'Submission', submission.id, submission.version);
     return data as Submission;
   },
 

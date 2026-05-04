@@ -14,9 +14,9 @@ export default function GradeBookPage() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (user) {
+    if (user && user.id) {
         setIsLoading(true);
-        getCourses(user.id!).then(async myCourses => {
+        getCourses(user.id).then(async myCourses => {
             const courseIds = myCourses.map(c => c.id);
             if (courseIds.length > 0) {
                 const [enrols, subs, qSubs] = await Promise.all([

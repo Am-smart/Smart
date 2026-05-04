@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from './AuthContext';
 import { validateLoginForm, normalizeEmail } from '@/lib/validation';
+import { X } from 'lucide-react';
 
 interface LoginFormProps {
   onClose: () => void;
@@ -17,6 +18,24 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onClose, onShowSignup, onS
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
   const { login } = useAuth();
+  const modalRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleEscape);
+
+    // Focus trap
+    const focusableElements = modalRef.current?.querySelectorAll(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+    );
+    if (focusableElements && focusableElements.length > 0) {
+      (focusableElements[0] as HTMLElement).focus();
+    }
+
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, [onClose]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,8 +70,20 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onClose, onShowSignup, onS
   };
 
   return (
-    <div id="login" className="bg-white w-full max-w-md rounded-xl sm:rounded-2xl p-4 sm:p-8 relative shadow-2xl">
-      <button onClick={onClose} className="absolute top-2 right-2 sm:top-4 sm:right-4 text-xl sm:text-2xl text-slate-400 hover:text-slate-600 transition-colors">×</button>
+    <div
+        id="login"
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        className="bg-white w-full max-w-md rounded-xl sm:rounded-2xl p-4 sm:p-8 relative shadow-2xl"
+    >
+      <button
+        onClick={onClose}
+        aria-label="Close"
+        className="absolute top-2 right-2 sm:top-4 sm:right-4 p-2 text-slate-400 hover:text-slate-600 transition-colors rounded-full hover:bg-slate-100"
+      >
+        <X size={20} />
+      </button>
       <h2 className="text-lg sm:text-2xl font-bold text-slate-900 mb-4 sm:mb-6 pr-6">Login</h2>
       <form onSubmit={handleSubmit} noValidate className="space-y-4">
         <div>

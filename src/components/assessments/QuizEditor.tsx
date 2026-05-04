@@ -38,7 +38,7 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({ teacherId, quiz, courses
 
     const handleAddQuestion = () => {
         const newQ: QuestionDTO = {
-            id: Math.random().toString(36).substring(2, 9),
+            id: crypto.randomUUID(),
             text: '',
             type: 'mcq',
             points: 10,

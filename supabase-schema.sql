@@ -413,8 +413,10 @@ CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions(expires_at);
 CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
 CREATE INDEX IF NOT EXISTS idx_users_active ON users(active);
 CREATE INDEX IF NOT EXISTS idx_courses_teacher ON courses(teacher_id);
+CREATE INDEX IF NOT EXISTS idx_courses_enrollment_code ON courses(course_id);
 CREATE INDEX IF NOT EXISTS idx_lessons_course ON lessons(course_id);
 CREATE INDEX IF NOT EXISTS idx_enrollments_student ON enrollments(student_id);
+ CREATE INDEX IF NOT EXISTS idx_enrollments_student_course ON enrollments(student_id, course_id);
 CREATE INDEX IF NOT EXISTS idx_assignments_course ON assignments(course_id);
 CREATE INDEX IF NOT EXISTS idx_submissions_student ON submissions(student_id);
 CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id, is_read);
@@ -992,7 +994,12 @@ GRANT ALL ON ALL TABLES IN SCHEMA public TO anon;
 GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon;
 
 -- STRICT BACKEND-ONLY ACCESS POLICIES
--- Data access is proxied through our API/Service layer using withSession(x-session-id).
+-- SECURITY MODEL: STRICT BACKEND-ONLY ACCESS
+-- Data access is restricted and proxied through our secure API/Service layer.
+-- All direct access via anonymous users is blocked using `USING (false)`.
+-- Request authorization is enforced by the `withSession(x-session-id)` helper
+-- which injects session context that our PL/pgSQL functions (like `current_app_user()`)
+-- use to evaluate permissions and identity without exposing Supabase Auth.
 
 DROP POLICY IF EXISTS "Strict Backend Access" ON users;
 CREATE POLICY "Strict Backend Access" ON users FOR ALL TO anon USING (false);

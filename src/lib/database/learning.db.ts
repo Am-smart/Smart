@@ -1,6 +1,7 @@
 import { withSession } from '../supabase';
 import { supabaseServer as supabase } from '../supabase-server';
 import { Course, Lesson, Material, Enrollment } from '../types';
+import { dbUtils } from './db-utils';
 
 export const learningDb = {
   // Course Operations
@@ -15,6 +16,8 @@ export const learningDb = {
     let query = withSession(supabase.from('courses').select('*'), sessionId);
     if (teacherId) {
       query = query.eq('teacher_id', teacherId);
+    } else {
+      query = query.eq('status', 'published');
     }
     const { data, error } = await query;
     if (error) throw new Error(error.message);
@@ -22,26 +25,15 @@ export const learningDb = {
   },
 
   async upsertCourse(course: Partial<Course>, sessionId: string): Promise<Course> {
-    const { version, id, ...courseData } = course;
-    let query = withSession(supabase.from('courses'), sessionId)
-      .upsert({
-        ...courseData,
-        ...(id ? { id } : {}),
-        updated_at: new Date().toISOString(),
-        version: (version || 0) + 1
-      });
-
-    if (id && version) {
-      query = query.eq('id', id).eq('version', version);
-    }
+    const upsertData = dbUtils.prepareUpsert(course);
+    const query = dbUtils.applyVersionCheck(
+      withSession(supabase.from('courses'), sessionId).upsert(upsertData as Record<string, unknown>),
+      course.id,
+      course.version
+    );
 
     const { data, error } = await query.select().single();
-    if (error) {
-      if (id && version && error.code === 'PGRST116') {
-        throw new Error('Conflict detected: Course has been updated by another user.');
-      }
-      throw new Error(error.message);
-    }
+    if (error) dbUtils.handleUpsertError(error, 'Course', course.id, course.version);
     return data as Course;
   },
 
@@ -69,26 +61,15 @@ export const learningDb = {
   },
 
   async upsertLesson(lesson: Partial<Lesson>, sessionId: string): Promise<Lesson> {
-    const { version, id, ...lessonData } = lesson;
-    let query = withSession(supabase.from('lessons'), sessionId)
-      .upsert({
-        ...lessonData,
-        ...(id ? { id } : {}),
-        updated_at: new Date().toISOString(),
-        version: (version || 0) + 1
-      });
-
-    if (id && version) {
-      query = query.eq('id', id).eq('version', version);
-    }
+    const upsertData = dbUtils.prepareUpsert(lesson);
+    const query = dbUtils.applyVersionCheck(
+      withSession(supabase.from('lessons'), sessionId).upsert(upsertData as Record<string, unknown>),
+      lesson.id,
+      lesson.version
+    );
 
     const { data, error } = await query.select().single();
-    if (error) {
-      if (id && version && error.code === 'PGRST116') {
-        throw new Error('Conflict detected: Lesson has been updated by another user.');
-      }
-      throw new Error(error.message);
-    }
+    if (error) dbUtils.handleUpsertError(error, 'Lesson', lesson.id, lesson.version);
     return data as Lesson;
   },
 
@@ -103,7 +84,7 @@ export const learningDb = {
         student_id: studentId,
         lesson_id: lessonId,
         completed_at: new Date().toISOString()
-      }, { onConflict: 'student_id, lesson_id' });
+      }, { onConflict: 'student_id_lesson_id' });
     if (error) throw new Error(error.message);
   },
 
@@ -138,26 +119,15 @@ export const learningDb = {
   },
 
   async upsertMaterial(material: Partial<Material>, sessionId: string): Promise<Material> {
-    const { version, id, ...materialData } = material;
-    let query = withSession(supabase.from('materials'), sessionId)
-      .upsert({
-        ...materialData,
-        ...(id ? { id } : {}),
-        updated_at: new Date().toISOString(),
-        version: (version || 0) + 1
-      });
-
-    if (id && version) {
-      query = query.eq('id', id).eq('version', version);
-    }
+    const upsertData = dbUtils.prepareUpsert(material, ['courses']);
+    const query = dbUtils.applyVersionCheck(
+      withSession(supabase.from('materials'), sessionId).upsert(upsertData as Record<string, unknown>),
+      material.id,
+      material.version
+    );
 
     const { data, error } = await query.select().single();
-    if (error) {
-      if (id && version && error.code === 'PGRST116') {
-        throw new Error('Conflict detected: Material has been updated by another user.');
-      }
-      throw new Error(error.message);
-    }
+    if (error) dbUtils.handleUpsertError(error, 'Material', material.id, material.version);
     return data as Material;
   },
 
