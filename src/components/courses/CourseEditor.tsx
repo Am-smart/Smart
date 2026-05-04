@@ -131,7 +131,7 @@ export const CourseEditor: React.FC<CourseEditorProps> = ({ course, teacherId, o
                                 try {
                                     const metadata = JSON.parse(e.target.value);
                                     setFormData(prev => ({ ...prev, metadata }));
-                                } catch (_error) {
+                                } catch {
                                     // Allow invalid JSON while typing
                                 }
                             }}
