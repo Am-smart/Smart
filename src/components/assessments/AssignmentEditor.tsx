@@ -129,14 +129,14 @@ export const AssignmentEditor: React.FC<AssignmentEditorProps> = ({ teacherId, a
 
     return (
         <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center z-50 p-2 md:p-4">
-            <div className="bg-white w-full max-w-2xl rounded-2xl md:rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300">
-                <header className="p-8 border-b bg-slate-50 flex justify-between items-center">
-                    <h2 className="text-2xl font-bold text-slate-900">{assignment?.id ? 'Edit Assignment' : 'Create New Assignment'}</h2>
+            <div className="bg-white w-full max-w-2xl rounded-2xl md:rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300 flex flex-col max-h-[95vh] md:max-h-[90vh]">
+                <header className="p-6 md:p-8 border-b bg-slate-50 flex justify-between items-center shrink-0">
+                    <h2 className="text-xl md:text-2xl font-bold text-slate-900">{assignment?.id ? 'Edit Assignment' : 'Create New Assignment'}</h2>
                     <button onClick={onCancel} className="p-2 hover:bg-slate-200 rounded-full transition-colors">✕</button>
                 </header>
                 <form onSubmit={handleSubmit} className="p-4 md:p-8 space-y-6 overflow-y-auto flex-1">
-                    <div className="bg-slate-50 p-6 rounded-3xl border-2 border-slate-100 space-y-6">
-                        <h3 className="text-lg font-bold text-slate-900 border-b pb-4 mb-4">Assignment Settings</h3>
+                    <div className="bg-slate-50 p-4 md:p-6 rounded-3xl border-2 border-slate-100 space-y-6">
+                        <h3 className="text-base md:text-lg font-bold text-slate-900 border-b pb-4 mb-4">Assignment Settings</h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div>
                                 <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">Assignment Title</label>
@@ -154,24 +154,24 @@ export const AssignmentEditor: React.FC<AssignmentEditorProps> = ({ teacherId, a
                             <textarea required value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} className="w-full h-32 p-4 rounded-xl border-2 border-white focus:border-blue-500 outline-none transition-all resize-none shadow-sm" placeholder="Assignment instructions..." />
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">Start At</label>
-                                    <input type="datetime-local" required value={formData.start_at} onChange={e => setFormData({...formData, start_at: e.target.value})} className="w-full p-4 rounded-xl border-2 border-white focus:border-blue-500 outline-none transition-all shadow-sm" />
+                                    <label className="block text-xs md:text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">Start At</label>
+                                    <input type="datetime-local" required value={formData.start_at} onChange={e => setFormData({...formData, start_at: e.target.value})} className="w-full p-4 rounded-xl border-2 border-white focus:border-blue-500 outline-none transition-all shadow-sm text-sm" />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">Due Date</label>
-                                    <input type="datetime-local" required value={formData.due_date} onChange={e => setFormData({...formData, due_date: e.target.value})} className="w-full p-4 rounded-xl border-2 border-white focus:border-blue-500 outline-none transition-all shadow-sm" />
+                                    <label className="block text-xs md:text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">Due Date</label>
+                                    <input type="datetime-local" required value={formData.due_date} onChange={e => setFormData({...formData, due_date: e.target.value})} className="w-full p-4 rounded-xl border-2 border-white focus:border-blue-500 outline-none transition-all shadow-sm text-sm" />
                                 </div>
                             </div>
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                 <div>
-                                    <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">Points Possible</label>
-                                    <input type="number" readOnly value={formData.points_possible} className="w-full p-4 rounded-xl border-2 border-white bg-slate-100 text-slate-500 outline-none transition-all font-bold shadow-sm" />
+                                    <label className="block text-xs md:text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">Points Possible</label>
+                                    <input type="number" readOnly value={formData.points_possible} className="w-full p-4 rounded-xl border-2 border-white bg-slate-100 text-slate-500 outline-none transition-all font-bold shadow-sm text-sm" />
                                 </div>
                                 <div>
-                                    <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">Status</label>
-                                    <select value={formData.status} onChange={e => setFormData({...formData, status: e.target.value as AssignmentDTO['status']})} className="w-full p-4 rounded-xl border-2 border-white focus:border-blue-500 outline-none transition-all shadow-sm">
+                                    <label className="block text-xs md:text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">Status</label>
+                                    <select value={formData.status} onChange={e => setFormData({...formData, status: e.target.value as AssignmentDTO['status']})} className="w-full p-4 rounded-xl border-2 border-white focus:border-blue-500 outline-none transition-all shadow-sm text-sm">
                                         <option value="draft">Draft</option>
                                         <option value="published">Published</option>
                                     </select>
@@ -312,7 +312,7 @@ export const AssignmentEditor: React.FC<AssignmentEditorProps> = ({ teacherId, a
                             <Plus size={18} /> Add Step
                         </button>
                     </div>
-                    <footer className="pt-8 border-t flex justify-between gap-4">
+                    <footer className="pt-8 border-t flex flex-col sm:flex-row justify-between gap-4 shrink-0">
                         <button type="button" onClick={onCancel} className="btn-secondary flex-1 py-4">Discard</button>
                         <button type="submit" disabled={isSaving} className="btn-primary flex-1 py-4">{isSaving ? 'Saving...' : 'Save Assignment'}</button>
                     </footer>

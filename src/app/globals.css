@@ -46,6 +46,22 @@
   .stack-on-mobile {
     @apply flex flex-col md:flex-row gap-4;
   }
+
+  .mobile-scroll-container {
+    @apply max-h-[85vh] md:max-h-[90vh] overflow-y-auto;
+  }
+
+  .mobile-grid-1 {
+    @apply grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6;
+  }
+
+  .responsive-p {
+    @apply p-4 md:p-8;
+  }
+
+  .responsive-gap {
+    @apply gap-4 md:gap-8;
+  }
 }
 
 @media (max-width: 320px) {

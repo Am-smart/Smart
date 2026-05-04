@@ -93,9 +93,9 @@ export const LiveClassManager: React.FC<LiveClassManagerProps> = ({ teacherId, l
             </header>
 
             {isFormOpen && (
-                <div className="bg-white p-8 rounded-3xl border border-slate-100 shadow-xl animate-in fade-in slide-in-from-top-4">
+                <div className="bg-white p-4 md:p-8 rounded-3xl border border-slate-100 shadow-xl animate-in fade-in slide-in-from-top-4">
                     <h3 className="text-lg font-bold mb-6 text-slate-900">New Live Session</h3>
-                    <form onSubmit={handleCreate} className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <form onSubmit={handleCreate} className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                         <div className="md:col-span-2">
                             <label className="block text-[10px] font-bold uppercase text-slate-500 mb-2 tracking-widest">Class Title</label>
                             <input type="text" required value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} className="input-custom" placeholder="e.g. Weekly Q&A Session" />
@@ -132,13 +132,13 @@ export const LiveClassManager: React.FC<LiveClassManagerProps> = ({ teacherId, l
                         </div>
                         <div className="md:col-span-2 flex justify-end gap-4 mt-4">
                             <button type="button" onClick={() => setIsFormOpen(false)} className="btn-secondary">Cancel</button>
-                            <button type="submit" className="btn-primary px-8">Save Session</button>
+                            <button type="submit" className="btn-primary w-full sm:w-auto px-8">Save Session</button>
                         </div>
                     </form>
                 </div>
             )}
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
                 {liveClasses.length === 0 ? (
                     <div className="col-span-full py-12 bg-white rounded-3xl border-2 border-dashed border-slate-100 flex flex-col items-center justify-center text-slate-400 italic font-medium">
                         No live classes scheduled.

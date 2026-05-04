@@ -110,23 +110,23 @@ export const AssignmentForm: React.FC<AssignmentFormProps> = ({ assignment, user
 
   return (
     <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center z-50 p-2 md:p-4">
-      <div className="bg-white w-full max-w-2xl rounded-2xl md:rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300 flex flex-col max-h-[95vh] relative">
+      <div className="bg-white w-full max-w-2xl rounded-2xl md:rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300 flex flex-col max-h-[95vh] md:max-h-[90vh] relative">
         {isLocked && (
-            <div className="absolute inset-0 bg-slate-900/80 backdrop-blur-sm z-[60] flex items-center justify-center p-6 text-center">
-                <div className="bg-white rounded-3xl p-8 max-w-sm w-full shadow-2xl animate-in zoom-in duration-300">
+            <div className="absolute inset-0 bg-slate-900/80 backdrop-blur-sm z-[60] flex items-center justify-center p-4 md:p-6 text-center">
+                <div className="bg-white rounded-3xl p-6 md:p-8 max-w-sm w-full shadow-2xl animate-in zoom-in duration-300">
                     <Shield size={64} className="text-red-600 mx-auto mb-6" />
-                    <h2 className="text-2xl font-black text-slate-900 mb-2 uppercase">Assignment Locked</h2>
-                    <p className="text-slate-500 mb-8 font-medium">This assignment has been locked due to security violations. Please contact your instructor.</p>
+                    <h2 className="text-xl md:text-2xl font-black text-slate-900 mb-2 uppercase">Assignment Locked</h2>
+                    <p className="text-sm md:text-base text-slate-500 mb-8 font-medium">This assignment has been locked due to security violations. Please contact your instructor.</p>
                     <button
                         onClick={onCancel}
-                        className="btn-primary w-full py-4 rounded-xl font-bold shadow-lg shadow-blue-500/20"
+                        className="btn-primary w-full py-3 md:py-4 rounded-xl font-bold shadow-lg shadow-blue-500/20"
                     >
                         Return to Dashboard
                     </button>
                 </div>
             </div>
         )}
-        <header className="p-6 md:p-8 border-b bg-slate-50 flex justify-between items-center shrink-0">
+        <header className="p-4 md:p-8 border-b bg-slate-50 flex justify-between items-center shrink-0">
           <div>
             <h2 className="text-xl md:text-2xl font-bold text-slate-900">{assignment.title}</h2>
             <div className="flex items-center gap-3 mt-2">
@@ -137,8 +137,8 @@ export const AssignmentForm: React.FC<AssignmentFormProps> = ({ assignment, user
           <button onClick={onCancel} className="p-2 hover:bg-slate-200 rounded-full transition-colors">✕</button>
         </header>
 
-        <div className="p-6 md:p-8 space-y-8 overflow-y-auto flex-1">
-          <div className="bg-blue-50 p-6 rounded-2xl border border-blue-100">
+        <div className="p-4 md:p-8 space-y-6 md:space-y-8 overflow-y-auto flex-1">
+          <div className="bg-blue-50 p-4 md:p-6 rounded-2xl border border-blue-100">
             <h4 className="text-xs font-bold text-blue-700 uppercase mb-2">Instructions</h4>
             <div className="text-sm text-blue-900 leading-relaxed whitespace-pre-line">{assignment.description}</div>
           </div>
@@ -239,12 +239,12 @@ export const AssignmentForm: React.FC<AssignmentFormProps> = ({ assignment, user
           )}
         </div>
 
-        <footer className="p-6 md:p-8 bg-slate-50 border-t flex justify-between items-center shrink-0">
-            <button onClick={onCancel} className="btn-secondary px-6 md:px-8 py-3 text-sm">Cancel</button>
+        <footer className="p-4 md:p-8 bg-slate-50 border-t flex flex-col sm:flex-row justify-between items-center gap-3 md:gap-4 shrink-0">
+            <button onClick={onCancel} className="btn-secondary w-full sm:w-auto px-6 md:px-8 py-3 text-sm">Cancel</button>
             <button
                 onClick={handleSubmit}
                 disabled={isSubmitting || (!submissionText && !fileUrl && Object.keys(answers).length === 0)}
-                className="btn-primary px-8 md:px-10 py-3 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                className="btn-primary w-full sm:w-auto px-8 md:px-10 py-3 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
             >
                 {isSubmitting ? 'Submitting...' : 'Submit Assignment'}
             </button>

@@ -98,9 +98,9 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({ teacherId, quiz, courses
     };
 
     return (
-        <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center z-50 p-4">
-            <div className="bg-white w-full max-w-4xl rounded-2xl md:rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300 flex flex-col max-h-[90vh]">
-                <header className="p-5 md:p-8 border-b bg-slate-50 flex justify-between items-center shrink-0">
+        <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center z-50 p-2 md:p-4">
+            <div className="bg-white w-full max-w-4xl rounded-2xl md:rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300 flex flex-col max-h-[95vh] md:max-h-[90vh]">
+                <header className="p-4 md:p-8 border-b bg-slate-50 flex justify-between items-center shrink-0">
                     <h2 className="text-lg md:text-2xl font-bold text-slate-900">{quiz?.id ? 'Edit Quiz' : 'Create New Quiz'}</h2>
                     <button onClick={onCancel} className="p-2 hover:bg-slate-200 rounded-full transition-colors">✕</button>
                 </header>
@@ -299,7 +299,7 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({ teacherId, quiz, courses
                         </button>
                     </div>
                 </form>
-                <footer className="p-5 md:p-8 border-t bg-slate-50 flex justify-between gap-3 md:gap-4 shrink-0">
+                <footer className="p-4 md:p-8 border-t bg-slate-50 flex flex-col sm:flex-row justify-between gap-3 md:gap-4 shrink-0">
                     <button type="button" onClick={onCancel} className="btn-secondary flex-1 py-3 md:py-4 text-sm">Discard</button>
                     <button type="submit" disabled={isSaving || formData.questions.length === 0} onClick={handleSubmit} className="btn-primary flex-1 py-3 md:py-4 text-sm">{isSaving ? 'Saving...' : 'Save Quiz'}</button>
                 </footer>

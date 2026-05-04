@@ -55,15 +55,15 @@ export const CourseEditor: React.FC<CourseEditorProps> = ({ course, teacherId, o
     };
 
     return (
-        <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center z-50 p-4" aria-busy={isSaving}>
-            <div className="bg-white w-full max-w-2xl rounded-2xl md:rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300 flex flex-col max-h-[90vh]">
-                <header className="p-5 md:p-8 border-b bg-slate-50 flex justify-between items-center shrink-0">
+        <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center z-50 p-2 md:p-4" aria-busy={isSaving}>
+            <div className="bg-white w-full max-w-2xl rounded-2xl md:rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300 flex flex-col max-h-[95vh] md:max-h-[90vh]">
+                <header className="p-4 md:p-8 border-b bg-slate-50 flex justify-between items-center shrink-0">
                     <h2 className="text-lg md:text-2xl font-bold text-slate-900">{course?.id ? 'Edit Course' : 'Create New Course'}</h2>
                     <button onClick={onCancel} className="p-2 hover:bg-slate-200 rounded-full transition-colors" aria-label="Close dialog">
                         <X size={24} className="text-slate-600" />
                     </button>
                 </header>
-                <form onSubmit={handleSubmit} className="p-5 md:p-8 space-y-4 md:space-y-6 overflow-y-auto flex-1">
+                <form onSubmit={handleSubmit} className="p-4 md:p-8 space-y-4 md:space-y-6 overflow-y-auto flex-1">
                     {!isOnline && (
                         <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-xs font-bold uppercase">
                             ⚠️ Working Offline - Changes will sync later
@@ -140,9 +140,9 @@ export const CourseEditor: React.FC<CourseEditorProps> = ({ course, teacherId, o
                         />
                     </div>
                 </form>
-                <footer className="p-5 md:p-8 bg-slate-50 border-t flex flex-col md:flex-row justify-between gap-3 md:gap-4 shrink-0">
+                <footer className="p-4 md:p-8 bg-slate-50 border-t flex flex-col md:flex-row justify-between gap-3 md:gap-4 shrink-0">
                     <button type="button" onClick={onCancel} className="btn-secondary py-3 md:py-4 text-sm flex-1">Discard Changes</button>
-                    <button type="submit" disabled={isSaving} className="btn-primary py-3 md:py-4 text-sm flex-1">
+                    <button type="submit" onClick={handleSubmit} disabled={isSaving} className="btn-primary py-3 md:py-4 text-sm flex-1">
                         {isSaving ? 'Saving...' : course?.id ? 'Update Course' : 'Create Course'}
                     </button>
                 </footer>

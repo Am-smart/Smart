@@ -71,13 +71,13 @@ export const UserEditor: React.FC<UserEditorProps> = ({ user, onSave, onCancel }
     };
 
     return (
-        <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center z-50 p-4">
-            <div className="bg-white w-full max-w-xl rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300">
-                <header className="p-8 border-b bg-slate-50 flex justify-between items-center">
-                    <h2 className="text-2xl font-bold text-slate-900">{user?.id ? 'Edit User' : 'Add New User'}</h2>
+        <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center z-50 p-2 md:p-4">
+            <div className="bg-white w-full max-w-xl rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300 flex flex-col max-h-[95vh] md:max-h-[90vh]">
+                <header className="p-6 md:p-8 border-b bg-slate-50 flex justify-between items-center shrink-0">
+                    <h2 className="text-xl md:text-2xl font-bold text-slate-900">{user?.id ? 'Edit User' : 'Add New User'}</h2>
                     <button onClick={onCancel} className="p-2 hover:bg-slate-200 rounded-full transition-colors">✕</button>
                 </header>
-                <form onSubmit={handleSubmit} className="p-4 md:p-8 space-y-6">
+                <form onSubmit={handleSubmit} className="p-4 md:p-8 space-y-6 overflow-y-auto flex-1">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
                             <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">Full Name</label>
@@ -150,7 +150,7 @@ export const UserEditor: React.FC<UserEditorProps> = ({ user, onSave, onCancel }
                             placeholder='{ "key": "value" }'
                         />
                     </div>
-                    <footer className="pt-8 border-t flex justify-between gap-4">
+                    <footer className="pt-8 border-t flex flex-col sm:flex-row justify-between gap-4 shrink-0">
                         <button type="button" onClick={onCancel} className="btn-secondary flex-1 py-4">Cancel</button>
                         <button type="submit" disabled={isSaving} className="btn-primary flex-1 py-4">
                             {isSaving ? 'Saving...' : user?.id ? 'Update User' : 'Create User'}

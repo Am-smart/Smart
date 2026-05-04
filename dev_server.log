@@ -7,158 +7,18 @@
    - Network:      http://192.168.0.2:3000
 
  ✓ Starting...
-Attention: Next.js now collects completely anonymous telemetry regarding usage.
-This information is used to shape Next.js' roadmap and prioritize features.
-You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
-https://nextjs.org/telemetry
-
- ✓ Ready in 2s
+ ✓ Ready in 2.1s
  ○ Compiling / ...
- ✓ Compiled / in 8.5s (660 modules)
- GET / 200 in 10128ms
+ ✓ Compiled / in 6.2s (660 modules)
+ HEAD / 200 in 6832ms
+ GET / 200 in 151ms
  ○ Compiling /api/system ...
- ✓ Compiled /api/system in 1951ms (732 modules)
- GET /api/auth?action=session 200 in 2429ms
- GET /api/auth?action=session 200 in 42ms
- GET / 200 in 606ms
- GET /api/system?action=maintenance 200 in 2892ms
- GET / 200 in 303ms
- GET /api/auth?action=session 200 in 55ms
- GET /api/auth?action=session 200 in 44ms
- GET /api/system?action=maintenance 200 in 524ms
- GET /api/auth?action=role-count 200 in 430ms
- GET /api/auth?action=role-count 200 in 430ms
- GET / 200 in 107ms
- GET /api/auth?action=session 200 in 48ms
- GET /api/auth?action=session 200 in 30ms
- GET /api/system?action=maintenance 200 in 670ms
- GET /api/auth?action=role-count 200 in 270ms
- GET /api/auth?action=role-count 200 in 403ms
- GET / 200 in 186ms
- GET /api/auth?action=session 200 in 97ms
- GET /api/auth?action=session 200 in 59ms
- GET /api/system?action=maintenance 200 in 521ms
- GET /api/auth?action=role-count 200 in 592ms
- GET /api/auth?action=role-count 200 in 396ms
- POST /api/auth 200 in 646ms
- GET /api/system?action=notifications&userId=undefined 401 in 23ms
- ○ Compiling /teacher/courses ...
- ✓ Compiled /teacher/courses in 1853ms (869 modules)
- GET /teacher/courses 200 in 2399ms
- GET /api/auth?action=session 200 in 178ms
- GET /api/auth?action=session 200 in 66ms
- GET / 200 in 88ms
- GET /api/system?action=notifications&userId=undefined 401 in 41ms
- GET / 200 in 92ms
- GET /api/system?action=maintenance 200 in 383ms
- GET / 200 in 156ms
- GET /api/auth?action=session 200 in 53ms
- GET /api/auth?action=session 200 in 30ms
- GET /api/system?action=maintenance 200 in 591ms
- GET /api/auth?action=role-count 200 in 253ms
- GET /api/auth?action=role-count 200 in 237ms
- GET / 200 in 114ms
- GET /api/auth?action=session 200 in 61ms
- GET /api/auth?action=session 200 in 38ms
- GET /api/system?action=maintenance 200 in 294ms
- GET /api/auth?action=role-count 200 in 230ms
- GET /api/auth?action=role-count 200 in 392ms
- POST /api/auth 200 in 329ms
- GET /api/system?action=notifications&userId=undefined 401 in 24ms
- GET /teacher/courses 200 in 153ms
- GET /api/auth?action=session 200 in 52ms
- GET /api/auth?action=session 200 in 42ms
- GET / 200 in 85ms
- GET /api/system?action=notifications&userId=undefined 401 in 35ms
- GET / 200 in 74ms
- GET /api/system?action=maintenance 200 in 225ms
- GET / 200 in 119ms
- GET /api/auth?action=session 200 in 54ms
- GET /api/auth?action=session 200 in 20ms
- GET /api/system?action=maintenance 200 in 294ms
- GET /api/auth?action=role-count 200 in 239ms
- GET /api/auth?action=role-count 200 in 244ms
- POST /api/auth 200 in 337ms
- GET /api/system?action=notifications&userId=undefined 401 in 27ms
- GET /teacher/courses 200 in 112ms
- GET /api/auth?action=session 200 in 58ms
- GET /api/auth?action=session 200 in 61ms
- GET / 200 in 105ms
- GET /api/system?action=notifications&userId=undefined 401 in 61ms
- GET / 200 in 78ms
- GET /api/system?action=maintenance 200 in 253ms
- GET / 200 in 133ms
- GET /api/auth?action=session 200 in 57ms
- GET /api/auth?action=session 200 in 31ms
- GET /api/system?action=maintenance 200 in 291ms
- GET /api/auth?action=role-count 200 in 226ms
- GET /api/auth?action=role-count 200 in 224ms
- GET / 200 in 107ms
- GET /api/auth?action=session 200 in 56ms
- GET /api/auth?action=session 200 in 21ms
- GET /api/system?action=maintenance 200 in 575ms
- GET /api/auth?action=role-count 200 in 234ms
- GET /api/auth?action=role-count 200 in 228ms
- GET / 200 in 124ms
- GET /api/auth?action=session 200 in 56ms
- GET /api/auth?action=session 200 in 41ms
- GET /api/system?action=maintenance 200 in 356ms
- GET /api/auth?action=role-count 200 in 252ms
- GET /api/auth?action=role-count 200 in 318ms
- POST /api/auth 200 in 340ms
- GET /api/system?action=notifications&userId=undefined 401 in 56ms
- GET / 200 in 135ms
- GET /api/auth?action=session 200 in 61ms
- GET /api/auth?action=session 200 in 24ms
- GET /api/system?action=maintenance 200 in 370ms
- GET /api/auth?action=role-count 200 in 217ms
- GET /api/auth?action=role-count 200 in 255ms
- GET / 200 in 124ms
+ ✓ Compiled /api/system in 2.8s (732 modules)
+ GET /api/system?action=maintenance 200 in 3455ms
+ GET /api/auth?action=session 200 in 3513ms
+ GET / 200 in 306ms
  GET /api/auth?action=session 200 in 71ms
- GET /api/auth?action=session 200 in 33ms
- GET /api/system?action=maintenance 200 in 272ms
- GET / 200 in 120ms
- GET /api/auth?action=session 200 in 70ms
- GET /api/auth?action=session 200 in 35ms
- GET /api/system?action=maintenance 200 in 365ms
- GET /api/auth?action=role-count 200 in 412ms
- GET /api/auth?action=role-count 200 in 206ms
- POST /api/auth 200 in 251ms
- GET /api/system?action=notifications&userId=undefined 401 in 27ms
- GET / 200 in 106ms
- GET /api/auth?action=session 200 in 66ms
- GET /api/auth?action=session 200 in 29ms
- GET /api/system?action=maintenance 200 in 596ms
- GET /api/auth?action=role-count 200 in 768ms
- GET /api/auth?action=role-count 200 in 528ms
- POST /api/auth 200 in 683ms
- GET /api/system?action=notifications&userId=undefined 401 in 22ms
- GET / 200 in 137ms
- GET /api/auth?action=session 200 in 47ms
- GET /api/auth?action=session 200 in 26ms
- GET /api/system?action=maintenance 200 in 619ms
- GET /api/auth?action=role-count 200 in 376ms
- GET /api/auth?action=role-count 200 in 251ms
- GET / 200 in 140ms
- GET /api/auth?action=session 200 in 55ms
- GET /api/auth?action=session 200 in 32ms
- GET /api/system?action=maintenance 200 in 347ms
- GET /api/auth?action=role-count 200 in 246ms
- GET /api/auth?action=role-count 200 in 220ms
- ✓ Compiled in 1008ms (718 modules)
- ✓ Compiled in 245ms (339 modules)
- ✓ Compiled in 184ms (339 modules)
- ✓ Compiled in 197ms (339 modules)
- ✓ Compiled in 148ms (339 modules)
- ✓ Compiled in 441ms (339 modules)
- ✓ Compiled in 228ms (339 modules)
- ✓ Compiled in 1070ms (718 modules)
- ✓ Compiled in 302ms (339 modules)
- ✓ Compiled in 141ms (339 modules)
- ✓ Compiled in 135ms (339 modules)
- ✓ Compiled in 132ms (339 modules)
- ✓ Compiled in 218ms (339 modules)
- ✓ Compiled in 155ms (339 modules)
- ✓ Compiled in 199ms (339 modules)
- ✓ Compiled in 152ms (339 modules)
- ✓ Compiled in 139ms (339 modules)
+ GET /api/auth?action=session 200 in 100ms
+ GET /api/system?action=maintenance 200 in 609ms
+ GET /api/auth?action=role-count 200 in 426ms
+ GET /api/auth?action=role-count 200 in 401ms
