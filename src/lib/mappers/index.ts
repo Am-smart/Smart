@@ -141,7 +141,7 @@ export class AssessmentMapper {
       question_scores: submission.question_scores,
       response_feedback: submission.response_feedback,
       violation_count: submission.violation_count,
-      assignment: submission.assignments ? this.toAssignmentDTO(submission.assignments) : undefined,
+      assignment: submission.assignments ? AssessmentMapper.toAssignmentDTO(submission.assignments) : undefined,
       student: submission.users ? UserMapper.toDTO(submission.users) : undefined
     };
   }
@@ -159,7 +159,7 @@ export class AssessmentMapper {
       answers: submission.answers,
       submitted_at: submission.submitted_at,
       violation_count: submission.violation_count,
-      quiz: submission.quizzes ? this.toQuizDTO(submission.quizzes) : undefined,
+      quiz: submission.quizzes ? AssessmentMapper.toQuizDTO(submission.quizzes) : undefined,
       student: submission.users ? UserMapper.toDTO(submission.users) : undefined
     };
   }
