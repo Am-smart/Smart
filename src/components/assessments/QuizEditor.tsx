@@ -98,16 +98,16 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({ teacherId, quiz, courses
     };
 
     return (
-        <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center z-50 p-2 md:p-4">
-            <div className="bg-white w-full max-w-4xl rounded-2xl md:rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300 flex flex-col max-h-[95vh] md:max-h-[90vh]">
-                <header className="p-8 border-b bg-slate-50 flex justify-between items-center shrink-0">
-                    <h2 className="text-2xl font-bold text-slate-900">{quiz?.id ? 'Edit Quiz' : 'Create New Quiz'}</h2>
+        <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center z-50 p-4">
+            <div className="bg-white w-full max-w-4xl rounded-2xl md:rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300 flex flex-col max-h-[90vh]">
+                <header className="p-5 md:p-8 border-b bg-slate-50 flex justify-between items-center shrink-0">
+                    <h2 className="text-lg md:text-2xl font-bold text-slate-900">{quiz?.id ? 'Edit Quiz' : 'Create New Quiz'}</h2>
                     <button onClick={onCancel} className="p-2 hover:bg-slate-200 rounded-full transition-colors">✕</button>
                 </header>
-                <form onSubmit={handleSubmit} className="p-4 md:p-8 space-y-6 overflow-y-auto flex-1">
-                    <div className="bg-slate-50 p-6 rounded-3xl border-2 border-slate-100 space-y-6">
-                        <h3 className="text-lg font-bold text-slate-900 border-b pb-4 mb-4">Quiz Settings</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <form onSubmit={handleSubmit} className="p-4 md:p-8 space-y-4 md:space-y-6 overflow-y-auto flex-1">
+                    <div className="bg-slate-50 p-5 md:p-6 rounded-2xl md:rounded-3xl border-2 border-slate-100 space-y-4 md:space-y-6">
+                        <h3 className="text-base md:text-lg font-bold text-slate-900 border-b pb-3 md:pb-4 mb-2 md:mb-4">Quiz Settings</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                             <div>
                                 <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">Quiz Title</label>
                                 <input type="text" required value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} className="w-full p-4 rounded-xl border-2 border-white focus:border-blue-500 outline-none transition-all shadow-sm" />
@@ -255,15 +255,15 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({ teacherId, quiz, courses
                                 <input type="text" required value={q.text} onChange={e => handleQuestionChange(index, { text: e.target.value })} className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all bg-white" placeholder="Question text..." />
 
                                 {q.type === 'mcq' && (
-                                <div className="grid grid-cols-2 gap-4">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
                                     {q.options?.map((opt, optIndex) => (
                                         <div key={optIndex} className="flex gap-2">
                                             <input type="text" value={opt} onChange={e => {
                                                 const opts = [...(q.options || [])];
                                                 opts[optIndex] = e.target.value;
                                                 handleQuestionChange(index, { options: opts });
-                                            }} className="flex-1 p-3 rounded-xl border border-slate-100 outline-none transition-all focus:border-blue-500 bg-white" placeholder={`Option ${optIndex+1}`} />
-                                            <button type="button" onClick={() => handleQuestionChange(index, { correct_answer: opt })} className={`px-4 rounded-xl font-bold text-[10px] uppercase tracking-widest ${q.correct_answer === opt ? 'bg-green-600 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}>Correct</button>
+                                            }} className="flex-1 p-2.5 md:p-3 text-sm rounded-xl border border-slate-100 outline-none transition-all focus:border-blue-500 bg-white" placeholder={`Option ${optIndex+1}`} />
+                                            <button type="button" onClick={() => handleQuestionChange(index, { correct_answer: opt })} className={`px-3 md:px-4 rounded-xl font-bold text-[9px] md:text-[10px] uppercase tracking-widest ${q.correct_answer === opt ? 'bg-green-600 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}>Correct</button>
                                         </div>
                                     ))}
                                 </div>
@@ -299,9 +299,9 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({ teacherId, quiz, courses
                         </button>
                     </div>
                 </form>
-                <footer className="p-8 border-t bg-slate-50 flex justify-between gap-4 shrink-0">
-                    <button type="button" onClick={onCancel} className="btn-secondary flex-1 py-4">Discard</button>
-                    <button type="submit" disabled={isSaving || formData.questions.length === 0} onClick={handleSubmit} className="btn-primary flex-1 py-4">{isSaving ? 'Saving...' : 'Save Quiz'}</button>
+                <footer className="p-5 md:p-8 border-t bg-slate-50 flex justify-between gap-3 md:gap-4 shrink-0">
+                    <button type="button" onClick={onCancel} className="btn-secondary flex-1 py-3 md:py-4 text-sm">Discard</button>
+                    <button type="submit" disabled={isSaving || formData.questions.length === 0} onClick={handleSubmit} className="btn-primary flex-1 py-3 md:py-4 text-sm">{isSaving ? 'Saving...' : 'Save Quiz'}</button>
                 </footer>
             </div>
         </div>
