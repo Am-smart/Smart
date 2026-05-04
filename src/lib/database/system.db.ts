@@ -251,7 +251,7 @@ export const systemDb = {
     return true;
   },
 
-  async findAllSystemLogs(limit = 100, sessionId: string, category?: string): Promise<SystemLog[]> {
+  async findAllSystemLogs(limit = 100, sessionId: string, category?: string, userId?: string): Promise<SystemLog[]> {
     let query = withSession(supabase.from('system_logs'), sessionId)
       .select('*, users!user_id(full_name, email)')
       .order('created_at', { ascending: false })
@@ -259,6 +259,10 @@ export const systemDb = {
 
     if (category) {
       query = query.eq('category', category);
+    }
+
+    if (userId) {
+      query = query.eq('user_id', userId);
     }
 
     const { data, error } = await query;

@@ -30,7 +30,8 @@ const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'lesson:view',
     'assignment:submit',
     'quiz:take',
-    'user:view'
+    'user:view',
+    'system:logs:view'
   ]
 };
 

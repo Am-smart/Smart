@@ -15,6 +15,10 @@ export class UserDomain {
     return user.role === 'teacher';
   }
 
+  static isStudent(user: User): boolean {
+    return user.role === 'student';
+  }
+
   static canManageUsers(user: User): boolean {
     return this.isAdmin(user);
   }
