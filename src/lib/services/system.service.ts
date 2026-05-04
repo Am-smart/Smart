@@ -19,8 +19,11 @@ export class SystemService {
   }
 
   async getLogs(currentUser: User, limit: number, sessionId: string): Promise<SystemLog[]> {
-    if (!UserDomain.isAdmin(currentUser)) throw new Error('Forbidden');
-    return systemDb.findAllSystemLogs(limit, sessionId);
+    if (!UserDomain.canManageContent(currentUser)) throw new Error('Forbidden');
+
+    // Teachers can only see anti-cheat logs
+    const category = UserDomain.isAdmin(currentUser) ? undefined : 'anti-cheat';
+    return systemDb.findAllSystemLogs(limit, sessionId, category);
   }
 
   async updateLog(currentUser: User, id: string, updates: Partial<SystemLog>, sessionId: string): Promise<SystemLog> {
