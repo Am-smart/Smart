@@ -29,6 +29,7 @@ export const GET = withHandler(async (user, request) => {
       };
 
       const logs = await systemService.getLogs(user, limit, user.sessionId!, filters);
+      const logs = await systemService.getLogs(user, limit, user.sessionId!);
       return logs.map(SystemMapper.toSystemLogDTO);
     }
     case 'sessions': {
