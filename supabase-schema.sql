@@ -1002,45 +1002,46 @@ GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon;
 -- use to evaluate permissions and identity without exposing Supabase Auth.
 
 DROP POLICY IF EXISTS "Strict Backend Access" ON users;
-CREATE POLICY "Strict Backend Access" ON users FOR ALL TO anon USING (false);
+CREATE POLICY "Strict Backend Access" ON users FOR ALL TO anon USING (current_app_user() IS NOT NULL);
 DROP POLICY IF EXISTS "Strict Backend Access" ON courses;
-CREATE POLICY "Strict Backend Access" ON courses FOR ALL TO anon USING (false);
+CREATE POLICY "Strict Backend Access" ON courses FOR ALL TO anon USING (current_app_user() IS NOT NULL);
 DROP POLICY IF EXISTS "Strict Backend Access" ON lessons;
-CREATE POLICY "Strict Backend Access" ON lessons FOR ALL TO anon USING (false);
+CREATE POLICY "Strict Backend Access" ON lessons FOR ALL TO anon USING (current_app_user() IS NOT NULL);
 DROP POLICY IF EXISTS "Strict Backend Access" ON enrollments;
-CREATE POLICY "Strict Backend Access" ON enrollments FOR ALL TO anon USING (false);
+CREATE POLICY "Strict Backend Access" ON enrollments FOR ALL TO anon USING (current_app_user() IS NOT NULL);
 DROP POLICY IF EXISTS "Strict Backend Access" ON assignments;
-CREATE POLICY "Strict Backend Access" ON assignments FOR ALL TO anon USING (false);
+CREATE POLICY "Strict Backend Access" ON assignments FOR ALL TO anon USING (current_app_user() IS NOT NULL);
 DROP POLICY IF EXISTS "Strict Backend Access" ON submissions;
-CREATE POLICY "Strict Backend Access" ON submissions FOR ALL TO anon USING (false);
+CREATE POLICY "Strict Backend Access" ON submissions FOR ALL TO anon USING (current_app_user() IS NOT NULL);
 DROP POLICY IF EXISTS "Strict Backend Access" ON live_classes;
-CREATE POLICY "Strict Backend Access" ON live_classes FOR ALL TO anon USING (false);
+CREATE POLICY "Strict Backend Access" ON live_classes FOR ALL TO anon USING (current_app_user() IS NOT NULL);
 DROP POLICY IF EXISTS "Strict Backend Access" ON attendance;
-CREATE POLICY "Strict Backend Access" ON attendance FOR ALL TO anon USING (false);
+CREATE POLICY "Strict Backend Access" ON attendance FOR ALL TO anon USING (current_app_user() IS NOT NULL);
 DROP POLICY IF EXISTS "Strict Backend Access" ON quizzes;
-CREATE POLICY "Strict Backend Access" ON quizzes FOR ALL TO anon USING (false);
+CREATE POLICY "Strict Backend Access" ON quizzes FOR ALL TO anon USING (current_app_user() IS NOT NULL);
 DROP POLICY IF EXISTS "Strict Backend Access" ON quiz_submissions;
-CREATE POLICY "Strict Backend Access" ON quiz_submissions FOR ALL TO anon USING (false);
+CREATE POLICY "Strict Backend Access" ON quiz_submissions FOR ALL TO anon USING (current_app_user() IS NOT NULL);
 DROP POLICY IF EXISTS "Strict Backend Access" ON materials;
-CREATE POLICY "Strict Backend Access" ON materials FOR ALL TO anon USING (false);
+CREATE POLICY "Strict Backend Access" ON materials FOR ALL TO anon USING (current_app_user() IS NOT NULL);
 DROP POLICY IF EXISTS "Strict Backend Access" ON discussions;
-CREATE POLICY "Strict Backend Access" ON discussions FOR ALL TO anon USING (false);
+CREATE POLICY "Strict Backend Access" ON discussions FOR ALL TO anon USING (current_app_user() IS NOT NULL);
 DROP POLICY IF EXISTS "Strict Backend Access" ON notifications;
-CREATE POLICY "Strict Backend Access" ON notifications FOR ALL TO anon USING (false);
+CREATE POLICY "Strict Backend Access" ON notifications FOR ALL TO anon USING (current_app_user() IS NOT NULL);
 DROP POLICY IF EXISTS "Strict Backend Access" ON sessions;
-CREATE POLICY "Strict Backend Access" ON sessions FOR ALL TO anon USING (false);
+CREATE POLICY "Strict Backend Access" ON sessions FOR ALL TO anon USING (current_app_user() IS NOT NULL);
 DROP POLICY IF EXISTS "Strict Backend Access" ON broadcasts;
-CREATE POLICY "Strict Backend Access" ON broadcasts FOR ALL TO anon USING (false);
+CREATE POLICY "Strict Backend Access" ON broadcasts FOR ALL TO anon USING (current_app_user() IS NOT NULL);
 DROP POLICY IF EXISTS "Strict Backend Access" ON maintenance;
-CREATE POLICY "Strict Backend Access" ON maintenance FOR ALL TO anon USING (false);
+CREATE POLICY "Strict Backend Access" ON maintenance FOR SELECT TO anon USING (true); -- Publicly readable
+CREATE POLICY "Strict Backend Access Manage" ON maintenance FOR ALL TO anon USING (current_app_user() IS NOT NULL); -- Manageable with session
 DROP POLICY IF EXISTS "Strict Backend Access" ON planner;
-CREATE POLICY "Strict Backend Access" ON planner FOR ALL TO anon USING (false);
+CREATE POLICY "Strict Backend Access" ON planner FOR ALL TO anon USING (current_app_user() IS NOT NULL);
 DROP POLICY IF EXISTS "Strict Backend Access" ON lesson_completions;
-CREATE POLICY "Strict Backend Access" ON lesson_completions FOR ALL TO anon USING (false);
+CREATE POLICY "Strict Backend Access" ON lesson_completions FOR ALL TO anon USING (current_app_user() IS NOT NULL);
 DROP POLICY IF EXISTS "Strict Backend Access" ON system_logs;
-CREATE POLICY "Strict Backend Access" ON system_logs FOR ALL TO anon USING (false);
+CREATE POLICY "Strict Backend Access" ON system_logs FOR ALL TO anon USING (current_app_user() IS NOT NULL);
 DROP POLICY IF EXISTS "Strict Backend Access" ON settings;
-CREATE POLICY "Strict Backend Access" ON settings FOR ALL TO anon USING (false);
+CREATE POLICY "Strict Backend Access" ON settings FOR ALL TO anon USING (current_app_user() IS NOT NULL);
 
 -- ==========================================
 -- 11. Initial Data
