@@ -69,7 +69,7 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({ teacherId, quiz, courses
         let parsedMetadata = {};
         try {
             parsedMetadata = JSON.parse(metadataText);
-        } catch (_error) {
+        } catch {
             addToast('Invalid JSON in metadata field', 'error');
             return;
         }

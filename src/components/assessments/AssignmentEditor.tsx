@@ -54,7 +54,7 @@ export const AssignmentEditor: React.FC<AssignmentEditorProps> = ({ teacherId, a
         let parsedMetadata = {};
         try {
             parsedMetadata = JSON.parse(metadataText);
-        } catch (_error) {
+        } catch {
             addToast('Invalid JSON in metadata field', 'error');
             return;
         }
