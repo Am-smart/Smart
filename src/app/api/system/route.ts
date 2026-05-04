@@ -19,7 +19,7 @@ export const GET = withHandler(async (user, request) => {
   switch (action) {
     case 'logs': {
       const limit = parseInt(searchParams.get('limit') || '100');
-      if (!rbac.can(user, 'system:manage')) throw new Error('Unauthorized');
+      if (!rbac.can(user, 'system:logs:view')) throw new Error('Unauthorized');
       const logs = await systemService.getLogs(user, limit, user.sessionId!);
       return logs.map(SystemMapper.toSystemLogDTO);
     }
