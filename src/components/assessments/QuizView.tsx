@@ -25,12 +25,13 @@ export const QuizView: React.FC<QuizViewProps> = ({ quiz, user, onComplete, onCa
   const { addToQueue, setCache, getCache, isOnline } = useIndexedDB();
   const [startedAt] = useState(new Date().toISOString());
 
-  const { violationCount } = useAntiCheat(quiz.anti_cheat_enabled, quiz.title);
+  const { violationCount } = useAntiCheat(quiz.anti_cheat_enabled, quiz.title, quiz.course_id, quiz.id);
 
   useEffect(() => {
     const handleViolation = (e: Event) => {
         const detail = (e as CustomEvent).detail;
         if (quiz.anti_cheat_enabled && detail) {
+            // Check if toast already exists for this type in the last 2 seconds to avoid flooding
             addToast(`Anti-Cheat Alert: ${detail.type} detected!`, 'error');
         }
     };
@@ -118,10 +119,6 @@ export const QuizView: React.FC<QuizViewProps> = ({ quiz, user, onComplete, onCa
 
   // Anti-cheat: Hard enforcement when enabled
   useEffect(() => {
-    if (quiz.anti_cheat_enabled && violationCount > 0) {
-        addToast(`Security Warning: Violation detected (${violationCount}). This assessment has been flagged for review.`, 'info');
-    }
-
     // Use hard_enforcement flag from database (Step 1)
     if (quiz.anti_cheat_enabled && quiz.hard_enforcement && violationCount >= 5 && !isSubmitting && !result) {
         addToast('Security Threshold Reached: Assessment locked and auto-submitted due to multiple violations.', 'error', 10000);
@@ -234,13 +231,6 @@ export const QuizView: React.FC<QuizViewProps> = ({ quiz, user, onComplete, onCa
                     onChange={(e) => handleAnswerChange(q.id, e.target.value)}
                     placeholder="Type your answer here..."
                     className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all text-sm"
-                    onPaste={(e) => {
-                        if (quiz.anti_cheat_enabled) {
-                            e.preventDefault();
-                            const event = new CustomEvent('anti-cheat-violation', { detail: { type: 'pasted-content' } });
-                            window.dispatchEvent(event);
-                        }
-                    }}
                   />
                 ) : (
                   (q.options || []).map((opt: string) => (

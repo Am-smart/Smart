@@ -251,18 +251,22 @@ export const systemDb = {
     return true;
   },
 
-  async findAllSystemLogs(limit = 100, sessionId: string, category?: string, userId?: string): Promise<SystemLog[]> {
+  async findAllSystemLogs(
+    limit = 100,
+    sessionId: string,
+    filters: { user_id?: string; course_id?: string; resource_id?: string; category?: string; course_ids?: string[] } = {}
+  ): Promise<SystemLog[]> {
     let query = withSession(supabase.from('system_logs'), sessionId)
       .select('*, users!user_id(full_name, email)')
       .order('created_at', { ascending: false })
       .limit(limit);
 
-    if (category) {
-      query = query.eq('category', category);
-    }
-
-    if (userId) {
-      query = query.eq('user_id', userId);
+    if (filters.category) query = query.eq('category', filters.category);
+    if (filters.user_id) query = query.eq('user_id', filters.user_id);
+    if (filters.course_id) query = query.eq('course_id', filters.course_id);
+    if (filters.resource_id) query = query.eq('resource_id', filters.resource_id);
+    if (filters.course_ids && filters.course_ids.length > 0) {
+      query = query.in('course_id', filters.course_ids);
     }
 
     const { data, error } = await query;
