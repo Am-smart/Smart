@@ -5,6 +5,7 @@ import { UserRole } from '@/lib/types';
 import { useAuth } from './AuthContext';
 import { validateSignupForm, normalizeEmail, normalizeInput } from '@/lib/validation';
 import { getRoleCount } from '@/lib/api-actions';
+import { SIGNUP_LIMITS } from '@/lib/constants';
 
 interface SignupFormProps {
   initialRole?: UserRole;
@@ -182,7 +183,9 @@ export const SignupForm: React.FC<SignupFormProps> = ({ initialRole, onClose, on
           <p className="text-xs sm:text-sm font-semibold text-slate-700">Select your role:</p>
           <div className="grid grid-cols-3 gap-1 sm:gap-2">
             {(['student', 'teacher', 'admin'] as UserRole[]).map((r) => {
-              const isLimitReached = roleCounts.total >= 3 && (r === 'teacher' || r === 'admin');
+              const teacherLimitReached = roleCounts.teachers >= SIGNUP_LIMITS.TEACHER && r === 'teacher';
+              const adminLimitReached = roleCounts.admins >= SIGNUP_LIMITS.ADMIN && r === 'admin';
+              const isLimitReached = teacherLimitReached || adminLimitReached;
               const isDisabled = isLoading || isLimitReached;
 
               return (
@@ -191,7 +194,7 @@ export const SignupForm: React.FC<SignupFormProps> = ({ initialRole, onClose, on
                     type="button"
                     onClick={() => handleRoleChange(r)}
                     disabled={isDisabled}
-                    title={isLimitReached ? 'Teacher and admin creation limit reached (3)' : ''}
+                    title={isLimitReached ? `${r.charAt(0).toUpperCase() + r.slice(1)} creation limit reached (3)` : ''}
                     className={`w-full py-2 sm:py-2.5 rounded-lg sm:rounded-xl border-2 transition-all text-[10px] sm:text-sm font-bold capitalize disabled:opacity-50 disabled:cursor-not-allowed ${
                       formData.role === r
                         ? 'border-primary bg-primary/5 text-primary'
@@ -207,9 +210,9 @@ export const SignupForm: React.FC<SignupFormProps> = ({ initialRole, onClose, on
               );
             })}
           </div>
-          {roleCounts.total >= 3 && (
+          {(roleCounts.teachers >= SIGNUP_LIMITS.TEACHER || roleCounts.admins >= SIGNUP_LIMITS.ADMIN) && (
             <p className="text-xs text-amber-600 bg-amber-50 p-2 rounded border border-amber-200">
-              Note: Public creation of teachers and admins is limited to 3. Please contact support to create more.
+              Note: Public creation of teachers and admins is limited to {SIGNUP_LIMITS.TEACHER} per role. Please contact support to create more.
             </p>
           )}
         </div>

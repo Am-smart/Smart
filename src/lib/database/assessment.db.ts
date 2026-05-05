@@ -68,10 +68,14 @@ export const assessmentDb = {
     return data as Submission;
   },
 
-  async findAllSubmissions(assignmentId?: string, studentId?: string, sessionId?: string): Promise<Submission[]> {
+  async findAllSubmissions(assignmentId?: string, studentId?: string, sessionId?: string, limit?: number, offset?: number): Promise<Submission[]> {
     let query = withSession(supabase.from('submissions').select('*, assignments(*), users!student_id(*)'), sessionId);
     if (assignmentId) query = query.eq('assignment_id', assignmentId);
     if (studentId) query = query.eq('student_id', studentId);
+
+    if (limit) query = query.limit(limit);
+    if (offset) query = query.range(offset, offset + (limit || 10) - 1);
+
     const { data, error } = await query;
     if (error) throw new Error(error.message);
     return data as Submission[];

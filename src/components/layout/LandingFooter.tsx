@@ -21,9 +21,9 @@ export const LandingFooter: React.FC<FooterProps> = ({ onRoleSelect }) => {
         <div>
           <h5 className="font-bold text-base sm:text-lg mb-3 sm:mb-6">Platform</h5>
           <ul className="space-y-2 sm:space-y-4 text-sm sm:text-base">
-            <li><button onClick={() => onRoleSelect('student')} className="text-[#94a3b8] hover:text-white transition-colors">Students</button></li>
-            <li><button onClick={() => onRoleSelect('teacher')} className="text-[#94a3b8] hover:text-white transition-colors">Teachers</button></li>
-            <li><button onClick={() => onRoleSelect('admin')} className="text-[#94a3b8] hover:text-white transition-colors">Admins</button></li>
+            <li><button onClick={() => onRoleSelect('student')} className="text-[#94a3b8] hover:text-white transition-colors">Sign Up</button></li>
+            <li><a href="#features" className="text-[#94a3b8] hover:text-white transition-colors">Features</a></li>
+            <li><a href="#about" className="text-[#94a3b8] hover:text-white transition-colors">About</a></li>
           </ul>
         </div>
         <div>

@@ -14,11 +14,30 @@ import { PlannerItemDTO, EnrollmentDTO, MaintenanceDTO, SettingDTO, SystemLogDTO
  * Generic mapper utility to clean up objects before DTO conversion
  */
 function toCleanDTO<T>(obj: unknown): T {
-    if (!obj || typeof obj !== 'object') return {} as T;
+    if (!obj || typeof obj !== 'object' || obj === null) return {} as T;
 
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { courses, assignments, quizzes, users, student, ...rest } = obj as Record<string, unknown>;
-    return rest as T;
+    const data = obj as Record<string, unknown>;
+    const clean: Record<string, unknown> = {};
+
+    // List of relation keys to exclude from DTOs
+    const excludeKeys = ['courses', 'assignments', 'quizzes', 'users', 'student', 'lesson_completions', 'attendance'];
+
+    for (const key in data) {
+        if (!excludeKeys.includes(key)) {
+            clean[key] = data[key];
+        }
+    }
+
+    // Ensure common fields are present
+    if (!clean.created_at && (data.created_at || (obj as { created_at?: string }).created_at)) {
+        clean.created_at = data.created_at;
+    }
+
+    if (clean.metadata === undefined || clean.metadata === null) {
+        clean.metadata = {};
+    }
+
+    return clean as T;
 }
 
 export class UserMapper {

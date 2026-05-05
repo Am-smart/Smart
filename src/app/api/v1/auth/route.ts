@@ -2,7 +2,7 @@ import { withHandler } from '@/app/api/api-utils';
 import { authService } from '@/lib/services/auth.service';
 import { UserMapper } from '@/lib/mappers';
 import { cookies } from 'next/headers';
-import { USER_ROLES, SESSION } from '@/lib/constants';
+import { USER_ROLES, SESSION, SIGNUP_LIMITS } from '@/lib/constants';
 import { verifyToken, createSession } from '@/lib/crypto';
 import { supabase } from '@/lib/supabase';
 import { validateLoginForm, normalizeEmail, validateSignupForm, normalizeInput, sanitizeObject } from '@/lib/validation';
@@ -91,6 +91,19 @@ export const POST = withHandler(async (user, request) => {
 
             if (!validation.isValid) {
               return { user: null, sessionId: null, error: validation.errors[0].message };
+            }
+
+            // Role limit check
+            if (data.role === USER_ROLES.TEACHER || data.role === USER_ROLES.ADMIN) {
+                const { count } = await supabase
+                    .from('users')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('role', data.role);
+
+                const limit = data.role === USER_ROLES.TEACHER ? SIGNUP_LIMITS.TEACHER : SIGNUP_LIMITS.ADMIN;
+                if (count !== null && count >= limit) {
+                    return { user: null, sessionId: null, error: `Signup limit reached for role: ${data.role}` };
+                }
             }
 
             const { data: rawData, error: rpcError } = await authService.register({

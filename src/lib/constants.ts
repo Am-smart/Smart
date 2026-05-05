@@ -54,3 +54,8 @@ export const SESSION = {
 export const ASSESSMENT = {
     DEFAULT_PASSING_SCORE: 60,
 } as const;
+
+export const SIGNUP_LIMITS = {
+    TEACHER: 3,
+    ADMIN: 3
+} as const;

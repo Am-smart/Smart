@@ -1,5 +1,6 @@
 import { withHandler } from '@/app/api/api-utils';
 import { assessmentService } from '@/lib/services/assessment.service';
+import { assessmentDb } from '@/lib/database/assessment.db';
 import { AssessmentMapper } from '@/lib/mappers';
 import { rbac } from '@/lib/auth/rbac';
 import { AssessmentDomain } from '@/lib/domain/assessment.domain';
@@ -16,7 +17,7 @@ export const GET = withHandler(async (user, request) => {
       const courseId = searchParams.get('courseId') || undefined;
       const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : undefined;
       const offset = searchParams.get('offset') ? parseInt(searchParams.get('offset')!) : undefined;
-      const assignments = await assessmentService.getAssignments(teacherId, courseId, user.sessionId!, limit, offset);
+      const assignments = await assessmentDb.findAllAssignments(teacherId, courseId, user.sessionId!, limit, offset);
       return assignments.map(AssessmentMapper.toAssignmentDTO);
     }
     case 'quizzes': {
@@ -24,13 +25,15 @@ export const GET = withHandler(async (user, request) => {
       const teacherId = searchParams.get('teacherId') || undefined;
       const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : undefined;
       const offset = searchParams.get('offset') ? parseInt(searchParams.get('offset')!) : undefined;
-      const quizzes = await assessmentService.getQuizzes(courseId, teacherId, user.sessionId!, limit, offset);
+      const quizzes = await assessmentDb.findAllQuizzes(courseId, teacherId, user.sessionId!, limit, offset);
       return quizzes.map(AssessmentMapper.toQuizDTO);
     }
     case 'submissions': {
       const assignmentId = searchParams.get('assignmentId') || undefined;
       const studentId = searchParams.get('studentId') || undefined;
-      const submissions = await assessmentService.getSubmissions(assignmentId, studentId, user.sessionId!);
+      const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : undefined;
+      const offset = searchParams.get('offset') ? parseInt(searchParams.get('offset')!) : undefined;
+      const submissions = await assessmentDb.findAllSubmissions(assignmentId, studentId, user.sessionId!, limit, offset);
       return submissions.map(AssessmentMapper.toSubmissionDTO);
     }
     default:
@@ -85,12 +88,12 @@ export const DELETE = withHandler(async (user, request) => {
   switch (action) {
     case 'assignment': {
       if (!rbac.can(user, 'assignment:manage')) throw new UnauthorizedError();
-      await assessmentService.deleteAssignment(id, user.sessionId!);
+      await assessmentDb.deleteAssignment(id, user.sessionId!);
       return { success: true };
     }
     case 'quiz': {
       if (!rbac.can(user, 'quiz:manage')) throw new UnauthorizedError();
-      await assessmentService.deleteQuiz(id, user.sessionId!);
+      await assessmentDb.deleteQuiz(id, user.sessionId!);
       return { success: true };
     }
     default:

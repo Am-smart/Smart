@@ -10,7 +10,8 @@ import { useRouter, usePathname } from 'next/navigation';
 interface BaseDashboardLayoutProps {
   children: React.ReactNode;
   requiredRole: UserRole;
-  HeaderComponent: React.ComponentType<Record<string, unknown>>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  HeaderComponent: React.ComponentType<any>;
   headerProps?: Record<string, unknown>;
 }
 

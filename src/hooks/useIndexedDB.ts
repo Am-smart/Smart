@@ -19,6 +19,18 @@ export interface QueueItem {
 export const useIndexedDB = () => {
   const [db, setDb] = useState<IDBDatabase | null>(null);
   const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
+  const [syncErrors, setSyncErrors] = useState<unknown[]>([]);
+
+  const getSyncErrors = useCallback(async () => {
+    if (!db) return [];
+    return new Promise<unknown[]>((resolve, reject) => {
+      const tx = db.transaction(STORE_ERRORS, 'readonly');
+      const store = tx.objectStore(STORE_ERRORS);
+      const request = store.getAll();
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
+  }, [db]);
 
   useEffect(() => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
@@ -282,5 +294,5 @@ export const useIndexedDB = () => {
     }
   }, [isOnline, db, processSync]);
 
-  return { addToQueue, getQueue, removeFromQueue, setCache, getCache, processSync, pullData, isOnline };
+  return { addToQueue, getQueue, removeFromQueue, setCache, getCache, processSync, pullData, isOnline, syncErrors, getSyncErrors };
 };
