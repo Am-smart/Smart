@@ -168,7 +168,7 @@ export async function deletePlannerItem(id: string): Promise<ActionResponse> {
 
 // Courses
 export async function getCourses(teacherId?: string, limit?: number, offset?: number): Promise<CourseDTO[]> {
-  let url = teacherId ? `/api/learning?action=courses&teacherId=${teacherId}` : '/api/learning?action=courses';
+  let url = teacherId ? '/api/learning?action=courses&teacherId=' + teacherId : '/api/learning?action=courses';
   if (limit) url += `&limit=${limit}`;
   if (offset) url += `&offset=${offset}`;
   return apiClient.get<CourseDTO[]>(url);
@@ -255,10 +255,12 @@ export async function submitAssignment(assignmentId: string, content: Partial<Su
   }
 }
 
-export async function getSubmissions(assignmentId?: string, studentId?: string): Promise<SubmissionDTO[]> {
+export async function getSubmissions(assignmentId?: string, studentId?: string, limit?: number, offset?: number): Promise<SubmissionDTO[]> {
     let url = '/api/assessment?action=submissions';
     if (assignmentId) url += `&assignmentId=${assignmentId}`;
     if (studentId) url += `&studentId=${studentId}`;
+    if (limit) url += `&limit=${limit}`;
+    if (offset) url += `&offset=${offset}`;
     return apiClient.get<SubmissionDTO[]>(url);
 }
 
@@ -369,13 +371,13 @@ export async function getLessonCompletions(userId?: string): Promise<Record<stri
 }
 
 // Discussions
-export async function getDiscussions(courseId: string): Promise<DiscussionDTO[]> {
-  return apiClient.get<DiscussionDTO[]>(`/api/system?action=discussions&courseId=${courseId}`);
+export async function getDiscussions(courseId: string): Promise<Discussion[]> {
+  return apiClient.get<Discussion[]>(`/api/system?action=discussions&courseId=${courseId}`);
 }
 
-export async function saveDiscussionPost(discussion: Partial<Discussion>): Promise<ActionResponse<DiscussionDTO>> {
+export async function saveDiscussionPost(discussion: Partial<Discussion>): Promise<ActionResponse<Discussion>> {
   try {
-    const data = await apiClient.post<DiscussionDTO>('/api/system', { action: 'save-discussion', ...discussion });
+    const data = await apiClient.post<Discussion>('/api/system', { action: 'save-discussion', ...discussion });
     return { success: true, data };
   } catch (error: unknown) {
     return { success: false, error: (error as Error).message };

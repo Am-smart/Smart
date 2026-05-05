@@ -9,25 +9,22 @@
  ✓ Starting...
  ✓ Ready in 2.1s
  ○ Compiling / ...
- ✓ Compiled / in 11.2s (660 modules)
- ⨯ ReferenceError: Cannot access 'logout' before initialization
-    at AuthProvider (src/components/auth/AuthContext.tsx:74:37)
-  72 |
-  73 |     return () => controller.abort();
-> 74 |   }, [getCache, setCache, pullData, logout]);
-     |                                     ^
-  75 |
-  76 |   const login = useCallback(async (email: string, pass: string) => {
-  77 |     const result = await actions.login({ email, password: pass }); {
-  digest: '965956409'
-}
- GET / 500 in 12918ms
- ✓ Compiled in 774ms (651 modules)
- GET / 200 in 426ms
+ ✓ Compiled / in 7s (662 modules)
+ GET / 200 in 8591ms
+ GET / 200 in 338ms
+ ○ Compiling /api/v1/auth ...
+ ✓ Compiled /api/v1/auth in 2s (733 modules)
+ GET /api/v1/auth?action=session 200 in 53ms
  ○ Compiling /api/v1/system ...
- ✓ Compiled /api/v1/system in 2.1s (731 modules)
- GET /api/v1/auth?action=session 200 in 2669ms
- GET /api/v1/auth?action=session 200 in 41ms
- GET /api/v1/system?action=maintenance 200 in 3230ms
- HEAD /api/auth?action=me 500 in 93ms
- HEAD /api/v1/auth?action=me 500 in 46ms
+ ✓ Compiled /api/v1/system in 642ms (731 modules)
+ GET /api/v1/auth?action=session 200 in 804ms
+ GET /api/v1/system?action=maintenance 200 in 1840ms
+ GET / 200 in 430ms
+ GET / 200 in 293ms
+ GET /api/v1/auth?action=session 200 in 60ms
+ GET /api/v1/auth?action=session 200 in 37ms
+ GET /api/v1/system?action=maintenance 200 in 212ms
+ GET /api/v1/auth?action=role-count 200 in 442ms
+ GET /api/v1/auth?action=role-count 200 in 405ms
+ ✓ Compiled in 714ms (654 modules)
+ ✓ Compiled in 313ms (654 modules)

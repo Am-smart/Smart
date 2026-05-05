@@ -2,7 +2,7 @@ import { withHandler } from '@/app/api/api-utils';
 import { systemService } from '@/lib/services/system.service';
 import { learningService } from '@/lib/services/learning.service';
 import { authService } from '@/lib/services/auth.service';
-import { assessmentService } from '@/lib/services/assessment.service';
+import { assessmentDb } from '@/lib/database/assessment.db';
 import { rbac } from '@/lib/auth/rbac';
 import { SystemMapper, CommunicationMapper, AssessmentMapper } from '@/lib/mappers';
 import { sanitizeObject } from '@/lib/validation';
@@ -88,7 +88,7 @@ export const GET = withHandler(async (user, request) => {
     case 'quiz-submissions': {
         const quizId = searchParams.get('quizId') || undefined;
         const studentId = searchParams.get('studentId') || undefined;
-        const submissions = await assessmentService.getQuizSubmissions(quizId, studentId, user.sessionId!);
+        const submissions = await assessmentDb.findAllQuizSubmissions(quizId, studentId, user.sessionId!);
         return submissions.map(AssessmentMapper.toQuizSubmissionDTO);
     }
     case 'lesson-completions': {

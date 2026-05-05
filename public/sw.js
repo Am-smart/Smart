@@ -2,7 +2,9 @@ const CACHE_NAME = 'smartlms-v1';
 const ASSETS_TO_CACHE = [
   '/',
   '/manifest.json',
-  '/window.svg'
+  '/window.svg',
+  '/globals.css',
+  '/favicon.ico'
 ];
 
 self.addEventListener('install', (event) => {
