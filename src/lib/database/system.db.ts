@@ -143,7 +143,7 @@ export const systemDb = {
   },
 
   async broadcastToUsers(params: { n_course_id: string, n_role?: string, n_title: string, n_msg: string, n_link?: string, n_type?: string, n_expires_in?: string }, sessionId: string): Promise<void> {
-    const { error } = await withSession(supabase, sessionId).rpc('broadcast_data', params);
+    const { error } = await withSession(supabase.rpc('broadcast_data', params), sessionId);
     if (error) throw new Error(error.message);
   },
 
@@ -235,7 +235,7 @@ export const systemDb = {
   },
 
   async updateSetting(key: string, value: unknown, sessionId: string): Promise<void> {
-    const { error } = await withSession(supabase, sessionId).rpc('update_setting', { p_key: key, p_value: value });
+    const { error } = await withSession(supabase.rpc('update_setting', { p_key: key, p_value: value }), sessionId);
     if (error) throw new Error(error.message);
   },
 
@@ -255,8 +255,9 @@ export const systemDb = {
     sessionId: string,
     filters: { user_id?: string; course_id?: string; resource_id?: string; category?: string; course_ids?: string[] } = {}
   ): Promise<SystemLog[]> {
+    // Robust manual join to avoid "relationship not found" schema errors
     let query = withSession(supabase.from('system_logs'), sessionId)
-      .select('*, users!user_id(full_name, email)')
+      .select('*')
       .order('created_at', { ascending: false })
       .limit(limit);
 
@@ -270,7 +271,26 @@ export const systemDb = {
 
     const { data, error } = await query;
     if (error) throw new Error(error.message);
-    return data as SystemLog[];
+
+    const logs = data as SystemLog[];
+    const userIds = [...new Set(logs.map(l => l.user_id).filter(id => !!id))] as string[];
+
+    if (userIds.length > 0) {
+      const { data: userData, error: userError } = await withSession(
+        supabase.from('users').select('id, full_name, email'),
+        sessionId
+      ).in('id', userIds);
+
+      if (!userError && userData) {
+        const userMap = new Map(userData.map(u => [u.id, u]));
+        return logs.map(log => ({
+          ...log,
+          users: log.user_id ? userMap.get(log.user_id) as { full_name: string; email: string } : undefined
+        }));
+      }
+    }
+
+    return logs;
   },
 
   async deleteSystemLogs(

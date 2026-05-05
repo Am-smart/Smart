@@ -67,9 +67,12 @@ export const dbUtils = {
     const { withSession } = require('../supabase');
     const upsertData = this.prepareUpsert(entity, options.excludeFields);
 
-    let query = withSession(table, sessionId).upsert(upsertData, {
-      onConflict: options.onConflict
-    });
+    const upsertOptions: { onConflict?: string } = {};
+    if (!entity.id && options.onConflict) {
+      upsertOptions.onConflict = options.onConflict;
+    }
+
+    let query = withSession(table, sessionId).upsert(upsertData, upsertOptions);
 
     const entityWithVersion = entity as { id?: string; version?: number };
     query = this.applyVersionCheck(query, entityWithVersion.id, entityWithVersion.version);
