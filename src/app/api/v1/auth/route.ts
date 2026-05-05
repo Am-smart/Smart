@@ -4,7 +4,6 @@ import { UserMapper } from '@/lib/mappers';
 import { cookies } from 'next/headers';
 import { USER_ROLES, SESSION, SIGNUP_LIMITS } from '@/lib/constants';
 import { verifyToken, createSession } from '@/lib/crypto';
-import { supabase } from '@/lib/supabase';
 import { validateLoginForm, normalizeEmail, validateSignupForm, normalizeInput, sanitizeObject } from '@/lib/validation';
 import { User } from '@/lib/types';
 import { UnauthorizedError } from '@/lib/api-error';
@@ -23,16 +22,7 @@ export const GET = withHandler(async (user, request) => {
             return await verifyToken(token.value);
         }
         case 'role-count': {
-            const [teachers, admins, total] = await Promise.all([
-                supabase.from('users').select('*', { count: 'exact', head: true }).eq('role', USER_ROLES.TEACHER),
-                supabase.from('users').select('*', { count: 'exact', head: true }).eq('role', USER_ROLES.ADMIN),
-                supabase.from('users').select('*', { count: 'exact', head: true })
-            ]);
-            return {
-                teachers: teachers.count || 0,
-                admins: admins.count || 0,
-                total: total.count || 0
-            };
+            return authService.getRoleCount();
         }
         default:
             return UserMapper.toDTO(user);
@@ -95,13 +85,10 @@ export const POST = withHandler(async (user, request) => {
 
             // Role limit check
             if (data.role === USER_ROLES.TEACHER || data.role === USER_ROLES.ADMIN) {
-                const { count } = await supabase
-                    .from('users')
-                    .select('*', { count: 'exact', head: true })
-                    .eq('role', data.role);
+                const count = await authService.getRoleUserCount(data.role);
 
                 const limit = data.role === USER_ROLES.TEACHER ? SIGNUP_LIMITS.TEACHER : SIGNUP_LIMITS.ADMIN;
-                if (count !== null && count >= limit) {
+                if (count >= limit) {
                     return { user: null, sessionId: null, error: `Signup limit reached for role: ${data.role}` };
                 }
             }

@@ -12,13 +12,24 @@ export class LearningService {
     return course;
   }
 
+  async getCourses(teacherId?: string, sessionId?: string, limit?: number, offset?: number): Promise<Course[]> {
+    return learningDb.findAllCourses(teacherId, sessionId!, limit, offset);
+  }
+
   async saveCourse(teacherId: string, teacherName: string, course: Partial<Course>, sessionId: string): Promise<Course> {
     CourseDomain.validate(course);
     const courseToSave = CourseDomain.create(course, teacherId, teacherName);
     return learningDb.upsertCourse(courseToSave, sessionId);
   }
 
+  async deleteCourse(id: string, sessionId: string): Promise<void> {
+    await learningDb.deleteCourse(id, sessionId);
+  }
+
   // Lessons
+  async getLessons(courseId: string, sessionId: string): Promise<Lesson[]> {
+    return learningDb.findLessonsByCourseId(courseId, sessionId);
+  }
 
   async saveLesson(lesson: Partial<Lesson>, sessionId: string): Promise<Lesson> {
     LearningDomain.validateLesson(lesson);
@@ -26,12 +37,23 @@ export class LearningService {
     return learningDb.upsertLesson(lessonToSave, sessionId);
   }
 
+  async deleteLesson(id: string, sessionId: string): Promise<void> {
+    await learningDb.deleteLesson(id, sessionId);
+  }
+
   // Materials
+  async getMaterials(courseId: string | undefined, sessionId: string): Promise<Material[]> {
+    return learningDb.findAllMaterials(courseId, sessionId);
+  }
 
   async saveMaterial(teacherId: string, material: Partial<Material>, sessionId: string): Promise<Material> {
     LearningDomain.validateMaterial(material);
     const materialToSave = LearningDomain.prepareMaterial(material, teacherId);
     return learningDb.upsertMaterial(materialToSave, sessionId);
+  }
+
+  async deleteMaterial(id: string, sessionId: string): Promise<void> {
+    await learningDb.deleteMaterial(id, sessionId);
   }
 
 

@@ -7,19 +7,37 @@ import { NotFoundError } from '../api-error';
 
 export class AssessmentService {
   // Assignments
+  async getAssignments(teacherId?: string, courseId?: string, sessionId?: string, limit?: number, offset?: number): Promise<Assignment[]> {
+    return assessmentDb.findAllAssignments(teacherId, courseId, sessionId!, limit, offset);
+  }
+
   async saveAssignment(teacherId: string, assignment: Partial<Assignment>, sessionId: string): Promise<Assignment> {
     const assignmentToSave = AssessmentDomain.prepareAssignment(assignment, teacherId);
     return assessmentDb.upsertAssignment(assignmentToSave, sessionId);
   }
 
+  async deleteAssignment(id: string, sessionId: string): Promise<void> {
+    await assessmentDb.deleteAssignment(id, sessionId);
+  }
+
   // Quizzes
+  async getQuizzes(courseId?: string, teacherId?: string, sessionId?: string, limit?: number, offset?: number): Promise<Quiz[]> {
+    return assessmentDb.findAllQuizzes(courseId, teacherId, sessionId!, limit, offset);
+  }
 
   async saveQuiz(teacherId: string, quiz: Partial<Quiz>, sessionId: string): Promise<Quiz> {
     const quizToSave = AssessmentDomain.prepareQuiz(quiz, teacherId);
     return assessmentDb.upsertQuiz(quizToSave, sessionId);
   }
 
+  async deleteQuiz(id: string, sessionId: string): Promise<void> {
+    await assessmentDb.deleteQuiz(id, sessionId);
+  }
+
   // Submissions
+  async getSubmissions(assignmentId?: string, studentId?: string, sessionId?: string, limit?: number, offset?: number): Promise<Submission[]> {
+    return assessmentDb.findAllSubmissions(assignmentId, studentId, sessionId!, limit, offset);
+  }
 
   async submitAssignment(studentId: string, assignmentId: string, content: Partial<Submission>, sessionId: string): Promise<Submission> {
     const submissionToSave = AssessmentDomain.prepareSubmission(studentId, assignmentId, content);
@@ -55,6 +73,13 @@ export class AssessmentService {
   }
 
   // Quiz Submissions
+  async getQuizSubmissions(quizId?: string, studentId?: string, sessionId?: string): Promise<QuizSubmission[]> {
+    return assessmentDb.findAllQuizSubmissions(quizId, studentId, sessionId!);
+  }
+
+  async findQuizAttempts(quizId: string, studentId: string, sessionId: string): Promise<QuizSubmission[]> {
+    return assessmentDb.findQuizAttempts(quizId, studentId, sessionId);
+  }
 
   async submitQuiz(studentId: string, quizId: string, submissionData: Partial<QuizSubmission>, sessionId: string): Promise<{ success: boolean, score: number }> {
     const quiz = await assessmentDb.findQuizById(quizId, sessionId);
