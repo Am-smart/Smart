@@ -152,7 +152,7 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({ teacherId, quiz, courses
                             </div>
                             <div>
                                 <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">Status</label>
-                                <select value={formData.status} onChange={e => setFormData({...formData, status: e.target.value as any})} className="w-full p-4 rounded-xl border-2 border-white focus:border-blue-500 outline-none transition-all shadow-sm">
+                                <select value={formData.status} onChange={e => setFormData({...formData, status: e.target.value as QuizDTO['status']})} className="w-full p-4 rounded-xl border-2 border-white focus:border-blue-500 outline-none transition-all shadow-sm">
                                     <option value={ASSESSMENT_STATUS.DRAFT}>Draft</option>
                                     <option value={ASSESSMENT_STATUS.PUBLISHED}>Published</option>
                                 </select>

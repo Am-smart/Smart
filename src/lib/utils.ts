@@ -56,13 +56,13 @@ export const parseDeepLink = (link?: string): string | null => {
 /**
  * Type guard for UserRole
  */
-export function isUserRole(role: any): role is UserRole {
-    return Object.values(USER_ROLES).includes(role);
+export function isUserRole(role: unknown): role is UserRole {
+    return (Object.values(USER_ROLES) as unknown[]).includes(role);
 }
 
 /**
  * Type guard for AssessmentStatus
  */
-export function isAssessmentStatus(status: any): status is typeof ASSESSMENT_STATUS[keyof typeof ASSESSMENT_STATUS] {
-    return Object.values(ASSESSMENT_STATUS).includes(status);
+export function isAssessmentStatus(status: unknown): status is typeof ASSESSMENT_STATUS[keyof typeof ASSESSMENT_STATUS] {
+    return (Object.values(ASSESSMENT_STATUS) as unknown[]).includes(status);
 }
