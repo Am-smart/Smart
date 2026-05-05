@@ -36,14 +36,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [maintenance, setMaintenance] = useState<Maintenance>({ id: "system-config", enabled: false, schedules: [] });
   const [isCurrentlyInMaintenance, setIsCurrentlyInMaintenance] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-
-  // Initialize sidebar state based on screen width
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-        setIsSidebarOpen(window.innerWidth >= 768);
-    }
-  }, []);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [stats, setStats] = useState<DashboardStats>({ courses: 0, dueSoon: 0 });

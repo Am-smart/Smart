@@ -49,14 +49,19 @@ function CatalogContent() {
   useEffect(() => {
     if (courseIdParam && courses.length > 0) {
         const c = courses.find(item => item.id === courseIdParam);
-        if (c) {
+        const isEnrolled = enrolledIds.includes(courseIdParam);
+
+        if (c && isEnrolled) {
             setActiveCourse(c);
             actions.getLessons(c.id).then(data => setLessons(data || []));
+        } else if (c && !isEnrolled) {
+            addToast("You must be enrolled to view course content.", "error");
+            router.push('/student/courses');
         }
     } else {
         setActiveCourse(null);
     }
-  }, [courseIdParam, courses]);
+  }, [courseIdParam, courses, enrolledIds, addToast, router]);
 
   const handleEnroll = async (course: CourseDTO, code?: string) => {
     if (!user) return;

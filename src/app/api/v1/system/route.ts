@@ -61,14 +61,14 @@ export const GET = withHandler(async (user, request) => {
     case 'live-classes': {
       const courseId = searchParams.get('courseId') || undefined;
       const teacherId = searchParams.get('teacherId') || undefined;
-      const classes = await systemService.getLiveClasses(courseId, teacherId, user.sessionId!);
+      const classes = await systemService.getLiveClasses(courseId, teacherId, user.sessionId!, user.id, user.role);
       return classes.map(CommunicationMapper.toLiveClassDTO);
     }
     case 'discussions': {
       const courseId = searchParams.get('courseId');
       if (!courseId) throw new Error('courseId is required');
       if (courseId === 'global') return [];
-      const discussions = await systemService.getDiscussions(courseId, user.sessionId!);
+      const discussions = await systemService.getDiscussions(courseId, user.sessionId!, user.id, user.role);
       return discussions.map(CommunicationMapper.toDiscussionDTO);
     }
     case 'enrollments': {
@@ -77,7 +77,7 @@ export const GET = withHandler(async (user, request) => {
       const courseIds = courseIdsStr ? courseIdsStr.split(',').filter(id => id.trim() !== '') : undefined;
 
       if (studentId) {
-        const enrollments = await systemService.getStudentEnrollments(studentId, user.sessionId!);
+        const enrollments = await systemService.getStudentEnrollments(studentId, user.sessionId!, user);
         return enrollments.map(SystemMapper.toEnrollmentDTO);
       } else if (courseIds && courseIds.length > 0) {
         const enrollments = await systemService.getCourseEnrollments(user, courseIds, user.sessionId!);

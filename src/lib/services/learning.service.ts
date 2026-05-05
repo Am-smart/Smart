@@ -27,7 +27,11 @@ export class LearningService {
   }
 
   // Lessons
-  async getLessons(courseId: string, sessionId: string): Promise<Lesson[]> {
+  async getLessons(courseId: string, sessionId: string, userId?: string, userRole?: string): Promise<Lesson[]> {
+    if (userRole === 'student' && userId) {
+        const enrollment = await learningDb.findEnrollmentByCourseAndStudent(courseId, userId, sessionId);
+        if (!enrollment) return [];
+    }
     return learningDb.findLessonsByCourseId(courseId, sessionId);
   }
 
@@ -42,7 +46,18 @@ export class LearningService {
   }
 
   // Materials
-  async getMaterials(courseId: string | undefined, sessionId: string): Promise<Material[]> {
+  async getMaterials(courseId: string | undefined, sessionId: string, userId?: string, userRole?: string): Promise<Material[]> {
+    if (userRole === 'student' && userId) {
+        const enrollments = await learningDb.findEnrollmentsByStudentId(userId, sessionId);
+        const enrolledCourseIds = enrollments.map(e => e.course_id);
+
+        if (courseId && !enrolledCourseIds.includes(courseId)) {
+            return [];
+        }
+
+        const materials = await learningDb.findAllMaterials(courseId, sessionId);
+        return materials.filter(m => enrolledCourseIds.includes(m.course_id));
+    }
     return learningDb.findAllMaterials(courseId, sessionId);
   }
 

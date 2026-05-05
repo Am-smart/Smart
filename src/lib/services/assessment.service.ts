@@ -7,7 +7,18 @@ import { NotFoundError } from '../api-error';
 
 export class AssessmentService {
   // Assignments
-  async getAssignments(teacherId?: string, courseId?: string, sessionId?: string, limit?: number, offset?: number): Promise<Assignment[]> {
+  async getAssignments(teacherId?: string, courseId?: string, sessionId?: string, limit?: number, offset?: number, userId?: string, userRole?: string): Promise<Assignment[]> {
+    if (userRole === 'student' && userId) {
+        const enrollments = await systemService.getStudentEnrollments(userId, sessionId!);
+        const enrolledCourseIds = enrollments.map(e => e.course_id);
+
+        if (courseId && !enrolledCourseIds.includes(courseId)) {
+            return [];
+        }
+
+        const assignments = await assessmentDb.findAllAssignments(teacherId, courseId, sessionId!, limit, offset);
+        return assignments.filter(a => enrolledCourseIds.includes(a.course_id));
+    }
     return assessmentDb.findAllAssignments(teacherId, courseId, sessionId!, limit, offset);
   }
 
@@ -21,7 +32,18 @@ export class AssessmentService {
   }
 
   // Quizzes
-  async getQuizzes(courseId?: string, teacherId?: string, sessionId?: string, limit?: number, offset?: number): Promise<Quiz[]> {
+  async getQuizzes(courseId?: string, teacherId?: string, sessionId?: string, limit?: number, offset?: number, userId?: string, userRole?: string): Promise<Quiz[]> {
+    if (userRole === 'student' && userId) {
+        const enrollments = await systemService.getStudentEnrollments(userId, sessionId!);
+        const enrolledCourseIds = enrollments.map(e => e.course_id);
+
+        if (courseId && !enrolledCourseIds.includes(courseId)) {
+            return [];
+        }
+
+        const quizzes = await assessmentDb.findAllQuizzes(courseId, teacherId, sessionId!, limit, offset);
+        return quizzes.filter(q => enrolledCourseIds.includes(q.course_id));
+    }
     return assessmentDb.findAllQuizzes(courseId, teacherId, sessionId!, limit, offset);
   }
 
@@ -35,7 +57,11 @@ export class AssessmentService {
   }
 
   // Submissions
-  async getSubmissions(assignmentId?: string, studentId?: string, sessionId?: string, limit?: number, offset?: number): Promise<Submission[]> {
+  async getSubmissions(assignmentId?: string, studentId?: string, sessionId?: string, limit?: number, offset?: number, userId?: string, userRole?: string): Promise<Submission[]> {
+    if (userRole === 'student' && userId) {
+        // Students can only see their own submissions
+        return assessmentDb.findAllSubmissions(assignmentId, userId, sessionId!, limit, offset);
+    }
     return assessmentDb.findAllSubmissions(assignmentId, studentId, sessionId!, limit, offset);
   }
 
