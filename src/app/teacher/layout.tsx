@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react';
-import { TeacherHeader } from "@/components/layout/TeacherHeader";
+import { DashboardHeader } from "@/components/layout/DashboardHeader";
 import { BaseDashboardLayout } from '@/components/layout/BaseDashboardLayout';
 
 export default function TeacherLayout({
@@ -12,7 +12,7 @@ export default function TeacherLayout({
   return (
     <BaseDashboardLayout
         requiredRole="teacher"
-        HeaderComponent={TeacherHeader}
+        HeaderComponent={DashboardHeader}
     >
         {children}
     </BaseDashboardLayout>

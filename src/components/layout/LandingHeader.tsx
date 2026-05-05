@@ -18,10 +18,10 @@ export const LandingHeader: React.FC<HeaderProps> = ({ onSignIn, onGetStarted })
 
   return (
     <header className="fixed top-0 left-0 right-0 h-auto min-h-[60px] sm:h-[70px] bg-white flex justify-between items-center px-3 sm:px-[5%] py-3 sm:py-0 z-[1000] shadow-[0_2px_10px_rgba(0,0,0,0.05)]">
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-2 sm:gap-4">
         <a href="#" className="text-sm sm:text-[1.5rem] font-extrabold text-[#2563eb] flex items-center gap-1 sm:gap-2 whitespace-nowrap">
           <span className="text-lg sm:text-2xl">🎓</span>
-          <span className="hidden xs:inline">SmartLMS</span>
+          <span className="xs:inline">SmartLMS</span>
         </a>
         {!isOnline && (
           <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-[10px] sm:text-xs font-bold animate-pulse border border-amber-200">
@@ -40,7 +40,7 @@ export const LandingHeader: React.FC<HeaderProps> = ({ onSignIn, onGetStarted })
       {/* Mobile Menu Button */}
       <button 
         onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-        className="md:hidden flex items-center justify-center w-10 h-10 rounded-lg hover:bg-slate-100 transition-colors"
+        className="md:hidden flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-lg hover:bg-slate-100 transition-colors"
         aria-label="Toggle menu"
       >
         <svg className="w-6 h-6 text-[#64748b]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -55,7 +55,7 @@ export const LandingHeader: React.FC<HeaderProps> = ({ onSignIn, onGetStarted })
       {/* Get Started Button */}
       <button 
         onClick={onGetStarted}
-        className="hidden sm:block bg-[#2563eb] text-white px-3 sm:px-4 md:px-6 py-2 sm:py-[0.6rem] rounded-lg font-semibold transition-all hover:bg-[#1d4ed8] hover:-translate-y-0.5 active:translate-y-0 text-xs sm:text-sm md:text-base whitespace-nowrap"
+        className="hidden xs:block bg-[#2563eb] text-white px-3 sm:px-4 md:px-6 py-2 sm:py-[0.6rem] rounded-lg font-semibold transition-all hover:bg-[#1d4ed8] hover:-translate-y-0.5 active:translate-y-0 text-xs sm:text-sm md:text-base whitespace-nowrap"
       >
         Get Started
       </button>

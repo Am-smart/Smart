@@ -1,59 +1,21 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
-import { getEnrollments, getAssignments, getSubmissions } from '@/lib/api-actions';
-import { EnrollmentDTO } from '@/lib/types';
-import { AssignmentDTO } from '@/lib/types';
+import { useAppContext } from '@/components/AppContext';
 import { ErrorBoundary } from '@/components/common/ErrorBoundary';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { BookOpen, FileText } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 export default function StudentDashboard() {
+  const router = useRouter();
   const { user } = useAuth();
-  const [enrollments, setEnrollments] = useState<EnrollmentDTO[]>([]);
-  const [assignments, setAssignments] = useState<AssignmentDTO[]>([]);
-  const [stats, setStats] = useState({ courses: 0, dueSoon: 0 });
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchData = useCallback(async () => {
-    if (!user) return;
-    setIsLoading(true);
-    setError(null);
-    try {
-        const [myEnrollments, allAssignments, mySubmissions] = await Promise.all([
-          getEnrollments(user.id),
-          getAssignments(),
-          getSubmissions(undefined, user.id)
-        ]);
-
-        const enrolledIds = myEnrollments.map((e: EnrollmentDTO) => e.course_id);
-        const pendingAssignments = allAssignments.filter((a: AssignmentDTO) =>
-            enrolledIds.includes(a.course_id) &&
-            (!a.due_date || new Date(a.due_date as string) > new Date()) &&
-            !mySubmissions.some((s: { assignment_id: string }) => s.assignment_id === a.id)
-        );
-
-        setEnrollments(myEnrollments);
-        setAssignments(pendingAssignments);
-        setStats({
-          courses: myEnrollments.length,
-          dueSoon: pendingAssignments.length
-        });
-    } catch (err) {
-        console.error('Failed to fetch dashboard data:', err);
-        setError('Failed to load dashboard data. Please try again.');
-    } finally {
-        setIsLoading(false);
-    }
-  }, [user]);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  const { enrollments, assignments, stats, isLoading } = useAppContext();
 
   if (!user) return null;
 
-  if (isLoading) {
+  if (isLoading && enrollments.length === 0) {
     return (
         <div className="space-y-8 animate-pulse">
             <div className="h-64 bg-slate-100 rounded-3xl"></div>
@@ -68,15 +30,6 @@ export default function StudentDashboard() {
     );
   }
 
-  if (error) {
-    return (
-        <div className="py-20 text-center space-y-4">
-            <div className="text-4xl">⚠️</div>
-            <h3 className="text-xl font-bold text-slate-900">{error}</h3>
-            <button onClick={fetchData} className="btn-primary px-8">Try Again</button>
-        </div>
-    );
-  }
 
   return (
     <ErrorBoundary>
@@ -104,15 +57,28 @@ export default function StudentDashboard() {
                               <div className="flex-1">
                                   <div className="font-bold text-slate-900">{e.course?.title}</div>
                                   <div className="w-full bg-slate-200 h-1.5 rounded-full mt-2 overflow-hidden">
-                                      <div className="bg-blue-500 h-full" style={{ width: `${e.progress}%` }}></div>
+                                      <div className="bg-blue-500 h-full" style={{ width: `${e.progress || 0}%` }}></div>
                                   </div>
                               </div>
-                              <button className="text-blue-600 font-bold text-xs uppercase">Open</button>
+                              <button
+                                onClick={() => router.push(`/student/my-courses?id=${e.course_id}`)}
+                                className="text-blue-600 font-bold text-xs uppercase"
+                              >
+                                Open
+                              </button>
                           </div>
                       ))}
                   </div>
               ) : (
-                  <p className="text-slate-500 text-sm italic">No courses enrolled yet.</p>
+                  <EmptyState
+                    icon={BookOpen}
+                    title="No Courses Enrolled"
+                    description="You haven't enrolled in any courses yet. Check out the catalog to get started!"
+                    action={{
+                        label: "Browse Catalog",
+                        onClick: () => router.push('/student/courses')
+                    }}
+                  />
               )}
           </div>
 
@@ -126,12 +92,21 @@ export default function StudentDashboard() {
                                   <div className="font-bold text-slate-900">{a.title}</div>
                                   <div className="text-xs text-slate-500 mt-1">Due: {new Date(a.due_date).toLocaleDateString()}</div>
                               </div>
-                              <button className="btn-primary py-1.5 px-4 text-[10px]">Submit</button>
+                              <button
+                                onClick={() => router.push(`/student/assignments?id=${a.id}`)}
+                                className="btn-primary py-1.5 px-4 text-[10px]"
+                              >
+                                Submit
+                              </button>
                           </div>
                       ))}
                   </div>
               ) : (
-                  <p className="text-slate-500 text-sm italic">All caught up! No pending assignments.</p>
+                  <EmptyState
+                    icon={FileText}
+                    title="No Pending Assignments"
+                    description="You're all caught up! No assignments are due at this time."
+                  />
               )}
           </div>
       </div>
