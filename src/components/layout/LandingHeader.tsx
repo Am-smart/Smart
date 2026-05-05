@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useIndexedDB } from '@/hooks/useIndexedDB';
 
 interface HeaderProps {
   onSignIn: () => void;
@@ -13,12 +14,22 @@ export const LandingHeader: React.FC<HeaderProps> = ({ onSignIn, onGetStarted })
     if (callback) callback();
   };
 
+  const { isOnline } = useIndexedDB();
+
   return (
     <header className="fixed top-0 left-0 right-0 h-auto min-h-[60px] sm:h-[70px] bg-white flex justify-between items-center px-3 sm:px-[5%] py-3 sm:py-0 z-[1000] shadow-[0_2px_10px_rgba(0,0,0,0.05)]">
-      <a href="#" className="text-sm sm:text-[1.5rem] font-extrabold text-[#2563eb] flex items-center gap-1 sm:gap-2 whitespace-nowrap">
-        <span className="text-lg sm:text-2xl">🎓</span>
-        <span className="hidden xs:inline">SmartLMS</span>
-      </a>
+      <div className="flex items-center gap-4">
+        <a href="#" className="text-sm sm:text-[1.5rem] font-extrabold text-[#2563eb] flex items-center gap-1 sm:gap-2 whitespace-nowrap">
+          <span className="text-lg sm:text-2xl">🎓</span>
+          <span className="hidden xs:inline">SmartLMS</span>
+        </a>
+        {!isOnline && (
+          <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-[10px] sm:text-xs font-bold animate-pulse border border-amber-200">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+            Offline
+          </span>
+        )}
+      </div>
       {/* Desktop Navigation */}
       <div className="hidden md:flex gap-8">
         <a href="#features" className="text-[#64748b] font-medium transition-colors hover:text-[#2563eb]">Features</a>

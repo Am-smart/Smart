@@ -99,7 +99,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     initAuth();
 
     return () => controller.abort();
-  }, [getCache, setCache, pullData, logout]);
+  }, [getCache, setCache, pullData, logout, isOnline]);
 
   const login = useCallback(async (email: string, pass: string) => {
     const result = await actions.login({ email, password: pass });
