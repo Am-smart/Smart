@@ -32,7 +32,7 @@ interface UnifiedSidebarProps {
 }
 
 export const UnifiedSidebar: React.FC<UnifiedSidebarProps> = ({ role, activePage, onNavigate, isOpen, onClose }) => {
-  const normalizedActivePage = activePage.split('/')[0];
+  const normalizedActivePage = activePage === role ? 'dashboard' : activePage.split('/')[0];
 
   const studentItems: SidebarItem[] = [
     { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={20} /> },

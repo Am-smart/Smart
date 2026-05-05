@@ -6,4 +6,5 @@ export * from './Toast';
 export * from './StatCard';
 export * from './Modal';
 export * from './Header';
+export * from './EmptyState';
 export * from './CalendarView';

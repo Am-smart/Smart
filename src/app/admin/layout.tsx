@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react';
-import { AdminHeader } from "@/components/layout/AdminHeader";
+import { DashboardHeader } from "@/components/layout/DashboardHeader";
 import { BaseDashboardLayout } from '@/components/layout/BaseDashboardLayout';
 
 export default function AdminLayout({
@@ -12,7 +12,7 @@ export default function AdminLayout({
   return (
     <BaseDashboardLayout
         requiredRole="admin"
-        HeaderComponent={AdminHeader}
+        HeaderComponent={DashboardHeader}
     >
         {children}
     </BaseDashboardLayout>

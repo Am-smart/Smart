@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
 import { UnifiedSidebar } from "@/components/common/UnifiedSidebar"
 import { UserRole } from "@/lib/types";
 import { ForcePasswordChange } from "@/components/auth/ForcePasswordChange";
 import { useRouter, usePathname } from 'next/navigation';
+import { useAppContext } from '../AppContext';
 
 interface BaseDashboardLayoutProps {
   children: React.ReactNode;
@@ -22,7 +23,7 @@ export const BaseDashboardLayout: React.FC<BaseDashboardLayoutProps> = ({
   headerProps = {}
 }) => {
   const { user, role, logout, isLoading: authLoading, updateProfile } = useAuth();
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const { isSidebarOpen, toggleSidebar } = useAppContext();
   const router = useRouter();
   const pathname = usePathname();
 
@@ -59,14 +60,14 @@ export const BaseDashboardLayout: React.FC<BaseDashboardLayoutProps> = ({
           activePage={activePage === requiredRole ? 'dashboard' : activePage}
           onNavigate={(page) => router.push(`/${requiredRole}/${page === 'dashboard' ? '' : page}`)}
           isOpen={isSidebarOpen}
-          onClose={() => setIsSidebarOpen(false)}
+          onClose={toggleSidebar}
         />
-        <main className="flex-1 transition-all duration-300 ml-0 md:ml-[240px]">
+        <main className={`flex-1 transition-all duration-300 ${isSidebarOpen ? 'md:ml-[240px]' : 'ml-0'}`}>
           <HeaderComponent
             {...headerProps}
             user={user}
             onLogout={handleLogout}
-            onMenuClick={() => setIsSidebarOpen(true)}
+            onMenuClick={toggleSidebar}
           />
 
           <div className="content-area p-4 md:p-8 bg-[#f8fafc] min-h-[calc(100vh-70px)] overflow-x-hidden">

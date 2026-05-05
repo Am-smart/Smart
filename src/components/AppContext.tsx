@@ -1,11 +1,16 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Maintenance, Notification } from '@/lib/types';
+import { Maintenance, Notification, EnrollmentDTO, AssignmentDTO, SubmissionDTO } from '@/lib/types';
 import { useAuth } from './auth/AuthContext';
 import { useIndexedDB } from '@/hooks/useIndexedDB';
 import { Toast, ToastMessage, ToastType } from './ui/Toast';
 import * as actions from '@/lib/api-actions';
+
+export interface DashboardStats {
+  courses: number;
+  dueSoon: number;
+}
 
 interface AppContextType {
   maintenance: Maintenance;
@@ -15,6 +20,12 @@ interface AppContextType {
   fetchNotifications: (userId: string) => Promise<void>;
   isOnline: boolean;
   addToast: (message: string, type: ToastType, duration?: number) => void;
+  stats: DashboardStats;
+  enrollments: EnrollmentDTO[];
+  assignments: AssignmentDTO[];
+  submissions: SubmissionDTO[];
+  refreshDashboardData: () => Promise<void>;
+  isLoading: boolean;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -27,6 +38,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const [stats, setStats] = useState<DashboardStats>({ courses: 0, dueSoon: 0 });
+  const [enrollments, setEnrollments] = useState<EnrollmentDTO[]>([]);
+  const [assignments, setAssignments] = useState<AssignmentDTO[]>([]);
+  const [submissions, setSubmissions] = useState<SubmissionDTO[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
   const addToast = useCallback((message: string, type: ToastType, duration?: number) => {
     const id = Math.random().toString(36).substring(2, 9);
@@ -125,6 +141,37 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // In a future step, this should be replaced with a WebSocket or Server-Sent Events implementation
   // that is managed by the backend, rather than direct Supabase client exposure in the frontend.
 
+  const refreshDashboardData = useCallback(async () => {
+    if (!user || user.role !== 'student') return;
+    setIsLoading(true);
+    try {
+      const [myEnrollments, allAssignments, mySubmissions] = await Promise.all([
+        actions.getEnrollments(user.id),
+        actions.getAssignments(),
+        actions.getSubmissions(undefined, user.id)
+      ]);
+
+      const enrolledIds = myEnrollments.map((e: EnrollmentDTO) => e.course_id);
+      const pendingAssignments = allAssignments.filter((a: AssignmentDTO) =>
+        enrolledIds.includes(a.course_id) &&
+        new Date(a.due_date as string) > new Date() &&
+        !mySubmissions.some((s: SubmissionDTO) => s.assignment_id === a.id)
+      );
+
+      setEnrollments(myEnrollments);
+      setAssignments(pendingAssignments);
+      setSubmissions(mySubmissions);
+      setStats({
+        courses: myEnrollments.length,
+        dueSoon: pendingAssignments.length
+      });
+    } catch (err) {
+      console.error('Failed to refresh dashboard data:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [user]);
+
   const toggleSidebar = useCallback(() => setIsSidebarOpen(prev => !prev), []);
 
   const value = useMemo(() => ({
@@ -134,8 +181,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     toggleSidebar,
     fetchNotifications,
     isOnline,
-    addToast
-  }), [maintenance, notifications, isSidebarOpen, toggleSidebar, fetchNotifications, isOnline, addToast, isCurrentlyInMaintenance]);
+    addToast,
+    stats,
+    enrollments,
+    assignments,
+    submissions,
+    refreshDashboardData,
+    isLoading
+  }), [maintenance, notifications, isSidebarOpen, toggleSidebar, fetchNotifications, isOnline, addToast, isCurrentlyInMaintenance, stats, enrollments, assignments, submissions, refreshDashboardData, isLoading]);
 
   return (
     <AppContext.Provider value={value}>
