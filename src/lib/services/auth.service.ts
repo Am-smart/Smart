@@ -87,6 +87,35 @@ export class AuthService {
     return authDb.updatePreferences(preferences, sessionId);
   }
 
+  async getSessions(sessionId: string) {
+    return authDb.findAllSessions(sessionId);
+  }
+
+  async getRoleCount() {
+    const { supabase } = await import('../supabase');
+    const { USER_ROLES } = await import('../constants');
+
+    const [teachers, admins, total] = await Promise.all([
+        supabase.from('users').select('*', { count: 'exact', head: true }).eq('role', USER_ROLES.TEACHER),
+        supabase.from('users').select('*', { count: 'exact', head: true }).eq('role', USER_ROLES.ADMIN),
+        supabase.from('users').select('*', { count: 'exact', head: true })
+    ]);
+    return {
+        teachers: teachers.count || 0,
+        admins: admins.count || 0,
+        total: total.count || 0
+    };
+  }
+
+  async getRoleUserCount(role: string): Promise<number> {
+    const { supabase } = await import('../supabase');
+    const { count } = await supabase
+        .from('users')
+        .select('*', { count: 'exact', head: true })
+        .eq('role', role);
+    return count || 0;
+  }
+
   // Merged from UserService
   async getCurrentUser(id: string, sessionId: string): Promise<User> {
     const user = await systemDb.findUserById(id, sessionId);

@@ -1,9 +1,8 @@
 import { withHandler } from '@/app/api/api-utils';
 import { systemService } from '@/lib/services/system.service';
-import { systemDb } from '@/lib/database/system.db';
 import { learningService } from '@/lib/services/learning.service';
 import { authService } from '@/lib/services/auth.service';
-import { assessmentDb } from '@/lib/database/assessment.db';
+import { assessmentService } from '@/lib/services/assessment.service';
 import { rbac } from '@/lib/auth/rbac';
 import { SystemMapper, CommunicationMapper, AssessmentMapper } from '@/lib/mappers';
 import { sanitizeObject } from '@/lib/validation';
@@ -37,8 +36,7 @@ export const GET = withHandler(async (user, request) => {
     }
     case 'sessions': {
         if (!user) throw new UnauthorizedError();
-        const { authDb } = await import('@/lib/database/auth.db');
-        return authDb.findAllSessions(user.sessionId!);
+        return authService.getSessions(user.sessionId!);
     }
     case 'settings': {
       if (!rbac.can(user, 'system:manage')) throw new UnauthorizedError();
@@ -57,41 +55,7 @@ export const GET = withHandler(async (user, request) => {
     }
     case 'notifications': {
       const userId = searchParams.get('userId') || user.id;
-      const [notifications, broadcasts] = await Promise.all([
-        systemService.getNotifications(userId, user.sessionId!),
-        systemDb.findAllBroadcasts(user.sessionId!)
-      ]);
-
-      // Filter broadcasts relevant to this user
-      const filteredBroadcasts = broadcasts.filter(b => {
-        const now = new Date();
-        const expiresAt = b.expires_at ? new Date(b.expires_at) : null;
-        if (expiresAt && now > expiresAt) return false;
-
-        if (b.target_role && b.target_role !== user.role) return false;
-
-        // If broadcast is course-specific, we'd need to check enrollment.
-        // For simplicity and speed, we'll return all relevant-role broadcasts
-        // and let the client filter further if course_id is present.
-        return true;
-      });
-
-      // Map broadcasts to notification format
-      const broadcastNotifications = filteredBroadcasts.map(b => ({
-        id: b.id,
-        user_id: userId,
-        title: `[Broadcast] ${b.title}`,
-        message: b.message,
-        link: b.link,
-        type: b.type || 'broadcast',
-        is_read: false,
-        created_at: b.created_at
-      }));
-
-      const merged = [...notifications, ...broadcastNotifications].sort(
-        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      );
-
+      const merged = await systemService.getMergedNotifications(user, userId, user.sessionId!);
       return merged.map(CommunicationMapper.toNotificationDTO);
     }
     case 'live-classes': {
@@ -124,7 +88,7 @@ export const GET = withHandler(async (user, request) => {
     case 'quiz-submissions': {
         const quizId = searchParams.get('quizId') || undefined;
         const studentId = searchParams.get('studentId') || undefined;
-        const submissions = await assessmentDb.findAllQuizSubmissions(quizId, studentId, user.sessionId!);
+        const submissions = await assessmentService.getQuizSubmissions(quizId, studentId, user.sessionId!);
         return submissions.map(AssessmentMapper.toQuizSubmissionDTO);
     }
     case 'lesson-completions': {

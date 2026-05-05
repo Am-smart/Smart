@@ -1,6 +1,5 @@
 import { withHandler } from '@/app/api/api-utils';
 import { learningService } from '@/lib/services/learning.service';
-import { learningDb } from '@/lib/database/learning.db';
 import { CourseMapper, LearningMapper } from '@/lib/mappers';
 import { rbac } from '@/lib/auth/rbac';
 import { CourseDomain } from '@/lib/domain/course.domain';
@@ -17,18 +16,18 @@ export const GET = withHandler(async (user, request) => {
       const teacherId = searchParams.get('teacherId') || undefined;
       const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : undefined;
       const offset = searchParams.get('offset') ? parseInt(searchParams.get('offset')!) : undefined;
-      const courses = await learningDb.findAllCourses(teacherId, user.sessionId, limit, offset);
+      const courses = await learningService.getCourses(teacherId, user.sessionId!, limit, offset);
       return courses.map(CourseMapper.toDTO);
     }
     case 'lessons': {
       const courseId = searchParams.get('courseId');
       if (!courseId) throw new Error('courseId is required');
-      const lessons = await learningDb.findLessonsByCourseId(courseId, user.sessionId!);
+      const lessons = await learningService.getLessons(courseId, user.sessionId!);
       return lessons.map(LearningMapper.toLessonDTO);
     }
     case 'materials': {
       const courseId = searchParams.get('courseId') || undefined;
-      const materials = await learningDb.findAllMaterials(courseId, user.sessionId!);
+      const materials = await learningService.getMaterials(courseId, user.sessionId!);
       return materials.map(LearningMapper.toMaterialDTO);
     }
     default:
@@ -77,17 +76,17 @@ export const DELETE = withHandler(async (user, request) => {
   switch (action) {
     case 'course': {
       if (!rbac.can(user, 'course:delete')) throw new UnauthorizedError();
-      await learningDb.deleteCourse(id, user.sessionId!);
+      await learningService.deleteCourse(id, user.sessionId!);
       return { success: true };
     }
     case 'lesson': {
       if (!rbac.can(user, 'lesson:manage')) throw new UnauthorizedError();
-      await learningDb.deleteLesson(id, user.sessionId!);
+      await learningService.deleteLesson(id, user.sessionId!);
       return { success: true };
     }
     case 'material': {
       if (!rbac.can(user, 'course:update')) throw new UnauthorizedError();
-      await learningDb.deleteMaterial(id, user.sessionId!);
+      await learningService.deleteMaterial(id, user.sessionId!);
       return { success: true };
     }
     default:

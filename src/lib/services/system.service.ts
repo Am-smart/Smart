@@ -171,6 +171,43 @@ export class SystemService {
     await systemDb.createNotification(params.target_id, params.n_title, params.n_msg, params.n_link, params.n_type, sessionId);
   }
 
+  async getMergedNotifications(user: User, userId: string, sessionId: string): Promise<Notification[]> {
+    const [notifications, broadcasts] = await Promise.all([
+      this.getNotifications(userId, sessionId),
+      systemDb.findAllBroadcasts(sessionId)
+    ]);
+
+    // Filter broadcasts relevant to this user
+    const filteredBroadcasts = broadcasts.filter(b => {
+      const now = new Date();
+      const expiresAt = b.expires_at ? new Date(b.expires_at) : null;
+      if (expiresAt && now > expiresAt) return false;
+
+      if (b.target_role && b.target_role !== user.role) return false;
+
+      return true;
+    });
+
+    // Map broadcasts to notification format
+    const broadcastNotifications: Notification[] = filteredBroadcasts.map(b => ({
+      id: b.id,
+      user_id: userId,
+      title: `[Broadcast] ${b.title}`,
+      message: b.message,
+      link: b.link,
+      type: b.type || 'broadcast',
+      is_read: false,
+      created_at: b.created_at,
+      version: 1
+    }));
+
+    const merged = [...notifications, ...broadcastNotifications].sort(
+      (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+
+    return merged;
+  }
+
   async getLiveClasses(courseId?: string, teacherId?: string, sessionId?: string): Promise<LiveClass[]> {
     return systemDb.findAllLiveClasses(courseId, teacherId, sessionId);
   }
