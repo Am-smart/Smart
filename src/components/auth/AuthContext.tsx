@@ -25,13 +25,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [state, setState] = useState<AuthState>({ user: null, role: null, isLoading: true });
   const { setCache, getCache, addToQueue, isOnline, pullData } = useIndexedDB();
 
+  const logout = useCallback(async () => {
+    sessionManager.cleanupSession();
+    const res = await actions.logout();
+    if (!res.success) {
+        console.error('Logout failed:', res.error);
+    }
+    await setCache('current_user', null);
+    setState({
+        user: null,
+        role: null,
+        isLoading: false
+    });
+  }, [setCache]);
+
   useEffect(() => {
+    const controller = new AbortController();
     const initAuth = async () => {
         // 1. Try secure session first
         try {
           const session = await actions.getSession();
           if (session) {
-              const userDTO = await actions.getMe();
+              // Session validation check
+              const sessionInfo = await actions.getSessions();
+              const currentSession = sessionInfo.find(s => s.id === session.sessionId);
+
+              if (!currentSession || new Date(currentSession.expires_at) < new Date()) {
+                  console.warn('Session expired or invalid');
+                  await logout();
+                  return;
+              }
+
+              const userDTO = await actions.getMe(controller.signal);
               if (userDTO) {
                   const user = { ...userDTO, sessionId: session.sessionId } as User;
                   await setCache('current_user', user);
@@ -58,7 +83,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     initAuth();
-  }, [getCache, setCache, pullData]);
+
+    return () => controller.abort();
+  }, [getCache, setCache, pullData, logout]);
 
   const login = useCallback(async (email: string, pass: string) => {
     const result = await actions.login({ email, password: pass });
@@ -90,20 +117,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         role: u.role,
         isLoading: false
     }));
-  }, [setCache]);
-
-  const logout = useCallback(async () => {
-    sessionManager.cleanupSession();
-    const res = await actions.logout();
-    if (!res.success) {
-        console.error('Logout failed:', res.error);
-    }
-    await setCache('current_user', null);
-    setState({
-        user: null,
-        role: null,
-        isLoading: false
-    });
   }, [setCache]);
 
   const updateProfile = useCallback(async (updates: Partial<User>) => {

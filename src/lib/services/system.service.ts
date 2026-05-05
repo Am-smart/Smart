@@ -4,6 +4,7 @@ import { SystemLog, Maintenance, PlannerItem, User, Setting, Enrollment, Discuss
 import { UserDomain } from '../domain/user.domain';
 import { EnrollmentDomain } from '../domain/enrollment.domain';
 import { CommunicationDomain } from '../domain/communication.domain';
+import { NotFoundError, UnauthorizedError, ForbiddenError } from '../api-error';
 
 export class SystemService {
   // Logs
@@ -24,7 +25,7 @@ export class SystemService {
     sessionId: string,
     filters: { user_id?: string; course_id?: string; resource_id?: string; category?: string; course_ids?: string[] } = {}
   ): Promise<SystemLog[]> {
-    if (!currentUser) throw new Error('Unauthorized');
+    if (!currentUser) throw new UnauthorizedError();
 
     const finalFilters: { user_id?: string; course_id?: string; resource_id?: string; category?: string; course_ids?: string[] } = { ...filters };
 
@@ -40,7 +41,7 @@ export class SystemService {
 
       if (finalFilters.course_id) {
         if (!teacherCourseIds.includes(finalFilters.course_id)) {
-          throw new Error('Forbidden: You can only view logs for your own courses');
+          throw new ForbiddenError('Forbidden: You can only view logs for your own courses');
         }
       } else {
         // If no course_id is specified, the systemDb will need to handle multiple course_ids
@@ -54,6 +55,14 @@ export class SystemService {
       // Students can only see their own anti-cheat logs
       finalFilters.category = 'anti-cheat';
       finalFilters.user_id = currentUser.id;
+
+      // Verify student is actually enrolled in the course if course_id is provided
+      if (finalFilters.course_id) {
+          const enrollment = await learningDb.findEnrollmentByCourseAndStudent(finalFilters.course_id, currentUser.id, sessionId);
+          if (!enrollment) {
+              throw new ForbiddenError('Forbidden: You are not enrolled in this course');
+          }
+      }
     }
 
     return systemDb.findAllSystemLogs(limit, sessionId, finalFilters);
@@ -64,12 +73,12 @@ export class SystemService {
     sessionId: string,
     filters: { course_id?: string; resource_id?: string; category?: string; before?: string } = {}
   ): Promise<void> {
-    if (!UserDomain.isAdmin(currentUser)) throw new Error('Forbidden');
+    if (!UserDomain.isAdmin(currentUser)) throw new ForbiddenError();
     await systemDb.deleteSystemLogs(sessionId, filters);
   }
 
   async updateLog(currentUser: User, id: string, updates: Partial<SystemLog>, sessionId: string): Promise<SystemLog> {
-    if (!UserDomain.isAdmin(currentUser)) throw new Error('Forbidden');
+    if (!UserDomain.isAdmin(currentUser)) throw new ForbiddenError();
     return systemDb.updateSystemLog(id, updates, sessionId);
   }
 
@@ -79,7 +88,7 @@ export class SystemService {
   }
 
   async updateMaintenance(currentUser: User, maintenance: Partial<Maintenance>, sessionId: string): Promise<void> {
-    if (!UserDomain.isAdmin(currentUser)) throw new Error('Forbidden');
+    if (!UserDomain.isAdmin(currentUser)) throw new ForbiddenError();
     await systemDb.updateMaintenance(maintenance, sessionId);
   }
 
@@ -98,19 +107,19 @@ export class SystemService {
 
   // Settings
   async getSettings(currentUser: User, sessionId: string): Promise<Setting[]> {
-    if (!UserDomain.isAdmin(currentUser)) throw new Error('Forbidden');
+    if (!UserDomain.isAdmin(currentUser)) throw new ForbiddenError();
     return systemDb.findAllSettings(sessionId);
   }
 
   async updateSetting(currentUser: User, key: string, value: unknown, sessionId: string): Promise<void> {
-    if (!UserDomain.isAdmin(currentUser)) throw new Error('Forbidden');
+    if (!UserDomain.isAdmin(currentUser)) throw new ForbiddenError();
     await systemDb.updateSetting(key, value, sessionId);
   }
 
   // Enrollments (Merged from EnrollmentService)
   async enrollInCourse(studentId: string, courseId: string, sessionId: string, enrollmentCode?: string): Promise<Enrollment> {
     const course = await learningDb.findCourseById(courseId, sessionId);
-    if (!course) throw new Error('Course not found');
+    if (!course) throw new NotFoundError('Course not found');
 
     EnrollmentDomain.validateEnrollmentCode(course.course_id, enrollmentCode);
 
@@ -123,12 +132,12 @@ export class SystemService {
   }
 
   async getCourseEnrollments(currentUser: User, courseIds: string[], sessionId: string): Promise<Enrollment[]> {
-    if (!UserDomain.canManageContent(currentUser)) throw new Error('Forbidden');
+    if (!UserDomain.canManageContent(currentUser)) throw new ForbiddenError();
     return learningDb.findEnrollmentsByCourseIds(courseIds, sessionId);
   }
 
   async removeEnrollment(currentUser: User, courseId: string, studentId: string, sessionId: string): Promise<void> {
-    if (!UserDomain.canManageContent(currentUser)) throw new Error('Forbidden');
+    if (!UserDomain.canManageContent(currentUser)) throw new ForbiddenError();
     await learningDb.deleteEnrollment(courseId, studentId, sessionId);
   }
 
@@ -167,6 +176,7 @@ export class SystemService {
   }
 
   async saveLiveClass(currentUser: User, liveClass: Partial<LiveClass>, sessionId: string): Promise<LiveClass> {
+    if (!UserDomain.canManageContent(currentUser)) throw new ForbiddenError();
     const liveClassToSave = CommunicationDomain.prepareLiveClass(liveClass, currentUser.id);
     return systemDb.upsertLiveClass(liveClassToSave, sessionId);
   }

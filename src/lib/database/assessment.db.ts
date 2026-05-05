@@ -1,5 +1,4 @@
-import { withSession } from '../supabase';
-import { supabaseServer as supabase } from '../supabase-server';
+import { withSession, supabase } from '../supabase';
 import { Assignment, Quiz, Submission, QuizSubmission } from '../types';
 import { dbUtils } from './db-utils';
 
@@ -11,10 +10,14 @@ export const assessmentDb = {
     return data as Assignment;
   },
 
-  async findAllAssignments(teacherId?: string, courseId?: string, sessionId?: string): Promise<Assignment[]> {
+  async findAllAssignments(teacherId?: string, courseId?: string, sessionId?: string, limit?: number, offset?: number): Promise<Assignment[]> {
     let query = withSession(supabase.from('assignments').select('*, courses(*)'), sessionId);
     if (teacherId) query = query.eq('teacher_id', teacherId);
     if (courseId) query = query.eq('course_id', courseId);
+
+    if (limit) query = query.limit(limit);
+    if (offset) query = query.range(offset, offset + (limit || 10) - 1);
+
     const { data, error } = await query;
     if (error) throw new Error(error.message);
     return data as Assignment[];
@@ -36,10 +39,14 @@ export const assessmentDb = {
     return data as Quiz;
   },
 
-  async findAllQuizzes(courseId?: string, teacherId?: string, sessionId?: string): Promise<Quiz[]> {
+  async findAllQuizzes(courseId?: string, teacherId?: string, sessionId?: string, limit?: number, offset?: number): Promise<Quiz[]> {
     let query = withSession(supabase.from('quizzes').select('*, courses(*)'), sessionId);
     if (courseId) query = query.eq('course_id', courseId);
     if (teacherId) query = query.eq('teacher_id', teacherId);
+
+    if (limit) query = query.limit(limit);
+    if (offset) query = query.range(offset, offset + (limit || 10) - 1);
+
     const { data, error } = await query;
     if (error) throw new Error(error.message);
     return data as Quiz[];

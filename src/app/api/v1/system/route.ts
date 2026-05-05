@@ -5,6 +5,8 @@ import { authService } from '@/lib/services/auth.service';
 import { assessmentService } from '@/lib/services/assessment.service';
 import { rbac } from '@/lib/auth/rbac';
 import { SystemMapper, CommunicationMapper, AssessmentMapper } from '@/lib/mappers';
+import { sanitizeObject } from '@/lib/validation';
+import { UnauthorizedError } from '@/lib/api-error';
 
 export const GET = withHandler(async (user, request) => {
   const { searchParams } = new URL(request.url);
@@ -14,12 +16,12 @@ export const GET = withHandler(async (user, request) => {
     return systemService.getMaintenance(user?.sessionId);
   }
 
-  if (!user) throw new Error('Unauthorized');
+  if (!user) throw new UnauthorizedError();
 
   switch (action) {
     case 'logs': {
       const limit = parseInt(searchParams.get('limit') || '100');
-      if (!rbac.can(user, 'system:logs:view')) throw new Error('Unauthorized');
+      if (!rbac.can(user, 'system:logs:view')) throw new UnauthorizedError();
 
       const filters = {
         user_id: searchParams.get('userId') || undefined,
@@ -32,16 +34,16 @@ export const GET = withHandler(async (user, request) => {
       return logs.map(SystemMapper.toSystemLogDTO);
     }
     case 'sessions': {
-        if (!user) throw new Error('Unauthorized');
+        if (!user) throw new UnauthorizedError();
         const { authDb } = await import('@/lib/database/auth.db');
         return authDb.findAllSessions(user.sessionId!);
     }
     case 'settings': {
-      if (!rbac.can(user, 'system:manage')) throw new Error('Unauthorized');
+      if (!rbac.can(user, 'system:manage')) throw new UnauthorizedError();
       return systemService.getSettings(user, user.sessionId!);
     }
     case 'users': {
-      if (!rbac.can(user, 'user:manage')) throw new Error('Unauthorized');
+      if (!rbac.can(user, 'user:manage')) throw new UnauthorizedError();
       const users = await authService.getAllUsers(user, user.sessionId!);
       const { UserMapper } = await import('@/lib/mappers');
       return users.map(UserMapper.toDTO);
@@ -99,7 +101,8 @@ export const GET = withHandler(async (user, request) => {
 }, { requireAuth: false });
 
 export const POST = withHandler(async (user, request) => {
-  const body = await request.json();
+  const rawBody = await request.json();
+  const body = sanitizeObject(rawBody);
   const { action, ...data } = body;
 
   switch (action) {
@@ -125,7 +128,7 @@ export const POST = withHandler(async (user, request) => {
         return SystemMapper.toPlannerItemDTO(saved);
     }
     case 'save-live-class': {
-        if (!rbac.can(user, 'lesson:manage')) throw new Error('Unauthorized');
+        if (!rbac.can(user, 'lesson:manage')) throw new UnauthorizedError();
         const saved = await systemService.saveLiveClass(user, data, user.sessionId!);
         return CommunicationMapper.toLiveClassDTO(saved);
     }
@@ -142,7 +145,7 @@ export const POST = withHandler(async (user, request) => {
         return { success: true };
     }
     case 'broadcast': {
-        if (!rbac.can(user, 'system:manage')) throw new Error('Unauthorized');
+        if (!rbac.can(user, 'system:manage')) throw new UnauthorizedError();
         await systemService.createBroadcast(data, user.sessionId!);
         return { success: true };
     }
@@ -179,12 +182,12 @@ export const DELETE = withHandler(async (user, request) => {
 
     switch (action) {
         case 'user': {
-            if (!rbac.can(user, 'user:manage')) throw new Error('Unauthorized');
+            if (!rbac.can(user, 'user:manage')) throw new UnauthorizedError();
             await authService.deleteUser(user, id, user.sessionId!);
             return { success: true };
         }
         case 'live-class': {
-            if (!rbac.can(user, 'lesson:manage')) throw new Error('Unauthorized');
+            if (!rbac.can(user, 'lesson:manage')) throw new UnauthorizedError();
             await systemService.deleteLiveClass(id, user.sessionId!);
             return { success: true };
         }
@@ -203,7 +206,7 @@ export const DELETE = withHandler(async (user, request) => {
             return { success: true };
         }
         case 'logs': {
-            if (!rbac.can(user, 'system:manage')) throw new Error('Unauthorized');
+            if (!rbac.can(user, 'system:manage')) throw new UnauthorizedError();
             const filters = {
                 course_id: searchParams.get('courseId') || undefined,
                 resource_id: searchParams.get('resourceId') || undefined,

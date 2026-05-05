@@ -21,6 +21,39 @@ export class AppError extends Error implements ApiError {
   }
 }
 
+/**
+ * Specialized Error Types
+ */
+export class UnauthorizedError extends AppError {
+    constructor(message: string = 'Unauthorized') {
+        super(message, 401, 'UNAUTHORIZED');
+    }
+}
+
+export class ForbiddenError extends AppError {
+    constructor(message: string = 'Forbidden') {
+        super(message, 403, 'FORBIDDEN');
+    }
+}
+
+export class NotFoundError extends AppError {
+    constructor(message: string = 'Resource not found') {
+        super(message, 404, 'NOT_FOUND');
+    }
+}
+
+export class BadRequestError extends AppError {
+    constructor(message: string = 'Bad request') {
+        super(message, 400, 'BAD_REQUEST');
+    }
+}
+
+export class ConflictError extends AppError {
+    constructor(message: string = 'Conflict detected') {
+        super(message, 409, 'CONFLICT');
+    }
+}
+
 export function getErrorMessage(error: unknown): string {
   if (error instanceof AppError) {
     return error.message;
@@ -41,14 +74,14 @@ export function getErrorMessage(error: unknown): string {
  * Maps common database/business logic errors to appropriate HTTP status codes
  */
 export function mapErrorToStatus(error: unknown): number {
-  const message = getErrorMessage(error).toLowerCase();
-
   if (error instanceof AppError) return error.status;
+
+  const message = getErrorMessage(error).toLowerCase();
 
   if (message.includes('unauthorized') || message.includes('invalid token')) return 401;
   if (message.includes('forbidden') || message.includes('permission denied')) return 403;
   if (message.includes('not found')) return 404;
-  if (message.includes('duplicate') || message.includes('already exists')) return 409;
+  if (message.includes('duplicate') || message.includes('already exists') || message.includes('conflict')) return 409;
   if (message.includes('invalid') || message.includes('required')) return 400;
 
   return 500;

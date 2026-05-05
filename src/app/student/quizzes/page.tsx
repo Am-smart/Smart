@@ -7,6 +7,7 @@ import { QuizzesList } from "@/components/assessments/QuizzesList";
 import { QuizDTO, QuizSubmissionDTO } from '@/lib/types';
 import dynamic from 'next/dynamic';
 import { QuizResultModal } from '@/components/assessments/QuizResultModal';
+import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 
 const QuizView = dynamic(() => import("@/components/assessments/QuizView").then(m => m.QuizView), { ssr: false });
 
@@ -43,7 +44,7 @@ export default function QuizzesPage() {
   };
 
   return (
-    <>
+    <ErrorBoundary>
       {activeQuiz && (
         <QuizView
             quiz={activeQuiz}
@@ -68,6 +69,6 @@ export default function QuizzesPage() {
           }}
           onViewResults={handleViewResults}
       />
-    </>
+    </ErrorBoundary>
   );
 }

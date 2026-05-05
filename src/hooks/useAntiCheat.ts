@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
 import { logAntiCheatViolation } from '@/lib/api-actions';
+import { ANTI_CHEAT } from '@/lib/constants';
 
 /**
  * Advanced Anti-Cheat Hook - Production Ready
@@ -10,7 +11,7 @@ export const useAntiCheat = (enabled: boolean = false, assessmentTitle: string =
   const [violationCount, setViolationCount] = useState(0);
   const { user } = useAuth();
   const lastViolationTime = useRef<Record<string, number>>({});
-  const MIN_VIOLATION_INTERVAL = 2000; // 2 seconds rate limiting
+  const MIN_VIOLATION_INTERVAL = ANTI_CHEAT.VIOLATION_INTERVAL;
   const wasFocused = useRef(true);
   const focusLossTimer = useRef<NodeJS.Timeout | null>(null);
   const tabChannel = useRef<BroadcastChannel | null>(null);
@@ -45,7 +46,7 @@ export const useAntiCheat = (enabled: boolean = false, assessmentTitle: string =
             console.error('Failed to log anti-cheat violation to server:', err);
         }
     }
-  }, [user, enabled, assessmentTitle, courseId, resourceId]);
+  }, [user, enabled, assessmentTitle, courseId, resourceId, MIN_VIOLATION_INTERVAL]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -56,7 +57,7 @@ export const useAntiCheat = (enabled: boolean = false, assessmentTitle: string =
         visibilityHiddenAt.current = Date.now();
         focusLossTimer.current = setTimeout(() => {
           reportViolation('TAB_SWITCH', { duration: 'threshold_exceeded' });
-        }, 3000);
+        }, ANTI_CHEAT.TAB_SWITCH_THRESHOLD);
       } else if (focusLossTimer.current) {
         clearTimeout(focusLossTimer.current);
         if (visibilityHiddenAt.current) {
@@ -74,7 +75,7 @@ export const useAntiCheat = (enabled: boolean = false, assessmentTitle: string =
       wasFocused.current = false;
       focusLossTimer.current = setTimeout(() => {
         reportViolation('WINDOW_BLUR');
-      }, 3000);
+      }, ANTI_CHEAT.TAB_SWITCH_THRESHOLD);
     };
 
     const handleFocus = () => {
@@ -92,7 +93,7 @@ export const useAntiCheat = (enabled: boolean = false, assessmentTitle: string =
           reportViolation('MULTIPLE_TABS_DETECTED');
         }
       };
-      const pingInterval = setInterval(() => tabChannel.current?.postMessage('PING'), 5000);
+      const pingInterval = setInterval(() => tabChannel.current?.postMessage('PING'), ANTI_CHEAT.PING_INTERVAL);
 
       // 2. Event Blocking (Clipboard, Context Menu, Drag)
       const handleContextMenu = (e: MouseEvent) => {
@@ -140,7 +141,7 @@ export const useAntiCheat = (enabled: boolean = false, assessmentTitle: string =
       };
 
       // 3. DevTools Heuristics (Window resizing)
-      const threshold = 160;
+      const threshold = ANTI_CHEAT.RESIZE_THRESHOLD;
       const checkDevTools = () => {
         const widthDiff = Math.abs(window.outerWidth - window.innerWidth);
         const heightDiff = Math.abs(window.outerHeight - window.innerHeight);
@@ -148,7 +149,18 @@ export const useAntiCheat = (enabled: boolean = false, assessmentTitle: string =
           reportViolation('DEVTOOLS_OPENED_RESIZE');
         }
       };
-      const resizeInterval = setInterval(checkDevTools, 2000);
+      const resizeInterval = setInterval(checkDevTools, ANTI_CHEAT.RESIZE_CHECK_INTERVAL);
+
+      // 4. Debugger Detection (Anti-tamper)
+      const checkDebugger = () => {
+          const start = Date.now();
+          debugger;
+          const end = Date.now();
+          if (end - start > 100) {
+              reportViolation('DEBUGGER_DETECTED');
+          }
+      };
+      const debuggerInterval = setInterval(checkDebugger, 3000);
 
       window.addEventListener('visibilitychange', handleVisibilityChange);
       window.addEventListener('blur', handleBlur);
@@ -168,6 +180,7 @@ export const useAntiCheat = (enabled: boolean = false, assessmentTitle: string =
       return () => {
         clearInterval(pingInterval);
         clearInterval(resizeInterval);
+        clearInterval(debuggerInterval);
         tabChannel.current?.close();
         window.removeEventListener('visibilitychange', handleVisibilityChange);
         window.removeEventListener('blur', handleBlur);

@@ -1,16 +1,17 @@
 import { assessmentDb } from '../database/assessment.db';
-import { Assignment, Quiz, Submission, QuizSubmission, User, QuizQuestion } from '../types';
+import { Assignment, Quiz, Submission, QuizSubmission, QuizQuestion } from '../types';
 import { AssessmentDomain } from '../domain/assessment.domain';
 import { SUBMISSION_STATUS } from '../constants';
+import { NotFoundError } from '../api-error';
 
 export class AssessmentService {
   // Assignments
-  async getAssignments(teacherId?: string, courseId?: string, sessionId?: string): Promise<Assignment[]> {
-    return assessmentDb.findAllAssignments(teacherId, courseId, sessionId);
+  async getAssignments(teacherId?: string, courseId?: string, sessionId?: string, limit?: number, offset?: number): Promise<Assignment[]> {
+    return assessmentDb.findAllAssignments(teacherId, courseId, sessionId, limit, offset);
   }
 
-  async saveAssignment(currentUser: User, assignment: Partial<Assignment>, sessionId: string): Promise<Assignment> {
-    const assignmentToSave = AssessmentDomain.prepareAssignment(assignment, currentUser.id);
+  async saveAssignment(teacherId: string, assignment: Partial<Assignment>, sessionId: string): Promise<Assignment> {
+    const assignmentToSave = AssessmentDomain.prepareAssignment(assignment, teacherId);
     return assessmentDb.upsertAssignment(assignmentToSave, sessionId);
   }
 
@@ -19,12 +20,12 @@ export class AssessmentService {
   }
 
   // Quizzes
-  async getQuizzes(courseId?: string, teacherId?: string, sessionId?: string): Promise<Quiz[]> {
-    return assessmentDb.findAllQuizzes(courseId, teacherId, sessionId);
+  async getQuizzes(courseId?: string, teacherId?: string, sessionId?: string, limit?: number, offset?: number): Promise<Quiz[]> {
+    return assessmentDb.findAllQuizzes(courseId, teacherId, sessionId, limit, offset);
   }
 
-  async saveQuiz(currentUser: User, quiz: Partial<Quiz>, sessionId: string): Promise<Quiz> {
-    const quizToSave = AssessmentDomain.prepareQuiz(quiz, currentUser.id);
+  async saveQuiz(teacherId: string, quiz: Partial<Quiz>, sessionId: string): Promise<Quiz> {
+    const quizToSave = AssessmentDomain.prepareQuiz(quiz, teacherId);
     return assessmentDb.upsertQuiz(quizToSave, sessionId);
   }
 
@@ -59,7 +60,7 @@ export class AssessmentService {
 
   async submitQuiz(studentId: string, quizId: string, submissionData: Partial<QuizSubmission>, sessionId: string): Promise<{ success: boolean, score: number }> {
     const quiz = await assessmentDb.findQuizById(quizId, sessionId);
-    if (!quiz) throw new Error('Quiz not found');
+    if (!quiz) throw new NotFoundError('Quiz not found');
 
     const existingSubmissions = await assessmentDb.findQuizAttempts(quizId, studentId, sessionId);
     const currentAttempts = existingSubmissions.length;

@@ -23,11 +23,22 @@ export const CourseEditor: React.FC<CourseEditorProps> = ({ course, teacherId, o
         thumbnail_url: course?.thumbnail_url || 'https://images.unsplash.com/photo-1516116216624-53e697fedbea?w=800&auto=format&fit=crop&q=60',
         metadata: course?.metadata ? JSON.parse(JSON.stringify(course.metadata)) : {}
     });
+    const [errors, setErrors] = useState<Record<string, string>>({});
     const [isSaving, setIsSaving] = useState(false);
     const { addToQueue, isOnline } = useIndexedDB();
 
+    const validate = () => {
+        const newErrors: Record<string, string> = {};
+        if (!formData.title.trim()) newErrors.title = 'Title is required';
+        if (!formData.description.trim()) newErrors.description = 'Description is required';
+        if (formData.thumbnail_url && !formData.thumbnail_url.startsWith('http')) newErrors.thumbnail_url = 'Invalid URL';
+        setErrors(newErrors);
+        return Object.keys(newErrors).length === 0;
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (!validate()) return;
         setIsSaving(true);
         try {
             const courseData = {
@@ -75,9 +86,10 @@ export const CourseEditor: React.FC<CourseEditorProps> = ({ course, teacherId, o
                             type="text" required
                             value={formData.title}
                             onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-                            className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all text-sm"
+                            className={`w-full p-4 rounded-xl border-2 outline-none transition-all text-sm ${errors.title ? 'border-red-500 focus:border-red-600' : 'border-slate-100 focus:border-blue-500'}`}
                             placeholder="e.g. Advanced React Architecture"
                         />
+                        {errors.title && <p className="text-red-500 text-[10px] mt-1 font-bold uppercase">{errors.title}</p>}
                     </div>
                     <div>
                         <label className="block text-xs font-bold text-slate-700 uppercase mb-3 tracking-wide">Description *</label>
@@ -85,9 +97,10 @@ export const CourseEditor: React.FC<CourseEditorProps> = ({ course, teacherId, o
                             required
                             value={formData.description}
                             onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                            className="w-full h-32 p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all resize-none text-sm"
+                            className={`w-full h-32 p-4 rounded-xl border-2 outline-none transition-all resize-none text-sm ${errors.description ? 'border-red-500 focus:border-red-600' : 'border-slate-100 focus:border-blue-500'}`}
                             placeholder="Describe what students will learn..."
                         />
+                        {errors.description && <p className="text-red-500 text-[10px] mt-1 font-bold uppercase">{errors.description}</p>}
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
@@ -120,8 +133,9 @@ export const CourseEditor: React.FC<CourseEditorProps> = ({ course, teacherId, o
                             type="url"
                             value={formData.thumbnail_url}
                             onChange={(e) => setFormData(prev => ({ ...prev, thumbnail_url: e.target.value }))}
-                            className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all text-sm"
+                            className={`w-full p-4 rounded-xl border-2 outline-none transition-all text-sm ${errors.thumbnail_url ? 'border-red-500 focus:border-red-600' : 'border-slate-100 focus:border-blue-500'}`}
                         />
+                        {errors.thumbnail_url && <p className="text-red-500 text-[10px] mt-1 font-bold uppercase">{errors.thumbnail_url}</p>}
                     </div>
                     <div>
                         <label className="block text-xs font-bold text-slate-700 uppercase mb-3 tracking-wide">Metadata (JSON format)</label>

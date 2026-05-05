@@ -4,6 +4,7 @@ import { AssessmentMapper } from '@/lib/mappers';
 import { rbac } from '@/lib/auth/rbac';
 import { AssessmentDomain } from '@/lib/domain/assessment.domain';
 import { sanitizeObject } from '@/lib/validation';
+import { UnauthorizedError } from '@/lib/api-error';
 
 export const GET = withHandler(async (user, request) => {
   const { searchParams } = new URL(request.url);
@@ -13,13 +14,17 @@ export const GET = withHandler(async (user, request) => {
     case 'assignments': {
       const teacherId = searchParams.get('teacherId') || undefined;
       const courseId = searchParams.get('courseId') || undefined;
-      const assignments = await assessmentService.getAssignments(teacherId, courseId, user.sessionId!);
+      const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : undefined;
+      const offset = searchParams.get('offset') ? parseInt(searchParams.get('offset')!) : undefined;
+      const assignments = await assessmentService.getAssignments(teacherId, courseId, user.sessionId!, limit, offset);
       return assignments.map(AssessmentMapper.toAssignmentDTO);
     }
     case 'quizzes': {
       const courseId = searchParams.get('courseId') || undefined;
       const teacherId = searchParams.get('teacherId') || undefined;
-      const quizzes = await assessmentService.getQuizzes(courseId, teacherId, user.sessionId!);
+      const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : undefined;
+      const offset = searchParams.get('offset') ? parseInt(searchParams.get('offset')!) : undefined;
+      const quizzes = await assessmentService.getQuizzes(courseId, teacherId, user.sessionId!, limit, offset);
       return quizzes.map(AssessmentMapper.toQuizDTO);
     }
     case 'submissions': {
@@ -40,13 +45,13 @@ export const POST = withHandler(async (user, request) => {
 
   switch (action) {
     case 'save-assignment': {
-      if (!rbac.can(user, 'assignment:manage')) throw new Error('Unauthorized');
+      if (!rbac.can(user, 'assignment:manage')) throw new UnauthorizedError();
       const sanitized = AssessmentDomain.sanitizeEntity(data);
-      const assignment = await assessmentService.saveAssignment(user, sanitized, user.sessionId!);
+      const assignment = await assessmentService.saveAssignment(user.id, sanitized, user.sessionId!);
       return AssessmentMapper.toAssignmentDTO(assignment);
     }
     case 'submit-assignment': {
-      if (!rbac.can(user, 'assignment:submit')) throw new Error('Unauthorized');
+      if (!rbac.can(user, 'assignment:submit')) throw new UnauthorizedError();
       const { assignmentId, ...content } = data;
       if (!assignmentId) throw new Error('assignmentId is required');
       AssessmentDomain.validateSubmission(content);
@@ -54,13 +59,13 @@ export const POST = withHandler(async (user, request) => {
       return AssessmentMapper.toSubmissionDTO(submission);
     }
     case 'save-quiz': {
-      if (!rbac.can(user, 'quiz:manage')) throw new Error('Unauthorized');
+      if (!rbac.can(user, 'quiz:manage')) throw new UnauthorizedError();
       const sanitized = AssessmentDomain.sanitizeEntity(data);
-      const quiz = await assessmentService.saveQuiz(user, sanitized, user.sessionId!);
+      const quiz = await assessmentService.saveQuiz(user.id, sanitized, user.sessionId!);
       return AssessmentMapper.toQuizDTO(quiz);
     }
     case 'submit-quiz': {
-      if (!rbac.can(user, 'quiz:take')) throw new Error('Unauthorized');
+      if (!rbac.can(user, 'quiz:take')) throw new UnauthorizedError();
       const { quizId, ...content } = data;
       if (!quizId) throw new Error('quizId is required');
       return await assessmentService.submitQuiz(user.id, quizId, content, user.sessionId!);
@@ -79,12 +84,12 @@ export const DELETE = withHandler(async (user, request) => {
 
   switch (action) {
     case 'assignment': {
-      if (!rbac.can(user, 'assignment:manage')) throw new Error('Unauthorized');
+      if (!rbac.can(user, 'assignment:manage')) throw new UnauthorizedError();
       await assessmentService.deleteAssignment(id, user.sessionId!);
       return { success: true };
     }
     case 'quiz': {
-      if (!rbac.can(user, 'quiz:manage')) throw new Error('Unauthorized');
+      if (!rbac.can(user, 'quiz:manage')) throw new UnauthorizedError();
       await assessmentService.deleteQuiz(id, user.sessionId!);
       return { success: true };
     }
@@ -104,7 +109,7 @@ export const PATCH = withHandler(async (user, request) => {
 
     switch (action) {
         case 'grade-submission': {
-            if (!rbac.can(user, 'assignment:grade')) throw new Error('Unauthorized');
+            if (!rbac.can(user, 'assignment:grade')) throw new UnauthorizedError();
             if (body.grade !== undefined && (body.grade < 0 || body.grade > 100)) {
                 throw new Error('Grade must be between 0 and 100');
             }

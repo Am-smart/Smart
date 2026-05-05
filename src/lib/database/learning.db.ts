@@ -1,5 +1,4 @@
-import { withSession } from '../supabase';
-import { supabaseServer as supabase } from '../supabase-server';
+import { withSession, supabase } from '../supabase';
 import { Course, Lesson, Material, Enrollment } from '../types';
 import { dbUtils } from './db-utils';
 
@@ -12,13 +11,17 @@ export const learningDb = {
     return data as Course;
   },
 
-  async findAllCourses(teacherId?: string, sessionId?: string): Promise<Course[]> {
+  async findAllCourses(teacherId?: string, sessionId?: string, limit?: number, offset?: number): Promise<Course[]> {
     let query = withSession(supabase.from('courses').select('*'), sessionId);
     if (teacherId) {
       query = query.eq('teacher_id', teacherId);
     } else {
       query = query.eq('status', 'published');
     }
+
+    if (limit) query = query.limit(limit);
+    if (offset) query = query.range(offset, offset + (limit || 10) - 1);
+
     const { data, error } = await query;
     if (error) throw new Error(error.message);
     return data as Course[];

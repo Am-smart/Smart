@@ -5,6 +5,7 @@ import { useAuth } from '@/components/auth/AuthContext';
 import { getEnrollments, getAssignments, getSubmissions } from '@/lib/api-actions';
 import { EnrollmentDTO } from '@/lib/types';
 import { AssignmentDTO } from '@/lib/types';
+import { ErrorBoundary } from '@/components/common/ErrorBoundary';
 
 export default function StudentDashboard() {
   const { user } = useAuth();
@@ -78,6 +79,7 @@ export default function StudentDashboard() {
   }
 
   return (
+    <ErrorBoundary>
     <div className="space-y-8">
       <h2 className="text-2xl font-bold mb-6">Welcome Back, {user.full_name}!</h2>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
@@ -134,5 +136,6 @@ export default function StudentDashboard() {
           </div>
       </div>
     </div>
+    </ErrorBoundary>
   );
 }

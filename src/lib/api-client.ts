@@ -5,12 +5,18 @@ export interface ApiResponse<T> {
 }
 
 export async function apiFetch<T>(url: string, options: RequestInit = {}, retries: number = 3): Promise<T> {
+  // Add API version prefix if not present
+  const versionedUrl = url.startsWith('/api/') && !url.startsWith('/api/v1/')
+    ? url.replace('/api/', '/api/v1/')
+    : url;
+
   // Get session ID from sessionStorage for authenticated requests
   const sessionId = typeof window !== 'undefined' ? sessionStorage.getItem('session_id') || '' : '';
   
-  const makeRequest = async (): Promise<Response> => {
-    return fetch(url, {
+  const makeRequest = async (signal?: AbortSignal): Promise<Response> => {
+    return fetch(versionedUrl, {
       ...options,
+      signal,
       headers: {
         'Content-Type': 'application/json',
         ...(sessionId && { 'x-session-id': sessionId }),
@@ -23,7 +29,7 @@ export async function apiFetch<T>(url: string, options: RequestInit = {}, retrie
   
   for (let attempt = 0; attempt < retries; attempt++) {
     try {
-      const response = await makeRequest();
+      const response = await makeRequest(options.signal);
       const responseData = await response.json().catch(() => ({}));
 
       if (!response.ok) {

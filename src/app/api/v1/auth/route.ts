@@ -2,11 +2,12 @@ import { withHandler } from '@/app/api/api-utils';
 import { authService } from '@/lib/services/auth.service';
 import { UserMapper } from '@/lib/mappers';
 import { cookies } from 'next/headers';
-import { USER_ROLES } from '@/lib/constants';
+import { USER_ROLES, SESSION } from '@/lib/constants';
 import { verifyToken, createSession } from '@/lib/crypto';
-import { supabaseServer as supabase } from '@/lib/supabase-server';
-import { validateLoginForm, normalizeEmail, validateSignupForm, normalizeInput } from '@/lib/validation';
+import { supabase } from '@/lib/supabase';
+import { validateLoginForm, normalizeEmail, validateSignupForm, normalizeInput, sanitizeObject } from '@/lib/validation';
 import { User } from '@/lib/types';
+import { UnauthorizedError } from '@/lib/api-error';
 
 export const GET = withHandler(async (user, request) => {
     const { searchParams } = new URL(request.url);
@@ -39,7 +40,8 @@ export const GET = withHandler(async (user, request) => {
 }, { requireAuth: false });
 
 export const POST = withHandler(async (user, request) => {
-    const body = await request.json();
+    const rawBody = await request.json();
+    const body = sanitizeObject(rawBody);
     const { action, ...data } = body;
 
     switch (action) {
@@ -70,7 +72,7 @@ export const POST = withHandler(async (user, request) => {
                 httpOnly: true,
                 secure: process.env.NODE_ENV === 'production',
                 sameSite: 'lax',
-                maxAge: 60 * 60 * 24 * 7 // 1 week
+                maxAge: 60 * 60 * 24 * SESSION.EXPIRY_DAYS
             });
 
             return {
@@ -115,7 +117,7 @@ export const POST = withHandler(async (user, request) => {
                 httpOnly: true,
                 secure: process.env.NODE_ENV === 'production',
                 sameSite: 'lax',
-                maxAge: 60 * 60 * 24 * 7 // 1 week
+                maxAge: 60 * 60 * 24 * SESSION.EXPIRY_DAYS
             });
 
             return {
@@ -127,19 +129,26 @@ export const POST = withHandler(async (user, request) => {
             (await cookies()).delete('app-user-session');
             return { success: true };
         case 'profile': {
-            if (!user) throw new Error('Unauthorized');
+            if (!user) throw new UnauthorizedError();
             const updated = await authService.updateUserProfile(user, user.id, data, user.sessionId!);
             return UserMapper.toDTO(updated);
         }
         case 'password': {
-            if (!user) throw new Error('Unauthorized');
-            return await authService.updatePassword(data.currentPassword, data.newPassword, user.sessionId!);
+            if (!user) throw new UnauthorizedError();
+            const result = await authService.updatePassword(data.currentPassword, data.newPassword, user.sessionId!);
+
+            // Invalidate current cookie to force re-login (Token Rotation)
+            if (result && typeof result === 'object' && 'success' in result && result.success) {
+                (await cookies()).delete('app-user-session');
+            }
+
+            return result;
         }
         case 'reset-request': {
             if (data.subAction === 'request') {
                 return await authService.requestPasswordReset(data.email, data.reason, data.riskLevel);
             }
-            if (!user) throw new Error('Unauthorized');
+            if (!user) throw new UnauthorizedError();
             if (data.subAction === 'approve') {
                 return await authService.approvePasswordReset(data.userId, data.tempPassword, user.sessionId!);
             } else {
@@ -147,7 +156,7 @@ export const POST = withHandler(async (user, request) => {
             }
         }
         case 'preferences': {
-            if (!user) throw new Error('Unauthorized');
+            if (!user) throw new UnauthorizedError();
             return await authService.updatePreferences(data.preferences, user.sessionId!);
         }
         default:

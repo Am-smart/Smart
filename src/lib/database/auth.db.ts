@@ -1,5 +1,4 @@
-import { withSession } from '../supabase';
-import { supabaseServer as supabase } from '../supabase-server';
+import { withSession, supabase } from '../supabase';
 import { Session } from '../types';
 
 export const authDb = {

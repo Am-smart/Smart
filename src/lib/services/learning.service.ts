@@ -1,23 +1,24 @@
 import { learningDb } from '../database/learning.db';
-import { Course, Lesson, Material, User, LessonCompletion } from '../types';
+import { Course, Lesson, Material, LessonCompletion } from '../types';
 import { CourseDomain } from '../domain/course.domain';
 import { LearningDomain } from '../domain/learning.domain';
+import { NotFoundError } from '../api-error';
 
 export class LearningService {
   // Courses
-  async getCourses(teacherId?: string, sessionId?: string): Promise<Course[]> {
-    return learningDb.findAllCourses(teacherId, sessionId);
+  async getCourses(teacherId?: string, sessionId?: string, limit?: number, offset?: number): Promise<Course[]> {
+    return learningDb.findAllCourses(teacherId, sessionId, limit, offset);
   }
 
   async getCourse(id: string, sessionId: string): Promise<Course> {
     const course = await learningDb.findCourseById(id, sessionId);
-    if (!course) throw new Error('Course not found');
+    if (!course) throw new NotFoundError('Course not found');
     return course;
   }
 
-  async saveCourse(currentUser: User, course: Partial<Course>, sessionId: string): Promise<Course> {
+  async saveCourse(teacherId: string, teacherName: string, course: Partial<Course>, sessionId: string): Promise<Course> {
     CourseDomain.validate(course);
-    const courseToSave = CourseDomain.create(course, currentUser.id, currentUser.full_name);
+    const courseToSave = CourseDomain.create(course, teacherId, teacherName);
     return learningDb.upsertCourse(courseToSave, sessionId);
   }
 
@@ -44,8 +45,8 @@ export class LearningService {
     return learningDb.findAllMaterials(courseId, sessionId);
   }
 
-  async saveMaterial(currentUser: User, material: Partial<Material>, sessionId: string): Promise<Material> {
-    const materialToSave = LearningDomain.prepareMaterial(material, currentUser.id);
+  async saveMaterial(teacherId: string, material: Partial<Material>, sessionId: string): Promise<Material> {
+    const materialToSave = LearningDomain.prepareMaterial(material, teacherId);
     return learningDb.upsertMaterial(materialToSave, sessionId);
   }
 

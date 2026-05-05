@@ -7,6 +7,7 @@ import { calculateQuizScore } from '@/lib/scoring-util';
 import { useAntiCheat } from '@/hooks/useAntiCheat';
 import { useIndexedDB } from '@/hooks/useIndexedDB';
 import { useAppContext } from '@/components/AppContext';
+import { ANTI_CHEAT, ASSESSMENT } from '@/lib/constants';
 
 interface QuizViewProps {
   quiz: QuizDTO;
@@ -81,8 +82,8 @@ export const QuizView: React.FC<QuizViewProps> = ({ quiz, user, onComplete, onCa
         let score = 0;
         if (isOnline) {
             const res = await actions.submitQuiz(quiz.id, { ...payload, violation_count: violationCount });
-            if (res.success) {
-                score = res.score || 0;
+            if (res.success && res.data) {
+                score = res.data.score || 0;
             } else {
                 throw new Error(res.error);
             }
@@ -103,7 +104,7 @@ export const QuizView: React.FC<QuizViewProps> = ({ quiz, user, onComplete, onCa
             });
         }
 
-        const passed = score >= (quiz.passing_score || 60);
+    const passed = score >= (quiz.passing_score || ASSESSMENT.DEFAULT_PASSING_SCORE);
 
         // Clean up progress cache
         await setCache(`quiz_progress_${quiz.id}`, null);
@@ -120,7 +121,7 @@ export const QuizView: React.FC<QuizViewProps> = ({ quiz, user, onComplete, onCa
   // Anti-cheat: Hard enforcement when enabled
   useEffect(() => {
     // Use hard_enforcement flag from database (Step 1)
-    if (quiz.anti_cheat_enabled && quiz.hard_enforcement && violationCount >= 5 && !isSubmitting && !result) {
+    if (quiz.anti_cheat_enabled && quiz.hard_enforcement && violationCount >= ANTI_CHEAT.MAX_VIOLATIONS && !isSubmitting && !result) {
         addToast('Security Threshold Reached: Assessment locked and auto-submitted due to multiple violations.', 'error', 10000);
         handleSubmit('violation');
     }
@@ -167,7 +168,7 @@ export const QuizView: React.FC<QuizViewProps> = ({ quiz, user, onComplete, onCa
 
                 <div className="bg-slate-50 rounded-2xl p-6 mb-8 border border-slate-100">
                     <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Passing Score</div>
-                    <div className="text-xl font-bold text-slate-700">{quiz.passing_score || 60}%</div>
+                    <div className="text-xl font-bold text-slate-700">{quiz.passing_score || ASSESSMENT.DEFAULT_PASSING_SCORE}%</div>
                 </div>
 
                 <button
@@ -258,8 +259,8 @@ export const QuizView: React.FC<QuizViewProps> = ({ quiz, user, onComplete, onCa
             </p>
             <button
                 onClick={() => handleSubmit('manual')}
-                disabled={isSubmitting}
-                className="btn-primary w-full md:w-auto px-10 py-4"
+                disabled={isSubmitting || !!result}
+                className="btn-primary w-full md:w-auto px-10 py-4 disabled:opacity-50 disabled:cursor-not-allowed"
             >
                 {isSubmitting ? 'Submitting...' : 'Complete & Submit Quiz'}
             </button>
