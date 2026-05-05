@@ -7,6 +7,7 @@ import { rbac } from '@/lib/auth/rbac';
 import { SystemMapper, CommunicationMapper, AssessmentMapper } from '@/lib/mappers';
 import { sanitizeObject } from '@/lib/validation';
 import { UnauthorizedError } from '@/lib/api-error';
+import { User } from '@/lib/types';
 
 export const GET = withHandler(async (user, request) => {
   const { searchParams } = new URL(request.url);
@@ -119,9 +120,26 @@ export const POST = withHandler(async (user, request) => {
       return { success: true };
     }
     case 'save-user': {
-        const updated = await authService.updateUserProfile(user, data.id, data, user.sessionId!);
         const { UserMapper } = await import('@/lib/mappers');
-        return UserMapper.toDTO(updated);
+        if (data.id) {
+            const updated = await authService.updateUserProfile(user, data.id, data, user.sessionId!);
+            return UserMapper.toDTO(updated);
+        } else {
+            // New User Creation by Admin
+            const { data: rawData, error: rpcError } = await authService.createUser(user, {
+                full_name: data.full_name,
+                email: data.email,
+                password: data.password,
+                phone: data.phone,
+                role: data.role
+            }, user.sessionId!);
+
+            if (rpcError) throw new Error('Failed to create user via service');
+            const result = rawData as { success: boolean, user: User, error?: string };
+            if (!result.success) throw new Error(result.error || 'User creation failed');
+
+            return UserMapper.toDTO(result.user);
+        }
     }
     case 'save-planner': {
         const saved = await systemService.savePlannerItem(user.id, data, user.sessionId!);

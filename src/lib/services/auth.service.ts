@@ -51,6 +51,22 @@ export class AuthService {
     return authDb.register(data);
   }
 
+  async createUser(currentUser: User, data: { full_name: string; email: string; password?: string; phone?: string; role: string }, _sessionId: string) {
+    if (!UserDomain.isAdmin(currentUser)) {
+        throw new Error('Forbidden: Only admins can create users directly');
+    }
+
+    if (data.password) {
+      const passwordValidation = validatePassword(data.password);
+      if (!passwordValidation.isValid) {
+        throw new Error(passwordValidation.errors[0].message);
+      }
+    }
+
+    // Bypass signup limits for admin-initiated creation
+    return authDb.register(data);
+  }
+
   async updatePassword(currentPass: string, newPass: string, sessionId: string) {
     return authDb.updatePassword(currentPass, newPass, sessionId);
   }

@@ -19,7 +19,7 @@ export interface QueueItem {
 export const useIndexedDB = () => {
   const [db, setDb] = useState<IDBDatabase | null>(null);
   const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
-  const [syncErrors, setSyncErrors] = useState<unknown[]>([]);
+  const [syncErrors] = useState<unknown[]>([]);
 
   const getSyncErrors = useCallback(async () => {
     if (!db) return [];

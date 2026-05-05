@@ -194,7 +194,7 @@ export const SignupForm: React.FC<SignupFormProps> = ({ initialRole, onClose, on
                     type="button"
                     onClick={() => handleRoleChange(r)}
                     disabled={isDisabled}
-                    title={isLimitReached ? `${r.charAt(0).toUpperCase() + r.slice(1)} creation limit reached (3)` : ''}
+                    title={isLimitReached ? `${r.charAt(0).toUpperCase() + r.slice(1)} creation limit reached (${SIGNUP_LIMITS[r.toUpperCase() as keyof typeof SIGNUP_LIMITS]})` : ''}
                     className={`w-full py-2 sm:py-2.5 rounded-lg sm:rounded-xl border-2 transition-all text-[10px] sm:text-sm font-bold capitalize disabled:opacity-50 disabled:cursor-not-allowed ${
                       formData.role === r
                         ? 'border-primary bg-primary/5 text-primary'
@@ -204,7 +204,7 @@ export const SignupForm: React.FC<SignupFormProps> = ({ initialRole, onClose, on
                     {r}
                   </button>
                   {isLimitReached && (
-                    <span className="absolute -top-4 left-0 right-0 text-center text-red-500 text-[8px] sm:text-xs whitespace-nowrap">Limit reached</span>
+                    <span className="absolute -top-4 left-0 right-0 text-center text-red-500 text-[8px] sm:text-xs whitespace-nowrap font-bold">Limit reached ❌</span>
                   )}
                 </div>
               );
