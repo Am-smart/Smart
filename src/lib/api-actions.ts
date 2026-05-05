@@ -412,13 +412,15 @@ export async function getSystemLogs(limit: number = 100): Promise<SystemLogDTO[]
     return apiClient.get<SystemLogDTO[]>(`/api/system?action=logs&limit=${limit}`);
 }
 
-export async function logAntiCheatViolation(data: Record<string, unknown> & { message?: string }): Promise<{ success: boolean; error?: string }> {
+export async function logAntiCheatViolation(data: Record<string, unknown> & { message?: string; courseId?: string; resourceId?: string }): Promise<{ success: boolean; error?: string }> {
   try {
     await apiClient.post('/api/system', {
         action: 'log',
         level: 'warning',
         category: 'anti-cheat',
         message: data.message || 'Anti-cheat violation detected',
+        course_id: data.courseId,
+        resource_id: data.resourceId,
         metadata: data
     });
     return { success: true };

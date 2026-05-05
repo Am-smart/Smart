@@ -6,7 +6,7 @@ import { logAntiCheatViolation } from '@/lib/api-actions';
  * Advanced Anti-Cheat Hook - Production Ready
  * Integrated with server-side logging and browser event blocking.
  */
-export const useAntiCheat = (enabled: boolean = false, assessmentTitle: string = 'Assessment') => {
+export const useAntiCheat = (enabled: boolean = false, assessmentTitle: string = 'Assessment', courseId?: string, resourceId?: string) => {
   const [violationCount, setViolationCount] = useState(0);
   const { user } = useAuth();
   const lastViolationTime = useRef<Record<string, number>>({});
@@ -18,6 +18,10 @@ export const useAntiCheat = (enabled: boolean = false, assessmentTitle: string =
 
   const reportViolation = useCallback(async (type: string, metadata: Record<string, unknown> = {}) => {
     const now = Date.now();
+    // Global rate limiting to prevent flood
+    const lastAny = Math.max(...Object.values(lastViolationTime.current), 0);
+    if (now - lastAny < 500) return; // Hard floor 500ms between any violation
+
     if (now - (lastViolationTime.current[type] || 0) < MIN_VIOLATION_INTERVAL) return;
 
     lastViolationTime.current[type] = now;
@@ -33,13 +37,15 @@ export const useAntiCheat = (enabled: boolean = false, assessmentTitle: string =
             await logAntiCheatViolation({
                 type,
                 assessmentTitle,
+                courseId,
+                resourceId,
                 metadata: { ...metadata, timestamp: new Date().toISOString() }
             });
         } catch (err) {
             console.error('Failed to log anti-cheat violation to server:', err);
         }
     }
-  }, [user, enabled, assessmentTitle]);
+  }, [user, enabled, assessmentTitle, courseId, resourceId]);
 
   useEffect(() => {
     if (!enabled) return;

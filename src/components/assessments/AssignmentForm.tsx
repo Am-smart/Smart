@@ -23,15 +23,11 @@ export const AssignmentForm: React.FC<AssignmentFormProps> = ({ assignment, user
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { addToQueue, isOnline } = useIndexedDB();
 
-  const { violationCount } = useAntiCheat(assignment.anti_cheat_enabled, assignment.title);
+  const { violationCount } = useAntiCheat(assignment.anti_cheat_enabled, assignment.title, assignment.course_id, assignment.id);
   const isLocked = assignment.anti_cheat_enabled && assignment.hard_enforcement && violationCount >= 5;
 
   // Anti-cheat: Feedback and detection
   React.useEffect(() => {
-    if (assignment.anti_cheat_enabled && violationCount > 0) {
-        addToast(`Security Warning: Violation detected (${violationCount}). This submission has been flagged for review.`, 'info');
-    }
-
     if (isLocked) {
         addToast('Security Threshold Reached: Assignment has been locked due to multiple violations.', 'error', 10000);
     }
@@ -158,13 +154,6 @@ export const AssignmentForm: React.FC<AssignmentFormProps> = ({ assignment, user
                       className="w-full h-32 p-4 rounded-xl border-2 border-slate-200 focus:border-blue-500 outline-none transition-all resize-none text-sm"
                       value={answers[idx] || ''}
                       onChange={(e) => setAnswers({ ...answers, [idx]: e.target.value })}
-                      onPaste={(e) => {
-                          if (assignment.anti_cheat_enabled) {
-                              e.preventDefault();
-                              const event = new CustomEvent('anti-cheat-violation', { detail: { type: 'pasted-content' } });
-                              window.dispatchEvent(event);
-                          }
-                      }}
                     />
                   )}
 
@@ -197,13 +186,6 @@ export const AssignmentForm: React.FC<AssignmentFormProps> = ({ assignment, user
                     onChange={(e) => setSubmissionText(e.target.value)}
                     placeholder="Provide any final details for your submission..."
                     className="w-full h-40 p-4 rounded-xl md:rounded-2xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all resize-none text-sm text-slate-700"
-                    onPaste={(e) => {
-                        if (assignment.anti_cheat_enabled) {
-                            e.preventDefault();
-                            const event = new CustomEvent('anti-cheat-violation', { detail: { type: 'pasted-content' } });
-                            window.dispatchEvent(event);
-                        }
-                    }}
                   />
               </div>
             </div>
@@ -216,13 +198,6 @@ export const AssignmentForm: React.FC<AssignmentFormProps> = ({ assignment, user
                     onChange={(e) => setSubmissionText(e.target.value)}
                     placeholder="Type your answer here..."
                     className="w-full h-40 p-4 rounded-xl md:rounded-2xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all resize-none text-sm text-slate-700"
-                    onPaste={(e) => {
-                        if (assignment.anti_cheat_enabled) {
-                            e.preventDefault();
-                            const event = new CustomEvent('anti-cheat-violation', { detail: { type: 'pasted-content' } });
-                            window.dispatchEvent(event);
-                        }
-                    }}
                 />
               </div>
 
