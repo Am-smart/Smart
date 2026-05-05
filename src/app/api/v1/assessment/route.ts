@@ -16,7 +16,7 @@ export const GET = withHandler(async (user, request) => {
       const courseId = searchParams.get('courseId') || undefined;
       const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : undefined;
       const offset = searchParams.get('offset') ? parseInt(searchParams.get('offset')!) : undefined;
-      const assignments = await assessmentService.getAssignments(teacherId, courseId, user.sessionId!, limit, offset);
+      const assignments = await assessmentService.getAssignments(teacherId, courseId, user.sessionId!, limit, offset, user.id, user.role);
       return assignments.map(AssessmentMapper.toAssignmentDTO);
     }
     case 'quizzes': {
@@ -24,7 +24,7 @@ export const GET = withHandler(async (user, request) => {
       const teacherId = searchParams.get('teacherId') || undefined;
       const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : undefined;
       const offset = searchParams.get('offset') ? parseInt(searchParams.get('offset')!) : undefined;
-      const quizzes = await assessmentService.getQuizzes(courseId, teacherId, user.sessionId!, limit, offset);
+      const quizzes = await assessmentService.getQuizzes(courseId, teacherId, user.sessionId!, limit, offset, user.id, user.role);
       return quizzes.map(AssessmentMapper.toQuizDTO);
     }
     case 'submissions': {
@@ -32,7 +32,7 @@ export const GET = withHandler(async (user, request) => {
       const studentId = searchParams.get('studentId') || undefined;
       const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : undefined;
       const offset = searchParams.get('offset') ? parseInt(searchParams.get('offset')!) : undefined;
-      const submissions = await assessmentService.getSubmissions(assignmentId, studentId, user.sessionId!, limit, offset);
+      const submissions = await assessmentService.getSubmissions(assignmentId, studentId, user.sessionId!, limit, offset, user.id, user.role);
       return submissions.map(AssessmentMapper.toSubmissionDTO);
     }
     default:

@@ -13,7 +13,10 @@ export const GET = withHandler(async (user, request) => {
 
   switch (action) {
     case 'courses': {
-      const teacherId = searchParams.get('teacherId') || undefined;
+      let teacherId = searchParams.get('teacherId') || undefined;
+      if (user.role === 'teacher') {
+          teacherId = user.id;
+      }
       const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : undefined;
       const offset = searchParams.get('offset') ? parseInt(searchParams.get('offset')!) : undefined;
       const courses = await learningService.getCourses(teacherId, user.sessionId!, limit, offset);
@@ -22,12 +25,12 @@ export const GET = withHandler(async (user, request) => {
     case 'lessons': {
       const courseId = searchParams.get('courseId');
       if (!courseId) throw new Error('courseId is required');
-      const lessons = await learningService.getLessons(courseId, user.sessionId!);
+      const lessons = await learningService.getLessons(courseId, user.sessionId!, user.id, user.role);
       return lessons.map(LearningMapper.toLessonDTO);
     }
     case 'materials': {
       const courseId = searchParams.get('courseId') || undefined;
-      const materials = await learningService.getMaterials(courseId, user.sessionId!);
+      const materials = await learningService.getMaterials(courseId, user.sessionId!, user.id, user.role);
       return materials.map(LearningMapper.toMaterialDTO);
     }
     default:

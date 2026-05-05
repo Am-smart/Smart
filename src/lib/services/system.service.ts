@@ -127,12 +127,24 @@ export class SystemService {
     return learningDb.upsertEnrollment(enrollmentToSave, sessionId);
   }
 
-  async getStudentEnrollments(studentId: string, sessionId: string): Promise<Enrollment[]> {
+  async getStudentEnrollments(studentId: string, sessionId: string, currentUser?: User): Promise<Enrollment[]> {
+    if (currentUser && currentUser.role === 'student' && currentUser.id !== studentId) {
+        throw new ForbiddenError('Unauthorized: You can only view your own enrollments');
+    }
     return learningDb.findEnrollmentsByStudentId(studentId, sessionId);
   }
 
   async getCourseEnrollments(currentUser: User, courseIds: string[], sessionId: string): Promise<Enrollment[]> {
     if (!UserDomain.canManageContent(currentUser)) throw new ForbiddenError();
+
+    if (UserDomain.isTeacher(currentUser)) {
+        const teacherCourses = await learningDb.findAllCourses(currentUser.id, sessionId);
+        const teacherCourseIds = teacherCourses.map(c => c.id);
+        if (!courseIds.every(id => teacherCourseIds.includes(id))) {
+            throw new ForbiddenError('Forbidden: You can only view enrollments for your own courses');
+        }
+    }
+
     return learningDb.findEnrollmentsByCourseIds(courseIds, sessionId);
   }
 
@@ -142,7 +154,11 @@ export class SystemService {
   }
 
   // Communications (Merged from CommunicationService)
-  async getDiscussions(courseId: string, sessionId: string): Promise<Discussion[]> {
+  async getDiscussions(courseId: string, sessionId: string, userId?: string, userRole?: string): Promise<Discussion[]> {
+    if (userRole === 'student' && userId) {
+        const enrollment = await learningDb.findEnrollmentByCourseAndStudent(courseId, userId, sessionId!);
+        if (!enrollment) return [];
+    }
     return systemDb.findDiscussionsByCourseId(courseId, sessionId);
   }
 
@@ -177,6 +193,9 @@ export class SystemService {
       systemDb.findAllBroadcasts(sessionId)
     ]);
 
+    const enrollments = await learningDb.findEnrollmentsByStudentId(userId, sessionId);
+    const enrolledCourseIds = enrollments.map(e => e.course_id);
+
     // Filter broadcasts relevant to this user
     const filteredBroadcasts = broadcasts.filter(b => {
       const now = new Date();
@@ -184,6 +203,11 @@ export class SystemService {
       if (expiresAt && now > expiresAt) return false;
 
       if (b.target_role && b.target_role !== user.role) return false;
+
+      // If student, only show broadcasts for enrolled courses
+      if (user.role === 'student' && b.course_id && !enrolledCourseIds.includes(b.course_id)) {
+          return false;
+      }
 
       return true;
     });
@@ -208,7 +232,18 @@ export class SystemService {
     return merged;
   }
 
-  async getLiveClasses(courseId?: string, teacherId?: string, sessionId?: string): Promise<LiveClass[]> {
+  async getLiveClasses(courseId?: string, teacherId?: string, sessionId?: string, userId?: string, userRole?: string): Promise<LiveClass[]> {
+    if (userRole === 'student' && userId) {
+        const enrollments = await learningDb.findEnrollmentsByStudentId(userId, sessionId!);
+        const enrolledCourseIds = enrollments.map(e => e.course_id);
+
+        if (courseId && !enrolledCourseIds.includes(courseId)) {
+            return [];
+        }
+
+        const liveClasses = await systemDb.findAllLiveClasses(courseId, teacherId, sessionId);
+        return liveClasses.filter(lc => enrolledCourseIds.includes(lc.course_id));
+    }
     return systemDb.findAllLiveClasses(courseId, teacherId, sessionId);
   }
 
