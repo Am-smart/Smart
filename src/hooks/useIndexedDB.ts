@@ -6,6 +6,7 @@ const DB_NAME = 'smartlms-offline-v3';
 const DB_VERSION = 3;
 const STORE_SYNC = 'sync-queue';
 const STORE_CACHE = 'lms-cache';
+const STORE_ERRORS = 'sync-errors';
 
 export interface QueueItem {
   id?: number;
@@ -29,6 +30,9 @@ export const useIndexedDB = () => {
       }
       if (!db.objectStoreNames.contains(STORE_CACHE)) {
         db.createObjectStore(STORE_CACHE, { keyPath: 'key' });
+      }
+      if (!db.objectStoreNames.contains(STORE_ERRORS)) {
+        db.createObjectStore(STORE_ERRORS, { keyPath: 'id', autoIncrement: true });
       }
     };
 
@@ -107,6 +111,17 @@ export const useIndexedDB = () => {
     });
   }, [db]);
 
+  const logSyncError = useCallback(async (item: QueueItem, error: string) => {
+    if (!db) return;
+    return new Promise<void>((resolve, reject) => {
+        const tx = db.transaction(STORE_ERRORS, 'readwrite');
+        const store = tx.objectStore(STORE_ERRORS);
+        const request = store.add({ ...item, error, failedAt: Date.now() });
+        request.onsuccess = () => resolve();
+        request.onerror = () => reject(request.error);
+    });
+  }, [db]);
+
   const processSync = useCallback(async () => {
     if (!isOnline || !db) return;
     const queue = await getQueue();
@@ -179,6 +194,8 @@ export const useIndexedDB = () => {
 
         if (success && item.id) {
           await removeFromQueue(item.id);
+        } else if (!success && item.id) {
+            // Handle non-terminal failure (retry later)
         }
       } catch (err: unknown) {
         console.error('Sync failed for item:', item, err);
@@ -186,13 +203,19 @@ export const useIndexedDB = () => {
         const terminalErrors = ['Conflict detected', 'Forbidden', 'Unauthorized', 'Invalid enrollment code', 'Course not found', 'User not found'];
         const isTerminal = terminalErrors.some(msg => error.message?.includes(msg));
 
-        if (isTerminal && item.id) {
-          console.warn('Terminal error during sync, removing item from queue:', item, error.message);
-          await removeFromQueue(item.id);
+        if (item.id) {
+          if (isTerminal) {
+            console.warn('Terminal error during sync, moving to error store:', item, error.message);
+            await logSyncError(item, error.message);
+            await removeFromQueue(item.id);
+            window.dispatchEvent(new CustomEvent('sync-conflict', { detail: { item, error: error.message } }));
+          } else {
+              // Retry later, keep in queue
+          }
         }
       }
     }
-  }, [isOnline, db, getQueue, removeFromQueue]);
+  }, [isOnline, db, getQueue, removeFromQueue, logSyncError]);
 
   const pullData = useCallback(async (userId: string, sessionId: string, role: string) => {
     if (!isOnline) return;

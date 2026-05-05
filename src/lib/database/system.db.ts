@@ -1,5 +1,4 @@
-import { withSession } from '../supabase';
-import { supabaseServer as supabase } from '../supabase-server';
+import { withSession, supabase } from '../supabase';
 import { User, LiveClass, Notification, Broadcast, Discussion, PlannerItem, Maintenance, Setting, SystemLog } from '../types';
 import { dbUtils } from './db-utils';
 
