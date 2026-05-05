@@ -134,6 +134,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (isOnline && user.sessionId) {
             pullData(user.id, user.sessionId, user.role);
         }
+
+        // Periodic refresh for notifications (every 5 minutes)
+        const interval = setInterval(() => {
+            if (isOnline) {
+                fetchNotifications(user.id);
+            }
+        }, 5 * 60 * 1000);
+
+        return () => clearInterval(interval);
     }
   }, [user, isOnline, pullData, fetchNotifications]);
 

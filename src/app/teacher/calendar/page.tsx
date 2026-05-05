@@ -4,8 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
 import { getCourses, getAssignments, getQuizzes, getLiveClasses } from '@/lib/api-actions';
 import { CalendarView } from "@/components/ui/CalendarView";
-import { AssignmentDTO, QuizDTO } from '@/lib/types';
-import { LiveClassDTO } from '@/lib/types';
+import { AssignmentDTO, QuizDTO, LiveClassDTO } from '@/lib/types';
 
 interface CalendarEvent {
     id: string;
@@ -31,29 +30,57 @@ export default function CalendarPage() {
                 getLiveClasses(undefined, user.id)
             ]);
 
-            const mappedEvents: CalendarEvent[] = [
-                ...assignments.map((a: AssignmentDTO) => ({
+            const mappedEvents: CalendarEvent[] = [];
+
+            // Assignments
+            assignments.forEach((a: AssignmentDTO) => {
+                mappedEvents.push({
                     id: a.id,
                     title: `Due: ${a.title}`,
                     date: a.due_date.split('T')[0],
                     type: 'assignment' as const,
                     color: 'bg-blue-50 text-blue-600 border-blue-500'
-                })),
-                ...quizzes.map((q: QuizDTO) => ({
+                });
+            });
+
+            // Quizzes
+            quizzes.forEach((q: QuizDTO) => {
+                mappedEvents.push({
                     id: q.id,
                     title: `Quiz: ${q.title}`,
                     date: (q.start_at || q.end_at || '').split('T')[0],
                     type: 'quiz' as const,
                     color: 'bg-purple-50 text-purple-600 border-purple-500'
-                })),
-                ...liveClasses.map((l: LiveClassDTO) => ({
+                });
+            });
+
+            // Live Classes with Recurring Logic
+            liveClasses.forEach((l: LiveClassDTO) => {
+                // Initial instance
+                mappedEvents.push({
                     id: l.id,
                     title: `Class: ${l.title}`,
                     date: l.start_at.split('T')[0],
                     type: 'live' as const,
                     color: 'bg-green-50 text-green-600 border-green-500'
-                }))
-            ];
+                });
+
+                // Handle simple weekly recurrence for the next 4 weeks
+                if (l.recurring_config && (l.recurring_config as Record<string, string | number | boolean>).frequency === 'weekly') {
+                    const startDate = new Date(l.start_at);
+                    for (let i = 1; i <= 4; i++) {
+                        const nextDate = new Date(startDate);
+                        nextDate.setDate(startDate.getDate() + (i * 7));
+                        mappedEvents.push({
+                            id: `${l.id}-rec-${i}`,
+                            title: `Class: ${l.title} (Recurring)`,
+                            date: nextDate.toISOString().split('T')[0],
+                            type: 'live' as const,
+                            color: 'bg-green-50/50 text-green-500 border-green-300'
+                        });
+                    }
+                }
+            });
 
             setEvents(mappedEvents);
         });
