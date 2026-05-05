@@ -508,6 +508,9 @@ export interface LiveClassDTO {
   description?: string;
   room_name: string;
   meeting_url?: string;
+  recording_url?: string;
+  recurring_config?: Record<string, string | number | boolean>;
+  metadata?: Record<string, string | number | boolean>;
   start_at: string;
   end_at: string;
   status: 'scheduled' | 'live' | 'completed' | 'cancelled';

@@ -9,20 +9,22 @@
  ✓ Starting...
  ✓ Ready in 2.1s
  ○ Compiling / ...
- ✓ Compiled / in 8.5s (662 modules)
- GET / 200 in 10171ms
+ ✓ Compiled / in 6.5s (662 modules)
+ GET / 200 in 8115ms
  ○ Compiling /api/v1/system ...
- ✓ Compiled /api/v1/system in 2.6s (731 modules)
- GET /api/v1/auth?action=session 200 in 3172ms
- GET /api/v1/auth?action=session 200 in 163ms
- GET / 200 in 766ms
- GET /api/v1/auth?action=session 200 in 60ms
- GET /api/v1/system?action=maintenance 200 in 3497ms
- GET /api/v1/auth?action=role-count 200 in 1212ms
- ○ Compiling /student/calendar ...
- ✓ Compiled /student/calendar in 866ms (822 modules)
- GET /student/calendar 200 in 1285ms
- GET /api/v1/auth?action=session 200 in 151ms
- GET /api/v1/auth?action=session 200 in 60ms
- GET / 200 in 72ms
- GET /api/v1/system?action=maintenance 200 in 388ms
+ ✓ Compiled /student/calendar in 2.9s (822 modules)
+ GET /api/v1/auth?action=session 200 in 3383ms
+ GET / 200 in 818ms
+ GET /api/v1/system?action=maintenance 200 in 3680ms
+ GET /student/calendar 200 in 3081ms
+ GET /api/v1/auth?action=session 200 in 64ms
+ GET /api/v1/auth?action=session 200 in 51ms
+ GET / 200 in 63ms
+ GET /api/v1/system?action=maintenance 200 in 268ms
+ ○ Compiling /teacher/calendar ...
+ ✓ Compiled /teacher/calendar in 569ms (835 modules)
+ GET /teacher/calendar 200 in 959ms
+ GET /api/v1/auth?action=session 200 in 148ms
+ GET /api/v1/auth?action=session 200 in 62ms
+ GET / 200 in 83ms
+ GET /api/v1/system?action=maintenance 200 in 354ms
