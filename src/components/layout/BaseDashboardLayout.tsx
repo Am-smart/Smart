@@ -62,7 +62,7 @@ export const BaseDashboardLayout: React.FC<BaseDashboardLayoutProps> = ({
           isOpen={isSidebarOpen}
           onClose={toggleSidebar}
         />
-        <main className={`flex-1 transition-all duration-300 ${isSidebarOpen ? 'md:ml-[240px]' : 'ml-0'}`}>
+        <main className={`flex-1 transition-all duration-300 ${isSidebarOpen ? 'md:ml-[240px]' : 'ml-0'} w-full overflow-x-hidden`}>
           <HeaderComponent
             {...headerProps}
             user={user}

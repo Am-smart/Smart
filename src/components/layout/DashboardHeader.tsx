@@ -5,6 +5,8 @@ import { useAppContext } from '../AppContext';
 import { NotificationPanel } from './NotificationPanel';
 import { markNotificationAsRead, markAllNotificationsAsRead } from '@/lib/api-actions';
 import { Notification, User } from '@/lib/types';
+import { useRouter } from 'next/navigation';
+import { parseDeepLink } from '@/lib/utils';
 
 interface HeaderStats {
   courses: number;
@@ -24,6 +26,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   onMenuClick,
   stats
 }) => {
+  const router = useRouter();
   const { notifications } = useAppContext();
   const [showNotifications, setShowNotifications] = useState(false);
   const unreadCount = notifications.filter(n => !n.is_read).length;
@@ -32,6 +35,12 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
     try {
       if (!notification.is_read) {
         await markNotificationAsRead(notification.id);
+      }
+
+      const path = parseDeepLink(notification.link);
+      if (path) {
+          router.push(path);
+          setShowNotifications(false);
       }
     } catch (error) {
       console.error('Failed to mark notification as read:', error);

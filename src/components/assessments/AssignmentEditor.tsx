@@ -5,6 +5,7 @@ import { useAppContext } from '@/components/AppContext';
 import { Plus, Paperclip, Settings } from 'lucide-react';
 import { saveAssignment } from '@/lib/api-actions';
 import { useAuth } from '@/components/auth/AuthContext';
+import { ASSESSMENT_STATUS } from '@/lib/constants';
 
 interface AssignmentEditorProps {
     teacherId: string;
@@ -26,7 +27,7 @@ export const AssignmentEditor: React.FC<AssignmentEditorProps> = ({ teacherId, a
         start_at: assignment?.start_at ? new Date(assignment.start_at).toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16),
         due_date: assignment?.due_date ? new Date(assignment.due_date).toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16),
         points_possible: assignment?.points_possible || 0,
-        status: assignment?.status || 'draft',
+        status: assignment?.status || ASSESSMENT_STATUS.DRAFT,
         allow_late_submissions: assignment?.allow_late_submissions !== false,
         late_penalty_per_day: assignment?.late_penalty_per_day || 0,
         anti_cheat_enabled: assignment?.anti_cheat_enabled || false,
@@ -172,8 +173,8 @@ export const AssignmentEditor: React.FC<AssignmentEditorProps> = ({ teacherId, a
                                 <div>
                                     <label className="block text-xs md:text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">Status</label>
                                     <select value={formData.status} onChange={e => setFormData({...formData, status: e.target.value as AssignmentDTO['status']})} className="w-full p-4 rounded-xl border-2 border-white focus:border-blue-500 outline-none transition-all shadow-sm text-sm">
-                                        <option value="draft">Draft</option>
-                                        <option value="published">Published</option>
+                                        <option value={ASSESSMENT_STATUS.DRAFT}>Draft</option>
+                                        <option value={ASSESSMENT_STATUS.PUBLISHED}>Published</option>
                                     </select>
                                 </div>
                             </div>
