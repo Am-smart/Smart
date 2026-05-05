@@ -21,6 +21,7 @@ export class LearningService {
   // Lessons
 
   async saveLesson(lesson: Partial<Lesson>, sessionId: string): Promise<Lesson> {
+    LearningDomain.validateLesson(lesson);
     const lessonToSave = LearningDomain.prepareLesson(lesson);
     return learningDb.upsertLesson(lessonToSave, sessionId);
   }
@@ -28,6 +29,7 @@ export class LearningService {
   // Materials
 
   async saveMaterial(teacherId: string, material: Partial<Material>, sessionId: string): Promise<Material> {
+    LearningDomain.validateMaterial(material);
     const materialToSave = LearningDomain.prepareMaterial(material, teacherId);
     return learningDb.upsertMaterial(materialToSave, sessionId);
   }

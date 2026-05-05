@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect, useMemo, memo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Notification } from '@/lib/types';
 import { X, CheckCircle2, AlertCircle, Info, Bell, Trash2, Filter } from 'lucide-react';
+import { parseDeepLink } from '@/lib/utils';
 
 interface NotificationPanelProps {
   notifications: Notification[];
@@ -11,49 +12,6 @@ interface NotificationPanelProps {
   onNotificationClick: (notification: Notification) => Promise<void>;
   onClearAll?: () => Promise<void>;
 }
-
-// Helper function to parse deep links and navigate
-const parseDeepLink = (link?: string): { path: string; params?: Record<string, string> } | null => {
-  if (!link) return null;
-
-  try {
-    // Handle URL-style links: /student/assignments/abc123
-    if (link.startsWith('/')) {
-      return { path: link };
-    }
-
-    // Handle structured links: type:id format
-    // e.g., "course:abc123", "assignment:xyz789", "quiz:def456"
-    if (link.includes(':')) {
-      const [type, ...idParts] = link.split(':');
-      const id = idParts.join(':'); // Handle IDs that might contain colons
-      const routes: Record<string, string> = {
-        course: `/student/courses?id=${id}`,
-        assignment: `/student/assignments?id=${id}`,
-        quiz: `/student/quizzes?id=${id}`,
-        discussion: `/student/discussions?id=${id}`,
-        material: `/student/materials?id=${id}`,
-        live: `/student/live?id=${id}`,
-        grading: `/teacher/grading?id=${id}`,
-        students: `/teacher/students?id=${id}`,
-      };
-
-      if (routes[type]) {
-          return { path: routes[type] };
-      }
-    }
-
-    // Fallback for simple names
-    if (['dashboard', 'courses', 'assignments', 'quizzes', 'live', 'calendar', 'settings'].includes(link)) {
-        return { path: `/student/${link}` };
-    }
-
-    return null;
-  } catch (error) {
-    console.error('Failed to parse deep link:', error);
-    return null;
-  }
-};
 
 // Get icon based on notification type
 const getNotificationIcon = (type: string) => {
@@ -136,7 +94,7 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = memo(({
       // Parse and navigate to the deep link
       const deepLink = parseDeepLink(notification.link);
       if (deepLink) {
-        router.push(deepLink.path);
+        router.push(deepLink);
         onClose(); // Close panel after navigation
       }
     } catch (error) {

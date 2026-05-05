@@ -4,6 +4,7 @@ import { CourseDTO } from '@/lib/types';
 import { useAppContext } from '@/components/AppContext';
 import { Plus, Settings } from 'lucide-react';
 import { saveQuiz } from '@/lib/api-actions';
+import { ASSESSMENT_STATUS } from '@/lib/constants';
 
 interface QuizEditorProps {
     teacherId: string;
@@ -26,7 +27,7 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({ teacherId, quiz, courses
         passing_score: quiz?.passing_score || 60,
         start_at: quiz?.start_at ? new Date(quiz.start_at).toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16),
         end_at: quiz?.end_at ? new Date(quiz.end_at).toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16),
-        status: quiz?.status || 'draft',
+        status: quiz?.status || ASSESSMENT_STATUS.DRAFT,
         anti_cheat_enabled: quiz?.anti_cheat_enabled || false,
         hard_enforcement: quiz?.hard_enforcement || false,
         shuffle_questions: quiz?.shuffle_questions || false,
@@ -151,9 +152,9 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({ teacherId, quiz, courses
                             </div>
                             <div>
                                 <label className="block text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">Status</label>
-                                <select value={formData.status} onChange={e => setFormData({...formData, status: e.target.value as 'draft' | 'published'})} className="w-full p-4 rounded-xl border-2 border-white focus:border-blue-500 outline-none transition-all shadow-sm">
-                                    <option value="draft">Draft</option>
-                                    <option value="published">Published</option>
+                                <select value={formData.status} onChange={e => setFormData({...formData, status: e.target.value as any})} className="w-full p-4 rounded-xl border-2 border-white focus:border-blue-500 outline-none transition-all shadow-sm">
+                                    <option value={ASSESSMENT_STATUS.DRAFT}>Draft</option>
+                                    <option value={ASSESSMENT_STATUS.PUBLISHED}>Published</option>
                                 </select>
                             </div>
                         </div>

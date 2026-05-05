@@ -5,7 +5,7 @@ import { UserRole } from '@/lib/types';
 import { useAuth } from './AuthContext';
 import { validateSignupForm, normalizeEmail, normalizeInput } from '@/lib/validation';
 import { getRoleCount } from '@/lib/api-actions';
-import { SIGNUP_LIMITS } from '@/lib/constants';
+import { SIGNUP_LIMITS, USER_ROLES } from '@/lib/constants';
 
 interface SignupFormProps {
   initialRole?: UserRole;
@@ -20,7 +20,7 @@ export const SignupForm: React.FC<SignupFormProps> = ({ initialRole, onClose, on
     phone: '',
     password: '',
     confirmPassword: '',
-    role: initialRole || 'student'
+    role: initialRole || USER_ROLES.STUDENT
   });
   const [error, setError] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -182,9 +182,9 @@ export const SignupForm: React.FC<SignupFormProps> = ({ initialRole, onClose, on
         <div className="space-y-2">
           <p className="text-xs sm:text-sm font-semibold text-slate-700">Select your role:</p>
           <div className="grid grid-cols-3 gap-1 sm:gap-2">
-            {(['student', 'teacher', 'admin'] as UserRole[]).map((r) => {
-              const teacherLimitReached = roleCounts.teachers >= SIGNUP_LIMITS.TEACHER && r === 'teacher';
-              const adminLimitReached = roleCounts.admins >= SIGNUP_LIMITS.ADMIN && r === 'admin';
+            {([USER_ROLES.STUDENT, USER_ROLES.TEACHER, USER_ROLES.ADMIN] as UserRole[]).map((r) => {
+              const teacherLimitReached = roleCounts.teachers >= SIGNUP_LIMITS.TEACHER && r === USER_ROLES.TEACHER;
+              const adminLimitReached = roleCounts.admins >= SIGNUP_LIMITS.ADMIN && r === USER_ROLES.ADMIN;
               const isLimitReached = teacherLimitReached || adminLimitReached;
               const isDisabled = isLoading || isLimitReached;
 
