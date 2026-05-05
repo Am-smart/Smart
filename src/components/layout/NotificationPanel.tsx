@@ -25,7 +25,8 @@ const parseDeepLink = (link?: string): { path: string; params?: Record<string, s
     // Handle structured links: type:id format
     // e.g., "course:abc123", "assignment:xyz789", "quiz:def456"
     if (link.includes(':')) {
-      const [type, id] = link.split(':');
+      const [type, ...idParts] = link.split(':');
+      const id = idParts.join(':'); // Handle IDs that might contain colons
       const routes: Record<string, string> = {
         course: `/student/courses?id=${id}`,
         assignment: `/student/assignments?id=${id}`,
@@ -37,7 +38,14 @@ const parseDeepLink = (link?: string): { path: string; params?: Record<string, s
         students: `/teacher/students?id=${id}`,
       };
 
-      return { path: routes[type] || '/' };
+      if (routes[type]) {
+          return { path: routes[type] };
+      }
+    }
+
+    // Fallback for simple names
+    if (['dashboard', 'courses', 'assignments', 'quizzes', 'live', 'calendar', 'settings'].includes(link)) {
+        return { path: `/student/${link}` };
     }
 
     return null;
@@ -55,6 +63,10 @@ const getNotificationIcon = (type: string) => {
     case 'error':
     case 'alert':
       return <AlertCircle className="w-5 h-5 text-red-500" />;
+    case 'broadcast':
+        return <Bell className="w-5 h-5 text-orange-500" />;
+    case 'grading':
+        return <CheckCircle2 className="w-5 h-5 text-purple-500" />;
     case 'info':
     default:
       return <Info className="w-5 h-5 text-blue-500" />;
@@ -142,7 +154,7 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = memo(({
       {/* Panel */}
       <div
         ref={panelRef}
-        className="fixed top-0 md:top-16 right-0 w-full md:max-w-md h-full md:h-auto bg-white shadow-2xl z-50 md:rounded-bl-3xl max-h-screen md:max-h-[calc(100vh-80px)] flex flex-col animate-in slide-in-from-right duration-300"
+        className="fixed top-0 md:top-16 right-0 w-full md:max-w-md h-full md:h-auto bg-white shadow-2xl z-50 md:rounded-bl-3xl max-h-[100dvh] md:max-h-[calc(100vh-80px)] flex flex-col animate-in slide-in-from-right duration-300 overflow-hidden"
       >
         {/* Header */}
         <div className="shrink-0 bg-white border-b border-slate-100 p-6 flex items-center justify-between rounded-t-3xl md:rounded-none">
@@ -229,7 +241,9 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = memo(({
                         <div className="flex gap-4">
                           {/* Icon */}
                           <div className={`shrink-0 w-12 h-12 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-110 ${
-                             !notification.is_read ? 'bg-white shadow-sm' : 'bg-slate-100'
+                             notification.type === 'broadcast'
+                                ? 'bg-orange-50'
+                                : !notification.is_read ? 'bg-white shadow-sm' : 'bg-slate-100'
                           }`}>
                             {getNotificationIcon(notification.type)}
                           </div>

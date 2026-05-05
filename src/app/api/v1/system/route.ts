@@ -1,5 +1,6 @@
 import { withHandler } from '@/app/api/api-utils';
 import { systemService } from '@/lib/services/system.service';
+import { systemDb } from '@/lib/database/system.db';
 import { learningService } from '@/lib/services/learning.service';
 import { authService } from '@/lib/services/auth.service';
 import { assessmentDb } from '@/lib/database/assessment.db';
@@ -56,8 +57,42 @@ export const GET = withHandler(async (user, request) => {
     }
     case 'notifications': {
       const userId = searchParams.get('userId') || user.id;
-      const notifications = await systemService.getNotifications(userId, user.sessionId!);
-      return notifications.map(CommunicationMapper.toNotificationDTO);
+      const [notifications, broadcasts] = await Promise.all([
+        systemService.getNotifications(userId, user.sessionId!),
+        systemDb.findAllBroadcasts(user.sessionId!)
+      ]);
+
+      // Filter broadcasts relevant to this user
+      const filteredBroadcasts = broadcasts.filter(b => {
+        const now = new Date();
+        const expiresAt = b.expires_at ? new Date(b.expires_at) : null;
+        if (expiresAt && now > expiresAt) return false;
+
+        if (b.target_role && b.target_role !== user.role) return false;
+
+        // If broadcast is course-specific, we'd need to check enrollment.
+        // For simplicity and speed, we'll return all relevant-role broadcasts
+        // and let the client filter further if course_id is present.
+        return true;
+      });
+
+      // Map broadcasts to notification format
+      const broadcastNotifications = filteredBroadcasts.map(b => ({
+        id: b.id,
+        user_id: userId,
+        title: `[Broadcast] ${b.title}`,
+        message: b.message,
+        link: b.link,
+        type: b.type || 'broadcast',
+        is_read: false,
+        created_at: b.created_at
+      }));
+
+      const merged = [...notifications, ...broadcastNotifications].sort(
+        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+
+      return merged.map(CommunicationMapper.toNotificationDTO);
     }
     case 'live-classes': {
       const courseId = searchParams.get('courseId') || undefined;

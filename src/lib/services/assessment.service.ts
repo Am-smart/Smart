@@ -1,4 +1,5 @@
 import { assessmentDb } from '../database/assessment.db';
+import { systemService } from './system.service';
 import { Assignment, Quiz, Submission, QuizSubmission, QuizQuestion } from '../types';
 import { AssessmentDomain } from '../domain/assessment.domain';
 import { SUBMISSION_STATUS } from '../constants';
@@ -26,13 +27,31 @@ export class AssessmentService {
   }
 
   async gradeSubmission(submissionId: string, gradeData: Partial<Submission>, sessionId: string): Promise<Submission> {
+    const submission = await assessmentDb.findSubmissionById(submissionId, sessionId);
+    if (!submission) throw new NotFoundError('Submission not found');
+
     const { assignments: _assignments, users: _users, ...rest } = gradeData as Record<string, unknown>;
-    return assessmentDb.upsertSubmission({
+    const updated = await assessmentDb.upsertSubmission({
       ...rest,
       id: submissionId,
       status: SUBMISSION_STATUS.GRADED,
       graded_at: new Date().toISOString(),
     } as Partial<Submission>, sessionId);
+
+    // Notify student
+    try {
+        await systemService.notifyUser({
+            target_id: submission.student_id,
+            n_title: 'Assignment Graded',
+            n_msg: `Your submission for "${submission.assignments?.title || 'an assignment'}" has been graded.`,
+            n_link: `assignment:${submission.assignment_id}`,
+            n_type: 'grading'
+        }, sessionId);
+    } catch (error) {
+        console.error('Failed to send grading notification:', error);
+    }
+
+    return updated;
   }
 
   // Quiz Submissions

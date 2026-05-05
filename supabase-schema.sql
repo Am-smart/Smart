@@ -584,12 +584,17 @@ BEGIN
 
   v_hashed_password := crypt(p_password, gen_salt('bf', 10));
 
-  -- Creation limits for non-admin callers
+  -- Creation limits for non-admin callers (3 per role)
   IF v_caller_role != 'admin' THEN
-    IF p_role IN ('teacher', 'admin') THEN
-      SELECT COUNT(*) INTO v_count FROM users WHERE role IN ('teacher', 'admin');
+    IF p_role = 'teacher' THEN
+      SELECT COUNT(*) INTO v_count FROM users WHERE role = 'teacher';
       IF v_count >= 3 THEN
-        RETURN jsonb_build_object('success', false, 'user', null, 'session_id', null, 'error', 'Public creation of teachers and admins is restricted.');
+        RETURN jsonb_build_object('success', false, 'user', null, 'session_id', null, 'error', 'Public creation limit reached for teachers.');
+      END IF;
+    ELSIF p_role = 'admin' THEN
+      SELECT COUNT(*) INTO v_count FROM users WHERE role = 'admin';
+      IF v_count >= 3 THEN
+        RETURN jsonb_build_object('success', false, 'user', null, 'session_id', null, 'error', 'Public creation limit reached for admins.');
       END IF;
     END IF;
   END IF;
@@ -935,9 +940,11 @@ BEGIN
     RETURN NEW;
   END IF;
 
-  SELECT COUNT(*) INTO v_count FROM users WHERE role IN ('teacher', 'admin');
-  IF v_count >= 3 THEN
-    RAISE EXCEPTION 'Public creation of teachers and admins is restricted.';
+  SELECT COUNT(*) INTO v_count FROM users WHERE role = NEW.role;
+  IF NEW.role = 'teacher' AND v_count >= 3 THEN
+    RAISE EXCEPTION 'Public creation limit reached for teachers.';
+  ELSIF NEW.role = 'admin' AND v_count >= 3 THEN
+    RAISE EXCEPTION 'Public creation limit reached for admins.';
   END IF;
 
   RETURN NEW;
