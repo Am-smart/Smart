@@ -1,9 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Submission, QuizSubmission, Course, User, PlannerItem, Discussion } from '@/lib/types';
 import * as actions from '@/lib/api-actions';
 
-const DB_NAME = 'smartlms-offline-v3';
-const DB_VERSION = 3;
+const DB_NAME = 'smartlms-offline-v4';
+const DB_VERSION = 4;
 const STORE_SYNC = 'sync-queue';
 const STORE_CACHE = 'lms-cache';
 const STORE_ERRORS = 'sync-errors';
@@ -14,12 +14,14 @@ export interface QueueItem {
   payload: unknown;
   sessionId?: string;
   timestamp: number;
+  retry_count?: number;
 }
 
 export const useIndexedDB = () => {
   const [db, setDb] = useState<IDBDatabase | null>(null);
   const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
   const [syncErrors] = useState<unknown[]>([]);
+  const isSyncing = useRef(false);
 
   const getSyncErrors = useCallback(async () => {
     if (!db) return [];
@@ -112,13 +114,19 @@ export const useIndexedDB = () => {
     });
   }, [db]);
 
-  const getCache = useCallback(async <T>(key: string): Promise<T | null> => {
+  const getCache = useCallback(async <T>(key: string, maxAge?: number): Promise<T | null> => {
     if (!db) return null;
     return new Promise<T | null>((resolve) => {
         const tx = db.transaction(STORE_CACHE, 'readonly');
         const store = tx.objectStore(STORE_CACHE);
         const request = store.get(key);
-        request.onsuccess = () => resolve(request.result ? (request.result.data as T) : null);
+        request.onsuccess = () => {
+            if (!request.result) return resolve(null);
+            if (maxAge && Date.now() - request.result.timestamp > maxAge) {
+                return resolve(null);
+            }
+            resolve(request.result.data as T);
+        };
         request.onerror = () => resolve(null);
     });
   }, [db]);
@@ -134,100 +142,138 @@ export const useIndexedDB = () => {
     });
   }, [db]);
 
+  const updateQueueItem = useCallback(async (id: number, updates: Partial<QueueItem>) => {
+    if (!db) return;
+    return new Promise<void>((resolve, reject) => {
+        const tx = db.transaction(STORE_SYNC, 'readwrite');
+        const store = tx.objectStore(STORE_SYNC);
+        const getRequest = store.get(id);
+        getRequest.onsuccess = () => {
+            const data = getRequest.result;
+            if (data) {
+                const updateRequest = store.put({ ...data, ...updates });
+                updateRequest.onsuccess = () => resolve();
+                updateRequest.onerror = () => reject(updateRequest.error);
+            } else {
+                resolve();
+            }
+        };
+        getRequest.onerror = () => reject(getRequest.error);
+    });
+  }, [db]);
+
   const processSync = useCallback(async () => {
-    if (!isOnline || !db) return;
-    const queue = await getQueue();
-    if (queue.length === 0) return;
+    if (!isOnline || !db || isSyncing.current) return;
 
-    console.log(`Processing sync queue: ${queue.length} items`);
+    isSyncing.current = true;
+    try {
+      const queue = await getQueue();
+      if (queue.length === 0) return;
 
-    for (const item of queue) {
-      try {
-        let success = false;
-        switch (item.type) {
-          case 'ENROLL':
-            const { course_id, enrollmentCode } = item.payload as { course_id: string, enrollmentCode?: string };
-            console.log('Syncing enrollment:', course_id, enrollmentCode);
-            const enrollRes = await actions.enrollInCourse(course_id, enrollmentCode);
-            if (enrollRes.success) success = true;
-            break;
-          case 'SUBMISSION':
-            const { assignment_id, ...subContent } = item.payload as Partial<Submission> & { assignment_id: string };
-            const subRes = await actions.submitAssignment(assignment_id, subContent);
-            if (subRes.success) success = true;
-            break;
-          case 'QUIZ_SUBMISSION':
-            const { quiz_id, ...quizContent } = item.payload as Partial<QuizSubmission> & { quiz_id: string };
-            const quizRes = await actions.submitQuiz(quiz_id, quizContent);
-            if (quizRes.success) success = true;
-            break;
-          case 'PROFILE_UPDATE':
-            const profRes = await actions.saveUser(item.payload as Partial<User>);
-            if (profRes.success) success = true;
-            break;
-          case 'COURSE_SAVE':
-            const courseRes = await actions.saveCourse(item.payload as Partial<Course>);
-            if (courseRes.success) success = true;
-            break;
-          case 'ASSIGNMENT_SAVE':
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const assignRes = await actions.saveAssignment(item.payload as any);
-            if (assignRes.success) success = true;
-            break;
-          case 'QUIZ_SAVE':
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const qRes = await actions.saveQuiz(item.payload as any);
-            if (qRes.success) success = true;
-            break;
-          case 'DISCUSSION_POST':
-            const dRes = await actions.saveDiscussionPost(item.payload as Partial<Discussion>);
-            if (dRes.success) success = true;
-            break;
-          case 'PLANNER_UPDATE':
-            const pRes = await actions.savePlannerItem(item.payload as Partial<PlannerItem>);
-            if (pRes.success) success = true;
-            break;
-          case 'SETTING_UPDATE':
-            const { p_key, p_value } = item.payload as { p_key: string, p_value: unknown };
-            const sRes = await actions.updateSetting(p_key, p_value);
-            if (sRes.success) success = true;
-            break;
-          case 'LESSON_COMPLETE':
-            const { lesson_id, course_id: l_course_id } = item.payload as { lesson_id: string, course_id: string };
-            const lcRes = await actions.markLessonComplete(lesson_id, l_course_id);
-            if (lcRes.success) success = true;
-            break;
-          case 'ATTENDANCE':
-            const { live_class_id } = item.payload as { live_class_id: string };
-            const attRes = await actions.recordAttendance(live_class_id);
-            if (attRes.success) success = true;
-            break;
-        }
+      console.log(`Processing sync queue: ${queue.length} items`);
 
-        if (success && item.id) {
-          await removeFromQueue(item.id);
-        } else if (!success && item.id) {
-            // Handle non-terminal failure (retry later)
-        }
-      } catch (err: unknown) {
-        console.error('Sync failed for item:', item, err);
-        const error = err as Error;
-        const terminalErrors = ['Conflict detected', 'Forbidden', 'Unauthorized', 'Invalid enrollment code', 'Course not found', 'User not found'];
-        const isTerminal = terminalErrors.some(msg => error.message?.includes(msg));
+      for (const item of queue) {
+        try {
+          let success = false;
+          switch (item.type) {
+            case 'ENROLL':
+              const { course_id, enrollmentCode } = item.payload as { course_id: string, enrollmentCode?: string };
+              console.log('Syncing enrollment:', course_id, enrollmentCode);
+              const enrollRes = await actions.enrollInCourse(course_id, enrollmentCode);
+              if (enrollRes.success) success = true;
+              break;
+            case 'SUBMISSION':
+              const { assignment_id, ...subContent } = item.payload as Partial<Submission> & { assignment_id: string };
+              const subRes = await actions.submitAssignment(assignment_id, subContent);
+              if (subRes.success) success = true;
+              break;
+            case 'QUIZ_SUBMISSION':
+              const { quiz_id, ...quizContent } = item.payload as Partial<QuizSubmission> & { quiz_id: string };
+              const quizRes = await actions.submitQuiz(quiz_id, quizContent);
+              if (quizRes.success) success = true;
+              break;
+            case 'PROFILE_UPDATE':
+              const profRes = await actions.saveUser(item.payload as Partial<User>);
+              if (profRes.success) success = true;
+              break;
+            case 'COURSE_SAVE':
+              const courseRes = await actions.saveCourse(item.payload as Partial<Course>);
+              if (courseRes.success) success = true;
+              break;
+            case 'ASSIGNMENT_SAVE':
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              const assignRes = await actions.saveAssignment(item.payload as any);
+              if (assignRes.success) success = true;
+              break;
+            case 'QUIZ_SAVE':
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              const qRes = await actions.saveQuiz(item.payload as any);
+              if (qRes.success) success = true;
+              break;
+            case 'DISCUSSION_POST':
+              const dRes = await actions.saveDiscussionPost(item.payload as Partial<Discussion>);
+              if (dRes.success) success = true;
+              break;
+            case 'PLANNER_UPDATE':
+              const pRes = await actions.savePlannerItem(item.payload as Partial<PlannerItem>);
+              if (pRes.success) success = true;
+              break;
+            case 'SETTING_UPDATE':
+              const { p_key, p_value } = item.payload as { p_key: string, p_value: unknown };
+              const sRes = await actions.updateSetting(p_key, p_value);
+              if (sRes.success) success = true;
+              break;
+            case 'LESSON_COMPLETE':
+              const { lesson_id, course_id: l_course_id } = item.payload as { lesson_id: string, course_id: string };
+              const lcRes = await actions.markLessonComplete(lesson_id, l_course_id);
+              if (lcRes.success) success = true;
+              break;
+            case 'ATTENDANCE':
+              const { live_class_id } = item.payload as { live_class_id: string };
+              const attRes = await actions.recordAttendance(live_class_id);
+              if (attRes.success) success = true;
+              break;
+          }
 
-        if (item.id) {
-          if (isTerminal) {
-            console.warn('Terminal error during sync, moving to error store:', item, error.message);
-            await logSyncError(item, error.message);
+          if (success && item.id) {
             await removeFromQueue(item.id);
-            window.dispatchEvent(new CustomEvent('sync-conflict', { detail: { item, error: error.message } }));
-          } else {
-              // Retry later, keep in queue
+          } else if (!success && item.id) {
+              const retryCount = (item.retry_count || 0) + 1;
+              if (retryCount >= 5) {
+                  await logSyncError(item, 'Max retry attempts reached');
+                  await removeFromQueue(item.id);
+              } else {
+                  await updateQueueItem(item.id, { retry_count: retryCount });
+              }
+          }
+        } catch (err: unknown) {
+          console.error('Sync failed for item:', item, err);
+          const error = err as Error;
+          const terminalErrors = ['Conflict detected', 'Forbidden', 'Unauthorized', 'Invalid enrollment code', 'Course not found', 'User not found'];
+          const isTerminal = terminalErrors.some(msg => error.message?.includes(msg));
+
+          if (item.id) {
+            if (isTerminal) {
+              console.warn('Terminal error during sync, moving to error store:', item, error.message);
+              await logSyncError(item, error.message);
+              await removeFromQueue(item.id);
+              window.dispatchEvent(new CustomEvent('sync-conflict', { detail: { item, error: error.message } }));
+            } else {
+                const retryCount = (item.retry_count || 0) + 1;
+                if (retryCount >= 5) {
+                    await logSyncError(item, error.message || 'Max retry attempts reached');
+                    await removeFromQueue(item.id);
+                } else {
+                    await updateQueueItem(item.id, { retry_count: retryCount });
+                }
+            }
           }
         }
       }
+    } finally {
+      isSyncing.current = false;
     }
-  }, [isOnline, db, getQueue, removeFromQueue, logSyncError]);
+  }, [isOnline, db, getQueue, removeFromQueue, logSyncError, updateQueueItem]);
 
   const pullData = useCallback(async (userId: string, sessionId: string, role: string) => {
     if (!isOnline) return;
