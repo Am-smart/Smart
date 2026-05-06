@@ -11,29 +11,32 @@ export function cn(...inputs: ClassValue[]) {
  * Parses deep links in various formats (path-based, type:id, or keywords)
  * and returns a standard path for navigation.
  */
-export const parseDeepLink = (link?: string): string | null => {
+export const parseDeepLink = (link?: string, role: string = 'student'): string | null => {
   if (!link) return null;
 
   try {
-    // Handle URL-style links: /student/assignments/abc123
+    // Handle URL-style links
     if (link.startsWith('/')) {
       return link;
     }
 
+    const base = role === 'teacher' ? 'teacher' : role === 'admin' ? 'admin' : 'student';
+
     // Handle structured links: type:id format
-    // e.g., "course:abc123", "assignment:xyz789", "quiz:def456"
     if (link.includes(':')) {
       const [type, ...idParts] = link.split(':');
-      const id = idParts.join(':'); // Handle IDs that might contain colons
+      const id = idParts.join(':');
+
       const routes: Record<string, string> = {
-        course: `/student/courses?id=${id}`,
-        assignment: `/student/assignments?id=${id}`,
-        quiz: `/student/quizzes?id=${id}`,
-        discussion: `/student/discussions?id=${id}`,
-        material: `/student/materials?id=${id}`,
-        live: `/student/live?id=${id}`,
+        course: `/${base}/courses?id=${id}`,
+        assignment: `/${base}/assignments?id=${id}`,
+        quiz: `/${base}/quizzes?id=${id}`,
+        discussion: `/${base}/discussions?id=${id}`,
+        material: `/${base}/materials?id=${id}`,
+        live: `/${base}/live?id=${id}`,
         grading: `/teacher/grading?id=${id}`,
         students: `/teacher/students?id=${id}`,
+        submission: `/teacher/grading?id=${id}`, // Direct link for teachers
       };
 
       if (routes[type]) {
@@ -43,7 +46,7 @@ export const parseDeepLink = (link?: string): string | null => {
 
     // Fallback for simple names
     if (['dashboard', 'courses', 'assignments', 'quizzes', 'live', 'calendar', 'settings'].includes(link)) {
-        return `/student/${link}`;
+        return `/${base}/${link}`;
     }
 
     return null;

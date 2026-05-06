@@ -396,6 +396,7 @@ export async function deleteDiscussionPost(id: string): Promise<ActionResponse> 
 
 // Notifications
 export async function getNotifications(userId: string): Promise<NotificationDTO[]> {
+  if (!userId || userId === 'undefined' || userId === 'null') return [];
   return apiClient.get<NotificationDTO[]>(`/api/system?action=notifications&userId=${userId}`);
 }
 

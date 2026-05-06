@@ -3,7 +3,7 @@ import { systemService } from './system.service';
 import { Assignment, Quiz, Submission, QuizSubmission, QuizQuestion } from '../types';
 import { AssessmentDomain } from '../domain/assessment.domain';
 import { SUBMISSION_STATUS } from '../constants';
-import { NotFoundError } from '../api-error';
+import { NotFoundError, ForbiddenError } from '../api-error';
 
 export class AssessmentService {
   // Assignments
@@ -62,7 +62,15 @@ export class AssessmentService {
         // Students can only see their own submissions
         return assessmentDb.findAllSubmissions(assignmentId, userId, sessionId!, limit, offset);
     }
-    return assessmentDb.findAllSubmissions(assignmentId, studentId, sessionId!, limit, offset);
+
+    const submissions = await assessmentDb.findAllSubmissions(assignmentId, studentId, sessionId!, limit, offset);
+
+    if (userRole === 'teacher' && userId) {
+        // Teachers can only see submissions for assignments they own
+        return submissions.filter(s => s.assignments?.teacher_id === userId);
+    }
+
+    return submissions;
   }
 
   async submitAssignment(studentId: string, assignmentId: string, content: Partial<Submission>, sessionId: string): Promise<Submission> {
@@ -70,9 +78,16 @@ export class AssessmentService {
     return assessmentDb.upsertSubmission(submissionToSave, sessionId);
   }
 
-  async gradeSubmission(submissionId: string, gradeData: Partial<Submission>, sessionId: string): Promise<Submission> {
+  async gradeSubmission(submissionId: string, gradeData: Partial<Submission>, sessionId: string, performingUserId?: string, performingUserRole?: string): Promise<Submission> {
     const submission = await assessmentDb.findSubmissionById(submissionId, sessionId);
     if (!submission) throw new NotFoundError('Submission not found');
+
+    // Authorization check: Teachers can only grade submissions for their own assignments
+    if (performingUserRole === 'teacher' && performingUserId) {
+        if (submission.assignments?.teacher_id !== performingUserId) {
+            throw new ForbiddenError('You are not authorized to grade this submission');
+        }
+    }
 
     const { assignments: _assignments, users: _users, ...rest } = gradeData as Record<string, unknown>;
     const updated = await assessmentDb.upsertSubmission({

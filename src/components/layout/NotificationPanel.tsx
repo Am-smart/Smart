@@ -8,6 +8,7 @@ import { parseDeepLink } from '@/lib/utils';
 
 interface NotificationPanelProps {
   notifications: Notification[];
+  userRole?: string;
   onClose: () => void;
   onNotificationClick: (notification: Notification) => Promise<void>;
   onClearAll?: () => Promise<void>;
@@ -33,6 +34,7 @@ const getNotificationIcon = (type: string) => {
 
 export const NotificationPanel: React.FC<NotificationPanelProps> = memo(({
   notifications,
+  userRole = 'student',
   onClose,
   onNotificationClick,
   onClearAll,
@@ -92,7 +94,7 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = memo(({
       await onNotificationClick(notification);
 
       // Parse and navigate to the deep link
-      const deepLink = parseDeepLink(notification.link);
+      const deepLink = parseDeepLink(notification.link, userRole);
       if (deepLink) {
         router.push(deepLink);
         onClose(); // Close panel after navigation
@@ -199,7 +201,7 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = memo(({
                         <div className="flex gap-4">
                           {/* Icon */}
                           <div className={`shrink-0 w-12 h-12 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-110 ${
-                             notification.type === 'broadcast'
+                             notification.is_broadcast || notification.type === 'broadcast'
                                 ? 'bg-orange-50'
                                 : !notification.is_read ? 'bg-white shadow-sm' : 'bg-slate-100'
                           }`}>

@@ -115,7 +115,7 @@ export const PATCH = withHandler(async (user, request) => {
             if (body.grade !== undefined && (body.grade < 0 || body.grade > 100)) {
                 throw new Error('Grade must be between 0 and 100');
             }
-            await assessmentService.gradeSubmission(id, body, user.sessionId!);
+            await assessmentService.gradeSubmission(id, body, user.sessionId!, user.id, user.role);
             return { success: true };
         }
         default:
