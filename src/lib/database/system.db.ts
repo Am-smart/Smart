@@ -108,7 +108,7 @@ export const systemDb = {
 
   // Attendance Operations
   async upsertAttendance(attendance: { live_class_id: string, student_id: string, join_time: string, is_present: boolean }, sessionId: string): Promise<void> {
-    const { error } = await withSession(supabase.from('attendance'), sessionId).upsert(attendance, { onConflict: 'live_class_id_student_id' });
+    const { error } = await withSession(supabase.from('attendance'), sessionId).upsert(attendance, { onConflict: 'attendance_id' });
     if (error) throw new Error(error.message);
   },
 

@@ -46,7 +46,7 @@ CREATE TABLE IF NOT EXISTS users (
 
 CREATE TABLE IF NOT EXISTS courses (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  course_id VARCHAR(100), -- Acts as Enrollment Code
+  enrollment_id VARCHAR(100), -- Acts as Enrollment Code
   created_by VARCHAR(255),
   title VARCHAR(255) NOT NULL,
   description TEXT,
@@ -77,7 +77,7 @@ CREATE TABLE IF NOT EXISTS enrollments (
   enrolled_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   progress INTEGER DEFAULT 0,
   completed BOOLEAN DEFAULT FALSE,
-  PRIMARY KEY (course_id, student_id)
+  CONSTRAINT enrollment_id PRIMARY KEY (course_id, student_id)
 );
 
 CREATE TABLE IF NOT EXISTS assignments (
@@ -125,7 +125,7 @@ CREATE TABLE IF NOT EXISTS submissions (
   status VARCHAR(50) DEFAULT 'submitted' CHECK (status IN ('draft', 'submitted', 'graded', 'returned')),
   violation_count INTEGER DEFAULT 0,
   version INTEGER DEFAULT 1,
-  UNIQUE(assignment_id, student_id)
+  CONSTRAINT submission_id UNIQUE(assignment_id, student_id)
 );
 
 CREATE TABLE IF NOT EXISTS live_classes (
@@ -157,7 +157,7 @@ CREATE TABLE IF NOT EXISTS attendance (
   duration INTEGER DEFAULT 0,
   is_present BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  UNIQUE(live_class_id, student_id)
+  CONSTRAINT attendance_id UNIQUE(live_class_id, student_id)
 );
 
 CREATE TABLE IF NOT EXISTS quizzes (
@@ -198,7 +198,7 @@ CREATE TABLE IF NOT EXISTS quiz_submissions (
   violation_count INTEGER DEFAULT 0,
   version INTEGER DEFAULT 1,
   attempt_number INTEGER DEFAULT 1,
-  UNIQUE(quiz_id, student_id, attempt_number)
+  CONSTRAINT quiz_submission_id UNIQUE(quiz_id, student_id, attempt_number)
 );
 
 CREATE TABLE IF NOT EXISTS materials (
@@ -286,7 +286,7 @@ CREATE TABLE IF NOT EXISTS lesson_completions (
   student_id UUID REFERENCES users(id) ON UPDATE CASCADE ON DELETE CASCADE,
   lesson_id UUID REFERENCES lessons(id) ON DELETE CASCADE,
   completed_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  UNIQUE(student_id, lesson_id)
+  CONSTRAINT lesson_completion_id UNIQUE(student_id, lesson_id)
 );
 
 CREATE TABLE IF NOT EXISTS system_logs (
@@ -367,8 +367,12 @@ BEGIN
     IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'courses' AND column_name = 'category') THEN
         ALTER TABLE courses DROP COLUMN category;
     END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'courses' AND column_name = 'course_id') THEN
-        ALTER TABLE courses ADD COLUMN course_id VARCHAR(100);
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'courses' AND column_name = 'enrollment_id') THEN
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'courses' AND column_name = 'course_id') THEN
+            ALTER TABLE courses RENAME COLUMN course_id TO enrollment_id;
+        ELSE
+            ALTER TABLE courses ADD COLUMN enrollment_id VARCHAR(100);
+        END IF;
     END IF;
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'courses' AND column_name = 'created_by') THEN
         ALTER TABLE courses ADD COLUMN created_by VARCHAR(255);
@@ -420,7 +424,7 @@ CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions(expires_at);
 CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
 CREATE INDEX IF NOT EXISTS idx_users_active ON users(active);
 CREATE INDEX IF NOT EXISTS idx_courses_teacher ON courses(teacher_id);
-CREATE INDEX IF NOT EXISTS idx_courses_enrollment_code ON courses(course_id);
+CREATE INDEX IF NOT EXISTS idx_courses_enrollment_code ON courses(enrollment_id);
 CREATE INDEX IF NOT EXISTS idx_lessons_course ON lessons(course_id);
 CREATE INDEX IF NOT EXISTS idx_enrollments_student ON enrollments(student_id);
  CREATE INDEX IF NOT EXISTS idx_enrollments_student_course ON enrollments(student_id, course_id);
