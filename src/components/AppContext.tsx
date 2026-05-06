@@ -17,8 +17,9 @@ interface AppContextType {
   notifications: Notification[];
   isSidebarOpen: boolean;
   toggleSidebar: () => void;
-  fetchNotifications: (userId: string) => Promise<void>;
+  fetchNotifications: (userId: string, force?: boolean) => Promise<void>;
   isOnline: boolean;
+  isBackendConnected: boolean;
   addToast: (message: string, type: ToastType, duration?: number) => void;
   stats: DashboardStats;
   enrollments: EnrollmentDTO[];
@@ -33,6 +34,7 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuth();
   const { setCache, getCache, isOnline, pullData } = useIndexedDB();
+  const [isBackendConnected, setIsBackendConnected] = useState(true);
   const [maintenance, setMaintenance] = useState<Maintenance>({ id: "system-config", enabled: false, schedules: [] });
   const [isCurrentlyInMaintenance, setIsCurrentlyInMaintenance] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -62,11 +64,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     initialized.current = true;
 
     try {
-      // Try Cache
-      const cachedMaint = await getCache<Maintenance>('maintenance');
-      if (cachedMaint) setMaintenance(cachedMaint);
+      // Try Cache (5 min fresh)
+      const cachedMaint = await getCache<Maintenance>('maintenance', 5 * 60 * 1000);
+      if (cachedMaint) {
+        setMaintenance(cachedMaint);
+        const now = new Date();
+        const isInSchedule = cachedMaint.schedules?.some(s => {
+            const start = new Date(s.start_at);
+            const end = new Date(s.end_at);
+            return now >= start && now <= end;
+        });
+        setIsCurrentlyInMaintenance(cachedMaint.enabled || !!isInSchedule);
+      }
 
-      if (isOnline) {
+      if (isOnline && (!cachedMaint || isBackendConnected)) {
         const m = await actions.getMaintenance();
         const maintData = m as unknown as Maintenance;
         setMaintenance(maintData);
@@ -85,18 +96,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } catch (err) {
       console.error('Failed to init app context:', err);
     }
-  }, [getCache, setCache, isOnline]);
+  }, [getCache, setCache, isOnline, isBackendConnected]);
 
-  const fetchNotifications = useCallback(async (userId: string) => {
+  const fetchNotifications = useCallback(async (userId: string, force = false) => {
     try {
-      // Always try cache first for offline support
-      const cachedNotes = await getCache<Notification[]>('notifications');
-      if (cachedNotes && cachedNotes.length > 0) {
+      // Try fresh cache first (1 min fresh)
+      const cachedNotes = await getCache<Notification[]>('notifications', force ? 0 : 60000);
+      if (cachedNotes) {
         setNotifications(cachedNotes);
+        if (!force) return; // If we found fresh enough cache and not forcing, we are done
+      } else {
+        // Fallback to stale cache if no fresh cache found
+        const staleNotes = await getCache<Notification[]>('notifications');
+        if (staleNotes) setNotifications(staleNotes);
       }
 
-      // Only fetch from server if online
-      if (isOnline) {
+      // Only fetch from server if online and backend reachable
+      if (isOnline && isBackendConnected) {
         try {
           const n = await actions.getNotifications(userId);
           if (n && Array.isArray(n)) {
@@ -110,42 +126,61 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } catch (err) {
       console.error('Failed to initialize notifications:', err);
     }
-  }, [getCache, setCache, isOnline]);
+  }, [getCache, setCache, isOnline, isBackendConnected]);
 
   useEffect(() => {
     init();
   }, [init]);
 
   const wasOnline = useRef(isOnline);
+  const wasBackendConnected = useRef(isBackendConnected);
 
   useEffect(() => {
-    if (wasOnline.current !== isOnline) {
-      if (isOnline) {
-        addToast('Back online - Synchronizing your data...', 'online');
-      } else {
-        addToast('Working offline - Some features may be limited.', 'offline');
+    if (wasOnline.current !== isOnline || wasBackendConnected.current !== isBackendConnected) {
+      if (isOnline && isBackendConnected) {
+        addToast('Connected to server - Synchronizing your data...', 'online');
+      } else if (!isOnline) {
+        addToast('Internet connection lost - Working offline.', 'offline');
+      } else if (!isBackendConnected) {
+        addToast('Server is currently unreachable - Working offline.', 'offline');
       }
       wasOnline.current = isOnline;
+      wasBackendConnected.current = isBackendConnected;
     }
-  }, [isOnline, addToast]);
+  }, [isOnline, isBackendConnected, addToast]);
+
+  useEffect(() => {
+    const checkConnectivity = async () => {
+      if (isOnline) {
+        const reachable = await actions.apiClient.checkHealth();
+        setIsBackendConnected(reachable);
+      } else {
+        setIsBackendConnected(false);
+      }
+    };
+
+    checkConnectivity();
+    const interval = setInterval(checkConnectivity, 30000); // Check every 30s
+    return () => clearInterval(interval);
+  }, [isOnline]);
 
   useEffect(() => {
     if (user) {
         fetchNotifications(user.id);
-        if (isOnline && user.sessionId) {
+        if (isOnline && isBackendConnected && user.sessionId) {
             pullData(user.id, user.sessionId, user.role);
         }
 
         // Periodic refresh for notifications (every 5 minutes)
         const interval = setInterval(() => {
-            if (isOnline) {
+            if (isOnline && isBackendConnected) {
                 fetchNotifications(user.id);
             }
         }, 5 * 60 * 1000);
 
         return () => clearInterval(interval);
     }
-  }, [user, isOnline, pullData, fetchNotifications]);
+  }, [user, isOnline, isBackendConnected, pullData, fetchNotifications]);
 
   // Realtime functionality is disabled for now to enforce backend-only access.
   // In a future step, this should be replaced with a WebSocket or Server-Sent Events implementation
@@ -153,6 +188,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const refreshDashboardData = useCallback(async () => {
     if (!user || user.role !== 'student') return;
+
+    // Try cache first (5 min fresh)
+    const cachedEnrollments = await getCache<EnrollmentDTO[]>('my_enrollments', 5 * 60 * 1000);
+    const cachedAssignments = await getCache<AssignmentDTO[]>('all_assignments', 5 * 60 * 1000);
+    const cachedSubmissions = await getCache<SubmissionDTO[]>('my_submissions', 5 * 60 * 1000);
+
+    if (cachedEnrollments && cachedAssignments && cachedSubmissions) {
+      setEnrollments(cachedEnrollments);
+      const enrolledIds = cachedEnrollments.map((e) => e.course_id);
+      const pending = cachedAssignments.filter((a) =>
+        enrolledIds.includes(a.course_id) &&
+        new Date(a.due_date as string) > new Date() &&
+        !cachedSubmissions.some((s) => s.assignment_id === a.id)
+      );
+      setAssignments(pending);
+      setSubmissions(cachedSubmissions);
+      setStats({ courses: cachedEnrollments.length, dueSoon: pending.length });
+    }
+
+    if (!isOnline || !isBackendConnected) return;
+
     setIsLoading(true);
     try {
       const [myEnrollments, allAssignments, mySubmissions] = await Promise.all([
@@ -175,12 +231,18 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         courses: myEnrollments.length,
         dueSoon: pendingAssignments.length
       });
+
+      // Update cache
+      await setCache('my_enrollments', myEnrollments);
+      await setCache('all_assignments', allAssignments);
+      // We should probably have a consistent key for submissions
+      await setCache('my_submissions', mySubmissions);
     } catch (err) {
       console.error('Failed to refresh dashboard data:', err);
     } finally {
       setIsLoading(false);
     }
-  }, [user]);
+  }, [user, isOnline, isBackendConnected, getCache, setCache]);
 
   const toggleSidebar = useCallback(() => setIsSidebarOpen(prev => !prev), []);
 
@@ -191,6 +253,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     toggleSidebar,
     fetchNotifications,
     isOnline,
+    isBackendConnected,
     addToast,
     stats,
     enrollments,
@@ -198,7 +261,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     submissions,
     refreshDashboardData,
     isLoading
-  }), [maintenance, notifications, isSidebarOpen, toggleSidebar, fetchNotifications, isOnline, addToast, isCurrentlyInMaintenance, stats, enrollments, assignments, submissions, refreshDashboardData, isLoading]);
+  }), [maintenance, notifications, isSidebarOpen, toggleSidebar, fetchNotifications, isOnline, isBackendConnected, addToast, isCurrentlyInMaintenance, stats, enrollments, assignments, submissions, refreshDashboardData, isLoading]);
 
   return (
     <AppContext.Provider value={value}>
