@@ -5,7 +5,7 @@ import { useAuth } from '@/components/auth/AuthContext';
 import * as actions from '@/lib/api-actions';
 import { useIndexedDB } from '@/hooks/useIndexedDB';
 import { CourseView } from "@/components/courses/CourseView";
-import { CourseDTO, LessonDTO } from '@/lib/types';
+import { CourseDTO, LessonDTO, EnrollmentDTO } from '@/lib/types';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAppContext } from '@/components/AppContext';
 import { CourseList } from '@/components/common/CourseList';
@@ -15,7 +15,7 @@ function CatalogContent() {
   const { addToast } = useAppContext();
   const { isOnline, addToQueue } = useIndexedDB();
   const [courses, setCourses] = useState<CourseDTO[]>([]);
-  const [enrolledIds, setEnrolledIds] = useState<string[]>([]);
+  const [enrollments, setEnrollments] = useState<EnrollmentDTO[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeCourse, setActiveCourse] = useState<CourseDTO | null>(null);
   const [lessons, setLessons] = useState<LessonDTO[]>([]);
@@ -34,7 +34,7 @@ function CatalogContent() {
           actions.getEnrollments(user.id)
         ]);
         setCourses(all.filter(c => c.status === 'published'));
-        setEnrolledIds(enrolled.map(item => item.course_id));
+        setEnrollments(enrolled);
     } catch (err) {
         console.error('Failed to fetch catalog data:', err);
     } finally {
@@ -47,9 +47,15 @@ function CatalogContent() {
   }, [fetchData]);
 
   useEffect(() => {
-    if (courseIdParam && courses.length > 0) {
-        const c = courses.find(item => item.id === courseIdParam);
-        const isEnrolled = enrolledIds.includes(courseIdParam);
+    if (isLoading) return;
+
+    if (courseIdParam) {
+        // Find course in catalog or in student's enrollments
+        const enrolledCourse = enrollments.find(e => e.course_id === courseIdParam)?.course;
+        const catalogCourse = courses.find(item => item.id === courseIdParam);
+
+        const c = enrolledCourse || catalogCourse;
+        const isEnrolled = enrollments.some(e => e.course_id === courseIdParam);
 
         if (c && isEnrolled) {
             setActiveCourse(c);
@@ -57,11 +63,14 @@ function CatalogContent() {
         } else if (c && !isEnrolled) {
             addToast("You must be enrolled to view course content.", "error");
             router.push('/student/courses');
+        } else if (!c && !isLoading) {
+            addToast("Course not found.", "error");
+            router.push('/student/courses');
         }
     } else {
         setActiveCourse(null);
     }
-  }, [courseIdParam, courses, enrolledIds, addToast, router]);
+  }, [courseIdParam, courses, enrollments, isLoading, addToast, router]);
 
   const handleEnroll = async (course: CourseDTO, code?: string) => {
     if (!user) return;
@@ -107,7 +116,8 @@ function CatalogContent() {
             courses={courses}
             isLoading={isLoading}
             onAction={(course) => {
-                if (enrolledIds.includes(course.id)) {
+                const isEnrolled = enrollments.some(e => e.course_id === course.id);
+                if (isEnrolled) {
                     router.push(`/student/courses?id=${course.id}`);
                 } else {
                     if (course.enrollment_id && course.enrollment_id.trim() !== '') {
@@ -117,7 +127,7 @@ function CatalogContent() {
                     }
                 }
             }}
-            actionLabel={(course) => enrolledIds.includes(course.id) ? "View Details" : "Enroll Now"}
+            actionLabel={(course) => enrollments.some(e => e.course_id === course.id) ? "View Details" : "Enroll Now"}
         />
 
         {showEnrollModal && (

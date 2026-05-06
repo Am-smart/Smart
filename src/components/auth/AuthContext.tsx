@@ -73,6 +73,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               }
               if (userDTO) {
                   const user = { ...userDTO, sessionId: session.sessionId } as User;
+                  if (typeof window !== 'undefined' && user.sessionId) {
+                      sessionStorage.setItem('session_id', user.sessionId);
+                  }
                   await setCache('current_user', user);
                   setState({ user, role: user.role, isLoading: false });
                   // Initialize session timeout tracking
@@ -89,6 +92,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // 2. Fallback to cache for offline support
         const cachedUser = await getCache<User>('current_user');
         if (cachedUser) {
+            if (typeof window !== 'undefined' && cachedUser.sessionId) {
+                sessionStorage.setItem('session_id', cachedUser.sessionId);
+            }
             setState({ user: cachedUser, role: cachedUser.role, isLoading: false });
             sessionManager.initSession();
         } else {
@@ -108,6 +114,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     const u = { ...result.data!.user, sessionId: result.data!.sessionId } as User;
+    if (typeof window !== 'undefined') {
+        sessionStorage.setItem('session_id', u.sessionId!);
+    }
     await setCache('current_user', u);
     setState(prev => ({
         ...prev,
@@ -124,6 +133,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     const u = { ...result.data!.user, sessionId: result.data!.sessionId } as User;
+    if (typeof window !== 'undefined') {
+        sessionStorage.setItem('session_id', u.sessionId!);
+    }
     await setCache('current_user', u);
     setState(prev => ({
         ...prev,
