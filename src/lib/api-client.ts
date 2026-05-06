@@ -5,6 +5,11 @@ export interface ApiResponse<T> {
 }
 
 export async function apiFetch<T>(url: string, options: RequestInit = {}, retries: number = 3): Promise<T> {
+  // Prevent API calls when offline (client-side only)
+  if (typeof window !== 'undefined' && !navigator.onLine) {
+    throw new Error('Offline: No internet connection');
+  }
+
   // Use /api/v1 prefix consistently
   const versionedUrl = url.startsWith('/api/') && !url.startsWith('/api/v1/')
     ? url.replace('/api/', '/api/v1/')
@@ -79,6 +84,10 @@ export const apiClient = {
     apiFetch<T>(url, { ...options, method: 'PATCH', body: JSON.stringify(body) }),
   delete: <T>(url: string, options?: RequestInit) => apiFetch<T>(url, { ...options, method: 'DELETE' }),
   checkHealth: async () => {
+    if (typeof window !== 'undefined' && !navigator.onLine) {
+      return false;
+    }
+
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 5000);

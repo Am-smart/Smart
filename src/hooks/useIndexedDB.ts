@@ -20,8 +20,26 @@ export interface QueueItem {
 export const useIndexedDB = () => {
   const [db, setDb] = useState<IDBDatabase | null>(null);
   const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
+  const [isBackendConnected, setIsBackendConnected] = useState(true);
   const [syncErrors] = useState<unknown[]>([]);
   const isSyncing = useRef(false);
+
+  const checkBackend = useCallback(async () => {
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        setIsBackendConnected(false);
+        return false;
+    }
+
+    const reachable = await actions.apiClient.checkHealth();
+    setIsBackendConnected(reachable);
+
+    // Notify other instances
+    window.dispatchEvent(new CustomEvent('backend-connectivity-changed', {
+        detail: { connected: reachable }
+    }));
+
+    return reachable;
+  }, []);
 
   const getSyncErrors = useCallback(async () => {
     if (!db) return [];
@@ -61,12 +79,21 @@ export const useIndexedDB = () => {
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
 
+    const handleConnectivityChange = (event: Event) => {
+        const detail = (event as CustomEvent).detail;
+        if (detail && typeof detail.connected === 'boolean') {
+            setIsBackendConnected(detail.connected);
+        }
+    };
+
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
+    window.addEventListener('backend-connectivity-changed', handleConnectivityChange);
 
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('backend-connectivity-changed', handleConnectivityChange);
     };
   }, []);
 
@@ -164,6 +191,10 @@ export const useIndexedDB = () => {
 
   const processSync = useCallback(async () => {
     if (!isOnline || !db || isSyncing.current) return;
+
+    // Verify backend connectivity before processing sync queue
+    const isConnected = await checkBackend();
+    if (!isConnected) return;
 
     isSyncing.current = true;
     try {
@@ -273,10 +304,15 @@ export const useIndexedDB = () => {
     } finally {
       isSyncing.current = false;
     }
-  }, [isOnline, db, getQueue, removeFromQueue, logSyncError, updateQueueItem]);
+  }, [isOnline, db, getQueue, removeFromQueue, logSyncError, updateQueueItem, checkBackend]);
 
   const pullData = useCallback(async (userId: string, sessionId: string, role: string) => {
     if (!isOnline) return;
+
+    // Verify backend connectivity before fetching fresh data
+    const isConnected = await checkBackend();
+    if (!isConnected) return;
+
     try {
         if (role === 'student') {
             const [courses, enrollments, assignments, quizzes, materials, planner, liveClasses, discussions, completions] = await Promise.all([
@@ -332,7 +368,7 @@ export const useIndexedDB = () => {
     } catch (err) {
         console.error('Data pull failed:', err);
     }
-  }, [isOnline, setCache]);
+  }, [isOnline, setCache, checkBackend]);
 
   useEffect(() => {
     if (isOnline && db) {
@@ -340,5 +376,5 @@ export const useIndexedDB = () => {
     }
   }, [isOnline, db, processSync]);
 
-  return { addToQueue, getQueue, removeFromQueue, setCache, getCache, processSync, pullData, isOnline, syncErrors, getSyncErrors };
+  return { addToQueue, getQueue, removeFromQueue, setCache, getCache, processSync, pullData, isOnline, isBackendConnected, checkBackend, syncErrors, getSyncErrors };
 };
