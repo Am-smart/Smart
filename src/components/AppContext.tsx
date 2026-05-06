@@ -33,8 +33,7 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuth();
-  const { setCache, getCache, isOnline, pullData } = useIndexedDB();
-  const [isBackendConnected, setIsBackendConnected] = useState(true);
+  const { setCache, getCache, isOnline, isBackendConnected, checkBackend, pullData } = useIndexedDB();
   const [maintenance, setMaintenance] = useState<Maintenance>({ id: "system-config", enabled: false, schedules: [] });
   const [isCurrentlyInMaintenance, setIsCurrentlyInMaintenance] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -78,6 +77,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
 
       if (isOnline && (!cachedMaint || isBackendConnected)) {
+        // Verify connectivity before fetching maintenance config
+        const isConnected = await checkBackend();
+        if (!isConnected) return;
+
         const m = await actions.getMaintenance();
         const maintData = m as unknown as Maintenance;
         setMaintenance(maintData);
@@ -96,7 +99,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } catch (err) {
       console.error('Failed to init app context:', err);
     }
-  }, [getCache, setCache, isOnline, isBackendConnected]);
+  }, [getCache, setCache, isOnline, isBackendConnected, checkBackend]);
 
   const fetchNotifications = useCallback(async (userId: string, force = false) => {
     try {
@@ -112,7 +115,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
 
       // Only fetch from server if online and backend reachable
-      if (isOnline && isBackendConnected) {
+      if (isOnline) {
+        // Verify connectivity before fetching notifications
+        const isConnected = await checkBackend();
+        if (!isConnected) return;
+
         try {
           const n = await actions.getNotifications(userId);
           if (n && Array.isArray(n)) {
@@ -126,7 +133,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } catch (err) {
       console.error('Failed to initialize notifications:', err);
     }
-  }, [getCache, setCache, isOnline, isBackendConnected]);
+  }, [getCache, setCache, isOnline, checkBackend]);
 
   useEffect(() => {
     init();
@@ -149,38 +156,25 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [isOnline, isBackendConnected, addToast]);
 
-  useEffect(() => {
-    const checkConnectivity = async () => {
-      if (isOnline) {
-        const reachable = await actions.apiClient.checkHealth();
-        setIsBackendConnected(reachable);
-      } else {
-        setIsBackendConnected(false);
-      }
-    };
-
-    checkConnectivity();
-    const interval = setInterval(checkConnectivity, 30000); // Check every 30s
-    return () => clearInterval(interval);
-  }, [isOnline]);
 
   useEffect(() => {
     if (user) {
         fetchNotifications(user.id);
-        if (isOnline && isBackendConnected && user.sessionId) {
+        if (isOnline && user.sessionId) {
             pullData(user.id, user.sessionId, user.role);
         }
 
         // Periodic refresh for notifications (every 5 minutes)
-        const interval = setInterval(() => {
-            if (isOnline && isBackendConnected) {
+        const interval = setInterval(async () => {
+            if (isOnline) {
+                // checkBackend will be called inside fetchNotifications
                 fetchNotifications(user.id);
             }
         }, 5 * 60 * 1000);
 
         return () => clearInterval(interval);
     }
-  }, [user, isOnline, isBackendConnected, pullData, fetchNotifications]);
+  }, [user, isOnline, pullData, fetchNotifications]);
 
   // Realtime functionality is disabled for now to enforce backend-only access.
   // In a future step, this should be replaced with a WebSocket or Server-Sent Events implementation
@@ -207,7 +201,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setStats({ courses: cachedEnrollments.length, dueSoon: pending.length });
     }
 
-    if (!isOnline || !isBackendConnected) return;
+    if (!isOnline) return;
+
+    // Verify connectivity before refreshing dashboard data
+    const isConnected = await checkBackend();
+    if (!isConnected) return;
 
     setIsLoading(true);
     try {
@@ -242,7 +240,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } finally {
       setIsLoading(false);
     }
-  }, [user, isOnline, isBackendConnected, getCache, setCache]);
+  }, [user, isOnline, getCache, setCache, checkBackend]);
 
   const toggleSidebar = useCallback(() => setIsSidebarOpen(prev => !prev), []);
 
