@@ -102,6 +102,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [getCache, setCache, isOnline, isBackendConnected, checkBackend]);
 
   const fetchNotifications = useCallback(async (userId: string, force = false) => {
+    if (!userId || userId === 'undefined' || userId === 'null') return;
     try {
       // Try fresh cache first (1 min fresh)
       const cachedNotes = await getCache<Notification[]>('notifications', force ? 0 : 60000);

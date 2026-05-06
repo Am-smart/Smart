@@ -37,7 +37,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
         await markNotificationAsRead(notification.id);
       }
 
-      const path = parseDeepLink(notification.link);
+      const path = parseDeepLink(notification.link, user.role);
       if (path) {
           router.push(path);
           setShowNotifications(false);
@@ -113,6 +113,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
       {showNotifications && (
         <NotificationPanel
           notifications={notifications}
+          userRole={user.role}
           onClose={() => setShowNotifications(false)}
           onNotificationClick={handleNotificationClick}
           onClearAll={handleClearAll}

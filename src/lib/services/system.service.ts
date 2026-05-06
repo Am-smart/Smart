@@ -216,14 +216,15 @@ export class SystemService {
     const broadcastNotifications: Notification[] = filteredBroadcasts.map(b => ({
       id: b.id,
       user_id: userId,
-      title: `[Broadcast] ${b.title}`,
+      title: b.title,
       message: b.message,
       link: b.link,
       type: b.type || 'broadcast',
       is_read: false,
       created_at: b.created_at,
-      version: 1
-    }));
+      version: 1,
+      is_broadcast: true
+    } as Notification & { is_broadcast: boolean }));
 
     const merged = [...notifications, ...broadcastNotifications].sort(
       (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
