@@ -14,10 +14,6 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  eslint: {
-    // Re-enabled for production readiness verification
-    ignoreDuringBuilds: false,
-  },
   typescript: {
     // Re-enabled for production readiness verification
     ignoreBuildErrors: false,
