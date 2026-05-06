@@ -46,7 +46,7 @@ CREATE TABLE IF NOT EXISTS users (
 
 CREATE TABLE IF NOT EXISTS courses (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  course_id VARCHAR(100), -- Acts as Enrollment Code
+  enrollment_id VARCHAR(100), -- Acts as Enrollment Code
   created_by VARCHAR(255),
   title VARCHAR(255) NOT NULL,
   description TEXT,
@@ -367,8 +367,12 @@ BEGIN
     IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'courses' AND column_name = 'category') THEN
         ALTER TABLE courses DROP COLUMN category;
     END IF;
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'courses' AND column_name = 'course_id') THEN
-        ALTER TABLE courses ADD COLUMN course_id VARCHAR(100);
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'courses' AND column_name = 'enrollment_id') THEN
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'courses' AND column_name = 'course_id') THEN
+            ALTER TABLE courses RENAME COLUMN course_id TO enrollment_id;
+        ELSE
+            ALTER TABLE courses ADD COLUMN enrollment_id VARCHAR(100);
+        END IF;
     END IF;
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'courses' AND column_name = 'created_by') THEN
         ALTER TABLE courses ADD COLUMN created_by VARCHAR(255);
@@ -408,7 +412,7 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'quiz_submissions' AND column_name = 'attempt_number') THEN
         ALTER TABLE quiz_submissions ADD COLUMN attempt_number INTEGER DEFAULT 1;
         ALTER TABLE quiz_submissions DROP CONSTRAINT IF EXISTS quiz_submissions_quiz_id_student_id_key;
-        ALTER TABLE quiz_submissions ADD CONSTRAINT quiz_submissions_attempt_unique UNIQUE(quiz_id, student_id, attempt_number);
+        ALTER TABLE quiz_submissions ADD UNIQUE(quiz_id, student_id, attempt_number);
     END IF;
 END $$;
 
@@ -420,7 +424,7 @@ CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions(expires_at);
 CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
 CREATE INDEX IF NOT EXISTS idx_users_active ON users(active);
 CREATE INDEX IF NOT EXISTS idx_courses_teacher ON courses(teacher_id);
-CREATE INDEX IF NOT EXISTS idx_courses_enrollment_code ON courses(course_id);
+CREATE INDEX IF NOT EXISTS idx_courses_enrollment_code ON courses(enrollment_id);
 CREATE INDEX IF NOT EXISTS idx_lessons_course ON lessons(course_id);
 CREATE INDEX IF NOT EXISTS idx_enrollments_student ON enrollments(student_id);
  CREATE INDEX IF NOT EXISTS idx_enrollments_student_course ON enrollments(student_id, course_id);

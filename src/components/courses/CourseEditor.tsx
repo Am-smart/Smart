@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { X } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { X, Upload, Image as ImageIcon } from 'lucide-react';
 import { CourseDTO } from '@/lib/types';
 import { useIndexedDB } from '@/hooks/useIndexedDB';
 import { useAppContext } from '@/components/AppContext';
@@ -13,27 +13,58 @@ interface CourseEditorProps {
     onCancel: () => void;
 }
 
+const BOOK_EMOJIS = ['📖', '📘', '📗', '📙', '📓', '📒', '📚', '🎓', '📝', '🧪', '🎨', '💻'];
+
 export const CourseEditor: React.FC<CourseEditorProps> = ({ course, teacherId, onSave, onCancel }) => {
     const { addToast } = useAppContext();
     const [formData, setFormData] = useState({
         title: course?.title || '',
         description: course?.description || '',
-        course_id: course?.course_id || '',
+        enrollment_id: course?.enrollment_id || '',
         status: course?.status || 'draft',
-        thumbnail_url: course?.thumbnail_url || 'https://images.unsplash.com/photo-1516116216624-53e697fedbea?w=800&auto=format&fit=crop&q=60',
+        thumbnail_url: course?.thumbnail_url || BOOK_EMOJIS[Math.floor(Math.random() * BOOK_EMOJIS.length)],
         metadata: course?.metadata ? JSON.parse(JSON.stringify(course.metadata)) : {}
     });
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [isSaving, setIsSaving] = useState(false);
+    const [isUploading, setIsUploading] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
     const { addToQueue, isOnline } = useIndexedDB();
 
     const validate = () => {
         const newErrors: Record<string, string> = {};
         if (!formData.title.trim()) newErrors.title = 'Title is required';
         if (!formData.description.trim()) newErrors.description = 'Description is required';
-        if (formData.thumbnail_url && !formData.thumbnail_url.startsWith('http')) newErrors.thumbnail_url = 'Invalid URL';
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
+    };
+
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setIsUploading(true);
+        try {
+            const uploadFormData = new FormData();
+            uploadFormData.append('file', file);
+            uploadFormData.append('category', 'courses');
+
+            const response = await fetch('/api/v1/system/upload', {
+                method: 'POST',
+                body: uploadFormData
+            });
+
+            if (!response.ok) throw new Error('Upload failed');
+
+            const result = await response.json();
+            setFormData(prev => ({ ...prev, thumbnail_url: result.publicUrl }));
+            addToast('Thumbnail uploaded successfully!', 'success');
+        } catch (err) {
+            console.error('Upload error:', err);
+            addToast('Failed to upload thumbnail.', 'error');
+        } finally {
+            setIsUploading(false);
+        }
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -104,11 +135,11 @@ export const CourseEditor: React.FC<CourseEditorProps> = ({ course, teacherId, o
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
-                            <label className="block text-xs font-bold text-slate-700 uppercase mb-3 tracking-wide">Enrollment Course ID (Optional)</label>
+                            <label className="block text-xs font-bold text-slate-700 uppercase mb-3 tracking-wide">Enrollment ID (Optional)</label>
                             <input
                                 type="text"
-                                value={formData.course_id}
-                                onChange={(e) => setFormData(prev => ({ ...prev, course_id: e.target.value }))}
+                                value={formData.enrollment_id}
+                                onChange={(e) => setFormData(prev => ({ ...prev, enrollment_id: e.target.value }))}
                                 className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all text-sm"
                                 placeholder="e.g. CS101"
                             />
@@ -128,14 +159,71 @@ export const CourseEditor: React.FC<CourseEditorProps> = ({ course, teacherId, o
                         </div>
                     </div>
                     <div>
-                        <label className="block text-xs font-bold text-slate-700 uppercase mb-3 tracking-wide">Thumbnail URL</label>
-                        <input
-                            type="url"
-                            value={formData.thumbnail_url}
-                            onChange={(e) => setFormData(prev => ({ ...prev, thumbnail_url: e.target.value }))}
-                            className={`w-full p-4 rounded-xl border-2 outline-none transition-all text-sm ${errors.thumbnail_url ? 'border-red-500 focus:border-red-600' : 'border-slate-100 focus:border-blue-500'}`}
-                        />
-                        {errors.thumbnail_url && <p className="text-red-500 text-[10px] mt-1 font-bold uppercase">{errors.thumbnail_url}</p>}
+                        <label className="block text-xs font-bold text-slate-700 uppercase mb-3 tracking-wide">Course Thumbnail</label>
+                        <div className="space-y-4">
+                            <input
+                                type="file"
+                                ref={fileInputRef}
+                                onChange={handleFileUpload}
+                                accept="image/*"
+                                className="hidden"
+                            />
+
+                            <div className="flex items-center gap-3">
+                                <div className="flex-1">
+                                    <div className="relative">
+                                        <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
+                                            <ImageIcon size={16} className="text-slate-400" />
+                                        </div>
+                                        <input
+                                            type="text"
+                                            placeholder="Or paste an image URL..."
+                                            value={formData.thumbnail_url.startsWith('http') ? formData.thumbnail_url : ''}
+                                            onChange={(e) => setFormData(prev => ({ ...prev, thumbnail_url: e.target.value }))}
+                                            className="w-full pl-10 pr-4 py-3 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all text-sm font-mono"
+                                        />
+                                    </div>
+                                </div>
+                                <div className="w-16 h-16 rounded-xl border-2 border-slate-100 bg-slate-50 flex items-center justify-center overflow-hidden shrink-0">
+                                    {formData.thumbnail_url && (
+                                        formData.thumbnail_url.startsWith('http') ? (
+                                            /* eslint-disable-next-line @next/next/no-img-element */
+                                            <img src={formData.thumbnail_url} alt="Preview" className="w-full h-full object-cover" />
+                                        ) : (
+                                            <span className="text-3xl">{formData.thumbnail_url}</span>
+                                        )
+                                    )}
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-4 gap-2">
+                                {BOOK_EMOJIS.map(emoji => (
+                                    <button
+                                        key={emoji}
+                                        type="button"
+                                        onClick={() => setFormData(prev => ({ ...prev, thumbnail_url: emoji }))}
+                                        className={`py-2 flex items-center justify-center rounded-lg border-2 transition-all ${
+                                            formData.thumbnail_url === emoji ? 'border-blue-500 bg-blue-50' : 'border-slate-100 hover:border-slate-300'
+                                        }`}
+                                    >
+                                        <span className="text-xl">{emoji}</span>
+                                    </button>
+                                ))}
+                                <button
+                                    type="button"
+                                    onClick={() => fileInputRef.current?.click()}
+                                    disabled={isUploading}
+                                    className="py-2 flex items-center justify-center rounded-lg border-2 border-slate-100 hover:border-slate-300 transition-all bg-slate-50"
+                                    title="Upload Image"
+                                >
+                                    {isUploading ? (
+                                        <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                                    ) : (
+                                        <Upload size={18} className="text-slate-600" />
+                                    )}
+                                </button>
+                            </div>
+                            {errors.thumbnail_url && <p className="text-red-500 text-[10px] mt-1 font-bold uppercase">{errors.thumbnail_url}</p>}
+                        </div>
                     </div>
                     <div>
                         <label className="block text-xs font-bold text-slate-700 uppercase mb-3 tracking-wide">Metadata (JSON format)</label>

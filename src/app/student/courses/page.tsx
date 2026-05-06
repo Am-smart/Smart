@@ -110,7 +110,7 @@ function CatalogContent() {
                 if (enrolledIds.includes(course.id)) {
                     router.push(`/student/courses?id=${course.id}`);
                 } else {
-                    if (course.course_id && course.course_id.trim() !== '') {
+                    if (course.enrollment_id && course.enrollment_id.trim() !== '') {
                         setShowEnrollModal(course);
                     } else {
                         handleEnroll(course);

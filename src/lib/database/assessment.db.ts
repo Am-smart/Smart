@@ -83,7 +83,7 @@ export const assessmentDb = {
 
   async upsertSubmission(submission: Partial<Submission>, sessionId: string): Promise<Submission> {
     return dbUtils.upsert(supabase.from('submissions'), submission, 'Submission', sessionId, {
-      onConflict: 'assignment_id_student_id',
+      onConflict: 'assignment_id,student_id',
       excludeFields: ['assignments', 'assignment', 'users', 'student']
     });
   },

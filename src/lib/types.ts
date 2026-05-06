@@ -73,7 +73,7 @@ export interface SignupRequestDTO {
 
 export interface Course {
   id: string;
-  course_id?: string;
+  enrollment_id?: string;
   created_by?: string;
   title: string;
   description?: string;
@@ -88,7 +88,7 @@ export interface Course {
 
 export interface CourseDTO {
   id: string;
-  course_id?: string;
+  enrollment_id?: string;
   created_by?: string;
   title: string;
   description?: string;

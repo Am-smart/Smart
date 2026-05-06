@@ -69,7 +69,7 @@ export const learningDb = {
         student_id: studentId,
         lesson_id: lessonId,
         completed_at: new Date().toISOString()
-      }, { onConflict: 'student_id_lesson_id' });
+      }, { onConflict: 'student_id,lesson_id' });
     if (error) throw new Error(error.message);
   },
 
@@ -141,7 +141,7 @@ export const learningDb = {
 
   async upsertEnrollment(enrollment: Partial<Enrollment>, sessionId: string): Promise<Enrollment> {
     const { data, error } = await withSession(supabase.from('enrollments'), sessionId)
-      .upsert(enrollment, { onConflict: 'course_id_student_id' })
+      .upsert(enrollment, { onConflict: 'course_id,student_id' })
       .select()
       .single();
     if (error) throw new Error(error.message);

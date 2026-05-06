@@ -24,6 +24,10 @@ interface CourseListProps {
   showStatus?: boolean;
 }
 
+const isEmoji = (str: string) => {
+    return /\p{Extended_Pictographic}/u.test(str) && str.length <= 8;
+};
+
 export function CourseList({
   courses,
   isLoading = false,
@@ -76,14 +80,20 @@ export function CourseList({
         <Card key={course.id} className="overflow-hidden hover:shadow-xl transition-all duration-300 border-slate-100 group">
           <div className="h-48 bg-slate-100 relative overflow-hidden">
             {course.thumbnail_url && !imageErrors[course.id] ? (
-              <Image
-                src={course.thumbnail_url}
-                alt={course.title}
-                fill
-                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                className="object-cover group-hover:scale-105 transition-transform duration-500"
-                onError={() => setImageErrors(prev => ({ ...prev, [course.id]: true }))}
-              />
+              isEmoji(course.thumbnail_url) ? (
+                <div className="w-full h-full flex items-center justify-center bg-slate-50 text-7xl group-hover:scale-110 transition-transform duration-500">
+                  {course.thumbnail_url}
+                </div>
+              ) : (
+                <Image
+                  src={course.thumbnail_url}
+                  alt={course.title}
+                  fill
+                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                  className="object-cover group-hover:scale-105 transition-transform duration-500"
+                  onError={() => setImageErrors(prev => ({ ...prev, [course.id]: true }))}
+                />
+              )
             ) : (
               <div className="w-full h-full flex items-center justify-center bg-indigo-50">
                 <BookOpen className="h-12 w-12 text-indigo-200" />
