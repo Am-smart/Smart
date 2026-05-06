@@ -6,7 +6,7 @@ import { USER_ROLES, SESSION, SIGNUP_LIMITS } from '@/lib/constants';
 import { verifyToken, createSession } from '@/lib/crypto';
 import { validateLoginForm, normalizeEmail, validateSignupForm, normalizeInput, sanitizeObject } from '@/lib/validation';
 import { User } from '@/lib/types';
-import { UnauthorizedError } from '@/lib/api-error';
+import { UnauthorizedError, BadRequestError } from '@/lib/api-error';
 
 export const GET = withHandler(async (user, request) => {
     const { searchParams } = new URL(request.url);
@@ -38,17 +38,17 @@ export const POST = withHandler(async (user, request) => {
         case 'login': {
             const validation = validateLoginForm(data.email, data.password || '');
             if (!validation.isValid) {
-              return { user: null, sessionId: null, error: validation.errors[0].message };
+              throw new BadRequestError(validation.errors[0].message);
             }
 
             const normalizedEmail = normalizeEmail(data.email);
             const { data: rawData, error: rpcError } = await authService.authenticate(normalizedEmail, data.password || '');
 
-            if (rpcError) return { user: null, sessionId: null, error: 'Authentication service unavailable' };
+            if (rpcError) throw new Error('Authentication service unavailable');
 
             const result = rawData as { success: boolean, user: User, session_id: string, error?: string };
             if (!result.success) {
-              return { user: null, sessionId: null, error: result.error };
+              throw new UnauthorizedError(result.error || 'Invalid credentials');
             }
 
             const sessionId = result.session_id;
@@ -80,7 +80,7 @@ export const POST = withHandler(async (user, request) => {
             );
 
             if (!validation.isValid) {
-              return { user: null, sessionId: null, error: validation.errors[0].message };
+              throw new BadRequestError(validation.errors[0].message);
             }
 
             // Role limit check
@@ -89,7 +89,7 @@ export const POST = withHandler(async (user, request) => {
 
                 const limit = data.role === USER_ROLES.TEACHER ? SIGNUP_LIMITS.TEACHER : SIGNUP_LIMITS.ADMIN;
                 if (count >= limit) {
-                    return { user: null, sessionId: null, error: `Signup limit reached for role: ${data.role}` };
+                    throw new BadRequestError(`Signup limit reached for role: ${data.role}`);
                 }
             }
 
@@ -101,10 +101,10 @@ export const POST = withHandler(async (user, request) => {
               role: data.role || USER_ROLES.STUDENT
             });
 
-            if (rpcError) return { user: null, sessionId: null, error: 'Signup service unavailable' };
+            if (rpcError) throw new Error('Signup service unavailable');
 
             const result = rawData as { success: boolean, user: User, session_id: string, error?: string };
-            if (!result.success) return { user: null, sessionId: null, error: result.error };
+            if (!result.success) throw new BadRequestError(result.error || 'Signup failed');
 
             const sessionId = result.session_id;
             const token = await createSession({
