@@ -77,7 +77,7 @@ CREATE TABLE IF NOT EXISTS enrollments (
   enrolled_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   progress INTEGER DEFAULT 0,
   completed BOOLEAN DEFAULT FALSE,
-  CONSTRAINT enrollment_id PRIMARY KEY (course_id, student_id)
+  PRIMARY KEY (course_id, student_id)
 );
 
 CREATE TABLE IF NOT EXISTS assignments (
@@ -125,7 +125,7 @@ CREATE TABLE IF NOT EXISTS submissions (
   status VARCHAR(50) DEFAULT 'submitted' CHECK (status IN ('draft', 'submitted', 'graded', 'returned')),
   violation_count INTEGER DEFAULT 0,
   version INTEGER DEFAULT 1,
-  CONSTRAINT submission_id UNIQUE(assignment_id, student_id)
+  UNIQUE(assignment_id, student_id)
 );
 
 CREATE TABLE IF NOT EXISTS live_classes (
@@ -157,7 +157,7 @@ CREATE TABLE IF NOT EXISTS attendance (
   duration INTEGER DEFAULT 0,
   is_present BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  CONSTRAINT attendance_id UNIQUE(live_class_id, student_id)
+  UNIQUE(live_class_id, student_id)
 );
 
 CREATE TABLE IF NOT EXISTS quizzes (
@@ -198,7 +198,7 @@ CREATE TABLE IF NOT EXISTS quiz_submissions (
   violation_count INTEGER DEFAULT 0,
   version INTEGER DEFAULT 1,
   attempt_number INTEGER DEFAULT 1,
-  CONSTRAINT quiz_submission_id UNIQUE(quiz_id, student_id, attempt_number)
+  UNIQUE(quiz_id, student_id, attempt_number)
 );
 
 CREATE TABLE IF NOT EXISTS materials (
@@ -286,7 +286,7 @@ CREATE TABLE IF NOT EXISTS lesson_completions (
   student_id UUID REFERENCES users(id) ON UPDATE CASCADE ON DELETE CASCADE,
   lesson_id UUID REFERENCES lessons(id) ON DELETE CASCADE,
   completed_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  CONSTRAINT lesson_completion_id UNIQUE(student_id, lesson_id)
+  UNIQUE(student_id, lesson_id)
 );
 
 CREATE TABLE IF NOT EXISTS system_logs (
@@ -412,7 +412,7 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'quiz_submissions' AND column_name = 'attempt_number') THEN
         ALTER TABLE quiz_submissions ADD COLUMN attempt_number INTEGER DEFAULT 1;
         ALTER TABLE quiz_submissions DROP CONSTRAINT IF EXISTS quiz_submissions_quiz_id_student_id_key;
-        ALTER TABLE quiz_submissions ADD CONSTRAINT quiz_submissions_attempt_unique UNIQUE(quiz_id, student_id, attempt_number);
+        ALTER TABLE quiz_submissions ADD UNIQUE(quiz_id, student_id, attempt_number);
     END IF;
 END $$;
 
