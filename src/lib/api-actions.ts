@@ -464,6 +464,23 @@ export async function getSettings(): Promise<SettingDTO[]> {
     return apiClient.get<SettingDTO[]>('/api/system?action=settings');
 }
 
+export async function getSystemStats(): Promise<Record<string, number>> {
+    return apiClient.get<Record<string, number>>('/api/system?action=stats');
+}
+
+export async function getHealthMetrics(): Promise<unknown> {
+    return apiClient.get<unknown>('/api/system?action=health');
+}
+
+export async function clearCache(): Promise<ActionResponse> {
+    try {
+        await apiClient.post('/api/system', { action: 'clear-cache' });
+        return { success: true };
+    } catch (error: unknown) {
+        return { success: false, error: (error as Error).message };
+    }
+}
+
 export async function updateSetting(key: string, value: unknown): Promise<ActionResponse> {
     try {
         await apiClient.post('/api/system', { action: 'update-setting', key, value });

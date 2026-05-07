@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
-import { getUsers, getCourses } from '@/lib/api-actions';
+import { getUsers, getSystemStats } from '@/lib/api-actions';
 import { StatCard } from '@/components/ui/StatCard';
 
 export default function AdminDashboard() {
@@ -18,14 +18,14 @@ export default function AdminDashboard() {
 
   const fetchData = useCallback(async () => {
     if (!user) return;
-    const [allUsers, allCourses] = await Promise.all([
+    const [allUsers, systemStats] = await Promise.all([
         getUsers(),
-        getCourses()
+        getSystemStats()
     ]);
 
     setStats({
-      totalUsers: allUsers.length,
-      activeCourses: allCourses.filter(c => c.status === 'published').length,
+      totalUsers: systemStats.users || allUsers.length,
+      activeCourses: systemStats.courses || 0,
       flaggedUsers: allUsers.filter(u => (u).flagged).length,
       teachers: allUsers.filter(u => u.role === 'teacher').length,
       students: allUsers.filter(u => u.role === 'student').length,
