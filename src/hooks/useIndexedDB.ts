@@ -19,7 +19,7 @@ export interface QueueItem {
 
 export const useIndexedDB = () => {
   const [db, setDb] = useState<IDBDatabase | null>(null);
-  const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
+  const [isOnline, setIsOnline] = useState(true);
   const [isBackendConnected, setIsBackendConnected] = useState(true);
   const [syncErrors] = useState<unknown[]>([]);
   const isSyncing = useRef(false);
@@ -78,6 +78,9 @@ export const useIndexedDB = () => {
 
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
+
+    // Sync initial online status to avoid hydration mismatch
+    setIsOnline(navigator.onLine);
 
     const handleConnectivityChange = (event: Event) => {
         const detail = (event as CustomEvent).detail;
