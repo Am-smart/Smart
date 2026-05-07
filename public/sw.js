@@ -6,8 +6,7 @@ const STATIC_ASSETS = [
   '/globe.svg',
   '/file.svg',
   '/next.svg',
-  '/vercel.svg',
-  '/favicon.ico'
+  '/vercel.svg'
 ];
 
 self.addEventListener('install', (event) => {
