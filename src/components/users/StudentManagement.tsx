@@ -1,8 +1,9 @@
 import React from 'react';
 import { EnrollmentDTO } from '@/lib/types';
-import { Trash2 } from 'lucide-react';
+import { Trash2, FileSpreadsheet, FileText } from 'lucide-react';
 import { useAppContext } from '@/components/AppContext';
 import { unenrollStudent } from '@/lib/api-actions';
+import { exportToCSV, exportToPDF } from '@/lib/report-utils';
 
 interface StudentManagementProps {
     initialEnrollments: EnrollmentDTO[];
@@ -25,9 +26,41 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ initialEnr
         }
     };
 
+    const handleExportCSV = () => {
+        const data = initialEnrollments.map(e => ({
+            Student: e.student?.full_name || 'Unknown',
+            Email: e.student?.email || 'N/A',
+            Course: e.course?.title || 'N/A',
+            Progress: `${e.progress}%`,
+            Enrolled: e.enrolled_at ? new Date(e.enrolled_at).toLocaleDateString() : 'N/A'
+        }));
+        exportToCSV(data, 'Student_Management_Report');
+    };
+
+    const handleExportPDF = () => {
+        const headers = ['Student', 'Course', 'Progress', 'Enrolled'];
+        const rows = initialEnrollments.map(e => [
+            e.student?.full_name || 'Unknown',
+            e.course?.title || 'N/A',
+            `${e.progress}%`,
+            e.enrolled_at ? new Date(e.enrolled_at).toLocaleDateString() : 'N/A'
+        ]);
+        exportToPDF('Student Management Report', headers, rows, 'Student_Management_Report');
+    };
+
     return (
         <div className="space-y-8">
-            <h2 className="text-2xl font-bold mb-8">Student Management</h2>
+            <div className="flex justify-between items-center mb-8">
+                <h2 className="text-2xl font-bold">Student Management</h2>
+                <div className="flex gap-4">
+                    <button onClick={handleExportCSV} className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-slate-500 hover:text-green-600 transition-colors">
+                        <FileSpreadsheet size={16} /> Export CSV
+                    </button>
+                    <button onClick={handleExportPDF} className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-slate-500 hover:text-red-600 transition-colors">
+                        <FileText size={16} /> Export PDF
+                    </button>
+                </div>
+            </div>
 
             <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden overflow-x-auto">
                 <table className="w-full text-left min-w-[700px]">
