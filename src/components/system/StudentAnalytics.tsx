@@ -1,6 +1,8 @@
 import React, { useMemo } from 'react';
 import { SubmissionDTO, QuizSubmissionDTO } from '@/lib/types';
 import { EnrollmentDTO } from '@/lib/types';
+import { exportToPDF, exportToCSV } from '@/lib/report-utils';
+import { FileText, FileSpreadsheet } from 'lucide-react';
 
 interface StudentAnalyticsProps {
   submissions: SubmissionDTO[];
@@ -28,9 +30,42 @@ export const StudentAnalytics: React.FC<StudentAnalyticsProps> = ({ submissions,
     return { totalAssignments, avgAssignmentScore, totalQuizzes, avgQuizScore, completionRate };
   }, [submissions, quizSubmissions, enrollments]);
 
+  const handleExportPDF = () => {
+    const headers = ['Metric', 'Value'];
+    const rows = [
+        ['Total Assignments', stats.totalAssignments.toString()],
+        ['Avg Assignment Score', `${stats.avgAssignmentScore}%`],
+        ['Total Quizzes', stats.totalQuizzes.toString()],
+        ['Avg Quiz Score', `${stats.avgQuizScore}%`],
+        ['Overall Completion Rate', `${stats.completionRate}%`]
+    ];
+    exportToPDF('My Learning Progress Report', headers, rows, 'My_Learning_Report');
+  };
+
+  const handleExportCSV = () => {
+    const data = [
+        { Metric: 'Total Assignments', Value: stats.totalAssignments },
+        { Metric: 'Avg Assignment Score', Value: `${stats.avgAssignmentScore}%` },
+        { Metric: 'Total Quizzes', Value: stats.totalQuizzes },
+        { Metric: 'Avg Quiz Score', Value: `${stats.avgQuizScore}%` },
+        { Metric: 'Overall Completion Rate', Value: `${stats.completionRate}%` }
+    ];
+    exportToCSV(data, 'My_Learning_Report');
+  };
+
   return (
     <div className="space-y-8">
-      <h2 className="text-2xl font-bold text-slate-900 mb-8">Learning Progress Analytics</h2>
+      <div className="flex justify-between items-center mb-8">
+        <h2 className="text-2xl font-bold text-slate-900">Learning Progress Analytics</h2>
+        <div className="flex gap-4">
+            <button onClick={handleExportCSV} className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest bg-slate-100 text-slate-600 px-6 py-3 rounded-2xl hover:bg-slate-200 transition-all">
+                <FileSpreadsheet size={16} /> Export CSV
+            </button>
+            <button onClick={handleExportPDF} className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest bg-blue-600 text-white px-6 py-3 rounded-2xl hover:bg-blue-700 transition-all shadow-lg shadow-blue-200">
+                <FileText size={16} /> Export PDF
+            </button>
+        </div>
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 flex flex-col items-center justify-center text-center">

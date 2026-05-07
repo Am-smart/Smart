@@ -5,6 +5,8 @@ import { useAuth } from '@/components/auth/AuthContext';
 import { getCourses, getEnrollments, getSubmissions, getQuizSubmissions } from '@/lib/api-actions';
 import { EnrollmentDTO } from '@/lib/types';
 import { SubmissionDTO, QuizSubmissionDTO } from '@/lib/types';
+import { exportToCSV, exportToPDF } from '@/lib/report-utils';
+import { FileSpreadsheet, FileText } from 'lucide-react';
 
 export default function GradeBookPage() {
   const { user } = useAuth();
@@ -47,12 +49,42 @@ export default function GradeBookPage() {
       return Math.round(avg);
   };
 
+  const handleExportCSV = () => {
+    const data = enrollments.map(e => ({
+        Student: e.student?.full_name || 'Anonymous',
+        Email: e.student?.email || 'N/A',
+        Course: e.course?.title || 'N/A',
+        Progress: `${e.progress}%`,
+        Grade: calculateGrade(e.student_id, e.course_id)?.toString() || 'N/A'
+    }));
+    exportToCSV(data, 'Gradebook_Report');
+  };
+
+  const handleExportPDF = () => {
+    const headers = ['Student', 'Course', 'Progress', 'Grade'];
+    const rows = enrollments.map(e => [
+        e.student?.full_name || 'Anonymous',
+        e.course?.title || 'N/A',
+        `${e.progress}%`,
+        calculateGrade(e.student_id, e.course_id)?.toString() || 'N/A'
+    ]);
+    exportToPDF('Teacher Grade Book Report', headers, rows, 'Gradebook_Report');
+  };
+
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
         <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
             <div>
                 <h2 className="text-2xl font-black text-slate-900 tracking-tight">Grade Book</h2>
                 <p className="text-slate-500 text-sm font-medium">Detailed academic performance tracking for all enrolled students.</p>
+                <div className="flex gap-4 mt-4">
+                    <button onClick={handleExportCSV} className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-green-600 transition-colors">
+                        <FileSpreadsheet size={14} /> Export CSV
+                    </button>
+                    <button onClick={handleExportPDF} className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-500 hover:text-red-600 transition-colors">
+                        <FileText size={14} /> Export PDF
+                    </button>
+                </div>
             </div>
             <div className="bg-blue-600 text-white px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest">
                 {enrollments.length} Students
