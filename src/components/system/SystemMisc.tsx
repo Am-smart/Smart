@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { User, Activity, Clock } from 'lucide-react';
+import { User, Activity, Clock, FileText, FileSpreadsheet } from 'lucide-react';
+import { exportToPDF, exportToCSV } from '@/lib/report-utils';
 import {
     getUsers,
     getCourses,
@@ -8,11 +9,9 @@ import {
     getQuizzes,
     getQuizSubmissions,
     getSystemLogs,
-    getLessonCompletions
+    getLessonCompletions,
+    getSessions
 } from '@/lib/api-actions';
-
-// Mock/Helper for sessions as we don't have a direct getSessions in api-actions
-const getSessions = async () => [] as Record<string, string | number | boolean>[];
 
 export const AdminAnalytics: React.FC = () => {
     const [counts, setCounts] = useState({ users: 0, sessions: 0, courses: 0, lessonCompletions: 0, quizPasses: 0 });
@@ -64,9 +63,42 @@ export const AdminAnalytics: React.FC = () => {
         fetchAnalytics();
     }, []);
 
+    const handleExportPDF = () => {
+        const headers = ['Metric', 'Value'];
+        const rows = [
+            ['Total Users', counts.users.toString()],
+            ['Active Sessions', counts.sessions.toString()],
+            ['Total Courses', counts.courses.toString()],
+            ['Lesson Completions', counts.lessonCompletions.toString()],
+            ['Quizzes Passed', counts.quizPasses.toString()]
+        ];
+        exportToPDF('System Analytics Report', headers, rows, 'System_Analytics_Report');
+    };
+
+    const handleExportCSV = () => {
+        const data = [
+            { Metric: 'Total Users', Value: counts.users },
+            { Metric: 'Active Sessions', Value: counts.sessions },
+            { Metric: 'Total Courses', Value: counts.courses },
+            { Metric: 'Lesson Completions', Value: counts.lessonCompletions },
+            { Metric: 'Quizzes Passed', Value: counts.quizPasses }
+        ];
+        exportToCSV(data, 'System_Analytics_Report');
+    };
+
     return (
         <div className="space-y-8">
-            <h2 className="text-2xl font-bold">System Analytics</h2>
+            <div className="flex justify-between items-center">
+                <h2 className="text-2xl font-bold">System Analytics</h2>
+                <div className="flex gap-2">
+                    <button onClick={handleExportCSV} className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest bg-slate-100 px-4 py-2 rounded-xl hover:bg-slate-200 transition-colors text-slate-600">
+                        <FileSpreadsheet size={14} /> CSV
+                    </button>
+                    <button onClick={handleExportPDF} className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest bg-slate-100 px-4 py-2 rounded-xl hover:bg-slate-200 transition-colors text-slate-600">
+                        <FileText size={14} /> PDF
+                    </button>
+                </div>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm">
                     <div className="flex items-center gap-4 mb-4">

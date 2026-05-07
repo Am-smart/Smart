@@ -1,5 +1,7 @@
 import React from 'react';
 import { UserDTO } from '@/lib/types';
+import { exportToCSV, exportToPDF } from '@/lib/report-utils';
+import { FileSpreadsheet, FileText } from 'lucide-react';
 
 interface UserManagementProps {
   users: UserDTO[];
@@ -15,10 +17,44 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, onAdd, on
     await onUpdate(id, { locked_until: lockedUntil, lockouts: (users.find(u => u.id === id)?.lockouts || 0) + 1 });
   };
 
+    const handleExportCSV = () => {
+        const data = users.map(u => ({
+            Name: u.full_name,
+            Email: u.email,
+            Role: u.role,
+            Active: u.active ? 'Yes' : 'No',
+            Flagged: u.flagged ? 'Yes' : 'No',
+            Joined: new Date(u.created_at).toLocaleDateString()
+        }));
+        exportToCSV(data, 'LMS_Users_Report');
+    };
+
+    const handleExportPDF = () => {
+        const headers = ['Name', 'Email', 'Role', 'Status', 'Joined'];
+        const rows = users.map(u => [
+            u.full_name,
+            u.email,
+            u.role,
+            u.active ? 'Active' : 'Inactive',
+            new Date(u.created_at).toLocaleDateString()
+        ]);
+        exportToPDF('LMS User Management Report', headers, rows, 'LMS_Users_Report');
+    };
+
   return (
     <div>
         <div className="flex justify-between items-center mb-8">
-            <h2 className="text-2xl font-bold">User Management</h2>
+            <div>
+                <h2 className="text-2xl font-bold">User Management</h2>
+                <div className="flex gap-2 mt-2">
+                    <button onClick={handleExportCSV} className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-slate-500 hover:text-green-600 transition-colors">
+                        <FileSpreadsheet size={14} /> Export CSV
+                    </button>
+                    <button onClick={handleExportPDF} className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-wider text-slate-500 hover:text-red-600 transition-colors">
+                        <FileText size={14} /> Export PDF
+                    </button>
+                </div>
+            </div>
             <button onClick={onAdd} className="btn-primary py-2 px-6">Add User</button>
         </div>
         <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden overflow-x-auto">
