@@ -53,7 +53,7 @@ export const dbUtils = {
    */
   async upsert<
     T extends { id?: string; version?: number },
-    QB extends { upsert: (data: unknown, options?: { onConflict?: string }) => FB },
+    QB extends { upsert: (data: any, options?: { onConflict?: string }) => FB },
     FB extends { select: () => TB; eq: (column: string, value: string | number) => FB },
     TB extends { single: () => PromiseLike<{ data: unknown; error: { code: string; message: string } | null }> }
   >(
