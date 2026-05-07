@@ -522,6 +522,24 @@ export async function markNotificationAsRead(notificationId: string): Promise<Ac
     }
 }
 
+export async function dismissNotification(notificationId: string): Promise<ActionResponse> {
+    try {
+        await apiClient.patch(`/api/v1/system?action=notification&subAction=dismiss&id=${notificationId}`, {});
+        return { success: true };
+    } catch (error: unknown) {
+        return { success: false, error: error instanceof Error ? (error as Error).message : 'Unknown error' };
+    }
+}
+
+export async function acknowledgeNotification(notificationId: string): Promise<ActionResponse> {
+    try {
+        await apiClient.patch(`/api/v1/system?action=notification&subAction=acknowledge&id=${notificationId}`, {});
+        return { success: true };
+    } catch (error: unknown) {
+        return { success: false, error: error instanceof Error ? (error as Error).message : 'Unknown error' };
+    }
+}
+
 export async function markAllNotificationsAsRead(userId: string): Promise<ActionResponse> {
     try {
         await apiClient.patch(`/api/v1/system?action=notification&userId=${userId}`, { markAll: true });

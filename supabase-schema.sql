@@ -234,6 +234,9 @@ CREATE TABLE IF NOT EXISTS notifications (
   link TEXT,
   type VARCHAR(50) DEFAULT 'system',
   is_read BOOLEAN DEFAULT FALSE,
+  dismissed_at TIMESTAMP WITH TIME ZONE,
+  acknowledged_at TIMESTAMP WITH TIME ZONE,
+  metadata JSONB DEFAULT '{}'::jsonb,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -350,6 +353,17 @@ BEGIN
     END IF;
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'submissions' AND column_name = 'response_feedback') THEN
         ALTER TABLE submissions ADD COLUMN response_feedback JSONB DEFAULT '{}'::jsonb;
+    END IF;
+
+    -- Notifications Extended Tracking
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'notifications' AND column_name = 'dismissed_at') THEN
+        ALTER TABLE notifications ADD COLUMN dismissed_at TIMESTAMP WITH TIME ZONE;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'notifications' AND column_name = 'acknowledged_at') THEN
+        ALTER TABLE notifications ADD COLUMN acknowledged_at TIMESTAMP WITH TIME ZONE;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'notifications' AND column_name = 'metadata') THEN
+        ALTER TABLE notifications ADD COLUMN metadata JSONB DEFAULT '{}'::jsonb;
     END IF;
 
     -- Scheduling
@@ -895,11 +909,12 @@ CREATE TRIGGER tr_users_lockout_flag BEFORE UPDATE ON users FOR EACH ROW EXECUTE
 CREATE OR REPLACE FUNCTION tr_notify_live_class() RETURNS TRIGGER AS $$
 BEGIN
   IF (NEW.status = 'live' AND (OLD.status IS NULL OR OLD.status != 'live')) THEN
-    PERFORM broadcast_data(NEW.course_id, 'student', 'Live Class Started', 'The class "' || NEW.title || '" has started! Join now.', '/student/live', 'live_class', INTERVAL '1 day');
+    PERFORM broadcast_data(NEW.course_id, 'student', 'Live Class Started', 'The class "' || NEW.title || '" has started! Join now.', 'live:' || NEW.id, 'live_class', INTERVAL '1 day');
   ELSIF (NEW.status = 'scheduled' AND OLD.status IS NULL) THEN
-    PERFORM broadcast_data(NEW.course_id, 'student', 'Live Class Scheduled', 'A new live class "' || NEW.title || '" has been scheduled for ' || NEW.start_at, '/student/live', 'live_class', INTERVAL '7 days');
+    -- Scheduled notification should point to live list/item
+    PERFORM broadcast_data(NEW.course_id, 'student', 'Live Class Scheduled', 'A new live class "' || NEW.title || '" has been scheduled for ' || NEW.start_at, 'live:' || NEW.id, 'live_class', INTERVAL '7 days');
   ELSIF (NEW.status = 'completed' AND OLD.status = 'live') THEN
-    PERFORM broadcast_data(NEW.course_id, 'student', 'Class Ended', 'The live class "' || NEW.title || '" has ended.', '/student/live', 'class_ended', INTERVAL '1 day');
+    PERFORM broadcast_data(NEW.course_id, 'student', 'Class Ended', 'The live class "' || NEW.title || '" has ended.', 'live:' || NEW.id, 'class_ended', INTERVAL '1 day');
   END IF;
   RETURN NEW;
 END;
@@ -911,7 +926,7 @@ CREATE TRIGGER tr_live_class_event AFTER INSERT OR UPDATE ON live_classes FOR EA
 CREATE OR REPLACE FUNCTION tr_notify_assignment() RETURNS TRIGGER AS $$
 BEGIN
   IF (NEW.status = 'published' AND (OLD.status IS NULL OR OLD.status != 'published')) THEN
-    PERFORM broadcast_data(NEW.course_id, 'student', 'New Assignment', 'A new assignment "' || NEW.title || '" has been published.', '/student/assignments', 'assignment_published', INTERVAL '14 days');
+    PERFORM broadcast_data(NEW.course_id, 'student', 'New Assignment', 'A new assignment "' || NEW.title || '" has been published.', 'assignment:' || NEW.id, 'assignment_published', INTERVAL '14 days');
   END IF;
   RETURN NEW;
 END;
@@ -923,7 +938,7 @@ CREATE TRIGGER tr_assignment_published AFTER INSERT OR UPDATE ON assignments FOR
 CREATE OR REPLACE FUNCTION tr_notify_quiz() RETURNS TRIGGER AS $$
 BEGIN
   IF (NEW.status = 'published' AND (OLD.status IS NULL OR OLD.status != 'published')) THEN
-    PERFORM broadcast_data(NEW.course_id, 'student', 'New Quiz Available', 'A new quiz "' || NEW.title || '" has been published.', '/student/quizzes', 'quiz_published', INTERVAL '14 days');
+    PERFORM broadcast_data(NEW.course_id, 'student', 'New Quiz Available', 'A new quiz "' || NEW.title || '" has been published.', 'quiz:' || NEW.id, 'quiz_published', INTERVAL '14 days');
   END IF;
   RETURN NEW;
 END;
@@ -931,6 +946,43 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 DROP TRIGGER IF EXISTS tr_quiz_published ON quizzes;
 CREATE TRIGGER tr_quiz_published AFTER INSERT OR UPDATE ON quizzes FOR EACH ROW EXECUTE PROCEDURE tr_notify_quiz();
+
+-- Scalable Fan-out for Broadcasts
+CREATE OR REPLACE FUNCTION tr_fan_out_broadcast() RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO notifications (user_id, title, message, link, type, metadata)
+  SELECT
+    u.id,
+    NEW.title,
+    NEW.message,
+    NEW.link,
+    NEW.type,
+    jsonb_build_object('broadcast_id', NEW.id, 'expires_at', NEW.expires_at)
+  FROM users u
+  WHERE
+    (NEW.target_role IS NULL OR u.role = NEW.target_role)
+    AND (
+      NEW.course_id IS NULL
+      OR EXISTS (SELECT 1 FROM enrollments e WHERE e.student_id = u.id AND e.course_id = NEW.course_id)
+      OR u.role = 'admin'
+      OR (u.role = 'teacher' AND EXISTS (SELECT 1 FROM courses c WHERE c.id = NEW.course_id AND c.teacher_id = u.id))
+    );
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS tr_broadcast_fan_out ON broadcasts;
+CREATE TRIGGER tr_broadcast_fan_out AFTER INSERT ON broadcasts
+FOR EACH ROW EXECUTE PROCEDURE tr_fan_out_broadcast();
+
+-- Notification Lifecycle Management (Cleanup)
+CREATE OR REPLACE FUNCTION cleanup_expired_notifications() RETURNS VOID AS $$
+BEGIN
+  DELETE FROM notifications
+  WHERE (metadata->>'expires_at') IS NOT NULL
+  AND (metadata->>'expires_at')::timestamp with time zone < NOW();
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- User Creation Limits
 DROP FUNCTION IF EXISTS enforce_user_creation_limits() CASCADE;

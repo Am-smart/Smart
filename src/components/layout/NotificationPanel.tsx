@@ -3,8 +3,9 @@
 import React, { useState, useRef, useEffect, useMemo, memo } from 'react';
 import { useRouter } from 'next/navigation';
 import { Notification } from '@/lib/types';
-import { X, CheckCircle2, AlertCircle, Info, Bell, Trash2, Filter } from 'lucide-react';
+import { X, CheckCircle2, AlertCircle, Info, Bell, Trash2, Filter, Eye, Check } from 'lucide-react';
 import { parseDeepLink } from '@/lib/utils';
+import * as actions from '@/lib/api-actions';
 
 interface NotificationPanelProps {
   notifications: Notification[];
@@ -12,6 +13,8 @@ interface NotificationPanelProps {
   onClose: () => void;
   onNotificationClick: (notification: Notification) => Promise<void>;
   onClearAll?: () => Promise<void>;
+  onDismiss?: (id: string) => Promise<void>;
+  onAcknowledge?: (id: string) => Promise<void>;
 }
 
 // Get icon based on notification type
@@ -90,20 +93,32 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = memo(({
     try {
       setIsNavigating(true);
 
-      // Call the callback to mark as read or perform other actions
-      await onNotificationClick(notification);
+      // Track engagement
+      await actions.createSystemLog({
+          level: 'info',
+          category: 'engagement',
+          message: `Notification clicked: ${notification.title}`,
+          metadata: { notification_id: notification.id, link: notification.link }
+      });
 
-      // Parse and navigate to the deep link
-      const deepLink = parseDeepLink(notification.link, userRole);
-      if (deepLink) {
-        router.push(deepLink);
-        onClose(); // Close panel after navigation
-      }
+      // Call the callback to mark as read or perform other actions
+      // DashboardHeader handles navigation and marking as read
+      await onNotificationClick(notification);
     } catch (error) {
       console.error('Failed to handle notification click:', error);
     } finally {
       setIsNavigating(false);
     }
+  };
+
+  const handleDismiss = async (e: React.MouseEvent, id: string) => {
+      e.stopPropagation();
+      if (onDismiss) await onDismiss(id);
+  };
+
+  const handleAcknowledge = async (e: React.MouseEvent, id: string) => {
+      e.stopPropagation();
+      if (onAcknowledge) await onAcknowledge(id);
   };
 
   return (
@@ -229,6 +244,26 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = memo(({
                           {!notification.is_read && (
                             <div className="shrink-0 w-2 h-2 bg-blue-600 rounded-full mt-2" />
                           )}
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="absolute right-4 bottom-4 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            {!notification.acknowledged_at && (
+                                <button
+                                    onClick={(e) => handleAcknowledge(e, notification.id)}
+                                    className="p-1.5 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-colors"
+                                    title="Acknowledge"
+                                >
+                                    <Check size={14} />
+                                </button>
+                            )}
+                            <button
+                                onClick={(e) => handleDismiss(e, notification.id)}
+                                className="p-1.5 bg-slate-100 text-slate-500 rounded-lg hover:bg-slate-200 transition-colors"
+                                title="Dismiss"
+                            >
+                                <Eye size={14} />
+                            </button>
                         </div>
 
                         {/* Deep link indicator */}

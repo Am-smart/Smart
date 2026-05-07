@@ -1,5 +1,6 @@
 import React from 'react';
 import { QuizDTO, QuizSubmissionDTO } from '@/lib/types';
+import { Countdown } from '@/components/ui/Countdown';
 
 interface QuizzesListProps {
   quizzes: QuizDTO[];
@@ -58,11 +59,19 @@ export const QuizzesList: React.FC<QuizzesListProps> = ({ quizzes, submissions, 
                 </div>
               )}
 
-              <div className="mt-auto pt-4">
+              <div className="mt-auto pt-4 space-y-3">
+                {canAttempt && !isNotStarted && !isEnded && endAt && (
+                   <div className="flex justify-center">
+                     <Countdown targetDate={endAt} compact className="text-xs" />
+                   </div>
+                )}
                 {!canAttempt ? (
                   <div className="w-full text-center bg-slate-100 text-slate-500 py-3 rounded-xl font-bold text-xs uppercase">All Attempts Used</div>
                 ) : isNotStarted ? (
-                  <div className="w-full text-center bg-amber-50 text-amber-600 py-3 rounded-xl font-bold text-xs uppercase">Available {startAt?.toLocaleDateString()}</div>
+                  <div className="w-full flex flex-col items-center gap-2 bg-amber-50 text-amber-600 py-3 rounded-xl">
+                    <span className="font-bold text-xs uppercase">Starts in:</span>
+                    <Countdown targetDate={startAt!} compact />
+                  </div>
                 ) : isEnded ? (
                   <div className="w-full text-center bg-slate-100 text-slate-500 py-3 rounded-xl font-bold text-xs uppercase">Quiz Closed</div>
                 ) : (

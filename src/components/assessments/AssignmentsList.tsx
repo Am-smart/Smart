@@ -1,5 +1,6 @@
 import React from 'react';
 import { AssignmentDTO, SubmissionDTO } from '@/lib/types';
+import { Countdown } from '@/components/ui/Countdown';
 
 interface AssignmentsListProps {
   assignments: AssignmentDTO[];
@@ -46,7 +47,11 @@ export const AssignmentsList: React.FC<AssignmentsListProps> = ({ assignments, s
                       <div className={`text-sm ${isOverdue ? 'text-red-500 font-semibold' : 'text-slate-600'}`}>
                         {new Date(assignment.due_date).toLocaleDateString()}
                       </div>
-                      {isOverdue && <div className="text-[10px] text-red-500 uppercase font-bold tracking-tight">Overdue</div>}
+                      {isOverdue ? (
+                        <div className="text-[10px] text-red-500 uppercase font-bold tracking-tight">Overdue</div>
+                      ) : (
+                        !submission && <Countdown targetDate={assignment.due_date} compact className="mt-1" />
+                      )}
                     </td>
                     <td className="px-6 py-4">
                       {submission ? (

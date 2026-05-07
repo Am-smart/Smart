@@ -201,54 +201,27 @@ export class SystemService {
     await systemDb.markAllNotificationsAsRead(userId, sessionId);
   }
 
+  async dismissNotification(id: string, sessionId: string): Promise<void> {
+      await systemDb.updateNotification(id, { dismissed_at: new Date().toISOString() }, sessionId);
+  }
+
+  async acknowledgeNotification(id: string, sessionId: string): Promise<void> {
+      await systemDb.updateNotification(id, { acknowledged_at: new Date().toISOString(), is_read: true }, sessionId);
+  }
+
   async notifyUser(params: { target_id: string, n_title: string, n_msg: string, n_link?: string, n_type?: string }, sessionId: string): Promise<void> {
     await systemDb.createNotification(params.target_id, params.n_title, params.n_msg, params.n_link, params.n_type, sessionId);
   }
 
   async getMergedNotifications(user: User, userId: string, sessionId: string): Promise<Notification[]> {
-    const [notifications, broadcasts] = await Promise.all([
-      this.getNotifications(userId, sessionId, user),
-      systemDb.findAllBroadcasts(sessionId)
-    ]);
+    // With fan-out trigger, all broadcasts now exist as individual notifications.
+    // We only need to fetch from the notifications table.
+    // We filter out dismissed notifications.
+    const notifications = await this.getNotifications(userId, sessionId, user);
 
-    const enrollments = await learningDb.findEnrollmentsByStudentId(userId, sessionId);
-    const enrolledCourseIds = enrollments.map(e => e.course_id);
-
-    // Filter broadcasts relevant to this user
-    const filteredBroadcasts = broadcasts.filter(b => {
-      const now = new Date();
-      const expiresAt = b.expires_at ? new Date(b.expires_at) : null;
-      if (expiresAt && now > expiresAt) return false;
-
-      if (b.target_role && b.target_role !== user.role) return false;
-
-      // If student, only show broadcasts for enrolled courses
-      if (user.role === 'student' && b.course_id && !enrolledCourseIds.includes(b.course_id)) {
-          return false;
-      }
-
-      return true;
-    });
-
-    // Map broadcasts to notification format
-    const broadcastNotifications: Notification[] = filteredBroadcasts.map(b => ({
-      id: b.id,
-      user_id: userId,
-      title: b.title,
-      message: b.message,
-      link: b.link,
-      type: b.type || 'broadcast',
-      is_read: false,
-      created_at: b.created_at,
-      version: 1,
-      is_broadcast: true
-    } as Notification & { is_broadcast: boolean }));
-
-    const merged = [...notifications, ...broadcastNotifications].sort(
+    return notifications.filter(n => !n.dismissed_at).sort(
       (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     );
-
-    return merged;
   }
 
   async getLiveClasses(courseId?: string, teacherId?: string, sessionId?: string, userId?: string, userRole?: string): Promise<LiveClass[]> {
