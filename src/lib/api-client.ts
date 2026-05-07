@@ -1,8 +1,4 @@
-export interface ApiResponse<T> {
-  success: boolean;
-  data?: T;
-  error?: string;
-}
+import { ApiResponse } from './types';
 
 export async function apiFetch<T>(url: string, options: RequestInit = {}, retries: number = 3): Promise<T> {
   // Prevent API calls when offline (client-side only)
