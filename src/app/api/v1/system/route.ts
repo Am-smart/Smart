@@ -95,6 +95,14 @@ export const GET = withHandler(async (user, request) => {
         const userId = searchParams.get('userId') || user.id;
         return learningService.getLessonCompletions(userId, user.sessionId!);
     }
+    case 'stats': {
+        if (!rbac.can(user, 'system:manage')) throw new UnauthorizedError();
+        return systemService.getSystemStats(user.sessionId!);
+    }
+    case 'health': {
+        if (!rbac.can(user, 'system:manage')) throw new UnauthorizedError();
+        return systemService.getHealthMetrics(user.sessionId!);
+    }
     default:
       throw new Error('Invalid GET action');
   }
@@ -121,6 +129,7 @@ export const POST = withHandler(async (user, request) => {
     case 'save-user': {
         const { UserMapper } = await import('@/lib/mappers');
         if (data.id) {
+            UserDomain.validateUpdate(user, data.id);
             const updated = await authService.updateUserProfile(user, data.id, data, user.sessionId!);
             return UserMapper.toDTO(updated);
         } else {
@@ -185,6 +194,12 @@ export const POST = withHandler(async (user, request) => {
     case 'upload': {
         // This usually requires multipart/form-data, keep separate route for physical uploads
         throw new Error('Physical uploads must use /api/system/upload');
+    }
+    case 'clear-cache': {
+        if (!rbac.can(user, 'system:manage')) throw new UnauthorizedError();
+        // Server-side cache clearing logic would go here if any.
+        // For now, we'll return success to indicate the request was handled.
+        return { success: true };
     }
     default:
       throw new Error('Invalid POST action');

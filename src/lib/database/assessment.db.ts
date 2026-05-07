@@ -15,11 +15,10 @@ export const assessmentDb = {
     if (teacherId) query = query.eq('teacher_id', teacherId);
     if (courseId) query = query.eq('course_id', courseId);
 
-    if (limit) query = query.limit(limit);
-    if (offset) query = query.range(offset, offset + (limit || 10) - 1);
+    query = dbUtils.applyPagination(query, { limit, offset });
 
     const { data, error } = await query;
-    if (error) throw new Error(error.message);
+    if (error) dbUtils.handleError(error);
     return data as Assignment[];
   },
 
@@ -44,11 +43,10 @@ export const assessmentDb = {
     if (courseId) query = query.eq('course_id', courseId);
     if (teacherId) query = query.eq('teacher_id', teacherId);
 
-    if (limit) query = query.limit(limit);
-    if (offset) query = query.range(offset, offset + (limit || 10) - 1);
+    query = dbUtils.applyPagination(query, { limit, offset });
 
     const { data, error } = await query;
-    if (error) throw new Error(error.message);
+    if (error) dbUtils.handleError(error);
     return data as Quiz[];
   },
 
@@ -74,11 +72,10 @@ export const assessmentDb = {
     if (studentId) query = query.eq('student_id', studentId);
     if (teacherId) query = query.eq('assignments.teacher_id', teacherId);
 
-    if (limit) query = query.limit(limit);
-    if (offset) query = query.range(offset, offset + (limit || 10) - 1);
+    query = dbUtils.applyPagination(query, { limit, offset });
 
     const { data, error } = await query;
-    if (error) throw new Error(error.message);
+    if (error) dbUtils.handleError(error);
     return data as Submission[];
   },
 

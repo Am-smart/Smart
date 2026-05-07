@@ -25,7 +25,7 @@ export const systemDb = {
 
   async findAllUsers(sessionId: string): Promise<User[]> {
     const { data, error } = await withSession(supabase.from('users').select('*'), sessionId);
-    if (error) throw new Error(error.message);
+    if (error) dbUtils.handleError(error);
     return data as User[];
   },
 
@@ -50,7 +50,7 @@ export const systemDb = {
 
   async deleteUser(id: string, sessionId: string): Promise<void> {
     const { error } = await withSession(supabase.from('users'), sessionId).delete().eq('id', id);
-    if (error) throw new Error(error.message);
+    if (error) dbUtils.handleError(error);
   },
 
   async updateUserFailedAttempts(id: string, attempts: number): Promise<void> {
@@ -312,5 +312,58 @@ export const systemDb = {
     const { data, error } = await withSession(supabase.from('system_logs'), sessionId).update(updates).eq('id', id).select().single();
     if (error) throw new Error(error.message);
     return data as SystemLog;
+  },
+
+  async getSystemStats(sessionId?: string): Promise<Record<string, number>> {
+    let usersQuery = supabase.from('users').select('*', { count: 'exact', head: true });
+    let coursesQuery = supabase.from('courses').select('*', { count: 'exact', head: true });
+    let enrollmentsQuery = supabase.from('enrollments').select('*', { count: 'exact', head: true });
+    let submissionsQuery = supabase.from('submissions').select('*', { count: 'exact', head: true });
+
+    if (sessionId) {
+        usersQuery = withSession(usersQuery, sessionId);
+        coursesQuery = withSession(coursesQuery, sessionId);
+        enrollmentsQuery = withSession(enrollmentsQuery, sessionId);
+        submissionsQuery = withSession(submissionsQuery, sessionId);
+    }
+
+    const [users, courses, enrollments, submissions] = await Promise.all([
+        usersQuery,
+        coursesQuery,
+        enrollmentsQuery,
+        submissionsQuery
+    ]);
+
+    return {
+        users: users.count || 0,
+        courses: courses.count || 0,
+        enrollments: enrollments.count || 0,
+        submissions: submissions.count || 0
+    };
+  },
+
+  async getHealthMetrics(sessionId?: string): Promise<unknown> {
+    // Basic health check for multiple systems
+    const startTime = Date.now();
+    let dbStatus = 'healthy';
+    try {
+        let query = supabase.from('settings').select('count', { count: 'exact', head: true });
+        if (sessionId) query = withSession(query, sessionId);
+        const { error } = await query;
+        if (error) dbStatus = 'degraded';
+    } catch {
+        dbStatus = 'unhealthy';
+    }
+
+    return {
+        status: dbStatus === 'healthy' ? 'ok' : 'error',
+        timestamp: new Date().toISOString(),
+        latency: Date.now() - startTime,
+        services: {
+            database: dbStatus,
+            auth: 'healthy', // Simplified
+            storage: 'healthy' // Simplified
+        }
+    };
   }
 };

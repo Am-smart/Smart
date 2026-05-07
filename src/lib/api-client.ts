@@ -10,10 +10,12 @@ export async function apiFetch<T>(url: string, options: RequestInit = {}, retrie
     throw new Error('Offline: No internet connection');
   }
 
-  // Use /api/v1 prefix consistently
-  const versionedUrl = url.startsWith('/api/') && !url.startsWith('/api/v1/')
-    ? url.replace('/api/', '/api/v1/')
-    : url.startsWith('/') ? url : `/api/v1/${url}`;
+  // All API requests should be versioned. If it doesn't start with /api/v1/, we prepend it.
+  const versionedUrl = url.startsWith('/api/v1/')
+    ? url
+    : url.startsWith('/')
+      ? url.replace('/api/', '/api/v1/')
+      : `/api/v1/${url}`;
 
   // Get session ID from sessionStorage for authenticated requests
   const sessionId = typeof window !== 'undefined' ? sessionStorage.getItem('session_id') || '' : '';
@@ -82,24 +84,5 @@ export const apiClient = {
     apiFetch<T>(url, { ...options, method: 'POST', body: JSON.stringify(body) }),
   patch: <T>(url: string, body?: unknown, options?: RequestInit) =>
     apiFetch<T>(url, { ...options, method: 'PATCH', body: JSON.stringify(body) }),
-  delete: <T>(url: string, options?: RequestInit) => apiFetch<T>(url, { ...options, method: 'DELETE' }),
-  checkHealth: async () => {
-    if (typeof window !== 'undefined' && !navigator.onLine) {
-      return false;
-    }
-
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 5000);
-      const response = await fetch('/api/v1/system?action=maintenance', {
-        method: 'GET',
-        signal: controller.signal,
-        headers: { 'Cache-Control': 'no-cache' }
-      });
-      clearTimeout(timeoutId);
-      return response.ok;
-    } catch {
-      return false;
-    }
-  }
+  delete: <T>(url: string, options?: RequestInit) => apiFetch<T>(url, { ...options, method: 'DELETE' })
 };

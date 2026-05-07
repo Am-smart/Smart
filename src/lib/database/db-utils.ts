@@ -53,7 +53,7 @@ export const dbUtils = {
    */
   async upsert<
     T extends { id?: string; version?: number },
-    QB extends { upsert: (data: any, options?: { onConflict?: string }) => FB },
+    QB extends { upsert: (data: unknown, options?: { onConflict?: string }) => FB },
     FB extends { select: () => TB; eq: (column: string, value: string | number) => FB },
     TB extends { single: () => PromiseLike<{ data: unknown; error: { code: string; message: string } | null }> }
   >(
@@ -85,5 +85,33 @@ export const dbUtils = {
     }
 
     return data as T;
+  },
+
+  /**
+   * Applies common pagination and filtering to a Supabase query
+   */
+  applyPagination<Q extends { limit: (n: number) => Q; range: (from: number, to: number) => Q }>(
+    query: Q,
+    options: { limit?: number; offset?: number } = {}
+  ): Q {
+    let q = query;
+    if (options.limit) {
+        q = q.limit(options.limit);
+    }
+    if (options.offset !== undefined) {
+        const limit = options.limit || 10;
+        q = q.range(options.offset, options.offset + limit - 1);
+    }
+    return q;
+  },
+
+  /**
+   * Standardized error handling for database operations
+   */
+  handleError(error: { message: string } | null | unknown): never {
+    if (error && typeof error === 'object' && 'message' in error) {
+        throw new Error((error as { message: string }).message || 'Database operation failed');
+    }
+    throw new Error('Unknown database error');
   }
 };

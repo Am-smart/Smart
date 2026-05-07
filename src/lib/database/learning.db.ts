@@ -19,11 +19,10 @@ export const learningDb = {
       query = query.eq('status', 'published');
     }
 
-    if (limit) query = query.limit(limit);
-    if (offset) query = query.range(offset, offset + (limit || 10) - 1);
+    query = dbUtils.applyPagination(query, { limit, offset });
 
     const { data, error } = await query;
-    if (error) throw new Error(error.message);
+    if (error) dbUtils.handleError(error);
     return data as Course[];
   },
 
@@ -35,7 +34,7 @@ export const learningDb = {
     const { error } = await withSession(supabase.from('courses'), sessionId)
       .delete()
       .eq('id', id);
-    if (error) throw new Error(error.message);
+    if (error) dbUtils.handleError(error);
   },
 
   // Lesson Operations

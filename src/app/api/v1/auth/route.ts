@@ -150,8 +150,10 @@ export const POST = withHandler(async (user, request) => {
             }
             if (!user) throw new UnauthorizedError();
             if (data.subAction === 'approve') {
+                if (!rbac.can(user, 'user:manage')) throw new UnauthorizedError();
                 return await authService.approvePasswordReset(data.userId, data.tempPassword, user.sessionId!);
             } else {
+                if (!rbac.can(user, 'user:manage')) throw new UnauthorizedError();
                 return await authService.denyPasswordReset(data.userId, data.reason, user.sessionId!);
             }
         }

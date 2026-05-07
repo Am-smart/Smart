@@ -6,13 +6,7 @@ import { User } from '@/lib/types';
 import { getErrorMessage, mapErrorToStatus } from '@/lib/api-error';
 import { headers } from 'next/headers';
 
-export interface ApiResponse<T = unknown> {
-  success: boolean;
-  data?: T;
-  error?: string;
-}
-
-export async function getSessionUser(): Promise<User | null> {
+export async function getSessionUser(request?: Request): Promise<User | null> {
   try {
     const cookieStore = await cookies();
     const token = cookieStore.get('app-user-session');
@@ -20,6 +14,16 @@ export async function getSessionUser(): Promise<User | null> {
 
     const session = await verifyToken(token.value);
     if (!session || !session.sessionId) return null;
+
+    // Optional: Validate session ID from header matches cookie for defense-in-depth
+    if (request) {
+        const headerSessionId = request.headers.get('x-session-id');
+        if (headerSessionId && headerSessionId !== session.sessionId) {
+            console.warn('Session ID mismatch between cookie and header');
+            // We still trust the HttpOnly cookie as primary source of truth,
+            // but we might want to be strict here if needed.
+        }
+    }
 
     return await authService.getCurrentUser(session.id as string, session.sessionId as string);
   } catch {
@@ -60,22 +64,35 @@ export function withHandler<T>(
         const referer = headerList.get('referer');
         const host = headerList.get('host');
 
+        // State-changing requests MUST have Origin or Referer
+        if (!origin && !referer) {
+            return NextResponse.json({ success: false, error: 'CSRF Protection: Origin/Referer required' }, { status: 403 });
+        }
+
         // Basic check: Origin must match Host if present
         if (origin) {
-            const originHost = new URL(origin).host;
-            if (originHost !== host) {
-                return NextResponse.json({ success: false, error: 'CSRF Protection: Invalid Origin' }, { status: 403 });
+            try {
+                const originHost = new URL(origin).host;
+                if (originHost !== host) {
+                    return NextResponse.json({ success: false, error: 'CSRF Protection: Invalid Origin' }, { status: 403 });
+                }
+            } catch {
+                return NextResponse.json({ success: false, error: 'CSRF Protection: Malformed Origin' }, { status: 403 });
             }
         } else if (referer) {
-            const refererHost = new URL(referer).host;
-            if (refererHost !== host) {
-                return NextResponse.json({ success: false, error: 'CSRF Protection: Invalid Referer' }, { status: 403 });
+            try {
+                const refererHost = new URL(referer).host;
+                if (refererHost !== host) {
+                    return NextResponse.json({ success: false, error: 'CSRF Protection: Invalid Referer' }, { status: 403 });
+                }
+            } catch {
+                return NextResponse.json({ success: false, error: 'CSRF Protection: Malformed Referer' }, { status: 403 });
             }
         }
     }
 
     try {
-      const user = await getSessionUser();
+      const user = await getSessionUser(request);
       if (options.requireAuth && !user) {
         return handleUnauthorized();
       }
