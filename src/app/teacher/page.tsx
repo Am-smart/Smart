@@ -89,11 +89,11 @@ export default function TeacherDashboard() {
                           <div key={course.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
                               <div className="flex items-center gap-3">
                                   <div className="w-10 h-10 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center font-bold">
-                                      {course.thumbnail && course.thumbnail.length < 4 ? course.thumbnail : '📚'}
+                                      {course.thumbnail_url && course.thumbnail_url.length < 4 ? course.thumbnail_url : '📚'}
                                   </div>
                                   <div>
                                       <div className="font-bold text-slate-900">{course.title}</div>
-                                      <div className="text-[10px] text-slate-500 uppercase font-bold tracking-tight">{course.category}</div>
+                                      <div className="text-[10px] text-slate-500 uppercase font-bold tracking-tight">{(course as any).category || 'General'}</div>
                                   </div>
                               </div>
                               <button

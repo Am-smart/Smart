@@ -1,6 +1,7 @@
 import { withHandler } from '@/app/api/api-utils';
 import { authService } from '@/lib/services/auth.service';
 import { UserMapper } from '@/lib/mappers';
+import { rbac } from '@/lib/auth/rbac';
 import { cookies } from 'next/headers';
 import { USER_ROLES, SESSION, SIGNUP_LIMITS } from '@/lib/constants';
 import { verifyToken, createSession } from '@/lib/crypto';

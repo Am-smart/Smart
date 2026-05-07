@@ -44,8 +44,9 @@ export const dbUtils = {
   handleUpsertError(error: { code: string; message: string }, entityName: string, id?: string, version?: number): never {
     if (id && version !== undefined && error.code === 'PGRST116') {
       throw new Error(`Conflict detected: ${entityName} has been updated by another user.`);
+    } else {
+      throw new Error(error.message);
     }
-    dbUtils.handleError(error);
   },
 
   /**
@@ -53,7 +54,7 @@ export const dbUtils = {
    */
   async upsert<
     T extends { id?: string; version?: number },
-    QB extends { upsert: (data: unknown, options?: { onConflict?: string }) => FB },
+    QB extends { upsert: (data: any, options?: { onConflict?: string }) => FB },
     FB extends { select: () => TB; eq: (column: string, value: string | number) => FB },
     TB extends { single: () => PromiseLike<{ data: unknown; error: { code: string; message: string } | null }> }
   >(
@@ -111,7 +112,8 @@ export const dbUtils = {
   handleError(error: { message: string } | null | unknown): never {
     if (error && typeof error === 'object' && 'message' in error) {
         throw new Error((error as { message: string }).message || 'Database operation failed');
+    } else {
+        throw new Error('Unknown database error');
     }
-    throw new Error('Unknown database error');
   }
 };

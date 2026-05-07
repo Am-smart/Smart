@@ -48,7 +48,7 @@ export const POST = withHandler(async (user, request) => {
   switch (action) {
     case 'save-assignment': {
       if (!rbac.can(user, 'assignment:manage')) throw new UnauthorizedError();
-      AssessmentDomain.validate(data);
+      AssessmentDomain.validateAssignment(data);
       const sanitized = AssessmentDomain.sanitizeEntity(data);
       const assignment = await assessmentService.saveAssignment(user.id, sanitized, user.sessionId!, user);
       return AssessmentMapper.toAssignmentDTO(assignment);

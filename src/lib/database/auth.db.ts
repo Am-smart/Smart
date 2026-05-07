@@ -1,5 +1,6 @@
 import { withSession, supabase } from '../supabase';
 import { Session } from '../types';
+import { dbUtils } from './db-utils';
 
 export const authDb = {
   // RPC Calls (Original AuthRepository)
