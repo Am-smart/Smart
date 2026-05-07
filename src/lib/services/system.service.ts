@@ -93,15 +93,24 @@ export class SystemService {
   }
 
   // Planner
-  async getPlannerItems(userId: string, sessionId: string): Promise<PlannerItem[]> {
+  async getPlannerItems(userId: string, sessionId: string, currentUser?: User): Promise<PlannerItem[]> {
+    if (currentUser && currentUser.role === 'student' && currentUser.id !== userId) {
+        throw new ForbiddenError('Unauthorized: You can only view your own planner items');
+    }
     return systemDb.findPlannerItemsByUserId(userId, sessionId);
   }
 
-  async savePlannerItem(userId: string, item: Partial<PlannerItem>, sessionId: string): Promise<PlannerItem> {
+  async savePlannerItem(userId: string, item: Partial<PlannerItem>, sessionId: string, currentUser?: User): Promise<PlannerItem> {
+    if (currentUser && currentUser.role === 'student' && currentUser.id !== userId) {
+        throw new ForbiddenError('Unauthorized: You can only manage your own planner items');
+    }
     return systemDb.upsertPlannerItem({ ...item, user_id: userId }, sessionId);
   }
 
-  async deletePlannerItem(userId: string, id: string, sessionId: string): Promise<void> {
+  async deletePlannerItem(userId: string, id: string, sessionId: string, currentUser?: User): Promise<void> {
+    if (currentUser && currentUser.role === 'student' && currentUser.id !== userId) {
+        throw new ForbiddenError('Unauthorized: You can only manage your own planner items');
+    }
     await systemDb.deletePlannerItem(id, userId, sessionId);
   }
 
@@ -171,15 +180,24 @@ export class SystemService {
     await systemDb.deleteDiscussion(id, currentUser.id, sessionId);
   }
 
-  async getNotifications(userId: string, sessionId: string): Promise<Notification[]> {
+  async getNotifications(userId: string, sessionId: string, currentUser?: User): Promise<Notification[]> {
+    if (currentUser && currentUser.role === 'student' && currentUser.id !== userId) {
+        throw new ForbiddenError('Unauthorized: You can only view your own notifications');
+    }
     return systemDb.findNotificationsByUserId(userId, sessionId);
   }
 
   async markNotificationAsRead(id: string, sessionId: string): Promise<void> {
+    // Note: The systemDb operation uses sessionId for RLS if configured,
+    // but we might want to check ownership if possible here too.
+    // For now, RLS handles individual record access.
     await systemDb.markNotificationAsRead(id, sessionId);
   }
 
-  async markAllNotificationsAsRead(userId: string, sessionId: string): Promise<void> {
+  async markAllNotificationsAsRead(userId: string, sessionId: string, currentUser?: User): Promise<void> {
+    if (currentUser && currentUser.role === 'student' && currentUser.id !== userId) {
+        throw new ForbiddenError('Unauthorized: You can only manage your own notifications');
+    }
     await systemDb.markAllNotificationsAsRead(userId, sessionId);
   }
 
@@ -189,7 +207,7 @@ export class SystemService {
 
   async getMergedNotifications(user: User, userId: string, sessionId: string): Promise<Notification[]> {
     const [notifications, broadcasts] = await Promise.all([
-      this.getNotifications(userId, sessionId),
+      this.getNotifications(userId, sessionId, user),
       systemDb.findAllBroadcasts(sessionId)
     ]);
 
@@ -245,16 +263,43 @@ export class SystemService {
         const liveClasses = await systemDb.findAllLiveClasses(courseId, teacherId, sessionId);
         return liveClasses.filter(lc => enrolledCourseIds.includes(lc.course_id));
     }
+
+    if (userRole === 'teacher' && userId) {
+        const liveClasses = await systemDb.findAllLiveClasses(courseId, userId, sessionId);
+        return liveClasses;
+    }
+
     return systemDb.findAllLiveClasses(courseId, teacherId, sessionId);
   }
 
   async saveLiveClass(currentUser: User, liveClass: Partial<LiveClass>, sessionId: string): Promise<LiveClass> {
     if (!UserDomain.canManageContent(currentUser)) throw new ForbiddenError();
+
+    if (UserDomain.isTeacher(currentUser)) {
+        if (liveClass.id) {
+            const existing = await systemDb.findLiveClassById(liveClass.id, sessionId);
+            if (existing && existing.teacher_id !== currentUser.id) {
+                throw new ForbiddenError('Unauthorized: You can only manage your own live classes');
+            }
+        } else if (liveClass.course_id) {
+            const course = await learningDb.findCourseById(liveClass.course_id, sessionId);
+            if (course && course.teacher_id !== currentUser.id) {
+                throw new ForbiddenError('Unauthorized: You can only create live classes for your own courses');
+            }
+        }
+    }
+
     const liveClassToSave = CommunicationDomain.prepareLiveClass(liveClass, currentUser.id);
     return systemDb.upsertLiveClass(liveClassToSave, sessionId);
   }
 
-  async deleteLiveClass(id: string, sessionId: string): Promise<void> {
+  async deleteLiveClass(id: string, sessionId: string, currentUser?: User): Promise<void> {
+    if (currentUser && UserDomain.isTeacher(currentUser)) {
+        const existing = await systemDb.findLiveClassById(id, sessionId);
+        if (existing && existing.teacher_id !== currentUser.id) {
+            throw new ForbiddenError('Unauthorized: You can only manage your own live classes');
+        }
+    }
     await systemDb.deleteLiveClass(id, sessionId);
   }
 

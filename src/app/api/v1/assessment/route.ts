@@ -49,7 +49,7 @@ export const POST = withHandler(async (user, request) => {
     case 'save-assignment': {
       if (!rbac.can(user, 'assignment:manage')) throw new UnauthorizedError();
       const sanitized = AssessmentDomain.sanitizeEntity(data);
-      const assignment = await assessmentService.saveAssignment(user.id, sanitized, user.sessionId!);
+      const assignment = await assessmentService.saveAssignment(user.id, sanitized, user.sessionId!, user);
       return AssessmentMapper.toAssignmentDTO(assignment);
     }
     case 'submit-assignment': {
@@ -63,7 +63,7 @@ export const POST = withHandler(async (user, request) => {
     case 'save-quiz': {
       if (!rbac.can(user, 'quiz:manage')) throw new UnauthorizedError();
       const sanitized = AssessmentDomain.sanitizeEntity(data);
-      const quiz = await assessmentService.saveQuiz(user.id, sanitized, user.sessionId!);
+      const quiz = await assessmentService.saveQuiz(user.id, sanitized, user.sessionId!, user);
       return AssessmentMapper.toQuizDTO(quiz);
     }
     case 'submit-quiz': {
@@ -87,12 +87,12 @@ export const DELETE = withHandler(async (user, request) => {
   switch (action) {
     case 'assignment': {
       if (!rbac.can(user, 'assignment:manage')) throw new UnauthorizedError();
-      await assessmentService.deleteAssignment(id, user.sessionId!);
+      await assessmentService.deleteAssignment(id, user.sessionId!, user);
       return { success: true };
     }
     case 'quiz': {
       if (!rbac.can(user, 'quiz:manage')) throw new UnauthorizedError();
-      await assessmentService.deleteQuiz(id, user.sessionId!);
+      await assessmentService.deleteQuiz(id, user.sessionId!, user);
       return { success: true };
     }
     default:

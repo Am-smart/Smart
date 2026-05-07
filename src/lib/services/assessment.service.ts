@@ -1,6 +1,7 @@
 import { assessmentDb } from '../database/assessment.db';
+import { learningService } from './learning.service';
 import { systemService } from './system.service';
-import { Assignment, Quiz, Submission, QuizSubmission, QuizQuestion } from '../types';
+import { Assignment, Quiz, Submission, QuizSubmission, QuizQuestion, User } from '../types';
 import { AssessmentDomain } from '../domain/assessment.domain';
 import { SUBMISSION_STATUS } from '../constants';
 import { NotFoundError, ForbiddenError } from '../api-error';
@@ -22,12 +23,38 @@ export class AssessmentService {
     return assessmentDb.findAllAssignments(teacherId, courseId, sessionId!, limit, offset);
   }
 
-  async saveAssignment(teacherId: string, assignment: Partial<Assignment>, sessionId: string): Promise<Assignment> {
+  async saveAssignment(teacherId: string, assignment: Partial<Assignment>, sessionId: string, currentUser?: User): Promise<Assignment> {
+    if (currentUser && currentUser.role === 'teacher') {
+        let courseId = assignment.course_id;
+
+        if (!courseId && assignment.id) {
+            const existing = await assessmentDb.findAssignmentById(assignment.id, sessionId);
+            if (existing) {
+                courseId = existing.course_id;
+            }
+        }
+
+        if (!courseId) throw new Error('Course ID is required');
+
+        const course = await learningService.getCourse(courseId, sessionId);
+        if (course.teacher_id !== currentUser.id) {
+            throw new ForbiddenError('Unauthorized: You can only manage assignments for your own courses');
+        }
+    }
     const assignmentToSave = AssessmentDomain.prepareAssignment(assignment, teacherId);
     return assessmentDb.upsertAssignment(assignmentToSave, sessionId);
   }
 
-  async deleteAssignment(id: string, sessionId: string): Promise<void> {
+  async deleteAssignment(id: string, sessionId: string, currentUser?: User): Promise<void> {
+    if (currentUser && currentUser.role === 'teacher') {
+        const assignment = await assessmentDb.findAssignmentById(id, sessionId);
+        if (assignment) {
+            const course = await learningService.getCourse(assignment.course_id, sessionId);
+            if (course.teacher_id !== currentUser.id) {
+                throw new ForbiddenError('Unauthorized: You can only manage assignments for your own courses');
+            }
+        }
+    }
     await assessmentDb.deleteAssignment(id, sessionId);
   }
 
@@ -47,12 +74,38 @@ export class AssessmentService {
     return assessmentDb.findAllQuizzes(courseId, teacherId, sessionId!, limit, offset);
   }
 
-  async saveQuiz(teacherId: string, quiz: Partial<Quiz>, sessionId: string): Promise<Quiz> {
+  async saveQuiz(teacherId: string, quiz: Partial<Quiz>, sessionId: string, currentUser?: User): Promise<Quiz> {
+    if (currentUser && currentUser.role === 'teacher') {
+        let courseId = quiz.course_id;
+
+        if (!courseId && quiz.id) {
+            const existing = await assessmentDb.findQuizById(quiz.id, sessionId);
+            if (existing) {
+                courseId = existing.course_id;
+            }
+        }
+
+        if (!courseId) throw new Error('Course ID is required');
+
+        const course = await learningService.getCourse(courseId, sessionId);
+        if (course.teacher_id !== currentUser.id) {
+            throw new ForbiddenError('Unauthorized: You can only manage quizzes for your own courses');
+        }
+    }
     const quizToSave = AssessmentDomain.prepareQuiz(quiz, teacherId);
     return assessmentDb.upsertQuiz(quizToSave, sessionId);
   }
 
-  async deleteQuiz(id: string, sessionId: string): Promise<void> {
+  async deleteQuiz(id: string, sessionId: string, currentUser?: User): Promise<void> {
+    if (currentUser && currentUser.role === 'teacher') {
+        const quiz = await assessmentDb.findQuizById(id, sessionId);
+        if (quiz) {
+            const course = await learningService.getCourse(quiz.course_id, sessionId);
+            if (course.teacher_id !== currentUser.id) {
+                throw new ForbiddenError('Unauthorized: You can only manage quizzes for your own courses');
+            }
+        }
+    }
     await assessmentDb.deleteQuiz(id, sessionId);
   }
 
@@ -63,14 +116,12 @@ export class AssessmentService {
         return assessmentDb.findAllSubmissions(assignmentId, userId, sessionId!, limit, offset);
     }
 
-    const submissions = await assessmentDb.findAllSubmissions(assignmentId, studentId, sessionId!, limit, offset);
-
     if (userRole === 'teacher' && userId) {
         // Teachers can only see submissions for assignments they own
-        return submissions.filter(s => s.assignments?.teacher_id === userId);
+        return assessmentDb.findAllSubmissions(assignmentId, studentId, sessionId!, limit, offset, userId);
     }
 
-    return submissions;
+    return assessmentDb.findAllSubmissions(assignmentId, studentId, sessionId!, limit, offset);
   }
 
   async submitAssignment(studentId: string, assignmentId: string, content: Partial<Submission>, sessionId: string): Promise<Submission> {
@@ -114,8 +165,18 @@ export class AssessmentService {
   }
 
   // Quiz Submissions
-  async getQuizSubmissions(quizId?: string, studentId?: string, sessionId?: string): Promise<QuizSubmission[]> {
-    return assessmentDb.findAllQuizSubmissions(quizId, studentId, sessionId!);
+  async getQuizSubmissions(quizId?: string, studentId?: string, sessionId?: string, userId?: string, userRole?: string): Promise<QuizSubmission[]> {
+    if (userRole === 'student' && userId) {
+        return assessmentDb.findAllQuizSubmissions(quizId, userId, sessionId!);
+    }
+
+    const submissions = await assessmentDb.findAllQuizSubmissions(quizId, studentId, sessionId!);
+
+    if (userRole === 'teacher' && userId) {
+        return submissions.filter(s => s.quizzes?.teacher_id === userId);
+    }
+
+    return submissions;
   }
 
   async findQuizAttempts(quizId: string, studentId: string, sessionId: string): Promise<QuizSubmission[]> {

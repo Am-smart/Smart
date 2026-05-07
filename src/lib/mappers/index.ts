@@ -41,7 +41,8 @@ function toCleanDTO<T>(obj: unknown): T {
 }
 
 export class UserMapper {
-  static toDTO(user: User | { id: string; full_name: string; email: string; role?: UserRole; phone?: string; created_at?: string; active?: boolean; metadata?: Record<string, string | number | boolean> }): UserDTO {
+  static toDTO(user: User | { id: string; full_name: string; email: string; role?: UserRole; phone?: string; created_at?: string; active?: boolean; metadata?: Record<string, string | number | boolean> } | null | undefined): UserDTO | null {
+    if (!user) return null;
     return {
       id: user.id,
       email: user.email,
@@ -106,7 +107,7 @@ export class AssessmentMapper {
     return {
       ...toCleanDTO<SubmissionDTO>(submission),
       assignment: submission.assignments ? AssessmentMapper.toAssignmentDTO(submission.assignments) : undefined,
-      student: submission.users ? UserMapper.toDTO(submission.users) : undefined
+      student: submission.users ? (UserMapper.toDTO(submission.users) || undefined) : undefined
     };
   }
 
@@ -114,7 +115,7 @@ export class AssessmentMapper {
     return {
       ...toCleanDTO<QuizSubmissionDTO>(submission),
       quiz: submission.quizzes ? AssessmentMapper.toQuizDTO(submission.quizzes) : undefined,
-      student: submission.users ? UserMapper.toDTO(submission.users) : undefined
+      student: submission.users ? (UserMapper.toDTO(submission.users) || undefined) : undefined
     };
   }
 }
@@ -138,7 +139,7 @@ export class CommunicationMapper {
   static toDiscussionDTO(d: Discussion): DiscussionDTO {
     return {
       ...toCleanDTO<DiscussionDTO>(d),
-      user: d.users ? UserMapper.toDTO({ id: d.user_id, ...d.users }) : undefined
+      user: d.users ? (UserMapper.toDTO({ id: d.user_id, ...d.users }) || undefined) : undefined
     };
   }
 }
@@ -159,7 +160,7 @@ export class SystemMapper {
   static toSystemLogDTO(sl: SystemLog): SystemLogDTO {
     return {
       ...toCleanDTO<SystemLogDTO>(sl),
-      user: (sl.users && sl.user_id) ? UserMapper.toDTO({ id: sl.user_id, ...sl.users }) : undefined
+      user: (sl.users && sl.user_id) ? (UserMapper.toDTO({ id: sl.user_id, ...sl.users }) || undefined) : undefined
     };
   }
 
@@ -169,7 +170,7 @@ export class SystemMapper {
       progress: e.progress || 0,
       completed: e.completed || false,
       course: e.courses ? CourseMapper.toDTO(e.courses) : undefined,
-      student: e.users ? UserMapper.toDTO(e.users) : undefined
+      student: e.users ? (UserMapper.toDTO(e.users) || undefined) : undefined
     };
   }
 }

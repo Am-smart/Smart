@@ -38,8 +38,18 @@ export class AssessmentDomain {
     if (assignment.start_at && assignment.due_date && new Date(assignment.start_at) > new Date(assignment.due_date)) {
         throw new Error('Start date cannot be after due date');
     }
-    if (assignment.questions && assignment.questions.length === 0) {
-        throw new Error('Assignment must have at least one question or task step');
+    if (assignment.questions) {
+        if (assignment.questions.length === 0) {
+            throw new Error('Assignment must have at least one question or task step');
+        }
+        assignment.questions.forEach((q, idx) => {
+            if (!q.text || q.text.trim().length === 0) {
+                throw new Error(`Question ${idx + 1} text is required`);
+            }
+            if (!['essay', 'file', 'link'].includes(q.type)) {
+                throw new Error(`Invalid type for assignment question ${idx + 1}`);
+            }
+        });
     }
   }
 
@@ -53,8 +63,21 @@ export class AssessmentDomain {
     if (quiz.start_at && quiz.end_at && new Date(quiz.start_at) > new Date(quiz.end_at)) {
         throw new Error('Start date cannot be after end date');
     }
-    if (quiz.questions && quiz.questions.length === 0) {
-        throw new Error('Quiz must have at least one question');
+    if (quiz.questions) {
+        if (quiz.questions.length === 0) {
+            throw new Error('Quiz must have at least one question');
+        }
+        quiz.questions.forEach((q, idx) => {
+            if (!q.text || q.text.trim().length === 0) {
+                throw new Error(`Question ${idx + 1} text is required`);
+            }
+            if (!['mcq', 'tf', 'short'].includes(q.type)) {
+                throw new Error(`Invalid type for quiz question ${idx + 1}`);
+            }
+            if (q.points !== undefined && q.points < 0) {
+                throw new Error(`Points for question ${idx + 1} cannot be negative`);
+            }
+        });
     }
     if (quiz.time_limit !== undefined && quiz.time_limit < 0) {
         throw new Error('Time limit cannot be negative');
