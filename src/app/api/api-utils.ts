@@ -74,10 +74,8 @@ export function withHandler<T>(
         }
     }
 
-    let user: User | null = null;
-
     try {
-      user = await getSessionUser();
+      const user = await getSessionUser();
       if (options.requireAuth && !user) {
         return handleUnauthorized();
       }

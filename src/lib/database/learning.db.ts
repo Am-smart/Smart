@@ -95,9 +95,10 @@ export const learningDb = {
     return data as Material;
   },
 
-  async findAllMaterials(courseId?: string, sessionId?: string): Promise<Material[]> {
-    let query = withSession(supabase.from('materials').select('*, courses(*)'), sessionId);
+  async findAllMaterials(courseId?: string, sessionId?: string, teacherId?: string): Promise<Material[]> {
+    let query = withSession(supabase.from('materials').select('*, courses!inner(*)'), sessionId);
     if (courseId) query = query.eq('course_id', courseId);
+    if (teacherId) query = query.eq('courses.teacher_id', teacherId);
     const { data, error } = await query;
     if (error) throw new Error(error.message);
     return data as Material[];

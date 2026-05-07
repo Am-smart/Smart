@@ -1,8 +1,8 @@
 import { learningDb } from '../database/learning.db';
-import { Course, Lesson, Material, LessonCompletion } from '../types';
+import { Course, Lesson, Material, LessonCompletion, User } from '../types';
 import { CourseDomain } from '../domain/course.domain';
 import { LearningDomain } from '../domain/learning.domain';
-import { NotFoundError } from '../api-error';
+import { NotFoundError, ForbiddenError } from '../api-error';
 
 export class LearningService {
   // Courses
@@ -35,13 +35,38 @@ export class LearningService {
     return learningDb.findLessonsByCourseId(courseId, sessionId);
   }
 
-  async saveLesson(lesson: Partial<Lesson>, sessionId: string): Promise<Lesson> {
+  async saveLesson(lesson: Partial<Lesson>, sessionId: string, currentUser?: User): Promise<Lesson> {
     LearningDomain.validateLesson(lesson);
+
+    if (currentUser && currentUser.role === 'teacher') {
+        let courseId = lesson.course_id;
+        if (!courseId && lesson.id) {
+            const existing = await learningDb.findLessonById(lesson.id, sessionId);
+            if (existing) courseId = existing.course_id;
+        }
+
+        if (courseId) {
+            const course = await learningDb.findCourseById(courseId, sessionId);
+            if (course && course.teacher_id !== currentUser.id) {
+                throw new ForbiddenError('Unauthorized: You can only manage lessons for your own courses');
+            }
+        }
+    }
+
     const lessonToSave = LearningDomain.prepareLesson(lesson);
     return learningDb.upsertLesson(lessonToSave, sessionId);
   }
 
-  async deleteLesson(id: string, sessionId: string): Promise<void> {
+  async deleteLesson(id: string, sessionId: string, currentUser?: User): Promise<void> {
+    if (currentUser && currentUser.role === 'teacher') {
+        const lesson = await learningDb.findLessonById(id, sessionId);
+        if (lesson) {
+            const course = await learningDb.findCourseById(lesson.course_id, sessionId);
+            if (course && course.teacher_id !== currentUser.id) {
+                throw new ForbiddenError('Unauthorized: You can only manage lessons for your own courses');
+            }
+        }
+    }
     await learningDb.deleteLesson(id, sessionId);
   }
 
@@ -58,16 +83,46 @@ export class LearningService {
         const materials = await learningDb.findAllMaterials(courseId, sessionId);
         return materials.filter(m => enrolledCourseIds.includes(m.course_id));
     }
+
+    if (userRole === 'teacher' && userId) {
+        return learningDb.findAllMaterials(courseId, sessionId, userId);
+    }
+
     return learningDb.findAllMaterials(courseId, sessionId);
   }
 
-  async saveMaterial(teacherId: string, material: Partial<Material>, sessionId: string): Promise<Material> {
+  async saveMaterial(teacherId: string, material: Partial<Material>, sessionId: string, currentUser?: User): Promise<Material> {
     LearningDomain.validateMaterial(material);
+
+    if (currentUser && currentUser.role === 'teacher') {
+        let courseId = material.course_id;
+        if (!courseId && material.id) {
+            const existing = await learningDb.findMaterialById(material.id, sessionId);
+            if (existing) courseId = existing.course_id;
+        }
+
+        if (courseId) {
+            const course = await learningDb.findCourseById(courseId, sessionId);
+            if (course && course.teacher_id !== currentUser.id) {
+                throw new ForbiddenError('Unauthorized: You can only manage materials for your own courses');
+            }
+        }
+    }
+
     const materialToSave = LearningDomain.prepareMaterial(material, teacherId);
     return learningDb.upsertMaterial(materialToSave, sessionId);
   }
 
-  async deleteMaterial(id: string, sessionId: string): Promise<void> {
+  async deleteMaterial(id: string, sessionId: string, currentUser?: User): Promise<void> {
+    if (currentUser && currentUser.role === 'teacher') {
+        const material = await learningDb.findMaterialById(id, sessionId);
+        if (material) {
+            const course = await learningDb.findCourseById(material.course_id, sessionId);
+            if (course && course.teacher_id !== currentUser.id) {
+                throw new ForbiddenError('Unauthorized: You can only manage materials for your own courses');
+            }
+        }
+    }
     await learningDb.deleteMaterial(id, sessionId);
   }
 

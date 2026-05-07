@@ -21,20 +21,17 @@ export const dbUtils = {
       ...(id ? { id } : {}),
       updated_at: new Date().toISOString(),
       version: (Number(version) || 0) + 1
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } as any;
+    } as Partial<T> & { updated_at: string; version: number };
   },
 
   /**
    * Applies optimistic concurrency control (version check) to a query
    */
-  applyVersionCheck(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    query: any,
+  applyVersionCheck<Q extends { eq: (column: string, value: string | number) => Q }>(
+    query: Q,
     id?: string,
     version?: number
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  ): any {
+  ): Q {
     if (id && version !== undefined) {
       return query.eq('id', id).eq('version', version);
     }
@@ -54,9 +51,13 @@ export const dbUtils = {
   /**
    * Generic upsert handler with version checking and standardized error handling.
    */
-  async upsert<T extends { id?: string; version?: number }>(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    table: any,
+  async upsert<
+    T extends { id?: string; version?: number },
+    QB extends { upsert: (data: unknown, options?: { onConflict?: string }) => FB },
+    FB extends { select: () => TB; eq: (column: string, value: string | number) => FB },
+    TB extends { single: () => PromiseLike<{ data: unknown; error: { code: string; message: string } | null }> }
+  >(
+    table: QB,
     entity: Partial<T>,
     entityName: string,
     sessionId: string,
@@ -71,12 +72,13 @@ export const dbUtils = {
       upsertOptions.onConflict = options.onConflict;
     }
 
-    let query = withSession(table, sessionId).upsert(upsertData, upsertOptions);
+    let query = withSession(table, sessionId).upsert(upsertData, upsertOptions) as unknown as FB;
 
     const entityWithVersion = entity as { id?: string; version?: number };
     query = this.applyVersionCheck(query, entityWithVersion.id, entityWithVersion.version);
 
-    const { data, error } = await query.select().single();
+    const result = await query.select().single();
+    const { data, error } = result as { data: unknown; error: { code: string; message: string } | null };
 
     if (error) {
       this.handleUpsertError(error, entityName, entityWithVersion.id, entityWithVersion.version);

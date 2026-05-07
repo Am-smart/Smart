@@ -50,7 +50,7 @@ export const GET = withHandler(async (user, request) => {
     }
     case 'planner': {
       const userId = searchParams.get('userId') || user.id;
-      const items = await systemService.getPlannerItems(userId, user.sessionId!);
+      const items = await systemService.getPlannerItems(userId, user.sessionId!, user);
       return items.map(SystemMapper.toPlannerItemDTO);
     }
     case 'notifications': {
@@ -88,7 +88,7 @@ export const GET = withHandler(async (user, request) => {
     case 'quiz-submissions': {
         const quizId = searchParams.get('quizId') || undefined;
         const studentId = searchParams.get('studentId') || undefined;
-        const submissions = await assessmentService.getQuizSubmissions(quizId, studentId, user.sessionId!);
+        const submissions = await assessmentService.getQuizSubmissions(quizId, studentId, user.sessionId!, user.id, user.role);
         return submissions.map(AssessmentMapper.toQuizSubmissionDTO);
     }
     case 'lesson-completions': {
@@ -141,7 +141,8 @@ export const POST = withHandler(async (user, request) => {
         }
     }
     case 'save-planner': {
-        const saved = await systemService.savePlannerItem(user.id, data, user.sessionId!);
+        const userId = data.user_id || user.id;
+        const saved = await systemService.savePlannerItem(userId, data, user.sessionId!, user);
         return SystemMapper.toPlannerItemDTO(saved);
     }
     case 'save-live-class': {
@@ -205,11 +206,12 @@ export const DELETE = withHandler(async (user, request) => {
         }
         case 'live-class': {
             if (!rbac.can(user, 'lesson:manage')) throw new UnauthorizedError();
-            await systemService.deleteLiveClass(id, user.sessionId!);
+            await systemService.deleteLiveClass(id, user.sessionId!, user);
             return { success: true };
         }
         case 'planner': {
-            await systemService.deletePlannerItem(user.id, id, user.sessionId!);
+            const userId = searchParams.get('userId') || user.id;
+            await systemService.deletePlannerItem(userId, id, user.sessionId!, user);
             return { success: true };
         }
         case 'discussion': {
@@ -249,7 +251,7 @@ export const PATCH = withHandler(async (user, request) => {
             if (body.markAll) {
                 const userId = searchParams.get('userId');
                 if (!userId) throw new Error('userId required');
-                await systemService.markAllNotificationsAsRead(userId, user.sessionId!);
+                await systemService.markAllNotificationsAsRead(userId, user.sessionId!, user);
             } else {
                 if (!id) throw new Error('id required');
                 await systemService.markNotificationAsRead(id, user.sessionId!);

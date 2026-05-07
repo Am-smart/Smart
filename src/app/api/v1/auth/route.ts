@@ -14,7 +14,7 @@ export const GET = withHandler(async (user, request) => {
 
     switch (action) {
         case 'me':
-            return UserMapper.toDTO(user);
+            return user ? UserMapper.toDTO(user) : null;
         case 'session': {
             const cookieStore = await cookies();
             const token = cookieStore.get('app-user-session');
@@ -25,7 +25,7 @@ export const GET = withHandler(async (user, request) => {
             return authService.getRoleCount();
         }
         default:
-            return UserMapper.toDTO(user);
+            return user ? UserMapper.toDTO(user) : null;
     }
 }, { requireAuth: false });
 

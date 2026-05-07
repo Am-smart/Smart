@@ -55,13 +55,13 @@ export const POST = withHandler(async (user, request) => {
     case 'save-lesson': {
       if (!rbac.can(user, 'lesson:manage')) throw new UnauthorizedError();
       LearningDomain.validateLesson(data);
-      const lesson = await learningService.saveLesson(data, user.sessionId!);
+      const lesson = await learningService.saveLesson(data, user.sessionId!, user);
       return LearningMapper.toLessonDTO(lesson);
     }
     case 'save-material': {
       if (!rbac.can(user, 'course:update')) throw new UnauthorizedError();
       LearningDomain.validateMaterial(data);
-      const material = await learningService.saveMaterial(user.id, data, user.sessionId!);
+      const material = await learningService.saveMaterial(user.id, data, user.sessionId!, user);
       return LearningMapper.toMaterialDTO(material);
     }
     default:
@@ -84,12 +84,12 @@ export const DELETE = withHandler(async (user, request) => {
     }
     case 'lesson': {
       if (!rbac.can(user, 'lesson:manage')) throw new UnauthorizedError();
-      await learningService.deleteLesson(id, user.sessionId!);
+      await learningService.deleteLesson(id, user.sessionId!, user);
       return { success: true };
     }
     case 'material': {
       if (!rbac.can(user, 'course:update')) throw new UnauthorizedError();
-      await learningService.deleteMaterial(id, user.sessionId!);
+      await learningService.deleteMaterial(id, user.sessionId!, user);
       return { success: true };
     }
     default:

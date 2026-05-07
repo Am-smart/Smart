@@ -22,6 +22,7 @@ export class AuthService {
     if (!user) return null;
 
     const userDTO = UserMapper.toDTO(user);
+    if (!userDTO) return null;
     sessionManager.set(sessionId, userDTO);
 
     return { ...userDTO, sessionId };
