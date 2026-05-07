@@ -45,7 +45,7 @@ export const dbUtils = {
     if (id && version !== undefined && error.code === 'PGRST116') {
       throw new Error(`Conflict detected: ${entityName} has been updated by another user.`);
     }
-    throw new Error(error.message);
+    dbUtils.handleError(error);
   },
 
   /**

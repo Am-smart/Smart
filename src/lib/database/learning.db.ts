@@ -7,7 +7,7 @@ export const learningDb = {
   async findCourseById(id: string, sessionId?: string): Promise<Course | null> {
     const query = withSession(supabase.from('courses').select('*').eq('id', id), sessionId);
     const { data, error } = await query.maybeSingle();
-    if (error) throw new Error(error.message);
+    if (error) dbUtils.handleError(error);
     return data as Course;
   },
 
@@ -40,7 +40,7 @@ export const learningDb = {
   // Lesson Operations
   async findLessonById(id: string, sessionId: string): Promise<Lesson | null> {
     const { data, error } = await withSession(supabase.from('lessons').select('*').eq('id', id), sessionId).maybeSingle();
-    if (error) throw new Error(error.message);
+    if (error) dbUtils.handleError(error);
     return data as Lesson;
   },
 
@@ -49,7 +49,7 @@ export const learningDb = {
       .select('*')
       .eq('course_id', courseId)
       .order('order_index', { ascending: true });
-    if (error) throw new Error(error.message);
+    if (error) dbUtils.handleError(error);
     return data as Lesson[];
   },
 
@@ -59,7 +59,7 @@ export const learningDb = {
 
   async deleteLesson(id: string, sessionId: string): Promise<void> {
     const { error } = await withSession(supabase.from('lessons'), sessionId).delete().eq('id', id);
-    if (error) throw new Error(error.message);
+    if (error) dbUtils.handleError(error);
   },
 
   async markLessonComplete(studentId: string, lessonId: string, sessionId: string): Promise<void> {
@@ -69,7 +69,7 @@ export const learningDb = {
         lesson_id: lessonId,
         completed_at: new Date().toISOString()
       }, { onConflict: 'student_id,lesson_id' });
-    if (error) throw new Error(error.message);
+    if (error) dbUtils.handleError(error);
   },
 
   async findLessonCompletions(studentId: string, lessonIds: string[], sessionId: string): Promise<string[]> {
@@ -77,20 +77,20 @@ export const learningDb = {
         .select('lesson_id')
         .eq('student_id', studentId)
         .in('lesson_id', lessonIds);
-    if (error) throw new Error(error.message);
+    if (error) dbUtils.handleError(error);
     return data?.map(c => c.lesson_id) || [];
   },
 
   async getLessonCompletions(studentId: string, sessionId: string): Promise<unknown[]> {
     const { data, error } = await withSession(supabase.from('lesson_completions').select('*').eq('student_id', studentId), sessionId);
-    if (error) throw new Error(error.message);
+    if (error) dbUtils.handleError(error);
     return data || [];
   },
 
   // Material Operations
   async findMaterialById(id: string, sessionId: string): Promise<Material | null> {
     const { data, error } = await withSession(supabase.from('materials').select('*').eq('id', id), sessionId).maybeSingle();
-    if (error) throw new Error(error.message);
+    if (error) dbUtils.handleError(error);
     return data as Material;
   },
 
@@ -99,7 +99,7 @@ export const learningDb = {
     if (courseId) query = query.eq('course_id', courseId);
     if (teacherId) query = query.eq('courses.teacher_id', teacherId);
     const { data, error } = await query;
-    if (error) throw new Error(error.message);
+    if (error) dbUtils.handleError(error);
     return data as Material[];
   },
 
@@ -109,7 +109,7 @@ export const learningDb = {
 
   async deleteMaterial(id: string, sessionId: string): Promise<void> {
     const { error } = await withSession(supabase.from('materials'), sessionId).delete().eq('id', id);
-    if (error) throw new Error(error.message);
+    if (error) dbUtils.handleError(error);
   },
 
   // Enrollment Operations
@@ -117,7 +117,7 @@ export const learningDb = {
     const { data, error } = await withSession(supabase.from('enrollments'), sessionId)
       .select('*, courses(*), users!student_id(*)')
       .eq('student_id', studentId);
-    if (error) throw new Error(error.message);
+    if (error) dbUtils.handleError(error);
     return data as Enrollment[];
   },
 
@@ -125,7 +125,7 @@ export const learningDb = {
     const { data, error } = await withSession(supabase.from('enrollments'), sessionId)
       .select('*, courses(*), users!student_id(*)')
       .in('course_id', courseIds);
-    if (error) throw new Error(error.message);
+    if (error) dbUtils.handleError(error);
     return data as Enrollment[];
   },
 
@@ -135,7 +135,7 @@ export const learningDb = {
       .eq('course_id', courseId)
       .eq('student_id', studentId)
       .maybeSingle();
-    if (error) throw new Error(error.message);
+    if (error) dbUtils.handleError(error);
     return data as Enrollment;
   },
 
@@ -144,7 +144,7 @@ export const learningDb = {
       .upsert(enrollment, { onConflict: 'course_id,student_id' })
       .select()
       .single();
-    if (error) throw new Error(error.message);
+    if (error) dbUtils.handleError(error);
     return data as Enrollment;
   },
 
@@ -153,7 +153,7 @@ export const learningDb = {
       .update({ progress, completed: progress === 100 })
       .eq('course_id', courseId)
       .eq('student_id', studentId);
-    if (error) throw new Error(error.message);
+    if (error) dbUtils.handleError(error);
   },
 
   async deleteEnrollment(courseId: string, studentId: string, sessionId: string): Promise<void> {
@@ -161,6 +161,6 @@ export const learningDb = {
       .delete()
       .eq('course_id', courseId)
       .eq('student_id', studentId);
-    if (error) throw new Error(error.message);
+    if (error) dbUtils.handleError(error);
   }
 };
