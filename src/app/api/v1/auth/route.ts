@@ -1,6 +1,7 @@
 import { withHandler } from '@/app/api/api-utils';
 import { authService } from '@/lib/services/auth.service';
 import { UserMapper } from '@/lib/mappers';
+import { rbac } from '@/lib/auth/rbac';
 import { cookies } from 'next/headers';
 import { USER_ROLES, SESSION, SIGNUP_LIMITS } from '@/lib/constants';
 import { verifyToken, createSession } from '@/lib/crypto';
@@ -150,8 +151,10 @@ export const POST = withHandler(async (user, request) => {
             }
             if (!user) throw new UnauthorizedError();
             if (data.subAction === 'approve') {
+                if (!rbac.can(user, 'user:manage')) throw new UnauthorizedError();
                 return await authService.approvePasswordReset(data.userId, data.tempPassword, user.sessionId!);
             } else {
+                if (!rbac.can(user, 'user:manage')) throw new UnauthorizedError();
                 return await authService.denyPasswordReset(data.userId, data.reason, user.sessionId!);
             }
         }

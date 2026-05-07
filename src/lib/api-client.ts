@@ -1,8 +1,4 @@
-export interface ApiResponse<T> {
-  success: boolean;
-  data?: T;
-  error?: string;
-}
+import { ApiResponse } from './types';
 
 export async function apiFetch<T>(url: string, options: RequestInit = {}, retries: number = 3): Promise<T> {
   // Prevent API calls when offline (client-side only)
@@ -10,10 +6,12 @@ export async function apiFetch<T>(url: string, options: RequestInit = {}, retrie
     throw new Error('Offline: No internet connection');
   }
 
-  // Use /api/v1 prefix consistently
-  const versionedUrl = url.startsWith('/api/') && !url.startsWith('/api/v1/')
-    ? url.replace('/api/', '/api/v1/')
-    : url.startsWith('/') ? url : `/api/v1/${url}`;
+  // All API requests should be versioned. If it doesn't start with /api/v1/, we prepend it.
+  const versionedUrl = url.startsWith('/api/v1/')
+    ? url
+    : url.startsWith('/')
+      ? url.replace('/api/', '/api/v1/')
+      : `/api/v1/${url}`;
 
   // Get session ID from sessionStorage for authenticated requests
   const sessionId = typeof window !== 'undefined' ? sessionStorage.getItem('session_id') || '' : '';

@@ -21,7 +21,10 @@ export default function AntiCheatPage() {
       Promise.all([
         getSubmissions(undefined, user.id),
         getQuizSubmissions(undefined, user.id),
-        getSystemLogs(200)
+        getSystemLogs(200).catch(err => {
+            console.warn('System logs fetch failed (expected if not authorized):', err);
+            return [];
+        })
       ])
         .then(([subs, quizSubs, logs]) => {
           setSubmissions(subs);

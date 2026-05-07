@@ -48,6 +48,7 @@ export const POST = withHandler(async (user, request) => {
   switch (action) {
     case 'save-assignment': {
       if (!rbac.can(user, 'assignment:manage')) throw new UnauthorizedError();
+      AssessmentDomain.validateAssignment(data);
       const sanitized = AssessmentDomain.sanitizeEntity(data);
       const assignment = await assessmentService.saveAssignment(user.id, sanitized, user.sessionId!, user);
       return AssessmentMapper.toAssignmentDTO(assignment);
@@ -62,6 +63,7 @@ export const POST = withHandler(async (user, request) => {
     }
     case 'save-quiz': {
       if (!rbac.can(user, 'quiz:manage')) throw new UnauthorizedError();
+      AssessmentDomain.validateQuiz(data);
       const sanitized = AssessmentDomain.sanitizeEntity(data);
       const quiz = await assessmentService.saveQuiz(user.id, sanitized, user.sessionId!, user);
       return AssessmentMapper.toQuizDTO(quiz);

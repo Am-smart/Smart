@@ -6,7 +6,7 @@ export const assessmentDb = {
   // Assignment Operations
   async findAssignmentById(id: string, sessionId: string): Promise<Assignment | null> {
     const { data, error } = await withSession(supabase.from('assignments').select('*, courses(*)').eq('id', id), sessionId).maybeSingle();
-    if (error) throw new Error(error.message);
+    if (error) dbUtils.handleError(error);
     return data as Assignment;
   },
 
@@ -15,11 +15,10 @@ export const assessmentDb = {
     if (teacherId) query = query.eq('teacher_id', teacherId);
     if (courseId) query = query.eq('course_id', courseId);
 
-    if (limit) query = query.limit(limit);
-    if (offset) query = query.range(offset, offset + (limit || 10) - 1);
+    query = dbUtils.applyPagination(query, { limit, offset });
 
     const { data, error } = await query;
-    if (error) throw new Error(error.message);
+    if (error) dbUtils.handleError(error);
     return data as Assignment[];
   },
 
@@ -29,13 +28,13 @@ export const assessmentDb = {
 
   async deleteAssignment(id: string, sessionId: string): Promise<void> {
     const { error } = await withSession(supabase.from('assignments'), sessionId).delete().eq('id', id);
-    if (error) throw new Error(error.message);
+    if (error) dbUtils.handleError(error);
   },
 
   // Quiz Operations
   async findQuizById(id: string, sessionId: string): Promise<Quiz | null> {
     const { data, error } = await withSession(supabase.from('quizzes').select('*, courses(*)').eq('id', id), sessionId).maybeSingle();
-    if (error) throw new Error(error.message);
+    if (error) dbUtils.handleError(error);
     return data as Quiz;
   },
 
@@ -44,11 +43,10 @@ export const assessmentDb = {
     if (courseId) query = query.eq('course_id', courseId);
     if (teacherId) query = query.eq('teacher_id', teacherId);
 
-    if (limit) query = query.limit(limit);
-    if (offset) query = query.range(offset, offset + (limit || 10) - 1);
+    query = dbUtils.applyPagination(query, { limit, offset });
 
     const { data, error } = await query;
-    if (error) throw new Error(error.message);
+    if (error) dbUtils.handleError(error);
     return data as Quiz[];
   },
 
@@ -58,13 +56,13 @@ export const assessmentDb = {
 
   async deleteQuiz(id: string, sessionId: string): Promise<void> {
     const { error } = await withSession(supabase.from('quizzes'), sessionId).delete().eq('id', id);
-    if (error) throw new Error(error.message);
+    if (error) dbUtils.handleError(error);
   },
 
   // Submission Operations
   async findSubmissionById(id: string, sessionId: string): Promise<Submission | null> {
     const { data, error } = await withSession(supabase.from('submissions').select('*, assignments(*), users!student_id(*)').eq('id', id), sessionId).maybeSingle();
-    if (error) throw new Error(error.message);
+    if (error) dbUtils.handleError(error);
     return data as Submission;
   },
 
@@ -74,11 +72,10 @@ export const assessmentDb = {
     if (studentId) query = query.eq('student_id', studentId);
     if (teacherId) query = query.eq('assignments.teacher_id', teacherId);
 
-    if (limit) query = query.limit(limit);
-    if (offset) query = query.range(offset, offset + (limit || 10) - 1);
+    query = dbUtils.applyPagination(query, { limit, offset });
 
     const { data, error } = await query;
-    if (error) throw new Error(error.message);
+    if (error) dbUtils.handleError(error);
     return data as Submission[];
   },
 
@@ -91,13 +88,13 @@ export const assessmentDb = {
 
   async deleteSubmission(id: string, sessionId: string): Promise<void> {
     const { error } = await withSession(supabase.from('submissions'), sessionId).delete().eq('id', id);
-    if (error) throw new Error(error.message);
+    if (error) dbUtils.handleError(error);
   },
 
   // Quiz Submission Operations
   async findQuizSubmissionById(id: string, sessionId: string): Promise<QuizSubmission | null> {
     const { data, error } = await withSession(supabase.from('quiz_submissions').select('*, quizzes(*), users!student_id(*)').eq('id', id), sessionId).maybeSingle();
-    if (error) throw new Error(error.message);
+    if (error) dbUtils.handleError(error);
     return data as QuizSubmission;
   },
 
@@ -106,7 +103,7 @@ export const assessmentDb = {
     if (quizId) query = query.eq('quiz_id', quizId);
     if (studentId) query = query.eq('student_id', studentId);
     const { data, error } = await query;
-    if (error) throw new Error(error.message);
+    if (error) dbUtils.handleError(error);
     return data as QuizSubmission[];
   },
 
@@ -116,7 +113,7 @@ export const assessmentDb = {
       .insert(submissionData)
       .select()
       .single();
-    if (error) throw new Error(error.message);
+    if (error) dbUtils.handleError(error);
     return data as QuizSubmission;
   },
 
@@ -126,7 +123,7 @@ export const assessmentDb = {
       .eq('quiz_id', quizId)
       .eq('student_id', studentId)
       .order('attempt_number', { ascending: false });
-    if (error) throw new Error(error.message);
+    if (error) dbUtils.handleError(error);
     return data as QuizSubmission[];
   }
 };

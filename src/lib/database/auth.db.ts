@@ -1,5 +1,6 @@
 import { withSession, supabase } from '../supabase';
 import { Session } from '../types';
+import { dbUtils } from './db-utils';
 
 export const authDb = {
   // RPC Calls (Original AuthRepository)
@@ -65,7 +66,7 @@ export const authDb = {
 
     if (error) {
       if (error.code === 'PGRST116') return null;
-      throw new Error(error.message);
+      dbUtils.handleError(error);
     }
     return data as Session;
   },
@@ -80,7 +81,7 @@ export const authDb = {
       .select()
       .single();
 
-    if (error) throw new Error(error.message);
+    if (error) dbUtils.handleError(error);
     return data as Session;
   },
 
@@ -90,7 +91,7 @@ export const authDb = {
       .delete()
       .eq('id', id);
 
-    if (error) throw new Error(error.message);
+    if (error) dbUtils.handleError(error);
   },
 
   async findAllSessions(sessionId: string): Promise<Session[]> {
@@ -98,7 +99,7 @@ export const authDb = {
       .from('sessions')
       .select('*'), sessionId);
 
-    if (error) throw new Error(error.message);
+    if (error) dbUtils.handleError(error);
     return data as Session[];
   }
 };

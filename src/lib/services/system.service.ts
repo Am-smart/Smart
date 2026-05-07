@@ -317,6 +317,15 @@ export class SystemService {
     return systemDb.createBroadcast(broadcastToSave, sessionId);
   }
 
+  // Stats & Health
+  async getSystemStats(sessionId: string): Promise<Record<string, number>> {
+    return systemDb.getSystemStats(sessionId);
+  }
+
+  async getHealthMetrics(sessionId: string): Promise<unknown> {
+    return systemDb.getHealthMetrics(sessionId);
+  }
+
 }
 
 export const systemService = new SystemService();

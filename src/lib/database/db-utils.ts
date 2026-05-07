@@ -44,8 +44,9 @@ export const dbUtils = {
   handleUpsertError(error: { code: string; message: string }, entityName: string, id?: string, version?: number): never {
     if (id && version !== undefined && error.code === 'PGRST116') {
       throw new Error(`Conflict detected: ${entityName} has been updated by another user.`);
+    } else {
+      throw new Error(error.message);
     }
-    throw new Error(error.message);
   },
 
   /**
@@ -85,5 +86,34 @@ export const dbUtils = {
     }
 
     return data as T;
+  },
+
+  /**
+   * Applies common pagination and filtering to a Supabase query
+   */
+  applyPagination<Q extends { limit: (n: number) => Q; range: (from: number, to: number) => Q }>(
+    query: Q,
+    options: { limit?: number; offset?: number } = {}
+  ): Q {
+    let q = query;
+    if (options.limit) {
+        q = q.limit(options.limit);
+    }
+    if (options.offset !== undefined) {
+        const limit = options.limit || 10;
+        q = q.range(options.offset, options.offset + limit - 1);
+    }
+    return q;
+  },
+
+  /**
+   * Standardized error handling for database operations
+   */
+  handleError(error: { message: string } | null | unknown): never {
+    if (error && typeof error === 'object' && 'message' in error) {
+        throw new Error((error as { message: string }).message || 'Database operation failed');
+    } else {
+        throw new Error('Unknown database error');
+    }
   }
 };

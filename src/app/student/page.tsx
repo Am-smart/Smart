@@ -11,7 +11,13 @@ import { useRouter } from 'next/navigation';
 export default function StudentDashboard() {
   const router = useRouter();
   const { user } = useAuth();
-  const { enrollments, assignments, stats, isLoading } = useAppContext();
+  const { enrollments, assignments, stats, isLoading, refreshDashboardData } = useAppContext();
+
+  React.useEffect(() => {
+    if (user) {
+        refreshDashboardData();
+    }
+  }, [user, refreshDashboardData]);
 
   if (!user) return null;
 

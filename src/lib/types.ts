@@ -58,6 +58,12 @@ export interface AuthResponseDTO {
   error?: string | null;
 }
 
+export interface ApiResponse<T = unknown> {
+  success: boolean;
+  data?: T;
+  error?: string;
+}
+
 export interface LoginRequestDTO {
   email: string;
   password?: string;
