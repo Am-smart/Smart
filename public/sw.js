@@ -35,9 +35,10 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       fetch(event.request)
         .then((response) => {
-          // Cache successful role-count responses
+          // Clone immediately before any other operation
+          const responseToCache = response.clone();
+
           if (response.ok && url.searchParams.get('action') === 'role-count') {
-            const responseToCache = response.clone();
             caches.open(CACHE_NAME).then((cache) => {
               cache.put(event.request, responseToCache);
             });
@@ -65,11 +66,13 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       const fetchPromise = fetch(event.request).then((networkResponse) => {
+        // Clone immediately before any other operation or checks
+        const responseToCache = networkResponse.clone();
+
         if (!networkResponse || networkResponse.status !== 200 || networkResponse.type !== 'basic') {
           return networkResponse;
         }
 
-        const responseToCache = networkResponse.clone();
         caches.open(CACHE_NAME).then((cache) => {
           cache.put(event.request, responseToCache);
         });
