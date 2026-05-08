@@ -122,6 +122,18 @@ export const systemDb = {
     return data as Notification[];
   },
 
+  async getUnreadNotificationCount(userId: string, sessionId: string): Promise<number> {
+    const { count, error } = await withSession(
+      supabase.from('notifications')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .eq('is_read', false),
+      sessionId
+    );
+    if (error) dbUtils.handleError(error);
+    return count || 0;
+  },
+
   async markNotificationAsRead(id: string, sessionId: string): Promise<void> {
     const { error } = await withSession(supabase.from('notifications'), sessionId).update({ is_read: true }).eq('id', id);
     if (error) throw error;
@@ -137,7 +149,7 @@ export const systemDb = {
         .update(updates)
         .in('id', ids);
       if (error) dbUtils.handleError(error);
-  }
+  },
 
   async updateNotificationsForUser(userId: string, updates: Partial<Notification>, sessionId: string): Promise<void> {
     const { error } = await withSession(supabase.from('notifications'), sessionId)

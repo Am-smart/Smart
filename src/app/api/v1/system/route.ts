@@ -56,6 +56,10 @@ export const GET = withHandler(async (user, request) => {
     }
     case 'notifications': {
       const userId = searchParams.get('userId') || user.id;
+      if (searchParams.get('unreadCount') === 'true') {
+          const count = await systemService.getUnreadCount(userId, user.sessionId!, user);
+          return { count };
+      }
       const merged = await systemService.getMergedNotifications(user, userId, user.sessionId!);
       return merged.map(CommunicationMapper.toNotificationDTO);
     }

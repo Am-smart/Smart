@@ -68,7 +68,7 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = memo(({
     const filtered = notifications.filter(n => {
       if (filter === 'unread') return !n.is_read;
       if (filter === 'system') return n.type === 'system' || n.type === 'broadcast';
-      if (filter === 'academic') return ['enrollment', 'assignment', 'quiz', 'grading'].includes(n.type);
+      if (filter === 'academic') return ['enrollment', 'assignment', 'quiz', 'grading', 'lesson', 'assignment_published', 'quiz_published', 'live_class', 'class_ended'].includes(n.type);
       return true;
     });
 

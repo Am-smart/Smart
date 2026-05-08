@@ -188,6 +188,13 @@ export class SystemService {
     return systemDb.findNotificationsByUserId(userId, sessionId);
   }
 
+  async getUnreadCount(userId: string, sessionId: string, currentUser?: User): Promise<number> {
+    if (currentUser && currentUser.role === 'student' && currentUser.id !== userId) {
+        throw new ForbiddenError('Unauthorized: You can only access your own notifications');
+    }
+    return systemDb.getUnreadNotificationCount(userId, sessionId);
+  }
+
   async markNotificationAsRead(id: string, sessionId: string): Promise<void> {
     // Note: The systemDb operation uses sessionId for RLS if configured,
     // but we might want to check ownership if possible here too.
