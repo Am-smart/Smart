@@ -12,6 +12,7 @@ import { PlannerItemDTO, EnrollmentDTO, MaintenanceDTO, SettingDTO, SystemLogDTO
 
 /**
  * Generic mapper utility to clean up objects before DTO conversion
+ * It excludes relational keys and handles common audit/metadata fields.
  */
 function toCleanDTO<T>(obj: unknown): T {
     if (!obj || typeof obj !== 'object' || obj === null) return {} as T;
@@ -19,7 +20,7 @@ function toCleanDTO<T>(obj: unknown): T {
     const data = obj as Record<string, unknown>;
     const clean: Record<string, unknown> = {};
 
-    // List of relation keys to exclude from DTOs
+    // List of relation keys to exclude from DTOs to prevent unwanted data exposure
     const excludeKeys = ['courses', 'assignments', 'quizzes', 'assignment', 'quiz', 'users', 'student', 'lesson_completions', 'attendance'];
 
     for (const key in data) {
@@ -28,11 +29,20 @@ function toCleanDTO<T>(obj: unknown): T {
         }
     }
 
-    // Ensure common fields are present
+    // Ensure audit fields are propagated if they exist in the source but might be missing in the 'clean' result
     if (!clean.created_at && (data.created_at || (obj as { created_at?: string }).created_at)) {
         clean.created_at = data.created_at;
     }
 
+    if (!clean.updated_at && (data.updated_at || (obj as { updated_at?: string }).updated_at)) {
+      clean.updated_at = data.updated_at;
+    }
+
+    if (clean.version === undefined && data.version !== undefined) {
+      clean.version = data.version;
+    }
+
+    // Initialize metadata if missing or null
     if (clean.metadata === undefined || clean.metadata === null) {
         clean.metadata = {};
     }
@@ -41,22 +51,16 @@ function toCleanDTO<T>(obj: unknown): T {
 }
 
 export class UserMapper {
-  static toDTO(user: User | { id: string; full_name: string; email: string; role?: UserRole; phone?: string; created_at?: string; active?: boolean; metadata?: Record<string, string | number | boolean> } | null | undefined): UserDTO | null {
+  static toDTO(user: User | { id: string; full_name: string; email: string; role?: UserRole; phone?: string; created_at?: string; updated_at?: string; active?: boolean; metadata?: Record<string, string | number | boolean>; version?: number } | null | undefined): UserDTO | null {
     if (!user) return null;
+
+    // User often contains sensitive fields like password which must not be in DTO
+    const { password: _, ...userData } = user as any;
+
     return {
-      id: user.id,
-      email: user.email,
-      full_name: user.full_name,
-      role: user.role || 'student',
-      phone: user.phone,
-      created_at: user.created_at || new Date().toISOString(),
-      active: user.active,
-      metadata: user.metadata || {},
-      flagged: (user as User).flagged,
-      failed_attempts: (user as User).failed_attempts,
-      lockouts: (user as User).lockouts,
-      locked_until: (user as User).locked_until,
-      reset_request: (user as User).reset_request
+      ...toCleanDTO<UserDTO>(userData),
+      role: userData.role || 'student',
+      created_at: userData.created_at || new Date().toISOString()
     };
   }
 }
@@ -65,8 +69,7 @@ export class CourseMapper {
   static toDTO(course: Course): CourseDTO {
     return {
       ...toCleanDTO<CourseDTO>(course),
-      created_at: course.created_at || new Date().toISOString(),
-      metadata: course.metadata || {}
+      created_at: course.created_at || new Date().toISOString()
     };
   }
 }
@@ -81,7 +84,8 @@ export class LearningMapper {
 
   static toMaterialDTO(material: Material): MaterialDTO {
     return {
-      ...toCleanDTO<MaterialDTO>(material)
+      ...toCleanDTO<MaterialDTO>(material),
+      created_at: material.created_at || new Date().toISOString()
     };
   }
 }
@@ -90,16 +94,16 @@ export class AssessmentMapper {
   static toAssignmentDTO(assignment: Assignment): AssignmentDTO {
     return {
       ...toCleanDTO<AssignmentDTO>(assignment),
-      course: assignment.courses ? CourseMapper.toDTO(assignment.courses) : undefined,
-      metadata: assignment.metadata || {}
+      created_at: assignment.created_at || new Date().toISOString(),
+      course: assignment.courses ? CourseMapper.toDTO(assignment.courses) : undefined
     };
   }
 
   static toQuizDTO(quiz: Quiz): QuizDTO {
     return {
       ...toCleanDTO<QuizDTO>(quiz),
-      course: quiz.courses ? CourseMapper.toDTO(quiz.courses) : undefined,
-      metadata: quiz.metadata || {}
+      created_at: quiz.created_at || new Date().toISOString(),
+      course: quiz.courses ? CourseMapper.toDTO(quiz.courses) : undefined
     };
   }
 
