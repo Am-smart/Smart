@@ -188,6 +188,13 @@ export class SystemService {
     return systemDb.findNotificationsByUserId(userId, sessionId);
   }
 
+  async getUnreadCount(userId: string, sessionId: string, currentUser?: User): Promise<number> {
+    if (currentUser && currentUser.role === 'student' && currentUser.id !== userId) {
+        throw new ForbiddenError('Unauthorized: You can only access your own notifications');
+    }
+    return systemDb.getUnreadNotificationCount(userId, sessionId);
+  }
+
   async markNotificationAsRead(id: string, sessionId: string): Promise<void> {
     // Note: The systemDb operation uses sessionId for RLS if configured,
     // but we might want to check ownership if possible here too.
@@ -211,6 +218,16 @@ export class SystemService {
       await systemDb.updateNotification(id, { acknowledged_at: new Date().toISOString(), is_read: true }, sessionId);
   }
 
+  async markNotificationAsViewed(id: string, sessionId: string): Promise<void> {
+      await systemDb.updateNotification(id, { viewed_at: new Date().toISOString() }, sessionId);
+  }
+
+  async markNotificationsAsViewed(ids: string[], sessionId: string): Promise<void> {
+      // For bulk update, we can use a custom psql function or loop if the adapter doesn't support bulk.
+      // Since systemDb.updateNotification is per-id, let's add a bulk helper to systemDb.
+      await systemDb.updateMultipleNotifications(ids, { viewed_at: new Date().toISOString() }, sessionId);
+  }
+
   async notifyUser(params: { target_id: string, n_title: string, n_msg: string, n_link?: string, n_type?: string }, sessionId: string): Promise<void> {
     await systemDb.createNotification(params.target_id, params.n_title, params.n_msg, params.n_link, params.n_type, sessionId);
   }
@@ -225,8 +242,11 @@ export class SystemService {
     return notifications.filter(n => {
         if (n.dismissed_at) return false;
 
-        // Check for expiration in metadata
-        if (n.metadata?.expires_at) {
+        // Check for expiration in direct column
+        if (n.expires_at) {
+            if (new Date(n.expires_at) < now) return false;
+        } else if (n.metadata?.expires_at) {
+            // Fallback for older notifications in metadata
             try {
                 const expiresAt = new Date(n.metadata.expires_at as string);
                 if (expiresAt < now) return false;

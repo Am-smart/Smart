@@ -41,6 +41,25 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = memo(({
   onAcknowledge,
 }) => {
   const [isNavigating, setIsNavigating] = useState(false);
+
+  // Track viewed notifications
+  useEffect(() => {
+      const markAsViewed = async () => {
+          const unviewedIds = notifications.filter(n => !n.viewed_at).map(n => n.id);
+          if (unviewedIds.length > 0) {
+              try {
+                  await actions.markNotificationsAsViewed(unviewedIds);
+              } catch (error) {
+                  console.error('Failed to mark notifications as viewed:', error);
+              }
+          }
+      };
+
+      if (notifications.length > 0) {
+          markAsViewed();
+      }
+  }, [notifications]);
+
   const [filter, setFilter] = useState<'all' | 'unread' | 'system' | 'academic'>('all');
   const panelRef = useRef<HTMLDivElement>(null);
 
@@ -49,7 +68,7 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = memo(({
     const filtered = notifications.filter(n => {
       if (filter === 'unread') return !n.is_read;
       if (filter === 'system') return n.type === 'system' || n.type === 'broadcast';
-      if (filter === 'academic') return ['enrollment', 'assignment', 'quiz', 'grading'].includes(n.type);
+      if (filter === 'academic') return ['enrollment', 'assignment', 'quiz', 'grading', 'lesson', 'assignment_published', 'quiz_published', 'live_class', 'class_ended'].includes(n.type);
       return true;
     });
 

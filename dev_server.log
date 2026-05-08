@@ -5,15 +5,45 @@
 ▲ Next.js 16.2.4 (Turbopack)
 - Local:         http://localhost:3000
 - Network:       http://192.168.0.2:3000
-✓ Ready in 532ms
+✓ Ready in 508ms
+Attention: Next.js now collects completely anonymous telemetry regarding usage.
+This information is used to shape Next.js' roadmap and prioritize features.
+You can learn more, including how to opt-out if you'd not like to participate in this anonymous program, by visiting the following URL:
+https://nextjs.org/telemetry
+
 
 ○ Compiling / ...
- HEAD / 200 in 3.6s (next.js: 3.3s, application-code: 290ms)
- GET / 200 in 141ms (next.js: 10ms, application-code: 132ms)
- GET /api/v1/auth?action=session 200 in 1348ms (next.js: 1321ms, application-code: 28ms)
- GET /api/v1/auth?action=session 200 in 21ms (next.js: 5ms, application-code: 16ms)
- GET /api/v1/system?action=maintenance 200 in 2.0s (next.js: 1244ms, application-code: 801ms)
- GET /api/v1/system?action=maintenance 200 in 2.2s (next.js: 1428ms, application-code: 795ms)
- GET /api/v1/system?action=maintenance 200 in 2.1s (next.js: 1217ms, application-code: 837ms)
- GET /api/v1/system?action=maintenance 200 in 2.1s (next.js: 1232ms, application-code: 823ms)
- GET /api/v1/system?action=maintenance 200 in 153ms (next.js: 4ms, application-code: 149ms)
+ GET / 200 in 4.0s (next.js: 3.5s, application-code: 403ms)
+ GET / 200 in 115ms (next.js: 6ms, application-code: 109ms)
+ GET /api/v1/auth?action=session 200 in 1926ms (next.js: 1882ms, application-code: 44ms)
+ GET /api/v1/auth?action=session 200 in 21ms (next.js: 3ms, application-code: 18ms)
+ GET /api/v1/system?action=maintenance 200 in 2.2s (next.js: 1513ms, application-code: 683ms)
+ GET /api/v1/system?action=maintenance 200 in 2.2s (next.js: 1541ms, application-code: 692ms)
+ GET /api/v1/system?action=maintenance 200 in 2.3s (next.js: 1568ms, application-code: 691ms)
+ GET /api/v1/system?action=maintenance 200 in 2.4s (next.js: 1763ms, application-code: 687ms)
+ GET /api/v1/system?action=maintenance 200 in 174ms (next.js: 4ms, application-code: 169ms)
+ GET / 200 in 77ms (next.js: 5ms, application-code: 72ms)
+ GET /api/v1/auth?action=session 200 in 17ms (next.js: 5ms, application-code: 12ms)
+ GET /api/v1/auth?action=session 200 in 29ms (next.js: 16ms, application-code: 13ms)
+ GET /api/v1/system?action=maintenance 200 in 415ms (next.js: 10ms, application-code: 405ms)
+ GET /api/v1/system?action=maintenance 200 in 438ms (next.js: 7ms, application-code: 431ms)
+ GET /api/v1/system?action=maintenance 200 in 429ms (next.js: 13ms, application-code: 415ms)
+ GET /api/v1/system?action=maintenance 200 in 487ms (next.js: 8ms, application-code: 479ms)
+ GET /api/v1/system?action=maintenance 200 in 179ms (next.js: 19ms, application-code: 160ms)
+ GET / 200 in 59ms (next.js: 5ms, application-code: 54ms)
+ GET /api/v1/auth?action=session 200 in 12ms (next.js: 7ms, application-code: 6ms)
+ GET /api/v1/auth?action=session 200 in 16ms (next.js: 10ms, application-code: 6ms)
+ GET /api/v1/system?action=maintenance 200 in 204ms (next.js: 3ms, application-code: 200ms)
+ GET /api/v1/system?action=maintenance 200 in 230ms (next.js: 5ms, application-code: 225ms)
+ GET /api/v1/system?action=maintenance 200 in 210ms (next.js: 13ms, application-code: 197ms)
+ GET /api/v1/system?action=maintenance 200 in 364ms (next.js: 5ms, application-code: 359ms)
+ GET /api/v1/system?action=maintenance 200 in 127ms (next.js: 3ms, application-code: 124ms)
+ GET / 200 in 57ms (next.js: 3ms, application-code: 54ms)
+ GET /api/v1/auth?action=session 200 in 12ms (next.js: 3ms, application-code: 9ms)
+ GET /api/v1/auth?action=session 200 in 33ms (next.js: 28ms, application-code: 5ms)
+ GET /api/v1/system?action=maintenance 200 in 230ms (next.js: 7ms, application-code: 223ms)
+ GET /api/v1/system?action=maintenance 200 in 232ms (next.js: 13ms, application-code: 220ms)
+ GET /api/v1/system?action=maintenance 200 in 269ms (next.js: 6ms, application-code: 263ms)
+ GET /api/v1/system?action=maintenance 200 in 244ms (next.js: 11ms, application-code: 233ms)
+ GET /api/v1/system?action=maintenance 200 in 136ms (next.js: 2ms, application-code: 133ms)
+ POST /api/v1/auth 401 in 173ms (next.js: 4ms, application-code: 169ms)

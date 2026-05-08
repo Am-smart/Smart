@@ -37,6 +37,7 @@ export const parseDeepLink = (link?: string, role: string = 'student'): string |
         grading: `/teacher/grading?id=${id}`,
         students: `/teacher/students?id=${id}`,
         submission: `/teacher/grading?id=${id}`, // Direct link for teachers
+        lesson: `/${base}/courses?id=${id.split(':')[0]}&lessonId=${id.split(':')[1] || ''}`,
       };
 
       if (routes[type]) {
