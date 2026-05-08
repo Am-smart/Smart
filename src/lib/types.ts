@@ -426,6 +426,7 @@ export interface NotificationDTO {
   expires_at?: string;
   metadata?: Record<string, string | number | boolean>;
   created_at: string;
+  is_broadcast?: boolean;
   version?: number;
   updated_at?: string;
 }
@@ -464,6 +465,7 @@ export interface BroadcastDTO {
   expires_at?: string;
   version?: number;
   created_at: string;
+  version?: number;
   updated_at?: string;
 }
 

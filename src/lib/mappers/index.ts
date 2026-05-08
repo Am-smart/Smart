@@ -58,9 +58,21 @@ export class UserMapper {
     const { password: _, ...userData } = user as any;
 
     return {
-      ...toCleanDTO<UserDTO>(userData),
-      role: userData.role || 'student',
-      created_at: userData.created_at || new Date().toISOString()
+      id: user.id,
+      email: user.email,
+      full_name: user.full_name,
+      role: user.role || 'student',
+      phone: user.phone,
+      created_at: user.created_at || new Date().toISOString(),
+      updated_at: user.updated_at,
+      active: user.active,
+      metadata: user.metadata || {},
+      flagged: (user as User).flagged,
+      failed_attempts: (user as User).failed_attempts,
+      lockouts: (user as User).lockouts,
+      locked_until: (user as User).locked_until,
+      reset_request: (user as User).reset_request,
+      version: user.version
     };
   }
 }
