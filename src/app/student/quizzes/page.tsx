@@ -35,6 +35,19 @@ export default function QuizzesPage() {
     fetchData();
   }, [fetchData]);
 
+  useEffect(() => {
+    if (quizzes.length > 0) {
+      const params = new URLSearchParams(window.location.search);
+      const id = params.get('id');
+      if (id) {
+        const quiz = quizzes.find(q => q.id === id);
+        if (quiz) {
+          setActiveQuiz(quiz);
+        }
+      }
+    }
+  }, [quizzes]);
+
   const handleViewResults = (quizId: string, submissionId: string) => {
       const quiz = quizzes.find(q => q.id === quizId);
       const sub = submissions.find(s => s.id === submissionId);

@@ -18,7 +18,21 @@ export default function LiveClassesPage() {
             const courseIds = enrollments.map(e => e.course_id);
             if (courseIds.length > 0) {
                 getLiveClasses().then(data => {
-                    setLiveClasses(data.filter(lc => courseIds.includes(lc.course_id)));
+                    const filtered = data.filter(lc => courseIds.includes(lc.course_id));
+                    setLiveClasses(filtered);
+
+                    const params = new URLSearchParams(window.location.search);
+                    const id = params.get('id');
+                    if (id && filtered.some(lc => lc.id === id)) {
+                        setTimeout(() => {
+                            const element = document.getElementById(`live-class-${id}`);
+                            if (element) {
+                                element.scrollIntoView({ behavior: 'smooth' });
+                                element.classList.add('ring-4', 'ring-blue-500', 'ring-offset-4');
+                                setTimeout(() => element.classList.remove('ring-4', 'ring-blue-500', 'ring-offset-4'), 3000);
+                            }
+                        }, 500);
+                    }
                 });
             }
         });

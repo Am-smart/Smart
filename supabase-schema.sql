@@ -974,6 +974,25 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 DROP TRIGGER IF EXISTS tr_lesson_created ON lessons;
 CREATE TRIGGER tr_lesson_created AFTER INSERT ON lessons FOR EACH ROW EXECUTE PROCEDURE tr_notify_lesson();
 
+CREATE OR REPLACE FUNCTION tr_notify_submission_graded() RETURNS TRIGGER AS $$
+BEGIN
+  IF (NEW.status = 'graded' AND OLD.status != 'graded') THEN
+    INSERT INTO notifications (user_id, title, message, link, type)
+    VALUES (
+      NEW.student_id,
+      'Assignment Graded',
+      'Your submission for an assignment has been graded.',
+      'assignment:' || NEW.assignment_id,
+      'grading'
+    );
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS tr_submission_graded ON submissions;
+CREATE TRIGGER tr_submission_graded AFTER UPDATE ON submissions FOR EACH ROW EXECUTE PROCEDURE tr_notify_submission_graded();
+
 -- Scalable Fan-out for Broadcasts
 CREATE OR REPLACE FUNCTION tr_fan_out_broadcast() RETURNS TRIGGER AS $$
 BEGIN

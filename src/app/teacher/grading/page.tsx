@@ -23,6 +23,19 @@ export default function GradingPage() {
     fetchSubmissions();
   }, [fetchSubmissions]);
 
+  useEffect(() => {
+    if (submissions.length > 0) {
+      const params = new URLSearchParams(window.location.search);
+      const id = params.get('id');
+      if (id) {
+        const sub = submissions.find(s => s.id === id);
+        if (sub) {
+          setSelectedSubmission(sub);
+        }
+      }
+    }
+  }, [submissions]);
+
   return (
     <>
       <GradingQueue
