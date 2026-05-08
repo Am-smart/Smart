@@ -14,7 +14,7 @@ interface CourseViewProps {
 export const CourseView: React.FC<CourseViewProps> = ({ course, lessons, onBack }) => {
     const { addToast } = useAppContext();
     const { user } = useAuth();
-    const [activeLesson, setActiveLesson] = useState<LessonDTO | null>(lessons[0] || null);
+    const [activeLesson, setActiveLesson] = useState<LessonDTO | null>(null);
     const [completions, setCompletions] = useState<string[]>([]);
     const [isUpdating, setIsUpdating] = useState(false);
 
@@ -27,6 +27,23 @@ export const CourseView: React.FC<CourseViewProps> = ({ course, lessons, onBack 
         };
         fetchCompletions();
     }, [user]);
+
+    useEffect(() => {
+        if (lessons.length > 0 && !activeLesson) {
+            const params = new URLSearchParams(window.location.search);
+            const lessonId = params.get('lessonId');
+            if (lessonId) {
+                const lesson = lessons.find(l => l.id === lessonId);
+                if (lesson) {
+                    setActiveLesson(lesson);
+                } else {
+                    setActiveLesson(lessons[0]);
+                }
+            } else {
+                setActiveLesson(lessons[0]);
+            }
+        }
+    }, [lessons, activeLesson]);
 
     const handleMarkComplete = async () => {
         if (!activeLesson || isUpdating) return;

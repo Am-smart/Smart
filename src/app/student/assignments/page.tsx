@@ -36,6 +36,19 @@ export default function AssignmentsPage() {
     fetchData();
   }, [fetchData]);
 
+  useEffect(() => {
+    if (assignments.length > 0) {
+      const params = new URLSearchParams(window.location.search);
+      const id = params.get('id');
+      if (id) {
+        const assignment = assignments.find(a => a.id === id);
+        if (assignment) {
+          setActiveAssignment(assignment);
+        }
+      }
+    }
+  }, [assignments]);
+
   return (
     <>
       {activeAssignment && (

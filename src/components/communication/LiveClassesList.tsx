@@ -15,7 +15,7 @@ export const LiveClassesList: React.FC<LiveClassesListProps> = ({ liveClasses, o
         {liveClasses.map(liveClass => {
           const isLive = liveClass.status === 'live';
           return (
-            <div key={liveClass.id} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col gap-4">
+            <div key={liveClass.id} id={`live-class-${liveClass.id}`} className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col gap-4 transition-all duration-500">
               <div className="flex justify-between items-start">
                 <div>
                   <h3 className="text-lg font-bold text-slate-900">{liveClass.title}</h3>

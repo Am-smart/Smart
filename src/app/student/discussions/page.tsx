@@ -15,7 +15,14 @@ export default function DiscussionsPage() {
     if (user && user.id) {
         getEnrollments(user.id).then(e => {
             setEnrollments(e);
-            if (e.length > 0) setSelectedCourseId(e[0].course_id);
+
+            const params = new URLSearchParams(window.location.search);
+            const id = params.get('id');
+            if (id && e.some(item => item.course_id === id)) {
+                setSelectedCourseId(id);
+            } else if (e.length > 0) {
+                setSelectedCourseId(e[0].course_id);
+            }
         });
     }
   }, [user]);

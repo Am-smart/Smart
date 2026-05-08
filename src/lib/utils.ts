@@ -24,8 +24,9 @@ export const parseDeepLink = (link?: string, role: string = 'student'): string |
 
     // Handle structured links: type:id format
     if (link.includes(':')) {
-      const [type, ...idParts] = link.split(':');
-      const id = idParts.join(':');
+      const [type, ...parts] = link.split(':');
+      const id = parts[0];
+      const subId = parts[1] || '';
 
       const routes: Record<string, string> = {
         course: `/${base}/courses?id=${id}`,
@@ -34,10 +35,10 @@ export const parseDeepLink = (link?: string, role: string = 'student'): string |
         discussion: `/${base}/discussions?id=${id}`,
         material: `/${base}/materials?id=${id}`,
         live: `/${base}/live?id=${id}`,
-        grading: `/teacher/grading?id=${id}`,
-        students: `/teacher/students?id=${id}`,
-        submission: `/teacher/grading?id=${id}`, // Direct link for teachers
-        lesson: `/${base}/courses?id=${id.split(':')[0]}&lessonId=${id.split(':')[1] || ''}`,
+        grading: role === 'teacher' ? `/teacher/grading?id=${id}` : role === 'admin' ? '/admin/management' : '/student/grades',
+        students: role === 'teacher' ? `/teacher/students?id=${id}` : role === 'admin' ? '/admin/users' : '/student/dashboard',
+        submission: role === 'teacher' ? `/teacher/grading?id=${id}` : role === 'admin' ? '/admin/management' : `/student/assignments?id=${id}`,
+        lesson: `/${base}/courses?id=${id}&lessonId=${subId}`,
       };
 
       if (routes[type]) {
