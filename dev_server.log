@@ -1,0 +1,19 @@
+
+> next-app@0.1.0 dev
+> next dev
+
+▲ Next.js 16.2.4 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.0.2:3000
+✓ Ready in 532ms
+
+○ Compiling / ...
+ HEAD / 200 in 3.6s (next.js: 3.3s, application-code: 290ms)
+ GET / 200 in 141ms (next.js: 10ms, application-code: 132ms)
+ GET /api/v1/auth?action=session 200 in 1348ms (next.js: 1321ms, application-code: 28ms)
+ GET /api/v1/auth?action=session 200 in 21ms (next.js: 5ms, application-code: 16ms)
+ GET /api/v1/system?action=maintenance 200 in 2.0s (next.js: 1244ms, application-code: 801ms)
+ GET /api/v1/system?action=maintenance 200 in 2.2s (next.js: 1428ms, application-code: 795ms)
+ GET /api/v1/system?action=maintenance 200 in 2.1s (next.js: 1217ms, application-code: 837ms)
+ GET /api/v1/system?action=maintenance 200 in 2.1s (next.js: 1232ms, application-code: 823ms)
+ GET /api/v1/system?action=maintenance 200 in 153ms (next.js: 4ms, application-code: 149ms)

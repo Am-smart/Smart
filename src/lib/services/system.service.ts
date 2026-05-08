@@ -1,5 +1,6 @@
 import { systemDb } from '../database/system.db';
 import { learningDb } from '../database/learning.db';
+import { supabase, withSession } from '../supabase';
 import { SystemLog, Maintenance, PlannerItem, User, Setting, Enrollment, Discussion, Notification, LiveClass, Broadcast } from '../types';
 import { UserDomain } from '../domain/user.domain';
 import { EnrollmentDomain } from '../domain/enrollment.domain';
@@ -217,10 +218,25 @@ export class SystemService {
   async getMergedNotifications(user: User, userId: string, sessionId: string): Promise<Notification[]> {
     // With fan-out trigger, all broadcasts now exist as individual notifications.
     // We only need to fetch from the notifications table.
-    // We filter out dismissed notifications.
+    // We filter out dismissed and expired notifications.
     const notifications = await this.getNotifications(userId, sessionId, user);
+    const now = new Date();
 
-    return notifications.filter(n => !n.dismissed_at).sort(
+    return notifications.filter(n => {
+        if (n.dismissed_at) return false;
+
+        // Check for expiration in metadata
+        if (n.metadata?.expires_at) {
+            try {
+                const expiresAt = new Date(n.metadata.expires_at as string);
+                if (expiresAt < now) return false;
+            } catch {
+                // If invalid date, keep the notification
+            }
+        }
+
+        return true;
+    }).sort(
       (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     );
   }
@@ -300,6 +316,36 @@ export class SystemService {
     return systemDb.getHealthMetrics(sessionId);
   }
 
+  // Storage
+  async uploadFile(file: File, category: string, userId: string, sessionId: string): Promise<{ filePath: string, publicUrl: string }> {
+    const fileName = file.name;
+    const filePath = `${category}/${userId}/${Date.now()}_${fileName}`;
+    const buffer = await file.arrayBuffer();
+
+    const storage = supabase.storage.from('lms-files');
+    const storageWithSession = sessionId ? withSession(storage, sessionId) : storage;
+
+    const { error: uploadError } = await storageWithSession.upload(filePath, buffer, {
+        contentType: file.type,
+        upsert: true
+    });
+
+    if (uploadError) throw uploadError;
+
+    const { data: { publicUrl } } = supabase.storage
+      .from('lms-files')
+      .getPublicUrl(filePath);
+
+    await this.createLogAsync({
+        level: 'info',
+        category: 'management',
+        message: `File uploaded: ${fileName} in category ${category}`,
+        user_id: userId,
+        metadata: { filePath, publicUrl }
+    });
+
+    return { filePath, publicUrl };
+  }
 }
 
 export const systemService = new SystemService();

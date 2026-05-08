@@ -93,7 +93,7 @@ export default function TeacherDashboard() {
                                   </div>
                                   <div>
                                       <div className="font-bold text-slate-900">{course.title}</div>
-                                      <div className="text-[10px] text-slate-500 uppercase font-bold tracking-tight">{(course as any).category || 'General'}</div>
+                                      <div className="text-[10px] text-slate-500 uppercase font-bold tracking-tight">{course.category || 'General'}</div>
                                   </div>
                               </div>
                               <button

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { verifyToken } from '@/lib/crypto';
 import { authService } from '@/lib/services/auth.service';
-import { User, ApiResponse } from '@/lib/types';
+import { User } from '@/lib/types';
 import { getErrorMessage, mapErrorToStatus } from '@/lib/api-error';
 import { headers } from 'next/headers';
 
