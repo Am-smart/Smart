@@ -256,12 +256,14 @@ export async function submitAssignment(assignmentId: string, content: Partial<Su
   }
 }
 
-export async function getSubmissions(assignmentId?: string, studentId?: string, limit?: number, offset?: number): Promise<SubmissionDTO[]> {
+export async function getSubmissions(filters: { assignmentId?: string; studentId?: string; status?: string; courseId?: string; limit?: number; offset?: number } = {}): Promise<SubmissionDTO[]> {
     let url = '/api/v1/assessment?action=submissions';
-    if (assignmentId) url += `&assignmentId=${assignmentId}`;
-    if (studentId) url += `&studentId=${studentId}`;
-    if (limit) url += `&limit=${limit}`;
-    if (offset) url += `&offset=${offset}`;
+    if (filters.assignmentId) url += `&assignmentId=${filters.assignmentId}`;
+    if (filters.studentId) url += `&studentId=${filters.studentId}`;
+    if (filters.status) url += `&status=${filters.status}`;
+    if (filters.courseId) url += `&courseId=${filters.courseId}`;
+    if (filters.limit) url += `&limit=${filters.limit}`;
+    if (filters.offset) url += `&offset=${filters.offset}`;
     return apiClient.get<SubmissionDTO[]>(url);
 }
 
@@ -302,10 +304,11 @@ export async function submitQuiz(quizId: string, content: Partial<QuizSubmission
   }
 }
 
-export async function getQuizSubmissions(quizId?: string, studentId?: string): Promise<QuizSubmissionDTO[]> {
+export async function getQuizSubmissions(quizId?: string, studentId?: string, courseId?: string): Promise<QuizSubmissionDTO[]> {
     let url = '/api/v1/system?action=quiz-submissions';
     if (quizId) url += `&quizId=${quizId}`;
     if (studentId) url += `&studentId=${studentId}`;
+    if (courseId) url += `&courseId=${courseId}`;
     return apiClient.get<QuizSubmissionDTO[]>(url);
 }
 

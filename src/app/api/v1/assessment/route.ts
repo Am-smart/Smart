@@ -30,9 +30,11 @@ export const GET = withHandler(async (user, request) => {
     case 'submissions': {
       const assignmentId = searchParams.get('assignmentId') || undefined;
       const studentId = searchParams.get('studentId') || undefined;
+      const status = searchParams.get('status') || undefined;
+      const courseId = searchParams.get('courseId') || undefined;
       const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : undefined;
       const offset = searchParams.get('offset') ? parseInt(searchParams.get('offset')!) : undefined;
-      const submissions = await assessmentService.getSubmissions(assignmentId, studentId, user.sessionId!, limit, offset, user.id, user.role);
+      const submissions = await assessmentService.getSubmissions(assignmentId, studentId, user.sessionId!, limit, offset, user.id, user.role, status, courseId);
       return submissions.map(AssessmentMapper.toSubmissionDTO);
     }
     default:

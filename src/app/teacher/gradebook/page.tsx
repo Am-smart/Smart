@@ -22,9 +22,9 @@ export default function GradeBookPage() {
             const courseIds = myCourses.map(c => c.id);
             if (courseIds.length > 0) {
                 const [enrols, subs, qSubs] = await Promise.all([
-                    getEnrollments(),
-                    getSubmissions(),
-                    getQuizSubmissions()
+                    getEnrollments(undefined, courseIds),
+                    getSubmissions(), // Service layer automatically filters by teacher's ownership
+                    getQuizSubmissions() // Service layer automatically filters by teacher's ownership
                 ]);
                 setEnrollments(enrols || []);
                 setAllSubmissions(subs || []);

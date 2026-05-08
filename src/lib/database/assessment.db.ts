@@ -66,11 +66,13 @@ export const assessmentDb = {
     return data as Submission;
   },
 
-  async findAllSubmissions(assignmentId?: string, studentId?: string, sessionId?: string, limit?: number, offset?: number, teacherId?: string): Promise<Submission[]> {
+  async findAllSubmissions(assignmentId?: string, studentId?: string, sessionId?: string, limit?: number, offset?: number, teacherId?: string, status?: string, courseId?: string): Promise<Submission[]> {
     let query = withSession(supabase.from('submissions').select('*, assignments!inner(*), users!student_id(*)'), sessionId);
     if (assignmentId) query = query.eq('assignment_id', assignmentId);
     if (studentId) query = query.eq('student_id', studentId);
     if (teacherId) query = query.eq('assignments.teacher_id', teacherId);
+    if (status) query = query.eq('status', status);
+    if (courseId) query = query.eq('assignments.course_id', courseId);
 
     query = dbUtils.applyPagination(query, { limit, offset });
 
@@ -98,10 +100,12 @@ export const assessmentDb = {
     return data as QuizSubmission;
   },
 
-  async findAllQuizSubmissions(quizId?: string, studentId?: string, sessionId?: string): Promise<QuizSubmission[]> {
-    let query = withSession(supabase.from('quiz_submissions').select('*, quizzes(*), users!student_id(*)'), sessionId);
+  async findAllQuizSubmissions(quizId?: string, studentId?: string, sessionId?: string, teacherId?: string, courseId?: string): Promise<QuizSubmission[]> {
+    let query = withSession(supabase.from('quiz_submissions').select('*, quizzes!inner(*), users!student_id(*)'), sessionId);
     if (quizId) query = query.eq('quiz_id', quizId);
     if (studentId) query = query.eq('student_id', studentId);
+    if (teacherId) query = query.eq('quizzes.teacher_id', teacherId);
+    if (courseId) query = query.eq('quizzes.course_id', courseId);
     const { data, error } = await query;
     if (error) dbUtils.handleError(error);
     return data as QuizSubmission[];

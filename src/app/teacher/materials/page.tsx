@@ -20,9 +20,8 @@ export default function MaterialsPage() {
     try {
       const myCourses = await getCourses(user.id);
       setCourses(myCourses);
-      const allMaterials = await getMaterials();
-      const courseIds = myCourses.map(c => c.id);
-      setMaterials(allMaterials.filter(m => courseIds.includes(m.course_id)));
+      const materials = await getMaterials(); // Service layer filters by teacher's ownership
+      setMaterials(materials);
     } catch (err) {
       console.error('Failed to load materials:', err);
       setError('Failed to load materials');

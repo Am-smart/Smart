@@ -34,12 +34,12 @@ export default function AntiCheatPage() {
 
                 if (asgnIds.length > 0) {
                     getSubmissions().then(data => {
-                        setSubmissions(data.filter(s => asgnIds.includes(s.assignment_id)));
+                        setSubmissions(data); // Backend already filters for teacher's own assignments
                     });
                 }
                 if (quizIds.length > 0) {
                     getQuizSubmissions().then(data => {
-                        setQuizSubmissions(data.filter(s => quizIds.includes(s.quiz_id)));
+                        setQuizSubmissions(data); // Backend already filters for teacher's own quizzes
                     });
                 }
             }
