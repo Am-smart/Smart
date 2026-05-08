@@ -89,7 +89,7 @@ export const learningDb = {
 
   // Material Operations
   async findMaterialById(id: string, sessionId: string): Promise<Material | null> {
-    const { data, error } = await withSession(supabase.from('materials').select('*').eq('id', id), sessionId).maybeSingle();
+    const { data, error } = await withSession(supabase.from('materials').select('*, courses(*)').eq('id', id), sessionId).maybeSingle();
     if (error) dbUtils.handleError(error);
     return data as Material;
   },

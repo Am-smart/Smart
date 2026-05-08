@@ -683,7 +683,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
-DROP FUNCTION IF EXISTS admin_update_user_v2(p_user_id UUID, p_full_name VARCHAR, p_email VARCHAR, p_password VARCHAR, p_phone VARCHAR, p_role VARCHAR, p_active BOOLEAN, p_flagged BOOLEAN);
+DROP FUNCTION IF EXISTS admin_update_user_v2(UUID, VARCHAR, VARCHAR, VARCHAR, VARCHAR, VARCHAR, BOOLEAN, BOOLEAN);
 CREATE OR REPLACE FUNCTION admin_update_user_v2(
     p_user_id UUID,
     p_full_name VARCHAR DEFAULT NULL,
@@ -708,25 +708,25 @@ BEGIN
         v_hashed_password := crypt(p_password, gen_salt('bf', 10));
         UPDATE users
         SET
-            full_name = p_full_name,
-            email = p_email,
+            full_name = COALESCE(p_full_name, users.full_name),
+            email = COALESCE(p_email, users.email),
             password = v_hashed_password,
-            phone = p_phone,
-            role = p_role,
-            active = p_active,
-            flagged = p_flagged,
+            phone = COALESCE(p_phone, users.phone),
+            role = COALESCE(p_role, users.role),
+            active = COALESCE(p_active, users.active),
+            flagged = COALESCE(p_flagged, users.flagged),
             version = version + 1,
             updated_at = NOW()
         WHERE id = p_user_id;
     ELSE
         UPDATE users
         SET
-            full_name = p_full_name,
-            email = p_email,
-            phone = p_phone,
-            role = p_role,
-            active = p_active,
-            flagged = p_flagged,
+            full_name = COALESCE(p_full_name, users.full_name),
+            email = COALESCE(p_email, users.email),
+            phone = COALESCE(p_phone, users.phone),
+            role = COALESCE(p_role, users.role),
+            active = COALESCE(p_active, users.active),
+            flagged = COALESCE(p_flagged, users.flagged),
             version = version + 1,
             updated_at = NOW()
         WHERE id = p_user_id;
