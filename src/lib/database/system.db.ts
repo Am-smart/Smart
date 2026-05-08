@@ -1,5 +1,5 @@
 import { withSession, supabase } from '../supabase';
-import { User, LiveClass, Notification, Broadcast, Discussion, PlannerItem, Maintenance, Setting, SystemLog } from '../types';
+import { User, LiveClass, Notification, Broadcast, Discussion, PlannerItem, Maintenance, Setting, SystemLog, Attendance } from '../types';
 import { dbUtils } from './db-utils';
 
 export const systemDb = {
@@ -36,7 +36,11 @@ export const systemDb = {
   },
 
   async updateUser(id: string, updates: Partial<User>, sessionId: string, version?: number): Promise<User> {
-    const upsertData = dbUtils.prepareUpsert({ ...updates, id, version });
+    // Strip sensitive fields for non-admin update path
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { role, flagged, active, password, ...safeUpdates } = updates as Record<string, unknown>;
+
+    const upsertData = dbUtils.prepareUpsert({ ...safeUpdates, id, version });
     const query = dbUtils.applyVersionCheck(
       withSession(supabase.from('users'), sessionId).update(upsertData as Record<string, unknown>).eq('id', id),
       id,
@@ -46,6 +50,23 @@ export const systemDb = {
     const { data, error } = await query.select().single();
     if (error) dbUtils.handleUpsertError(error, 'User profile', id, version);
     return data as User;
+  },
+
+  async adminUpdateUser(id: string, updates: Partial<User>, sessionId: string): Promise<void> {
+      const { data, error } = await withSession(supabase.rpc('admin_update_user_v2', {
+          p_user_id: id,
+          p_full_name: updates.full_name,
+          p_email: updates.email,
+          p_password: updates.password,
+          p_phone: updates.phone,
+          p_role: updates.role,
+          p_active: updates.active,
+          p_flagged: updates.flagged
+      }), sessionId);
+
+      if (error) dbUtils.handleError(error);
+      const result = data as { success: boolean, error?: string };
+      if (result && !result.success) throw new Error(result.error || 'Admin update failed');
   },
 
   async deleteUser(id: string, sessionId: string): Promise<void> {
@@ -91,6 +112,13 @@ export const systemDb = {
   async upsertAttendance(attendance: { live_class_id: string, student_id: string, join_time: string, is_present: boolean }, sessionId: string): Promise<void> {
     const { error } = await withSession(supabase.from('attendance'), sessionId).upsert(attendance, { onConflict: 'live_class_id,student_id' });
     if (error) dbUtils.handleError(error);
+  },
+
+  async findAttendanceByClassId(liveClassId: string, sessionId: string): Promise<Attendance[]> {
+    const { data, error } = await withSession(supabase.from('attendance').select('*, users!student_id(id, full_name, email, role)'), sessionId)
+      .eq('live_class_id', liveClassId);
+    if (error) dbUtils.handleError(error);
+    return data as Attendance[];
   },
 
   // Notification Operations

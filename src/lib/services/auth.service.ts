@@ -88,8 +88,9 @@ export class AuthService {
     return authDb.updatePreferences(preferences, sessionId);
   }
 
-  async getSessions(sessionId: string) {
-    return authDb.findAllSessions(sessionId);
+  async getSessions(currentUser: User, sessionId: string) {
+    const userId = currentUser.role === 'admin' ? undefined : currentUser.id;
+    return authDb.findAllSessions(sessionId, userId);
   }
 
   async getRoleCount() {
@@ -135,6 +136,11 @@ export class AuthService {
     if (!targetUser) throw new Error('User not found');
 
     UserDomain.validateUpdate(currentUser, userId);
+
+    if (UserDomain.isAdmin(currentUser)) {
+        await systemDb.adminUpdateUser(userId, updates, sessionId);
+        return (await systemDb.findUserById(userId, sessionId))!;
+    }
 
     const filteredUpdates = UserDomain.filterUpdateFields(currentUser, updates);
 

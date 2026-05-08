@@ -94,11 +94,10 @@ export const authDb = {
     if (error) dbUtils.handleError(error);
   },
 
-  async findAllSessions(sessionId: string): Promise<Session[]> {
-    const { data, error } = await withSession(supabase
-      .from('sessions')
-      .select('*'), sessionId);
-
+  async findAllSessions(sessionId: string, userId?: string): Promise<Session[]> {
+    let query = withSession(supabase.from('sessions').select('*'), sessionId);
+    if (userId) query = query.eq('user_id', userId);
+    const { data, error } = await query;
     if (error) dbUtils.handleError(error);
     return data as Session[];
   }

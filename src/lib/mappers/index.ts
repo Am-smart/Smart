@@ -2,12 +2,12 @@ import {
   User, Course, Lesson, Material, UserRole,
   Assignment, Quiz, Submission, QuizSubmission,
   Notification, Broadcast, LiveClass, Discussion,
-  PlannerItem, Enrollment, Maintenance, Setting, SystemLog
+  PlannerItem, Enrollment, Maintenance, Setting, SystemLog, Attendance
 } from '../types';
 import { UserDTO } from '../types';
 import { CourseDTO, LessonDTO, MaterialDTO } from '../types';
 import { AssignmentDTO, QuizDTO, SubmissionDTO, QuizSubmissionDTO } from '../types';
-import { NotificationDTO, BroadcastDTO, LiveClassDTO, DiscussionDTO } from '../types';
+import { NotificationDTO, BroadcastDTO, LiveClassDTO, DiscussionDTO, AttendanceDTO } from '../types';
 import { PlannerItemDTO, EnrollmentDTO, MaintenanceDTO, SettingDTO, SystemLogDTO } from '../types';
 
 /**
@@ -73,8 +73,10 @@ export class UserMapper {
 
 export class CourseMapper {
   static toDTO(course: Course): CourseDTO {
+    const dto = toCleanDTO<CourseDTO>(course);
     return {
-      ...toCleanDTO<CourseDTO>(course),
+      ...dto,
+      category: course.category || (course.metadata?.category as string),
       created_at: course.created_at || new Date().toISOString(),
       metadata: course.metadata || {}
     };
@@ -91,7 +93,8 @@ export class LearningMapper {
 
   static toMaterialDTO(material: Material): MaterialDTO {
     return {
-      ...toCleanDTO<MaterialDTO>(material)
+      ...toCleanDTO<MaterialDTO>(material),
+      course: material.courses ? CourseMapper.toDTO(material.courses) : undefined
     };
   }
 }
@@ -150,6 +153,13 @@ export class CommunicationMapper {
     return {
       ...toCleanDTO<DiscussionDTO>(d),
       user: d.users ? (UserMapper.toDTO({ id: d.user_id, ...d.users }) || undefined) : undefined
+    };
+  }
+
+  static toAttendanceDTO(a: Attendance & { users?: { id: string; full_name: string; email: string; role?: UserRole } }): AttendanceDTO {
+    return {
+      ...toCleanDTO<AttendanceDTO>(a),
+      student: a.users ? (UserMapper.toDTO(a.users) || undefined) : undefined
     };
   }
 }

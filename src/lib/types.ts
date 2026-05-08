@@ -409,7 +409,6 @@ export interface Notification {
   expires_at?: string;
   metadata?: Record<string, string | number | boolean>;
   created_at: string;
-  is_broadcast?: boolean;
 }
 
 export interface NotificationDTO {
@@ -427,7 +426,6 @@ export interface NotificationDTO {
   expires_at?: string;
   metadata?: Record<string, string | number | boolean>;
   created_at: string;
-  is_broadcast?: boolean;
   version?: number;
   updated_at?: string;
 }
@@ -575,6 +573,18 @@ export interface Attendance {
   duration?: number;
   is_present: boolean;
   created_at?: string;
+}
+
+export interface AttendanceDTO {
+  id: string;
+  live_class_id: string;
+  student_id: string;
+  join_time: string;
+  leave_time?: string;
+  duration?: number;
+  is_present: boolean;
+  created_at?: string;
+  student?: UserDTO;
 }
 
 export interface Material {

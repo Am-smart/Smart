@@ -89,13 +89,13 @@ export const learningDb = {
 
   // Material Operations
   async findMaterialById(id: string, sessionId: string): Promise<Material | null> {
-    const { data, error } = await withSession(supabase.from('materials').select('*').eq('id', id), sessionId).maybeSingle();
+    const { data, error } = await withSession(supabase.from('materials').select('*, courses(*)').eq('id', id), sessionId).maybeSingle();
     if (error) dbUtils.handleError(error);
     return data as Material;
   },
 
   async findAllMaterials(courseId?: string, sessionId?: string, teacherId?: string): Promise<Material[]> {
-    let query = withSession(supabase.from('materials').select('*, courses!inner(*)'), sessionId);
+    let query = withSession(supabase.from('materials').select('*, courses(*)'), sessionId);
     if (courseId) query = query.eq('course_id', courseId);
     if (teacherId) query = query.eq('courses.teacher_id', teacherId);
     const { data, error } = await query;
