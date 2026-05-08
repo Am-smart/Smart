@@ -381,13 +381,16 @@ export interface QuizSubmissionDTO {
 export interface Notification {
   id: string;
   user_id: string;
+  broadcast_id?: string;
   title: string;
   message: string;
   link?: string;
   type: string;
   is_read: boolean;
+  viewed_at?: string;
   dismissed_at?: string;
   acknowledged_at?: string;
+  expires_at?: string;
   metadata?: Record<string, string | number | boolean>;
   created_at: string;
   is_broadcast?: boolean;
@@ -396,13 +399,16 @@ export interface Notification {
 export interface NotificationDTO {
   id: string;
   user_id: string;
+  broadcast_id?: string;
   title: string;
   message: string;
   link?: string;
   type: string;
   is_read: boolean;
+  viewed_at?: string;
   dismissed_at?: string;
   acknowledged_at?: string;
+  expires_at?: string;
   metadata?: Record<string, string | number | boolean>;
   created_at: string;
   is_broadcast?: boolean;

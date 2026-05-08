@@ -132,6 +132,13 @@ export const systemDb = {
     if (error) dbUtils.handleError(error);
   },
 
+  async updateMultipleNotifications(ids: string[], updates: Partial<Notification>, sessionId: string): Promise<void> {
+      const { error } = await withSession(supabase.from('notifications'), sessionId)
+        .update(updates)
+        .in('id', ids);
+      if (error) dbUtils.handleError(error);
+  }
+
   async updateNotificationsForUser(userId: string, updates: Partial<Notification>, sessionId: string): Promise<void> {
     const { error } = await withSession(supabase.from('notifications'), sessionId)
       .update(updates)

@@ -275,6 +275,12 @@ export const PATCH = withHandler(async (user, request) => {
                     await systemService.dismissNotification(id, user.sessionId!);
                 } else if (subAction === 'acknowledge') {
                     await systemService.acknowledgeNotification(id, user.sessionId!);
+                } else if (subAction === 'view') {
+                    if (body.ids && Array.isArray(body.ids)) {
+                        await systemService.markNotificationsAsViewed(body.ids, user.sessionId!);
+                    } else if (id) {
+                        await systemService.markNotificationAsViewed(id, user.sessionId!);
+                    }
                 } else {
                     await systemService.markNotificationAsRead(id, user.sessionId!);
                 }

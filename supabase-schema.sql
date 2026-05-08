@@ -226,16 +226,31 @@ CREATE TABLE IF NOT EXISTS discussions (
   version INTEGER DEFAULT 1
 );
 
+CREATE TABLE IF NOT EXISTS broadcasts (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  course_id UUID REFERENCES courses(id) ON DELETE CASCADE,
+  target_role VARCHAR(50), -- 'student', 'teacher', or NULL for all
+  title VARCHAR(255) NOT NULL,
+  message TEXT NOT NULL,
+  link TEXT,
+  type VARCHAR(50) DEFAULT 'system',
+  expires_at TIMESTAMP WITH TIME ZONE DEFAULT (NOW() + INTERVAL '30 days'),
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 CREATE TABLE IF NOT EXISTS notifications (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id UUID REFERENCES users(id) ON UPDATE CASCADE ON DELETE CASCADE,
+  broadcast_id UUID REFERENCES broadcasts(id) ON DELETE CASCADE,
   title VARCHAR(255) NOT NULL,
   message TEXT NOT NULL,
   link TEXT,
   type VARCHAR(50) DEFAULT 'system',
   is_read BOOLEAN DEFAULT FALSE,
+  viewed_at TIMESTAMP WITH TIME ZONE,
   dismissed_at TIMESTAMP WITH TIME ZONE,
   acknowledged_at TIMESTAMP WITH TIME ZONE,
+  expires_at TIMESTAMP WITH TIME ZONE,
   metadata JSONB DEFAULT '{}'::jsonb,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -247,18 +262,6 @@ CREATE TABLE IF NOT EXISTS sessions (
   expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
   user_agent TEXT,
   ip_address TEXT
-);
-
-CREATE TABLE IF NOT EXISTS broadcasts (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  course_id UUID REFERENCES courses(id) ON DELETE CASCADE,
-  target_role VARCHAR(50), -- 'student', 'teacher', or NULL for all
-  title VARCHAR(255) NOT NULL,
-  message TEXT NOT NULL,
-  link TEXT,
-  type VARCHAR(50) DEFAULT 'system',
-  expires_at TIMESTAMP WITH TIME ZONE DEFAULT (NOW() + INTERVAL '30 days'),
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 CREATE TABLE IF NOT EXISTS maintenance (
@@ -365,6 +368,15 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'notifications' AND column_name = 'metadata') THEN
         ALTER TABLE notifications ADD COLUMN metadata JSONB DEFAULT '{}'::jsonb;
     END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'notifications' AND column_name = 'broadcast_id') THEN
+        ALTER TABLE notifications ADD COLUMN broadcast_id UUID REFERENCES broadcasts(id) ON DELETE CASCADE;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'notifications' AND column_name = 'viewed_at') THEN
+        ALTER TABLE notifications ADD COLUMN viewed_at TIMESTAMP WITH TIME ZONE;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'notifications' AND column_name = 'expires_at') THEN
+        ALTER TABLE notifications ADD COLUMN expires_at TIMESTAMP WITH TIME ZONE;
+    END IF;
 
     -- Scheduling
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'assignments' AND column_name = 'start_at') THEN
@@ -452,6 +464,10 @@ CREATE INDEX IF NOT EXISTS idx_quiz_submissions_student ON quiz_submissions(stud
 CREATE INDEX IF NOT EXISTS idx_submissions_assignment ON submissions(assignment_id);
 CREATE INDEX IF NOT EXISTS idx_materials_course ON materials(course_id);
 CREATE INDEX IF NOT EXISTS idx_planner_user_date ON planner(user_id, due_date);
+CREATE INDEX IF NOT EXISTS idx_notifications_user_created ON notifications(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_notifications_expires ON notifications(expires_at);
+CREATE INDEX IF NOT EXISTS idx_notifications_dismissed ON notifications(user_id, dismissed_at);
+CREATE INDEX IF NOT EXISTS idx_notifications_broadcast_id ON notifications(broadcast_id);
 
 -- ==========================================
 -- 6. RPC Functions (Logic Layers)
@@ -947,16 +963,29 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 DROP TRIGGER IF EXISTS tr_quiz_published ON quizzes;
 CREATE TRIGGER tr_quiz_published AFTER INSERT OR UPDATE ON quizzes FOR EACH ROW EXECUTE PROCEDURE tr_notify_quiz();
 
+CREATE OR REPLACE FUNCTION tr_notify_lesson() RETURNS TRIGGER AS $$
+BEGIN
+  -- Auto-create broadcast for new lesson
+  PERFORM broadcast_data(NEW.course_id, 'student', 'New Lesson Available', 'A new lesson "' || NEW.title || '" has been added.', 'lesson:' || NEW.course_id || ':' || NEW.id, 'lesson', INTERVAL '14 days');
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS tr_lesson_created ON lessons;
+CREATE TRIGGER tr_lesson_created AFTER INSERT ON lessons FOR EACH ROW EXECUTE PROCEDURE tr_notify_lesson();
+
 -- Scalable Fan-out for Broadcasts
 CREATE OR REPLACE FUNCTION tr_fan_out_broadcast() RETURNS TRIGGER AS $$
 BEGIN
-  INSERT INTO notifications (user_id, title, message, link, type, metadata)
+  INSERT INTO notifications (user_id, broadcast_id, title, message, link, type, expires_at, metadata)
   SELECT
     u.id,
+    NEW.id,
     NEW.title,
     NEW.message,
     NEW.link,
     NEW.type,
+    NEW.expires_at,
     jsonb_build_object('broadcast_id', NEW.id, 'expires_at', NEW.expires_at)
   FROM users u
   WHERE
@@ -979,8 +1008,8 @@ FOR EACH ROW EXECUTE PROCEDURE tr_fan_out_broadcast();
 CREATE OR REPLACE FUNCTION cleanup_expired_notifications() RETURNS VOID AS $$
 BEGIN
   DELETE FROM notifications
-  WHERE (metadata->>'expires_at') IS NOT NULL
-  AND (metadata->>'expires_at')::timestamp with time zone < NOW();
+  WHERE (expires_at IS NOT NULL AND expires_at < NOW())
+     OR ((metadata->>'expires_at') IS NOT NULL AND (metadata->>'expires_at')::timestamp with time zone < NOW());
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
@@ -1096,7 +1125,43 @@ CREATE POLICY "Strict Backend Access" ON materials FOR ALL TO anon USING (curren
 DROP POLICY IF EXISTS "Strict Backend Access" ON discussions;
 CREATE POLICY "Strict Backend Access" ON discussions FOR ALL TO anon USING (current_app_user() IS NOT NULL);
 DROP POLICY IF EXISTS "Strict Backend Access" ON notifications;
-CREATE POLICY "Strict Backend Access" ON notifications FOR ALL TO anon USING (current_app_user() IS NOT NULL);
+DROP POLICY IF EXISTS "Notifications Access" ON notifications;
+
+CREATE POLICY "Notifications SELECT" ON notifications FOR SELECT TO anon
+USING (
+    user_id = current_app_user() -- Own notifications
+    OR (current_app_role() = 'admin') -- Admin access
+    OR (
+        current_app_role() = 'teacher' AND
+        EXISTS (
+            SELECT 1 FROM enrollments e
+            JOIN courses c ON e.course_id = c.id
+            WHERE e.student_id = notifications.user_id
+            AND c.teacher_id = current_app_user()
+        )
+    )
+);
+
+CREATE POLICY "Notifications UPDATE" ON notifications FOR UPDATE TO anon
+USING (
+    user_id = current_app_user() -- Users can update own (mark read, etc)
+    OR (current_app_role() = 'admin')
+)
+WITH CHECK (
+    user_id = current_app_user()
+    OR (current_app_role() = 'admin')
+);
+
+CREATE POLICY "Notifications DELETE" ON notifications FOR DELETE TO anon
+USING (
+    user_id = current_app_user() -- Users can delete own (dismiss)
+    OR (current_app_role() = 'admin')
+);
+
+CREATE POLICY "Notifications INSERT" ON notifications FOR INSERT TO anon
+WITH CHECK (
+    current_app_role() IN ('admin', 'teacher') -- System creates these via triggers mostly, but allow admin/teacher
+);
 DROP POLICY IF EXISTS "Strict Backend Access" ON sessions;
 CREATE POLICY "Strict Backend Access" ON sessions FOR ALL TO anon USING (current_app_user() IS NOT NULL);
 DROP POLICY IF EXISTS "Strict Backend Access" ON broadcasts;
