@@ -67,13 +67,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const cachedMaint = await getCache<Maintenance>('maintenance', 5 * 60 * 1000);
       if (cachedMaint) {
         setMaintenance(cachedMaint);
-        const now = new Date();
-        const isInSchedule = cachedMaint.schedules?.some(s => {
-            const start = new Date(s.start_at);
-            const end = new Date(s.end_at);
-            return now >= start && now <= end;
-        });
-        setIsCurrentlyInMaintenance(cachedMaint.enabled || !!isInSchedule);
       }
 
       if (isOnline && (!cachedMaint || isBackendConnected)) {
@@ -84,16 +77,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         const m = await actions.getMaintenance();
         const maintData = m as unknown as Maintenance;
         setMaintenance(maintData);
-
-        // Auto-check schedule
-        const now = new Date();
-        const isInSchedule = maintData.schedules?.some(s => {
-            const start = new Date(s.start_at);
-            const end = new Date(s.end_at);
-            return now >= start && now <= end;
-        });
-
-        setIsCurrentlyInMaintenance(maintData.enabled || !!isInSchedule);
         await setCache('maintenance', maintData);
       }
     } catch (err) {
@@ -139,6 +122,41 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     init();
   }, [init]);
+
+  // Sync calculated maintenance state
+  useEffect(() => {
+    const checkMaintenance = () => {
+        const now = new Date();
+        const isInSchedule = maintenance.schedules?.some(s => {
+            const start = new Date(s.start_at);
+            const end = new Date(s.end_at);
+            return now >= start && now <= end;
+        });
+        setIsCurrentlyInMaintenance(maintenance.enabled || !!isInSchedule);
+    };
+
+    checkMaintenance();
+    const interval = setInterval(checkMaintenance, 60000); // Check schedule every minute
+    return () => clearInterval(interval);
+  }, [maintenance]);
+
+  // Periodic maintenance polling (every 5 minutes)
+  useEffect(() => {
+    const interval = setInterval(async () => {
+        if (isOnline && isBackendConnected) {
+            try {
+                const m = await actions.getMaintenance();
+                const maintData = m as unknown as Maintenance;
+                setMaintenance(maintData);
+                await setCache('maintenance', maintData);
+            } catch (err) {
+                console.error('Failed to poll maintenance status:', err);
+            }
+        }
+    }, 5 * 60 * 1000);
+
+    return () => clearInterval(interval);
+  }, [isOnline, isBackendConnected, setCache]);
 
   const wasOnline = useRef(isOnline);
   const wasBackendConnected = useRef(isBackendConnected);

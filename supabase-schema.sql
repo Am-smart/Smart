@@ -252,7 +252,8 @@ CREATE TABLE IF NOT EXISTS notifications (
   acknowledged_at TIMESTAMP WITH TIME ZONE,
   expires_at TIMESTAMP WITH TIME ZONE,
   metadata JSONB DEFAULT '{}'::jsonb,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  UNIQUE(user_id, broadcast_id)
 );
 
 CREATE TABLE IF NOT EXISTS sessions (
@@ -583,6 +584,9 @@ BEGIN
 
   UPDATE users SET last_login = v_now, failed_attempts = 0, locked_until = NULL WHERE id = v_user.id;
   INSERT INTO sessions (user_id, expires_at) VALUES (v_user.id, v_now + INTERVAL '7 days') RETURNING id INTO v_session_id;
+
+  -- Trigger background maintenance on login
+  PERFORM perform_system_cleanup();
 
   RETURN jsonb_build_object('success', true, 'user', (to_jsonb(v_user) - 'password'), 'session_id', v_session_id, 'error', null);
 END;
@@ -1013,7 +1017,8 @@ BEGIN
       OR EXISTS (SELECT 1 FROM enrollments e WHERE e.student_id = u.id AND e.course_id = NEW.course_id)
       OR u.role = 'admin'
       OR (u.role = 'teacher' AND EXISTS (SELECT 1 FROM courses c WHERE c.id = NEW.course_id AND c.teacher_id = u.id))
-    );
+    )
+  ON CONFLICT (user_id, broadcast_id) DO NOTHING;
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
@@ -1022,12 +1027,32 @@ DROP TRIGGER IF EXISTS tr_broadcast_fan_out ON broadcasts;
 CREATE TRIGGER tr_broadcast_fan_out AFTER INSERT ON broadcasts
 FOR EACH ROW EXECUTE PROCEDURE tr_fan_out_broadcast();
 
--- Notification Lifecycle Management (Cleanup)
+-- System Maintenance & Lifecycle Management (Cleanup)
 CREATE OR REPLACE FUNCTION cleanup_expired_notifications() RETURNS VOID AS $$
 BEGIN
   DELETE FROM notifications
   WHERE (expires_at IS NOT NULL AND expires_at < NOW())
      OR ((metadata->>'expires_at') IS NOT NULL AND (metadata->>'expires_at')::timestamp with time zone < NOW());
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE OR REPLACE FUNCTION cleanup_expired_sessions() RETURNS VOID AS $$
+BEGIN
+  DELETE FROM sessions WHERE expires_at < NOW();
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE OR REPLACE FUNCTION cleanup_expired_broadcasts() RETURNS VOID AS $$
+BEGIN
+  DELETE FROM broadcasts WHERE expires_at < NOW();
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE OR REPLACE FUNCTION perform_system_cleanup() RETURNS VOID AS $$
+BEGIN
+  PERFORM cleanup_expired_notifications();
+  PERFORM cleanup_expired_sessions();
+  PERFORM cleanup_expired_broadcasts();
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
