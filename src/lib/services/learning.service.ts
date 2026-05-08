@@ -19,6 +19,15 @@ export class LearningService {
   async saveCourse(teacherId: string, teacherName: string, course: Partial<Course>, sessionId: string): Promise<Course> {
     CourseDomain.validate(course);
     const courseToSave = CourseDomain.create(course, teacherId, teacherName);
+
+    // Ensure category is preserved in metadata for backward compatibility if needed
+    if (course.category) {
+        courseToSave.metadata = {
+            ...courseToSave.metadata,
+            category: course.category
+        };
+    }
+
     return learningDb.upsertCourse(courseToSave, sessionId);
   }
 

@@ -1,7 +1,7 @@
 import { systemDb } from '../database/system.db';
 import { learningDb } from '../database/learning.db';
 import { supabase, withSession } from '../supabase';
-import { SystemLog, Maintenance, PlannerItem, User, Setting, Enrollment, Discussion, Notification, LiveClass, Broadcast } from '../types';
+import { SystemLog, Maintenance, PlannerItem, User, Setting, Enrollment, Discussion, Notification, LiveClass, Broadcast, Attendance } from '../types';
 import { UserDomain } from '../domain/user.domain';
 import { EnrollmentDomain } from '../domain/enrollment.domain';
 import { CommunicationDomain } from '../domain/communication.domain';
@@ -320,6 +320,21 @@ export class SystemService {
       join_time: new Date().toISOString(),
       is_present: true
     }, sessionId);
+  }
+
+  async getAttendance(currentUser: User, liveClassId: string, sessionId: string): Promise<Attendance[]> {
+      const liveClass = await systemDb.findLiveClassById(liveClassId, sessionId);
+      if (!liveClass) throw new NotFoundError('Live class not found');
+
+      if (UserDomain.isTeacher(currentUser) && liveClass.teacher_id !== currentUser.id) {
+          throw new ForbiddenError('Unauthorized: You can only view attendance for your own live classes');
+      }
+
+      if (UserDomain.isStudent(currentUser)) {
+          throw new ForbiddenError('Students are not authorized to view full attendance lists');
+      }
+
+      return systemDb.findAttendanceByClassId(liveClassId, sessionId);
   }
 
   async createBroadcast(broadcast: Partial<Broadcast>, sessionId: string): Promise<Broadcast> {

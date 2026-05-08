@@ -232,7 +232,7 @@ export const NotificationPanel: React.FC<NotificationPanelProps> = memo(({
                         <div className="flex gap-4">
                           {/* Icon */}
                           <div className={`shrink-0 w-12 h-12 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-110 ${
-                             notification.is_broadcast || notification.type === 'broadcast'
+                             !!notification.broadcast_id || notification.type === 'broadcast'
                                 ? 'bg-orange-50'
                                 : !notification.is_read ? 'bg-white shadow-sm' : 'bg-slate-100'
                           }`}>

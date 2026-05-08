@@ -11,7 +11,7 @@ export const assessmentDb = {
   },
 
   async findAllAssignments(teacherId?: string, courseId?: string, sessionId?: string, limit?: number, offset?: number): Promise<Assignment[]> {
-    let query = withSession(supabase.from('assignments').select('*, courses(*)'), sessionId);
+    let query = withSession(supabase.from('assignments').select('*, courses!inner(*)'), sessionId);
     if (teacherId) query = query.eq('teacher_id', teacherId);
     if (courseId) query = query.eq('course_id', courseId);
 
@@ -67,7 +67,7 @@ export const assessmentDb = {
   },
 
   async findAllSubmissions(assignmentId?: string, studentId?: string, sessionId?: string, limit?: number, offset?: number, teacherId?: string, status?: string, courseId?: string): Promise<Submission[]> {
-    let query = withSession(supabase.from('submissions').select('*, assignments!inner(*), users!student_id(*)'), sessionId);
+    let query = withSession(supabase.from('submissions').select('*, assignments!inner(*, courses(*)), users!student_id(*)'), sessionId);
     if (assignmentId) query = query.eq('assignment_id', assignmentId);
     if (studentId) query = query.eq('student_id', studentId);
     if (teacherId) query = query.eq('assignments.teacher_id', teacherId);

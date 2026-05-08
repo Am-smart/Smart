@@ -37,7 +37,7 @@ export const GET = withHandler(async (user, request) => {
     }
     case 'sessions': {
         if (!user) throw new UnauthorizedError();
-        return authService.getSessions(user.sessionId!);
+        return authService.getSessions(user, user.sessionId!);
     }
     case 'settings': {
       if (!rbac.can(user, 'system:manage')) throw new UnauthorizedError();
@@ -75,6 +75,12 @@ export const GET = withHandler(async (user, request) => {
       if (courseId === 'global') return [];
       const discussions = await systemService.getDiscussions(courseId, user.sessionId!, user.id, user.role);
       return discussions.map(CommunicationMapper.toDiscussionDTO);
+    }
+    case 'attendance': {
+      const liveClassId = searchParams.get('liveClassId');
+      if (!liveClassId) throw new Error('liveClassId is required');
+      const attendance = await systemService.getAttendance(user, liveClassId, user.sessionId!);
+      return attendance.map(CommunicationMapper.toAttendanceDTO);
     }
     case 'enrollments': {
       const studentId = searchParams.get('studentId');
@@ -288,6 +294,12 @@ export const PATCH = withHandler(async (user, request) => {
                     await systemService.markNotificationAsRead(id, user.sessionId!);
                 }
             }
+            return { success: true };
+        }
+        case 'log': {
+            if (!rbac.can(user, 'system:manage')) throw new UnauthorizedError();
+            if (!id) throw new Error('id required');
+            await systemService.updateLog(user, id, body, user.sessionId!);
             return { success: true };
         }
         default:

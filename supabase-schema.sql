@@ -683,7 +683,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
-DROP FUNCTION IF EXISTS admin_update_user_v2(p_user_id UUID, p_full_name VARCHAR, p_email VARCHAR, p_password VARCHAR, p_phone VARCHAR, p_role VARCHAR, p_xp INTEGER, p_active BOOLEAN, p_flagged BOOLEAN);
+DROP FUNCTION IF EXISTS admin_update_user_v2(p_user_id UUID, p_full_name VARCHAR, p_email VARCHAR, p_password VARCHAR, p_phone VARCHAR, p_role VARCHAR, p_active BOOLEAN, p_flagged BOOLEAN);
 CREATE OR REPLACE FUNCTION admin_update_user_v2(
     p_user_id UUID,
     p_full_name VARCHAR DEFAULT NULL,
@@ -691,7 +691,6 @@ CREATE OR REPLACE FUNCTION admin_update_user_v2(
     p_password VARCHAR DEFAULT NULL,
     p_phone VARCHAR DEFAULT NULL,
     p_role VARCHAR DEFAULT NULL,
-    p_xp INTEGER DEFAULT NULL,
     p_active BOOLEAN DEFAULT NULL,
     p_flagged BOOLEAN DEFAULT NULL
 )
@@ -1182,14 +1181,19 @@ WITH CHECK (
     current_app_role() IN ('admin', 'teacher') -- System creates these via triggers mostly, but allow admin/teacher
 );
 DROP POLICY IF EXISTS "Strict Backend Access" ON sessions;
-CREATE POLICY "Strict Backend Access" ON sessions FOR ALL TO anon USING (current_app_user() IS NOT NULL);
+CREATE POLICY "Strict Backend Access" ON sessions FOR ALL TO anon
+USING (user_id = current_app_user() OR current_app_role() = 'admin');
+
 DROP POLICY IF EXISTS "Strict Backend Access" ON broadcasts;
 CREATE POLICY "Strict Backend Access" ON broadcasts FOR ALL TO anon USING (current_app_user() IS NOT NULL);
+
 DROP POLICY IF EXISTS "Strict Backend Access" ON maintenance;
 CREATE POLICY "Strict Backend Access" ON maintenance FOR SELECT TO anon USING (true); -- Publicly readable
 CREATE POLICY "Strict Backend Access Manage" ON maintenance FOR ALL TO anon USING (current_app_user() IS NOT NULL); -- Manageable with session
+
 DROP POLICY IF EXISTS "Strict Backend Access" ON planner;
-CREATE POLICY "Strict Backend Access" ON planner FOR ALL TO anon USING (current_app_user() IS NOT NULL);
+CREATE POLICY "Strict Backend Access" ON planner FOR ALL TO anon
+USING (user_id = current_app_user() OR current_app_role() = 'admin');
 DROP POLICY IF EXISTS "Strict Backend Access" ON lesson_completions;
 CREATE POLICY "Strict Backend Access" ON lesson_completions FOR ALL TO anon USING (current_app_user() IS NOT NULL);
 DROP POLICY IF EXISTS "Strict Backend Access" ON system_logs;

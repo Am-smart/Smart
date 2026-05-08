@@ -21,6 +21,7 @@ import {
   QuizSubmissionDTO,
   NotificationDTO,
   LiveClassDTO,
+  AttendanceDTO,
   PlannerItemDTO,
   MaintenanceDTO,
   SettingDTO,
@@ -42,6 +43,10 @@ export async function login(credentials: { email: string; password?: string }): 
   } catch (error: unknown) {
     return { success: false, error: (error as Error).message };
   }
+}
+
+export async function getAttendance(liveClassId: string): Promise<AttendanceDTO[]> {
+    return apiClient.get<AttendanceDTO[]>(`/api/v1/system?action=attendance&liveClassId=${liveClassId}`);
 }
 
 export async function signup(userData: Partial<User>): Promise<ActionResponse<{ user: UserDTO; sessionId: string }>> {
