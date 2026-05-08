@@ -138,12 +138,14 @@ export class AuthService {
 
     const filteredUpdates = UserDomain.filterUpdateFields(currentUser, updates);
 
-    return systemDb.updateUser(userId, filteredUpdates, sessionId, targetUser.version);
+    return systemDb.updateUser(userId, { ...filteredUpdates, version: targetUser.version }, sessionId);
   }
 
   async toggleUserStatus(currentUser: User, userId: string, active: boolean, sessionId: string): Promise<void> {
     if (!UserDomain.canManageUsers(currentUser)) throw new Error('Forbidden');
-    await systemDb.updateUser(userId, { active }, sessionId);
+    const targetUser = await systemDb.findUserById(userId, sessionId);
+    if (!targetUser) throw new Error('User not found');
+    await systemDb.updateUser(userId, { active, version: targetUser.version }, sessionId);
   }
 
   async deleteUser(currentUser: User, userId: string, sessionId: string): Promise<void> {

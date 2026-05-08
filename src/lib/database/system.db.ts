@@ -53,25 +53,6 @@ export const systemDb = {
     if (error) dbUtils.handleError(error);
   },
 
-  async updateUserFailedAttempts(id: string, attempts: number): Promise<void> {
-    const { error } = await supabase.from('users').update({ failed_attempts: attempts }).eq('id', id);
-    if (error) dbUtils.handleError(error);
-  },
-
-  async lockUser(id: string, lockedUntil: string): Promise<void> {
-    const { error } = await supabase.from('users').update({ locked_until: lockedUntil }).eq('id', id);
-    if (error) dbUtils.handleError(error);
-  },
-
-  async updateUserLastLogin(id: string): Promise<void> {
-    const { error } = await supabase.from('users').update({
-        last_login: new Date().toISOString(),
-        failed_attempts: 0,
-        locked_until: null
-    }).eq('id', id);
-    if (error) dbUtils.handleError(error);
-  },
-
   // Live Class Operations
   async findLiveClassById(id: string, sessionId: string): Promise<LiveClass | null> {
     const { data, error } = await withSession(supabase.from('live_classes').select('*, courses(*)').eq('id', id), sessionId).maybeSingle();

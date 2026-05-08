@@ -40,6 +40,7 @@ export interface UserDTO {
   role: UserRole;
   phone?: string;
   created_at: string;
+  updated_at?: string;
   active?: boolean;
   notification_preferences?: Record<string, boolean>;
   metadata?: Record<string, string | number | boolean>;
@@ -48,6 +49,7 @@ export interface UserDTO {
   lockouts?: number;
   locked_until?: string | null;
   reset_request?: ResetRequest | null;
+  version?: number;
   sessionId?: string;
 }
 
@@ -148,7 +150,9 @@ export interface LessonDTO {
   content: string;
   video_url?: string;
   order_index: number;
+  version?: number;
   created_at?: string;
+  updated_at?: string;
 }
 
 export interface Attachment {
@@ -222,6 +226,9 @@ export interface AssignmentDTO {
   questions: QuestionDTO[];
   attachments?: AttachmentDTO[];
   course?: CourseDTO;
+  version?: number;
+  created_at?: string;
+  updated_at?: string;
   metadata?: Record<string, string | number | boolean>;
 }
 
@@ -274,6 +281,9 @@ export interface QuizDTO {
   end_at?: string;
   questions: QuestionDTO[];
   course?: CourseDTO;
+  version?: number;
+  created_at?: string;
+  updated_at?: string;
   metadata?: Record<string, string | number | boolean>;
 }
 
@@ -322,6 +332,7 @@ export interface SubmissionDTO {
   assignment_id: string;
   student_id: string;
   submitted_at: string;
+  updated_at?: string;
   status: 'draft' | 'submitted' | 'graded' | 'returned';
   grade?: number;
   final_grade?: number;
@@ -334,6 +345,8 @@ export interface SubmissionDTO {
   question_scores?: Record<string, number>;
   response_feedback?: Record<string, string>;
   violation_count?: number;
+  graded_at?: string;
+  version?: number;
   assignment?: AssignmentDTO;
   student?: UserDTO;
 }
@@ -373,7 +386,9 @@ export interface QuizSubmissionDTO {
   started_at: string;
   answers?: Record<string, string | number | boolean>;
   submitted_at: string;
+  updated_at?: string;
   violation_count?: number;
+  version?: number;
   attempt_number?: number;
   quiz?: QuizDTO;
   student?: UserDTO;
@@ -394,7 +409,6 @@ export interface Notification {
   expires_at?: string;
   metadata?: Record<string, string | number | boolean>;
   created_at: string;
-  is_broadcast?: boolean;
 }
 
 export interface NotificationDTO {
@@ -412,7 +426,6 @@ export interface NotificationDTO {
   expires_at?: string;
   metadata?: Record<string, string | number | boolean>;
   created_at: string;
-  is_broadcast?: boolean;
 }
 
 export interface Session {
@@ -433,6 +446,7 @@ export interface Broadcast {
   link?: string;
   type: string;
   expires_at?: string;
+  version?: number;
   created_at: string;
 }
 
@@ -445,6 +459,7 @@ export interface BroadcastDTO {
   link?: string;
   type: string;
   expires_at?: string;
+  version?: number;
   created_at: string;
 }
 
@@ -469,6 +484,7 @@ export interface MaintenanceDTO {
   enabled: boolean;
   message?: string;
   schedules: MaintenanceSchedule[];
+  updated_at?: string;
 }
 
 export interface PlannerItem {
@@ -492,7 +508,9 @@ export interface PlannerItemDTO {
   due_date: string;
   priority: 'low' | 'medium' | 'high';
   completed: boolean;
+  version?: number;
   created_at: string;
+  updated_at?: string;
 }
 
 export interface LessonCompletion {
@@ -538,6 +556,8 @@ export interface LiveClassDTO {
   end_at: string;
   actual_end_at?: string | null;
   status: 'scheduled' | 'live' | 'completed' | 'cancelled';
+  version?: number;
+  updated_at?: string;
   course?: CourseDTO;
 }
 
@@ -574,7 +594,9 @@ export interface MaterialDTO {
   description?: string;
   file_url: string;
   file_type?: string;
+  version?: number;
   created_at: string;
+  updated_at?: string;
   course?: CourseDTO;
 }
 
@@ -601,7 +623,9 @@ export interface DiscussionDTO {
   parent_id?: string;
   title?: string;
   content: string;
+  version?: number;
   created_at: string;
+  updated_at?: string;
   user?: UserDTO;
 }
 
@@ -643,6 +667,7 @@ export interface Setting {
 export interface SettingDTO {
   key: string;
   value: string | number | boolean | Record<string, unknown>;
+  updated_at?: string;
 }
 
 /**
