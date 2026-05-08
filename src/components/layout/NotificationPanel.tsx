@@ -1,15 +1,12 @@
 "use client";
 
 import React, { useState, useRef, useEffect, useMemo, memo } from 'react';
-import { useRouter } from 'next/navigation';
 import { Notification } from '@/lib/types';
 import { X, CheckCircle2, AlertCircle, Info, Bell, Trash2, Filter, Eye, Check } from 'lucide-react';
-import { parseDeepLink } from '@/lib/utils';
 import * as actions from '@/lib/api-actions';
 
 interface NotificationPanelProps {
   notifications: Notification[];
-  userRole?: string;
   onClose: () => void;
   onNotificationClick: (notification: Notification) => Promise<void>;
   onClearAll?: () => Promise<void>;
@@ -37,12 +34,12 @@ const getNotificationIcon = (type: string) => {
 
 export const NotificationPanel: React.FC<NotificationPanelProps> = memo(({
   notifications,
-  userRole = 'student',
   onClose,
   onNotificationClick,
   onClearAll,
+  onDismiss,
+  onAcknowledge,
 }) => {
-  const router = useRouter();
   const [isNavigating, setIsNavigating] = useState(false);
   const [filter, setFilter] = useState<'all' | 'unread' | 'system' | 'academic'>('all');
   const panelRef = useRef<HTMLDivElement>(null);

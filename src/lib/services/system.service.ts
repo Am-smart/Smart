@@ -198,7 +198,8 @@ export class SystemService {
     if (currentUser && currentUser.role === 'student' && currentUser.id !== userId) {
         throw new ForbiddenError('Unauthorized: You can only manage your own notifications');
     }
-    await systemDb.markAllNotificationsAsRead(userId, sessionId);
+    // "Clear All" should dismiss all notifications for the user
+    await systemDb.updateNotificationsForUser(userId, { dismissed_at: new Date().toISOString(), is_read: true }, sessionId);
   }
 
   async dismissNotification(id: string, sessionId: string): Promise<void> {
