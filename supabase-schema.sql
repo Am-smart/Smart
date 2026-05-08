@@ -379,6 +379,11 @@ BEGIN
         ALTER TABLE notifications ADD COLUMN expires_at TIMESTAMP WITH TIME ZONE;
     END IF;
 
+    -- Notifications duplication prevention
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'notifications_user_id_broadcast_id_key') THEN
+        ALTER TABLE notifications ADD CONSTRAINT notifications_user_id_broadcast_id_key UNIQUE(user_id, broadcast_id);
+    END IF;
+
     -- Scheduling
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'assignments' AND column_name = 'start_at') THEN
         ALTER TABLE assignments ADD COLUMN start_at TIMESTAMP WITH TIME ZONE;
