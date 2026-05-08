@@ -213,7 +213,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       const [myEnrollments, allAssignments, mySubmissions] = await Promise.all([
         actions.getEnrollments(user.id),
         actions.getAssignments(),
-        actions.getSubmissions(undefined, user.id)
+        actions.getSubmissions({ studentId: user.id })
       ]);
 
       const enrolledIds = myEnrollments.map((e: EnrollmentDTO) => e.course_id);

@@ -93,7 +93,8 @@ export const GET = withHandler(async (user, request) => {
     case 'quiz-submissions': {
         const quizId = searchParams.get('quizId') || undefined;
         const studentId = searchParams.get('studentId') || undefined;
-        const submissions = await assessmentService.getQuizSubmissions(quizId, studentId, user.sessionId!, user.id, user.role);
+        const courseId = searchParams.get('courseId') || undefined;
+        const submissions = await assessmentService.getQuizSubmissions(quizId, studentId, user.sessionId!, user.id, user.role, courseId);
         return submissions.map(AssessmentMapper.toQuizSubmissionDTO);
     }
     case 'lesson-completions': {

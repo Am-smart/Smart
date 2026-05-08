@@ -110,18 +110,18 @@ export class AssessmentService {
   }
 
   // Submissions
-  async getSubmissions(assignmentId?: string, studentId?: string, sessionId?: string, limit?: number, offset?: number, userId?: string, userRole?: string): Promise<Submission[]> {
+  async getSubmissions(assignmentId?: string, studentId?: string, sessionId?: string, limit?: number, offset?: number, userId?: string, userRole?: string, status?: string, courseId?: string): Promise<Submission[]> {
     if (userRole === 'student' && userId) {
         // Students can only see their own submissions
-        return assessmentDb.findAllSubmissions(assignmentId, userId, sessionId!, limit, offset);
+        return assessmentDb.findAllSubmissions(assignmentId, userId, sessionId!, limit, offset, undefined, status, courseId);
     }
 
     if (userRole === 'teacher' && userId) {
         // Teachers can only see submissions for assignments they own
-        return assessmentDb.findAllSubmissions(assignmentId, studentId, sessionId!, limit, offset, userId);
+        return assessmentDb.findAllSubmissions(assignmentId, studentId, sessionId!, limit, offset, userId, status, courseId);
     }
 
-    return assessmentDb.findAllSubmissions(assignmentId, studentId, sessionId!, limit, offset);
+    return assessmentDb.findAllSubmissions(assignmentId, studentId, sessionId!, limit, offset, undefined, status, courseId);
   }
 
   async submitAssignment(studentId: string, assignmentId: string, content: Partial<Submission>, sessionId: string): Promise<Submission> {
@@ -165,18 +165,16 @@ export class AssessmentService {
   }
 
   // Quiz Submissions
-  async getQuizSubmissions(quizId?: string, studentId?: string, sessionId?: string, userId?: string, userRole?: string): Promise<QuizSubmission[]> {
+  async getQuizSubmissions(quizId?: string, studentId?: string, sessionId?: string, userId?: string, userRole?: string, courseId?: string): Promise<QuizSubmission[]> {
     if (userRole === 'student' && userId) {
-        return assessmentDb.findAllQuizSubmissions(quizId, userId, sessionId!);
+        return assessmentDb.findAllQuizSubmissions(quizId, userId, sessionId!, undefined, courseId);
     }
-
-    const submissions = await assessmentDb.findAllQuizSubmissions(quizId, studentId, sessionId!);
 
     if (userRole === 'teacher' && userId) {
-        return submissions.filter(s => s.quizzes?.teacher_id === userId);
+        return assessmentDb.findAllQuizSubmissions(quizId, studentId, sessionId!, userId, courseId);
     }
 
-    return submissions;
+    return assessmentDb.findAllQuizSubmissions(quizId, studentId, sessionId!, undefined, courseId);
   }
 
   async findQuizAttempts(quizId: string, studentId: string, sessionId: string): Promise<QuizSubmission[]> {

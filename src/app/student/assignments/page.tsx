@@ -24,7 +24,7 @@ export default function AssignmentsPage() {
     const [myEnrollments, allAssignments, mySubmissions] = await Promise.all([
       getEnrollments(user.id),
       getAssignments(),
-      getSubmissions(undefined, user.id)
+            getSubmissions({ studentId: user.id })
     ]);
 
     const enrolledIds = myEnrollments.map(e => e.course_id);

@@ -56,7 +56,7 @@ export const StudentAnalytics: React.FC<StudentAnalyticsProps> = ({ submissions,
   return (
     <div className="space-y-8">
       <div className="flex justify-between items-center mb-8">
-        <h2 className="text-2xl font-bold text-slate-900">Learning Progress Analytics</h2>
+        <h2 className="text-2xl font-bold text-slate-900">My Grades & Analytics</h2>
         <div className="flex gap-4">
             <button onClick={handleExportCSV} className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest bg-slate-100 text-slate-600 px-6 py-3 rounded-2xl hover:bg-slate-200 transition-all">
                 <FileSpreadsheet size={16} /> Export CSV

@@ -28,7 +28,7 @@ export default function CalendarPage() {
                 getAssignments(undefined, undefined),
                 getQuizzes(undefined, undefined),
                 getLiveClasses(),
-                getSubmissions(undefined, user.id)
+                getSubmissions({ studentId: user.id })
             ]);
 
             const mappedEvents: CalendarEvent[] = [];

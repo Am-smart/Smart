@@ -374,6 +374,7 @@ export interface QuizSubmissionDTO {
   answers?: Record<string, string | number | boolean>;
   submitted_at: string;
   violation_count?: number;
+  attempt_number?: number;
   quiz?: QuizDTO;
   student?: UserDTO;
 }
@@ -535,6 +536,7 @@ export interface LiveClassDTO {
   metadata?: Record<string, string | number | boolean>;
   start_at: string;
   end_at: string;
+  actual_end_at?: string | null;
   status: 'scheduled' | 'live' | 'completed' | 'cancelled';
   course?: CourseDTO;
 }

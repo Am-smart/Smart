@@ -23,13 +23,11 @@ export default function TeacherDashboard() {
     setIsLoading(true);
     setError(null);
     try {
-        const [myCourses, allSubmissions, myLiveClasses] = await Promise.all([
+        const [myCourses, pendingSubmissions, myLiveClasses] = await Promise.all([
             getCourses(user.id),
-            getSubmissions(),
+            getSubmissions({ status: 'submitted' }),
             getLiveClasses(undefined, user.id)
         ]);
-
-        const pendingSubmissions = allSubmissions.filter(s => s.status === 'submitted');
 
         setStats({
           courses: myCourses.length,

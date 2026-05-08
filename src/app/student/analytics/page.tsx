@@ -16,7 +16,7 @@ export default function AnalyticsPage() {
   useEffect(() => {
     if (user) {
         getEnrollments(user.id).then(setEnrollments);
-        getSubmissions(undefined, user.id).then(setSubmissions);
+        getSubmissions({ studentId: user.id }).then(setSubmissions);
         getQuizSubmissions(undefined, user.id).then(setQuizSubmissions);
     }
   }, [user]);

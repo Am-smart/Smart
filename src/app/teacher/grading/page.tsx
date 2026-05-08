@@ -14,9 +14,8 @@ export default function GradingPage() {
 
   const fetchSubmissions = useCallback(async () => {
     if (user) {
-        const data = await getSubmissions();
-        // Assuming getSubmissions already respects RLS or we filter by submitted status
-        setSubmissions(data.filter(s => s.status === 'submitted'));
+        const data = await getSubmissions({ status: 'submitted' });
+        setSubmissions(data);
     }
   }, [user]);
 
