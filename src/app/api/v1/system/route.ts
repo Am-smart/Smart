@@ -259,6 +259,7 @@ export const DELETE = withHandler(async (user, request) => {
 export const PATCH = withHandler(async (user, request) => {
     const { searchParams } = new URL(request.url);
     const action = searchParams.get('action');
+    const subAction = searchParams.get('subAction');
     const id = searchParams.get('id');
     const body = await request.json();
 
@@ -270,7 +271,13 @@ export const PATCH = withHandler(async (user, request) => {
                 await systemService.markAllNotificationsAsRead(userId, user.sessionId!, user);
             } else {
                 if (!id) throw new Error('id required');
-                await systemService.markNotificationAsRead(id, user.sessionId!);
+                if (subAction === 'dismiss') {
+                    await systemService.dismissNotification(id, user.sessionId!);
+                } else if (subAction === 'acknowledge') {
+                    await systemService.acknowledgeNotification(id, user.sessionId!);
+                } else {
+                    await systemService.markNotificationAsRead(id, user.sessionId!);
+                }
             }
             return { success: true };
         }

@@ -384,6 +384,9 @@ export interface Notification {
   link?: string;
   type: string;
   is_read: boolean;
+  dismissed_at?: string;
+  acknowledged_at?: string;
+  metadata?: Record<string, string | number | boolean>;
   created_at: string;
   is_broadcast?: boolean;
 }
@@ -396,6 +399,9 @@ export interface NotificationDTO {
   link?: string;
   type: string;
   is_read: boolean;
+  dismissed_at?: string;
+  acknowledged_at?: string;
+  metadata?: Record<string, string | number | boolean>;
   created_at: string;
   is_broadcast?: boolean;
 }

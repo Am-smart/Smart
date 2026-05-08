@@ -1,5 +1,6 @@
 import React from 'react';
 import { LiveClassDTO } from '@/lib/types';
+import { Countdown } from '@/components/ui/Countdown';
 
 interface LiveClassesListProps {
   liveClasses: LiveClassDTO[];
@@ -22,9 +23,18 @@ export const LiveClassesList: React.FC<LiveClassesListProps> = ({ liveClasses, o
                     <strong>Time:</strong> {new Date(liveClass.start_at).toLocaleString()}
                   </p>
                 </div>
-                <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${isLive ? 'bg-red-100 text-red-700 animate-pulse' : 'bg-blue-100 text-blue-700'}`}>
-                  {liveClass.status}
-                </span>
+                <div className="flex flex-col items-end gap-2">
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${isLive ? 'bg-red-100 text-red-700 animate-pulse' : 'bg-blue-100 text-blue-700'}`}>
+                      {liveClass.status}
+                    </span>
+                    {liveClass.status === 'scheduled' && (
+                        <Countdown
+                            targetDate={liveClass.start_at}
+                            compact
+                            className="bg-slate-50 px-2 py-1 rounded-lg border border-slate-100"
+                        />
+                    )}
+                </div>
               </div>
               <div className="mt-auto pt-4">
                 {isLive ? (

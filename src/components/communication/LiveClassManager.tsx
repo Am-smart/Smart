@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { LiveClassDTO } from '@/lib/types';
 import { CourseDTO } from '@/lib/types';
-import { Video, Calendar, Clock, Trash2, Play, Square, ExternalLink } from 'lucide-react';
+import { Video, Calendar, Clock, Trash2, Play, Square, ExternalLink, Edit2 } from 'lucide-react';
 import { useAppContext } from '@/components/AppContext';
 import { saveLiveClass, deleteLiveClass } from '@/lib/api-actions';
 
@@ -15,6 +15,7 @@ interface LiveClassManagerProps {
 export const LiveClassManager: React.FC<LiveClassManagerProps> = ({ teacherId, liveClasses, courses, onRefresh }) => {
     const { addToast } = useAppContext();
     const [isFormOpen, setIsFormOpen] = useState(false);
+    const [editingId, setEditingId] = useState<string | null>(null);
     const [formData, setFormData] = useState({
         title: '',
         course_id: courses[0]?.id || '',
@@ -26,26 +27,48 @@ export const LiveClassManager: React.FC<LiveClassManagerProps> = ({ teacherId, l
         recording_url: ''
     });
 
-    const handleCreate = async (e: React.FormEvent) => {
+    const resetForm = () => {
+        setFormData({
+            title: '',
+            course_id: courses[0]?.id || '',
+            start_at: '',
+            end_at: '',
+            room_name: '',
+            description: '',
+            recurring_config: '',
+            recording_url: ''
+        });
+        setIsFormOpen(false);
+        setEditingId(null);
+    };
+
+    const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
             const roomName = formData.room_name || `room_${Math.random().toString(36).substr(2, 9)}`;
             let recurring = {};
-            try { if (formData.recurring_config) recurring = JSON.parse(formData.recurring_config); } catch { /* ignore error */ }
+            try {
+                if (typeof formData.recurring_config === 'string' && formData.recurring_config) {
+                    recurring = JSON.parse(formData.recurring_config);
+                } else {
+                    recurring = formData.recurring_config || {};
+                }
+            } catch { /* ignore error */ }
 
             await saveLiveClass({
                 ...formData,
+                id: editingId || undefined,
                 teacher_id: teacherId,
-                status: 'scheduled',
+                status: editingId ? undefined : 'scheduled',
                 room_name: roomName,
-                meeting_url: `https://meet.jit.si/${roomName}`,
+                meeting_url: editingId ? undefined : `https://meet.jit.si/${roomName}`,
                 recurring_config: recurring
             });
-            addToast('Live class scheduled!', 'success');
-            setIsFormOpen(false);
+            addToast(editingId ? 'Live class updated!' : 'Live class scheduled!', 'success');
+            resetForm();
             onRefresh();
         } catch (err: unknown) {
-            const msg = err instanceof Error ? err.message : 'Failed to schedule class';
+            const msg = err instanceof Error ? err.message : 'Failed to save class';
             addToast(msg, 'error');
         }
     };
@@ -82,6 +105,21 @@ export const LiveClassManager: React.FC<LiveClassManagerProps> = ({ teacherId, l
         }
     };
 
+    const startEditing = (lc: LiveClassDTO) => {
+        setEditingId(lc.id);
+        setFormData({
+            title: lc.title,
+            course_id: lc.course_id,
+            start_at: lc.start_at ? new Date(lc.start_at).toISOString().slice(0, 16) : '',
+            end_at: lc.end_at ? new Date(lc.end_at).toISOString().slice(0, 16) : '',
+            room_name: lc.room_name,
+            description: lc.description || '',
+            recurring_config: JSON.stringify(lc.recurring_config || {}),
+            recording_url: lc.recording_url || ''
+        });
+        setIsFormOpen(true);
+    };
+
     return (
         <div className="space-y-8">
             <header className="flex justify-between items-center">
@@ -94,8 +132,8 @@ export const LiveClassManager: React.FC<LiveClassManagerProps> = ({ teacherId, l
 
             {isFormOpen && (
                 <div className="bg-white p-4 md:p-8 rounded-3xl border border-slate-100 shadow-xl animate-in fade-in slide-in-from-top-4">
-                    <h3 className="text-lg font-bold mb-6 text-slate-900">New Live Session</h3>
-                    <form onSubmit={handleCreate} className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+                    <h3 className="text-lg font-bold mb-6 text-slate-900">{editingId ? 'Edit Live Session' : 'New Live Session'}</h3>
+                    <form onSubmit={handleSave} className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                         <div className="md:col-span-2">
                             <label className="block text-[10px] font-bold uppercase text-slate-500 mb-2 tracking-widest">Class Title</label>
                             <input type="text" required value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} className="input-custom" placeholder="e.g. Weekly Q&A Session" />
@@ -131,7 +169,7 @@ export const LiveClassManager: React.FC<LiveClassManagerProps> = ({ teacherId, l
                             <input type="text" value={formData.recurring_config} onChange={e => setFormData({...formData, recurring_config: e.target.value})} className="input-custom" placeholder='{"frequency": "weekly"}' />
                         </div>
                         <div className="md:col-span-2 flex justify-end gap-4 mt-4">
-                            <button type="button" onClick={() => setIsFormOpen(false)} className="btn-secondary">Cancel</button>
+                            <button type="button" onClick={resetForm} className="btn-secondary">Cancel</button>
                             <button type="submit" className="btn-primary w-full sm:w-auto px-8">Save Session</button>
                         </div>
                     </form>
@@ -188,6 +226,10 @@ export const LiveClassManager: React.FC<LiveClassManagerProps> = ({ teacherId, l
                                         <ExternalLink size={18} />
                                     </button>
                                 )}
+
+                                <button onClick={() => startEditing(lc)} className="p-2.5 bg-slate-50 text-slate-500 rounded-xl hover:bg-slate-100">
+                                    <Edit2 size={18} />
+                                </button>
 
                                 <button onClick={() => handleDelete(lc.id)} className="p-2.5 bg-red-50 text-red-500 rounded-xl hover:bg-red-100 transition-colors">
                                     <Trash2 size={18} />

@@ -127,6 +127,18 @@ export const systemDb = {
     if (error) throw error;
   },
 
+  async updateNotification(id: string, updates: Partial<Notification>, sessionId: string): Promise<void> {
+    const { error } = await withSession(supabase.from('notifications'), sessionId).update(updates).eq('id', id);
+    if (error) dbUtils.handleError(error);
+  },
+
+  async updateNotificationsForUser(userId: string, updates: Partial<Notification>, sessionId: string): Promise<void> {
+    const { error } = await withSession(supabase.from('notifications'), sessionId)
+      .update(updates)
+      .eq('user_id', userId);
+    if (error) dbUtils.handleError(error);
+  },
+
   async markAllNotificationsAsRead(userId: string, sessionId: string): Promise<void> {
     const { error } = await withSession(supabase.from('notifications'), sessionId)
       .update({ is_read: true })

@@ -3,7 +3,7 @@ import { Bell } from 'lucide-react';
 import { Header } from '../ui/Header';
 import { useAppContext } from '../AppContext';
 import { NotificationPanel } from './NotificationPanel';
-import { markNotificationAsRead, markAllNotificationsAsRead } from '@/lib/api-actions';
+import { markNotificationAsRead, markAllNotificationsAsRead, dismissNotification, acknowledgeNotification } from '@/lib/api-actions';
 import { Notification, User } from '@/lib/types';
 import { useRouter } from 'next/navigation';
 import { parseDeepLink } from '@/lib/utils';
@@ -55,6 +55,22 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
     } catch (error) {
       console.error('Failed to clear all notifications:', error);
     }
+  };
+
+  const handleDismiss = async (id: string) => {
+      try {
+          await dismissNotification(id);
+      } catch (error) {
+          console.error('Failed to dismiss notification:', error);
+      }
+  };
+
+  const handleAcknowledge = async (id: string) => {
+      try {
+          await acknowledgeNotification(id);
+      } catch (error) {
+          console.error('Failed to acknowledge notification:', error);
+      }
   };
 
   const getTitle = () => {
@@ -113,10 +129,11 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
       {showNotifications && (
         <NotificationPanel
           notifications={notifications}
-          userRole={user.role}
           onClose={() => setShowNotifications(false)}
           onNotificationClick={handleNotificationClick}
           onClearAll={handleClearAll}
+          onDismiss={handleDismiss}
+          onAcknowledge={handleAcknowledge}
         />
       )}
     </>
