@@ -33,6 +33,14 @@ function toCleanDTO<T>(obj: unknown): T {
         clean.created_at = data.created_at;
     }
 
+    if (!clean.updated_at && (data.updated_at || (obj as { updated_at?: string }).updated_at)) {
+      clean.updated_at = data.updated_at;
+    }
+
+    if (clean.version === undefined && (data.version !== undefined)) {
+      clean.version = data.version;
+    }
+
     if (clean.metadata === undefined || clean.metadata === null) {
         clean.metadata = {};
     }
@@ -41,7 +49,7 @@ function toCleanDTO<T>(obj: unknown): T {
 }
 
 export class UserMapper {
-  static toDTO(user: User | { id: string; full_name: string; email: string; role?: UserRole; phone?: string; created_at?: string; active?: boolean; metadata?: Record<string, string | number | boolean> } | null | undefined): UserDTO | null {
+  static toDTO(user: User | { id: string; full_name: string; email: string; role?: UserRole; phone?: string; created_at?: string; updated_at?: string; active?: boolean; metadata?: Record<string, string | number | boolean>; version?: number } | null | undefined): UserDTO | null {
     if (!user) return null;
     return {
       id: user.id,
@@ -50,13 +58,15 @@ export class UserMapper {
       role: user.role || 'student',
       phone: user.phone,
       created_at: user.created_at || new Date().toISOString(),
+      updated_at: user.updated_at,
       active: user.active,
       metadata: user.metadata || {},
       flagged: (user as User).flagged,
       failed_attempts: (user as User).failed_attempts,
       lockouts: (user as User).lockouts,
       locked_until: (user as User).locked_until,
-      reset_request: (user as User).reset_request
+      reset_request: (user as User).reset_request,
+      version: user.version
     };
   }
 }

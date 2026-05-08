@@ -121,6 +121,13 @@ export const assessmentDb = {
     return data as QuizSubmission;
   },
 
+  async upsertQuizSubmission(submission: Partial<QuizSubmission>, sessionId: string): Promise<QuizSubmission> {
+    return dbUtils.upsert(supabase.from('quiz_submissions'), submission, 'Quiz submission', sessionId, {
+      onConflict: 'quiz_id,student_id,attempt_number',
+      excludeFields: ['quizzes', 'quiz', 'users', 'student']
+    });
+  },
+
   async findQuizAttempts(quizId: string, studentId: string, sessionId: string): Promise<QuizSubmission[]> {
     const { data, error } = await withSession(supabase.from('quiz_submissions'), sessionId)
       .select('attempt_number')
