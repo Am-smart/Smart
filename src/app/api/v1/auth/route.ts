@@ -43,7 +43,7 @@ export const POST = withHandler(async (user, request) => {
             }
 
             const normalizedEmail = normalizeEmail(data.email);
-            const { data: rawData, error: rpcError } = await authService.authenticate(normalizedEmail, data.password || '');
+            const { data: rawData, error: rpcError } = await authService.login(normalizedEmail, data.password || '');
 
             if (rpcError) throw new Error('Authentication service unavailable');
 
