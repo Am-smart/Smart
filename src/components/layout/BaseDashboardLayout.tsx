@@ -7,6 +7,7 @@ import { UserRole } from "@/lib/types";
 import { ForcePasswordChange } from "@/components/auth/ForcePasswordChange";
 import { useRouter, usePathname } from 'next/navigation';
 import { useAppContext } from '../AppContext';
+import { MaintenanceOverlay } from './MaintenanceOverlay';
 
 interface BaseDashboardLayoutProps {
   children: React.ReactNode;
@@ -23,7 +24,7 @@ export const BaseDashboardLayout: React.FC<BaseDashboardLayoutProps> = ({
   headerProps = {}
 }) => {
   const { user, role, logout, isLoading: authLoading, updateProfile } = useAuth();
-  const { isSidebarOpen, toggleSidebar } = useAppContext();
+  const { isSidebarOpen, toggleSidebar, maintenance } = useAppContext();
   const router = useRouter();
   const pathname = usePathname();
 
@@ -51,6 +52,13 @@ export const BaseDashboardLayout: React.FC<BaseDashboardLayoutProps> = ({
 
   return (
     <div className={`${requiredRole}-dashboard`}>
+      {maintenance.enabled && role !== 'admin' && (
+          <MaintenanceOverlay
+            message={maintenance.message}
+            onLogout={handleLogout}
+          />
+      )}
+
       {isResetApproved && (
           <ForcePasswordChange onSuccess={() => updateProfile({ reset_request: null })} />
       )}
