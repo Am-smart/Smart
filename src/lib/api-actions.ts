@@ -25,7 +25,9 @@ import {
   PlannerItemDTO,
   MaintenanceDTO,
   SettingDTO,
-  SystemLogDTO
+  SystemLogDTO,
+  SupportTicket,
+  SupportTicketDTO
 } from './types';
 
 // Standardized Response types
@@ -434,6 +436,42 @@ export async function updateMaintenance(data: unknown): Promise<ActionResponse> 
 // System Logs & Anti-Cheat
 export async function getSystemLogs(limit: number = 100): Promise<SystemLogDTO[]> {
     return apiClient.get<SystemLogDTO[]>(`/api/v1/system?action=logs&limit=${limit}`);
+}
+
+// Support Tickets
+export async function getSupportTickets(filters: { user_id?: string; assigned_to?: string; status?: string } = {}): Promise<SupportTicketDTO[]> {
+    let url = '/api/v1/system?action=support-tickets';
+    if (filters.user_id) url += `&userId=${filters.user_id}`;
+    if (filters.assigned_to) url += `&assignedTo=${filters.assigned_to}`;
+    if (filters.status) url += `&status=${filters.status}`;
+    return apiClient.get<SupportTicketDTO[]>(url);
+}
+
+export async function saveSupportTicket(ticket: Partial<SupportTicket>): Promise<ActionResponse<SupportTicketDTO>> {
+    try {
+        const data = await apiClient.post<SupportTicketDTO>('/api/v1/system', { action: 'save-ticket', ...ticket });
+        return { success: true, data };
+    } catch (error: unknown) {
+        return { success: false, error: (error as Error).message };
+    }
+}
+
+export async function deleteSupportTicket(id: string): Promise<ActionResponse> {
+    try {
+        await apiClient.delete(`/api/v1/system?action=ticket&id=${id}`);
+        return { success: true };
+    } catch (error: unknown) {
+        return { success: false, error: (error as Error).message };
+    }
+}
+
+export async function updateSupportTicket(id: string, updates: Partial<SupportTicket>): Promise<ActionResponse> {
+    try {
+        await apiClient.patch(`/api/v1/system?action=ticket&id=${id}`, updates);
+        return { success: true };
+    } catch (error: unknown) {
+        return { success: false, error: (error as Error).message };
+    }
 }
 
 export async function logAntiCheatViolation(data: Record<string, unknown> & { message?: string; courseId?: string; resourceId?: string }): Promise<ActionResponse> {

@@ -309,6 +309,26 @@ CREATE TABLE IF NOT EXISTS system_logs (
 );
 
 CREATE INDEX IF NOT EXISTS idx_system_logs_user ON system_logs(user_id);
+
+CREATE TABLE IF NOT EXISTS support_tickets (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  subject VARCHAR(255) NOT NULL,
+  message TEXT NOT NULL,
+  status VARCHAR(50) DEFAULT 'open' CHECK (status IN ('open', 'in_progress', 'resolved', 'closed')),
+  priority VARCHAR(20) DEFAULT 'medium' CHECK (priority IN ('low', 'medium', 'high', 'urgent')),
+  category VARCHAR(50),
+  assigned_to UUID REFERENCES users(id) ON DELETE SET NULL,
+  resolved_at TIMESTAMP WITH TIME ZONE,
+  metadata JSONB DEFAULT '{}'::jsonb,
+  version INTEGER DEFAULT 1,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_support_tickets_user ON support_tickets(user_id);
+CREATE INDEX IF NOT EXISTS idx_support_tickets_assigned ON support_tickets(assigned_to);
+CREATE INDEX IF NOT EXISTS idx_support_tickets_status ON support_tickets(status);
 CREATE INDEX IF NOT EXISTS idx_system_logs_course ON system_logs(course_id);
 CREATE INDEX IF NOT EXISTS idx_system_logs_resource ON system_logs(resource_id);
 CREATE INDEX IF NOT EXISTS idx_system_logs_category ON system_logs(category);
@@ -1135,6 +1155,7 @@ ALTER TABLE maintenance ENABLE ROW LEVEL SECURITY;
 ALTER TABLE planner ENABLE ROW LEVEL SECURITY;
 ALTER TABLE lesson_completions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE system_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE support_tickets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE settings ENABLE ROW LEVEL SECURITY;
 
 GRANT ALL ON ALL TABLES IN SCHEMA public TO anon;
@@ -1228,6 +1249,20 @@ DROP POLICY IF EXISTS "Strict Backend Access" ON lesson_completions;
 CREATE POLICY "Strict Backend Access" ON lesson_completions FOR ALL TO anon USING (current_app_user() IS NOT NULL);
 DROP POLICY IF EXISTS "Strict Backend Access" ON system_logs;
 CREATE POLICY "Strict Backend Access" ON system_logs FOR ALL TO anon USING (current_app_user() IS NOT NULL);
+
+DROP POLICY IF EXISTS "Support Tickets Access" ON support_tickets;
+CREATE POLICY "Support Tickets Access" ON support_tickets FOR ALL TO anon
+USING (
+    user_id = current_app_user() -- Owner
+    OR assigned_to = current_app_user() -- Assigned staff
+    OR current_app_role() = 'admin' -- Global admin
+)
+WITH CHECK (
+    user_id = current_app_user()
+    OR current_app_role() = 'admin'
+    OR assigned_to = current_app_user()
+);
+
 DROP POLICY IF EXISTS "Strict Backend Access" ON settings;
 CREATE POLICY "Strict Backend Access" ON settings FOR ALL TO anon USING (current_app_user() IS NOT NULL);
 

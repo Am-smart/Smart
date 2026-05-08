@@ -626,6 +626,7 @@ export interface Discussion {
   created_at: string;
   updated_at?: string;
   users?: {
+    id: string;
     full_name: string;
     email: string;
   };
@@ -670,6 +671,43 @@ export interface SystemLogDTO {
   course_id?: string;
   resource_id?: string;
   created_at?: string;
+  user?: UserDTO;
+}
+
+export interface SupportTicket {
+  id: string;
+  user_id: string;
+  subject: string;
+  message: string;
+  status: 'open' | 'in_progress' | 'resolved' | 'closed';
+  priority: 'low' | 'medium' | 'high' | 'urgent';
+  category?: string;
+  assigned_to?: string;
+  resolved_at?: string;
+  metadata?: Record<string, unknown>;
+  version?: number;
+  created_at: string;
+  updated_at?: string;
+  users?: {
+    full_name: string;
+    email: string;
+  };
+}
+
+export interface SupportTicketDTO {
+  id: string;
+  user_id: string;
+  subject: string;
+  message: string;
+  status: 'open' | 'in_progress' | 'resolved' | 'closed';
+  priority: 'low' | 'medium' | 'high' | 'urgent';
+  category?: string;
+  assigned_to?: string;
+  resolved_at?: string;
+  metadata?: Record<string, unknown>;
+  version?: number;
+  created_at: string;
+  updated_at?: string;
   user?: UserDTO;
 }
 
