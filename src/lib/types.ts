@@ -150,9 +150,9 @@ export interface LessonDTO {
   content: string;
   video_url?: string;
   order_index: number;
-  version?: number;
   created_at?: string;
   updated_at?: string;
+  version?: number;
 }
 
 export interface Attachment {
@@ -388,8 +388,8 @@ export interface QuizSubmissionDTO {
   submitted_at: string;
   updated_at?: string;
   violation_count?: number;
-  version?: number;
   attempt_number?: number;
+  version?: number;
   quiz?: QuizDTO;
   student?: UserDTO;
 }
@@ -409,6 +409,7 @@ export interface Notification {
   expires_at?: string;
   metadata?: Record<string, string | number | boolean>;
   created_at: string;
+  is_broadcast?: boolean;
 }
 
 export interface NotificationDTO {
@@ -426,6 +427,9 @@ export interface NotificationDTO {
   expires_at?: string;
   metadata?: Record<string, string | number | boolean>;
   created_at: string;
+  is_broadcast?: boolean;
+  version?: number;
+  updated_at?: string;
 }
 
 export interface Session {
@@ -459,8 +463,9 @@ export interface BroadcastDTO {
   link?: string;
   type: string;
   expires_at?: string;
-  version?: number;
   created_at: string;
+  version?: number;
+  updated_at?: string;
 }
 
 export interface Maintenance {
@@ -508,9 +513,9 @@ export interface PlannerItemDTO {
   due_date: string;
   priority: 'low' | 'medium' | 'high';
   completed: boolean;
-  version?: number;
   created_at: string;
   updated_at?: string;
+  version?: number;
 }
 
 export interface LessonCompletion {
@@ -667,7 +672,6 @@ export interface Setting {
 export interface SettingDTO {
   key: string;
   value: string | number | boolean | Record<string, unknown>;
-  updated_at?: string;
 }
 
 /**
