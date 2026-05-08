@@ -6,7 +6,7 @@ import { getCourses, getEnrollments, getSubmissions, getQuizSubmissions } from '
 import { EnrollmentDTO } from '@/lib/types';
 import { SubmissionDTO, QuizSubmissionDTO } from '@/lib/types';
 import { exportToCSV, exportToPDF } from '@/lib/report-utils';
-import { FileSpreadsheet, FileText } from 'lucide-react';
+import { FileSpreadsheet, FileText, ExternalLink, X } from 'lucide-react';
 
 export default function GradeBookPage() {
   const { user } = useAuth();
@@ -14,6 +14,7 @@ export default function GradeBookPage() {
   const [allSubmissions, setAllSubmissions] = useState<SubmissionDTO[]>([]);
   const [allQuizSubmissions, setAllQuizSubmissions] = useState<QuizSubmissionDTO[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedDetails, setSelectedDetails] = useState<{ student: string, course: string, studentId: string, courseId: string } | null>(null);
 
   useEffect(() => {
     if (user && user.id) {
@@ -39,8 +40,15 @@ export default function GradeBookPage() {
       const courseSubmissions = allSubmissions.filter(s => s.student_id === studentId && s.assignment?.course_id === courseId && s.status === 'graded');
       const courseQuizSubmissions = allQuizSubmissions.filter(s => s.student_id === studentId && s.quiz?.course_id === courseId && s.status === 'submitted');
 
+      // Group quiz submissions by quiz_id and take the highest score for each
+      const highestQuizScores = new Map<string, number>();
+      courseQuizSubmissions.forEach(qs => {
+          const current = highestQuizScores.get(qs.quiz_id) || 0;
+          if (qs.score > current) highestQuizScores.set(qs.quiz_id, qs.score);
+      });
+
       const asgnScores = courseSubmissions.map(s => s.final_grade || 0);
-      const quizScores = courseQuizSubmissions.map(s => s.score || 0);
+      const quizScores = Array.from(highestQuizScores.values());
 
       const allScores = [...asgnScores, ...quizScores];
       if (allScores.length === 0) return null;
@@ -72,6 +80,7 @@ export default function GradeBookPage() {
   };
 
   return (
+    <>
     <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
         <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
             <div>
@@ -98,6 +107,7 @@ export default function GradeBookPage() {
                         <th className="px-8 py-5">Course</th>
                         <th className="px-8 py-5">Progress</th>
                         <th className="px-8 py-5 text-center">Avg. Grade</th>
+                        <th className="px-8 py-5 text-right">Actions</th>
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -140,6 +150,15 @@ export default function GradeBookPage() {
                                             <span className="text-xs font-bold text-slate-300 italic uppercase">No Grades</span>
                                         )}
                                     </td>
+                                    <td className="px-8 py-6 text-right">
+                                        <button
+                                            onClick={() => setSelectedDetails({ student: e.student?.full_name || 'Student', course: e.course?.title || 'Course', studentId: e.student_id, courseId: e.course_id })}
+                                            className="p-2 text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
+                                            title="View Details"
+                                        >
+                                            <ExternalLink size={18} />
+                                        </button>
+                                    </td>
                                 </tr>
                             );
                         })
@@ -148,5 +167,72 @@ export default function GradeBookPage() {
             </table>
         </div>
     </div>
+
+    {selectedDetails && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-300">
+            <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300">
+                <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                    <div>
+                        <h3 className="text-xl font-black text-slate-900 leading-tight">{selectedDetails.student}</h3>
+                        <p className="text-sm font-bold text-blue-600 uppercase tracking-widest mt-1">{selectedDetails.course}</p>
+                    </div>
+                    <button onClick={() => setSelectedDetails(null)} className="p-2 hover:bg-slate-200 rounded-full transition-colors text-slate-400 hover:text-slate-600">
+                        <X size={24} />
+                    </button>
+                </div>
+
+                <div className="p-8 max-h-[60vh] overflow-y-auto space-y-6">
+                    <div>
+                        <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Assignments</h4>
+                        <div className="space-y-3">
+                            {allSubmissions.filter(s => s.student_id === selectedDetails.studentId && s.assignment?.course_id === selectedDetails.courseId).length === 0 ? (
+                                <p className="text-sm text-slate-400 italic">No assignments found.</p>
+                            ) : (
+                                allSubmissions.filter(s => s.student_id === selectedDetails.studentId && s.assignment?.course_id === selectedDetails.courseId).map(s => (
+                                    <div key={s.id} className="flex justify-between items-center p-4 bg-slate-50 rounded-2xl">
+                                        <span className="font-bold text-slate-700">{s.assignment?.title}</span>
+                                        <span className={`text-sm font-black ${s.status === 'graded' ? 'text-green-600' : 'text-amber-500'}`}>
+                                            {s.status === 'graded' ? `${s.final_grade}%` : s.status.toUpperCase()}
+                                        </span>
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </div>
+
+                    <div>
+                        <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Quizzes (Highest Scores)</h4>
+                        <div className="space-y-3">
+                            {(() => {
+                                const quizSubs = allQuizSubmissions.filter(s => s.student_id === selectedDetails.studentId && s.quiz?.course_id === selectedDetails.courseId);
+                                if (quizSubs.length === 0) return <p className="text-sm text-slate-400 italic">No quizzes found.</p>;
+
+                                const highest = new Map<string, { title: string, score: number }>();
+                                quizSubs.forEach(qs => {
+                                    const current = highest.get(qs.quiz_id);
+                                    if (!current || qs.score > current.score) {
+                                        highest.set(qs.quiz_id, { title: qs.quiz?.title || 'Quiz', score: qs.score });
+                                    }
+                                });
+
+                                return Array.from(highest.values()).map((q, idx) => (
+                                    <div key={idx} className="flex justify-between items-center p-4 bg-slate-50 rounded-2xl">
+                                        <span className="font-bold text-slate-700">{q.title}</span>
+                                        <span className="text-sm font-black text-green-600">{q.score}%</span>
+                                    </div>
+                                ));
+                            })()}
+                        </div>
+                    </div>
+                </div>
+
+                <div className="p-8 bg-slate-50 border-t border-slate-100 flex justify-between items-center">
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-widest">Average Performance</span>
+                    <div className="text-2xl font-black text-blue-600">{calculateGrade(selectedDetails.studentId, selectedDetails.courseId)}%</div>
+                </div>
+            </div>
+        </div>
+    )}
+    </>
   );
 }
