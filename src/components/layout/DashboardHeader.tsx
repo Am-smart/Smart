@@ -129,7 +129,6 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
       {showNotifications && (
         <NotificationPanel
           notifications={notifications}
-          userRole={user.role}
           onClose={() => setShowNotifications(false)}
           onNotificationClick={handleNotificationClick}
           onClearAll={handleClearAll}
