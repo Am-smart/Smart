@@ -482,5 +482,30 @@ export const systemDb = {
             storage: 'healthy' // Simplified
         }
     };
+  },
+
+  async countUsersByRole(role?: string): Promise<number> {
+      let query = supabase.from('users').select('*', { count: 'exact', head: true });
+      if (role) {
+          query = query.eq('role', role);
+      }
+      const { count, error } = await query;
+      if (error) dbUtils.handleError(error);
+      return count || 0;
+  },
+
+  async cleanupExpiredNotifications(now: string, sessionId: string): Promise<void> {
+    const { error } = await withSession(supabase.from('notifications').delete().lt('expires_at', now), sessionId);
+    if (error) dbUtils.handleError(error);
+  },
+
+  async cleanupExpiredSessions(now: string, sessionId: string): Promise<void> {
+    const { error } = await withSession(supabase.from('sessions').delete().lt('expires_at', now), sessionId);
+    if (error) dbUtils.handleError(error);
+  },
+
+  async cleanupExpiredBroadcasts(now: string, sessionId: string): Promise<void> {
+    const { error } = await withSession(supabase.from('broadcasts').delete().lt('expires_at', now), sessionId);
+    if (error) dbUtils.handleError(error);
   }
 };

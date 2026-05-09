@@ -16,11 +16,11 @@ export const authDb = {
   },
 
   // Session Table Operations (Original SessionRepository)
-  async findSessionById(id: string): Promise<Session | null> {
+  async findSessionByHash(tokenHash: string): Promise<Session | null> {
     const { data, error } = await supabase
       .from('sessions')
       .select('*')
-      .eq('id', id)
+      .eq('token_hash', tokenHash)
       .single();
 
     if (error) {
@@ -30,12 +30,13 @@ export const authDb = {
     return data as Session;
   },
 
-  async createSession(userId: string, expiresAt: string): Promise<Session> {
+  async createSession(userId: string, expiresAt: string, tokenHash: string): Promise<Session> {
     const { data, error } = await supabase
       .from('sessions')
       .insert({
         user_id: userId,
-        expires_at: expiresAt
+        expires_at: expiresAt,
+        token_hash: tokenHash
       })
       .select()
       .single();
@@ -44,12 +45,21 @@ export const authDb = {
     return data as Session;
   },
 
-  async deleteSession(id: string): Promise<void> {
+  async deleteSessionByHash(tokenHash: string): Promise<void> {
     const { error } = await supabase
       .from('sessions')
       .delete()
-      .eq('id', id);
+      .eq('token_hash', tokenHash);
 
+    if (error) dbUtils.handleError(error);
+  },
+
+  async deleteUserSessions(userId: string, exceptHash?: string): Promise<void> {
+    let query = supabase.from('sessions').delete().eq('user_id', userId);
+    if (exceptHash) {
+      query = query.neq('token_hash', exceptHash);
+    }
+    const { error } = await query;
     if (error) dbUtils.handleError(error);
   },
 

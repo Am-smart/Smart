@@ -37,7 +37,7 @@ export const GET = withHandler(async (user, request) => {
     }
     case 'sessions': {
         if (!user) throw new UnauthorizedError();
-        return authService.getSessions(user, user.sessionId!);
+        return authService.getSessions(user);
     }
     case 'settings': {
       if (!rbac.can(user, 'system:manage')) throw new UnauthorizedError();
@@ -45,7 +45,7 @@ export const GET = withHandler(async (user, request) => {
     }
     case 'users': {
       if (!rbac.can(user, 'user:manage')) throw new UnauthorizedError();
-      const users = await authService.getAllUsers(user, user.sessionId!);
+      const users = await authService.getAllUsers(user);
       const { UserMapper } = await import('@/lib/mappers');
       return users.map(UserMapper.toDTO);
     }
@@ -175,7 +175,7 @@ export const POST = withHandler(async (user, request) => {
                 password: data.password,
                 phone: data.phone,
                 role: data.role
-            }, user.sessionId!);
+            });
 
             if (serviceError) throw new Error('Failed to create user via service');
             const result = rawData as { success: boolean, user: User, error?: string };
@@ -256,7 +256,7 @@ export const DELETE = withHandler(async (user, request) => {
     switch (action) {
         case 'user': {
             if (!rbac.can(user, 'user:manage')) throw new UnauthorizedError();
-            await authService.deleteUser(user, id, user.sessionId!);
+            await authService.deleteUser(user, id);
             return { success: true };
         }
         case 'live-class': {

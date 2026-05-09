@@ -3,8 +3,7 @@ import { authService } from '@/lib/services/auth.service';
 import { UserMapper } from '@/lib/mappers';
 import { rbac } from '@/lib/auth/rbac';
 import { cookies } from 'next/headers';
-import { USER_ROLES, SESSION, SIGNUP_LIMITS } from '@/lib/constants';
-import { verifyToken, createSession } from '@/lib/crypto';
+import { SESSION } from '@/lib/constants';
 import { validateLoginForm, normalizeEmail, validateSignupForm, normalizeInput, sanitizeObject } from '@/lib/validation';
 import { User } from '@/lib/types';
 import { UnauthorizedError, BadRequestError } from '@/lib/api-error';
@@ -16,13 +15,8 @@ export const GET = withHandler(async (user, request) => {
     switch (action) {
         case 'me':
             return user ? UserMapper.toDTO(user) : null;
-        case 'session': {
-            const cookieStore = await cookies();
-            const token = cookieStore.get('app-user-session');
-            if (!token) return null;
-            return await verifyToken(token.value);
-        }
         case 'role-count': {
+            if (!user) throw new UnauthorizedError();
             return authService.getRoleCount();
         }
         default:
@@ -52,10 +46,7 @@ export const POST = withHandler(async (user, request) => {
               throw new UnauthorizedError(result.error || 'Invalid credentials');
             }
 
-            const sessionId = result.session_id;
-            const token = await createSession(sessionId);
-
-            (await cookies()).set('app-user-session', token, {
+            (await cookies()).set('app-user-session', result.session_id, {
                 httpOnly: true,
                 secure: process.env.NODE_ENV === 'production',
                 sameSite: 'lax',
@@ -79,22 +70,12 @@ export const POST = withHandler(async (user, request) => {
               throw new BadRequestError(validation.errors[0].message);
             }
 
-            // Role limit check
-            if (data.role === USER_ROLES.TEACHER || data.role === USER_ROLES.ADMIN) {
-                const count = await authService.getRoleUserCount(data.role);
-
-                const limit = data.role === USER_ROLES.TEACHER ? SIGNUP_LIMITS.TEACHER : SIGNUP_LIMITS.ADMIN;
-                if (count >= limit) {
-                    throw new BadRequestError(`Signup limit reached for role: ${data.role}`);
-                }
-            }
-
             const { data: rawData, error: serviceError } = await authService.signup({
               full_name: normalizeInput(data.full_name),
               email: normalizeEmail(data.email),
               password: data.password || '',
               phone: data.phone ? normalizeInput(data.phone) : undefined,
-              role: data.role || USER_ROLES.STUDENT
+              role: data.role
             });
 
             if (serviceError) throw new Error('Signup service unavailable');
@@ -102,10 +83,7 @@ export const POST = withHandler(async (user, request) => {
             const result = rawData as { success: boolean, user: User, session_id: string, error?: string };
             if (!result.success) throw new BadRequestError(result.error || 'Signup failed');
 
-            const sessionId = result.session_id;
-            const token = await createSession(sessionId);
-
-            (await cookies()).set('app-user-session', token, {
+            (await cookies()).set('app-user-session', result.session_id, {
                 httpOnly: true,
                 secure: process.env.NODE_ENV === 'production',
                 sameSite: 'lax',
@@ -117,7 +95,12 @@ export const POST = withHandler(async (user, request) => {
             };
         }
         case 'logout':
-            (await cookies()).delete('app-user-session');
+            const cookieStore = await cookies();
+            const sessionCookie = cookieStore.get('app-user-session');
+            if (sessionCookie) {
+                await authService.logout(sessionCookie.value);
+            }
+            cookieStore.delete('app-user-session');
             return { success: true };
         case 'profile': {
             if (!user) throw new UnauthorizedError();
@@ -126,11 +109,15 @@ export const POST = withHandler(async (user, request) => {
         }
         case 'password': {
             if (!user) throw new UnauthorizedError();
-            const result = await authService.updatePassword(data.currentPassword, data.newPassword, user.sessionId!);
 
-            // Invalidate current cookie to force re-login (Token Rotation)
+            const cookieStore = await cookies();
+            const sessionCookie = cookieStore.get('app-user-session');
+            if (!sessionCookie) throw new UnauthorizedError();
+
+            const result = await authService.updatePassword(data.currentPassword, data.newPassword, sessionCookie.value);
+
             if (result && typeof result === 'object' && 'success' in result && result.success) {
-                (await cookies()).delete('app-user-session');
+                cookieStore.delete('app-user-session');
             }
 
             return result;
@@ -142,17 +129,17 @@ export const POST = withHandler(async (user, request) => {
             if (!user) throw new UnauthorizedError();
             if (data.subAction === 'approve') {
                 if (!rbac.can(user, 'user:manage')) throw new UnauthorizedError();
-                return await authService.approvePasswordReset(data.userId, data.tempPassword, user.sessionId!);
+                return await authService.approvePasswordReset(data.userId, data.tempPassword, user);
             } else {
                 if (!rbac.can(user, 'user:manage')) throw new UnauthorizedError();
-                return await authService.denyPasswordReset(data.userId, data.reason, user.sessionId!);
+                return await authService.denyPasswordReset(data.userId, data.reason, user);
             }
         }
         case 'preferences': {
             if (!user) throw new UnauthorizedError();
-            return await authService.updatePreferences(data.preferences, user.sessionId!);
+            return await authService.updatePreferences(data.preferences, user);
         }
         default:
             throw new Error('Invalid POST action');
     }
-}, { requireAuth: false });
+}, { requireAuth: false, checkCSRF: true });

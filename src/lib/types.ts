@@ -13,7 +13,7 @@ export interface ResetRequest {
 
 export interface User {
   id: string;
-  sessionId?: string;
+  sessionId?: string; // Internal: token hash
   email: string;
   full_name: string;
   role: UserRole;
@@ -35,7 +35,6 @@ export interface User {
 
 export interface UserDTO {
   id: string;
-  sessionId?: string;
   email: string;
   full_name: string;
   role: UserRole;

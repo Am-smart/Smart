@@ -258,6 +258,7 @@ CREATE TABLE IF NOT EXISTS notifications (
 
 CREATE TABLE IF NOT EXISTS sessions (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  token_hash VARCHAR(255) UNIQUE,
   user_id UUID REFERENCES users(id) ON DELETE CASCADE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
@@ -473,6 +474,11 @@ BEGIN
         ALTER TABLE quiz_submissions DROP CONSTRAINT IF EXISTS quiz_submissions_quiz_id_student_id_key;
         ALTER TABLE quiz_submissions ADD UNIQUE(quiz_id, student_id, attempt_number);
     END IF;
+
+    -- Session Token Hash Migration
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'sessions' AND column_name = 'token_hash') THEN
+        ALTER TABLE sessions ADD COLUMN token_hash VARCHAR(255) UNIQUE;
+    END IF;
 END $$;
 
 -- ==========================================
@@ -490,6 +496,7 @@ CREATE INDEX IF NOT EXISTS idx_anti_cheat_logs_user ON anti_cheat_logs(user_id);
 CREATE INDEX IF NOT EXISTS idx_anti_cheat_logs_course ON anti_cheat_logs(course_id);
 CREATE INDEX IF NOT EXISTS idx_anti_cheat_logs_resource ON anti_cheat_logs(resource_id);
 CREATE INDEX IF NOT EXISTS idx_sessions_id ON sessions(id);
+CREATE INDEX IF NOT EXISTS idx_sessions_token_hash ON sessions(token_hash);
 CREATE INDEX IF NOT EXISTS idx_sessions_expires ON sessions(expires_at);
 CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
 CREATE INDEX IF NOT EXISTS idx_users_active ON users(active);
@@ -522,23 +529,23 @@ DROP FUNCTION IF EXISTS current_app_user() CASCADE;
 CREATE OR REPLACE FUNCTION current_app_user() RETURNS UUID AS $$
 DECLARE
   v_headers JSON;
-  v_session_id TEXT;
+  v_token_hash TEXT;
   v_user_id UUID;
 BEGIN
   BEGIN
     v_headers := current_setting('request.headers', true)::json;
-    v_session_id := v_headers->>'x-session-id';
+    v_token_hash := v_headers->>'x-session-id';
   EXCEPTION WHEN OTHERS THEN
     RETURN NULL;
   END;
 
-  IF v_session_id IS NULL THEN
+  IF v_token_hash IS NULL THEN
     RETURN NULL;
   END IF;
 
   SELECT s.user_id INTO v_user_id
   FROM sessions s
-  WHERE s.id = v_session_id::uuid
+  WHERE s.token_hash = v_token_hash
   AND s.expires_at > NOW();
 
   RETURN v_user_id;

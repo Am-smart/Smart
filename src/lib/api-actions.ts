@@ -82,14 +82,6 @@ export async function getSessions(): Promise<Session[]> {
     return apiClient.get<Session[]>('/api/v1/system?action=sessions');
 }
 
-export async function getSession(): Promise<{ sessionId: string } | null> {
-    try {
-        return await apiClient.get<{ sessionId: string }>('/api/v1/auth?action=session');
-    } catch {
-        return null;
-    }
-}
-
 export async function updateProfile(updates: Partial<User>): Promise<ActionResponse> {
     try {
         await apiClient.post('/api/v1/auth', { action: 'profile', ...updates });

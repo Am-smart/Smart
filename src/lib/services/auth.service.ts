@@ -5,16 +5,20 @@ import { UserDomain } from '../domain/user.domain';
 import { validatePassword } from '../validation';
 import { sessionManager } from '../auth/session-cache';
 import { UserMapper } from '../mappers';
+import { rbac } from '../auth/rbac';
+import { comparePassword, hashPassword, generateToken, hashToken } from '../crypto';
+import { USER_ROLES, SIGNUP_LIMITS } from '../constants';
 
 export class AuthService {
-  async validateSession(sessionId: string): Promise<User | null> {
-    // Check cache first
-    const cachedUser = sessionManager.get(sessionId);
+  async validateSession(token: string): Promise<User | null> {
+    const tokenHash = await hashToken(token);
+
+    const cachedUser = sessionManager.get(tokenHash);
     if (cachedUser) {
-        return { ...cachedUser, sessionId } as User;
+        return { ...cachedUser, sessionId: tokenHash } as User;
     }
 
-    const session = await authDb.findSessionById(sessionId);
+    const session = await authDb.findSessionByHash(tokenHash);
     if (!session || new Date(session.expires_at) < new Date()) {
       return null;
     }
@@ -24,30 +28,29 @@ export class AuthService {
     const userDTO = UserMapper.toDTO(user);
     if (!userDTO) return null;
 
-    const userWithSession = { ...user, sessionId } as User;
-    sessionManager.set(sessionId, userDTO);
+    sessionManager.set(tokenHash, userDTO);
 
-    return userWithSession;
+    return { ...user, sessionId: tokenHash } as User;
   }
 
   async createSession(userId: string): Promise<string> {
-    // Implement strict single active session enforcement:
-    // Invalidate all previously issued sessions for this user.
-    const { supabase } = await import('../supabase');
-    await supabase.from('sessions').delete().eq('user_id', userId);
+    await authDb.deleteUserSessions(userId);
+
+    const token = generateToken();
+    const tokenHash = await hashToken(token);
 
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
-    const session = await authDb.createSession(userId, expiresAt);
-    return session.id;
+    await authDb.createSession(userId, expiresAt, tokenHash);
+    return token;
   }
 
-  async logout(sessionId: string): Promise<void> {
-    await authDb.deleteSession(sessionId);
+  async logout(token: string): Promise<void> {
+    const tokenHash = await hashToken(token);
+    await authDb.deleteSessionByHash(tokenHash);
+    sessionManager.invalidate(tokenHash);
   }
 
   async authenticate(email: string, password?: string) {
-    const { comparePassword } = await import('../crypto');
-
     const user = await systemDb.findUserByEmail(email);
     if (!user) {
       return { data: { success: false, error: 'Invalid email or password' }, error: null };
@@ -66,15 +69,12 @@ export class AuthService {
       return { data: { success: false, error: `Account locked until ${new Date(user.locked_until).toLocaleTimeString()}` }, error: null };
     }
 
-    // Block users who used their temp pass but haven't changed it
     if (user.reset_request && (user.reset_request as any).status === 'approved_used') {
        return { data: { success: false, error: 'Your session has expired. You must change your password using the secure prompt provided during your first login.' }, error: null };
     }
 
-    // Verify password
     const isPasswordValid = password && user.password && await comparePassword(password, user.password);
     if (!isPasswordValid) {
-      // PASSWORD FAILED: Check if there is reset info to show
       if (user.reset_request) {
         const reset = user.reset_request as any;
         if (reset.status === 'pending') {
@@ -101,8 +101,6 @@ export class AuthService {
       return { data: { success: false, error: 'Invalid email or password' }, error: null };
     }
 
-    // Successful login
-    // One-time temp password usage: If login with temp pass succeeds, mark it as used
     if (user.reset_request && (user.reset_request as any).status === 'approved') {
        const reset = user.reset_request as any;
        if (new Date(reset.expires_at) < now) {
@@ -114,24 +112,26 @@ export class AuthService {
     }
 
     await authDb.updateUserRaw(user.id, { last_login: now.toISOString(), failed_attempts: 0, locked_until: null });
-    const sessionId = await this.createSession(user.id);
+    const token = await this.createSession(user.id);
 
-    // Call maintenance cleanup on login
     const { systemService } = await import('./system.service');
-    systemService.performSystemCleanup(sessionId).catch(console.error);
+    systemService.performSystemCleanup(await hashToken(token)).catch(console.error);
 
     return {
       data: {
         success: true,
         user: user,
-        session_id: sessionId
+        session_id: token
       },
       error: null
     };
   }
 
   async signup(data: { full_name: string; email: string; password?: string; phone?: string; role: string }) {
-    const { hashPassword } = await import('../crypto');
+    const existingUser = await systemDb.findUserByEmail(data.email);
+    if (existingUser) {
+      return { data: { success: false, error: 'An account with this email already exists.' }, error: null };
+    }
 
     if (data.password) {
       const passwordValidation = validatePassword(data.password);
@@ -140,26 +140,10 @@ export class AuthService {
       }
     }
 
-    // Check if email already exists
-    const existingUser = await systemDb.findUserByEmail(data.email);
-    if (existingUser) {
-      if (existingUser.reset_request) {
-        const reset = existingUser.reset_request as any;
-        if (reset.status === 'pending') {
-          return { data: { success: false, error: 'This email is registered. A password reset request is under review.' }, error: null };
-        } else if (reset.status === 'approved') {
-          return { data: { success: false, error: `This email is registered. Password reset approved. Temp Pass: ${reset.temp_password}` }, error: null };
-        } else if (reset.status === 'denied') {
-          return { data: { success: false, error: `This email is registered. Previous reset request denied: ${reset.denial_reason}` }, error: null };
-        }
-      }
-      return { data: { success: false, error: 'An account with this email already exists.' }, error: null };
-    }
-
-    // Role limits
-    if (data.role === 'teacher' || data.role === 'admin') {
+    if (data.role === USER_ROLES.TEACHER || data.role === USER_ROLES.ADMIN) {
       const count = await this.getRoleUserCount(data.role);
-      if (count >= 3) {
+      const limit = data.role === USER_ROLES.TEACHER ? SIGNUP_LIMITS.TEACHER : SIGNUP_LIMITS.ADMIN;
+      if (count >= limit) {
         return { data: { success: false, error: `Public creation limit reached for ${data.role}s.` }, error: null };
       }
     }
@@ -174,22 +158,20 @@ export class AuthService {
     if (error) return { data: null, error };
 
     const newUser = userData as User;
-    const sessionId = await this.createSession(newUser.id);
+    const token = await this.createSession(newUser.id);
 
     return {
       data: {
         success: true,
         user: newUser,
-        session_id: sessionId
+        session_id: token
       },
       error: null
     };
   }
 
-  async createUser(currentUser: User, data: { full_name: string; email: string; password?: string; phone?: string; role: string }, _sessionId: string) {
-    const { hashPassword } = await import('../crypto');
-
-    if (!UserDomain.isAdmin(currentUser)) {
+  async createUser(currentUser: User, data: { full_name: string; email: string; password?: string; phone?: string; role: string }) {
+    if (!rbac.can(currentUser, 'user:manage')) {
         throw new Error('Forbidden: Only admins can create users directly');
     }
 
@@ -208,23 +190,20 @@ export class AuthService {
     });
   }
 
-  async updatePassword(currentPass: string, newPass: string, sessionId: string) {
-    const { comparePassword, hashPassword } = await import('../crypto');
-    const session = await this.validateSession(sessionId);
-    if (!session) return { success: false, error: 'Unauthorized' };
+  async updatePassword(currentPass: string, newPass: string, token: string) {
+    const sessionUser = await this.validateSession(token);
+    if (!sessionUser) return { success: false, error: 'Unauthorized' };
 
-    const user = await systemDb.findUserById(session.id as string, sessionId);
+    const user = await systemDb.findUserById(sessionUser.id as string, sessionUser.sessionId);
     if (!user) return { success: false, error: 'User not found' };
 
     const isPasswordValid = user.password && await comparePassword(currentPass, user.password);
     if (!isPasswordValid) return { success: false, error: 'Incorrect current password' };
 
     const hashedPassword = await hashPassword(newPass);
-    await authDb.updateUserRaw(user.id, { password: hashedPassword, reset_request: null }, sessionId);
+    await authDb.updateUserRaw(user.id, { password: hashedPassword, reset_request: null }, sessionUser.sessionId);
 
-    // Invalidate other sessions
-    const { supabase } = await import('../supabase');
-    await supabase.from('sessions').delete().eq('user_id', user.id).neq('id', sessionId);
+    await authDb.deleteUserSessions(user.id);
 
     return { success: true };
   }
@@ -257,11 +236,10 @@ export class AuthService {
     return { success: true };
   }
 
-  async approvePasswordReset(userId: string, tempPassword: string, sessionId: string) {
-    const { hashPassword } = await import('../crypto');
+  async approvePasswordReset(userId: string, tempPassword: string, currentUser: User) {
     const hashedPassword = await hashPassword(tempPassword);
 
-    const user = await systemDb.findUserById(userId, sessionId);
+    const user = await systemDb.findUserById(userId, currentUser.sessionId);
     if (!user) throw new Error('User not found');
 
     const resetRequest = {
@@ -277,13 +255,13 @@ export class AuthService {
       reset_request: resetRequest,
       failed_attempts: 0,
       locked_until: null
-    }, sessionId);
+    }, currentUser.sessionId);
 
     return { success: true };
   }
 
-  async denyPasswordReset(userId: string, reason: string, sessionId: string) {
-    const user = await systemDb.findUserById(userId, sessionId);
+  async denyPasswordReset(userId: string, reason: string, currentUser: User) {
+    const user = await systemDb.findUserById(userId, currentUser.sessionId);
     if (!user) throw new Error('User not found');
 
     const resetRequest = {
@@ -292,60 +270,43 @@ export class AuthService {
       denial_reason: reason
     };
 
-    await authDb.updateUserRaw(userId, { reset_request: resetRequest }, sessionId);
+    await authDb.updateUserRaw(userId, { reset_request: resetRequest }, currentUser.sessionId);
 
     return { success: true };
   }
 
-  async updatePreferences(preferences: object, sessionId: string) {
-    const session = await this.validateSession(sessionId);
-    if (!session) return { success: false, error: 'Unauthorized' };
-
-    await authDb.updateUserRaw(session.id as string, { notification_preferences: preferences }, sessionId);
+  async updatePreferences(preferences: object, currentUser: User) {
+    await authDb.updateUserRaw(currentUser.id, { notification_preferences: preferences }, currentUser.sessionId);
     return { success: true };
   }
 
-  async getSessions(currentUser: User, sessionId: string) {
+  async getSessions(currentUser: User) {
     const userId = currentUser.role === 'admin' ? undefined : currentUser.id;
-    return authDb.findAllSessions(sessionId, userId);
+    return authDb.findAllSessions(currentUser.sessionId!, userId);
   }
 
   async getRoleCount() {
-    const { supabase } = await import('../supabase');
-    const { USER_ROLES } = await import('../constants');
-
     const [teachers, admins, total] = await Promise.all([
-        supabase.from('users').select('*', { count: 'exact', head: true }).eq('role', USER_ROLES.TEACHER),
-        supabase.from('users').select('*', { count: 'exact', head: true }).eq('role', USER_ROLES.ADMIN),
-        supabase.from('users').select('*', { count: 'exact', head: true })
+        systemDb.countUsersByRole(USER_ROLES.TEACHER),
+        systemDb.countUsersByRole(USER_ROLES.ADMIN),
+        systemDb.countUsersByRole()
     ]);
-    return {
-        teachers: teachers.count || 0,
-        admins: admins.count || 0,
-        total: total.count || 0
-    };
+    return { teachers, admins, total };
   }
 
   async getRoleUserCount(role: string): Promise<number> {
-    const { supabase } = await import('../supabase');
-    const { count } = await supabase
-        .from('users')
-        .select('*', { count: 'exact', head: true })
-        .eq('role', role);
-    return count || 0;
+    return systemDb.countUsersByRole(role);
   }
 
-  // Merged from UserService
   async getCurrentUser(id: string, sessionId: string): Promise<User> {
     const user = await systemDb.findUserById(id, sessionId);
     if (!user) throw new Error('User not found');
-
     return { ...user, sessionId };
   }
 
-  async getAllUsers(currentUser: User, sessionId: string): Promise<User[]> {
-    if (!UserDomain.canManageUsers(currentUser)) throw new Error('Forbidden');
-    return systemDb.findAllUsers(sessionId);
+  async getAllUsers(currentUser: User): Promise<User[]> {
+    if (!rbac.can(currentUser, 'user:manage')) throw new Error('Forbidden');
+    return systemDb.findAllUsers(currentUser.sessionId!);
   }
 
   async updateUserProfile(currentUser: User, userId: string, updates: Partial<User>, sessionId: string): Promise<User> {
@@ -354,26 +315,25 @@ export class AuthService {
 
     UserDomain.validateUpdate(currentUser, userId);
 
-    if (UserDomain.isAdmin(currentUser)) {
+    if (rbac.can(currentUser, 'user:manage')) {
         await systemDb.adminUpdateUser(userId, updates, sessionId);
         return (await systemDb.findUserById(userId, sessionId))!;
     }
 
     const filteredUpdates = UserDomain.filterUpdateFields(currentUser, updates);
-
     return systemDb.updateUser(userId, { ...filteredUpdates, version: targetUser.version }, sessionId);
   }
 
-  async toggleUserStatus(currentUser: User, userId: string, active: boolean, sessionId: string): Promise<void> {
-    if (!UserDomain.canManageUsers(currentUser)) throw new Error('Forbidden');
-    const targetUser = await systemDb.findUserById(userId, sessionId);
+  async toggleUserStatus(currentUser: User, userId: string, active: boolean): Promise<void> {
+    if (!rbac.can(currentUser, 'user:manage')) throw new Error('Forbidden');
+    const targetUser = await systemDb.findUserById(userId, currentUser.sessionId);
     if (!targetUser) throw new Error('User not found');
-    await systemDb.updateUser(userId, { active, version: targetUser.version }, sessionId);
+    await systemDb.updateUser(userId, { active, version: targetUser.version }, currentUser.sessionId!);
   }
 
-  async deleteUser(currentUser: User, userId: string, sessionId: string): Promise<void> {
-    if (!UserDomain.canManageUsers(currentUser)) throw new Error('Forbidden');
-    await systemDb.deleteUser(userId, sessionId);
+  async deleteUser(currentUser: User, userId: string): Promise<void> {
+    if (!rbac.can(currentUser, 'user:manage')) throw new Error('Forbidden');
+    await systemDb.deleteUser(userId, currentUser.sessionId!);
   }
 }
 

@@ -1,8 +1,9 @@
 import { User } from '../types';
+import { rbac } from '../auth/rbac';
 
 export class UserDomain {
   static validateUpdate(currentUser: User, targetUserId: string): void {
-    if (currentUser.role !== 'admin' && currentUser.id !== targetUserId) {
+    if (!rbac.can(currentUser, 'user:manage') && currentUser.id !== targetUserId) {
       throw new Error('Forbidden');
     }
   }
@@ -20,15 +21,15 @@ export class UserDomain {
   }
 
   static canManageUsers(user: User): boolean {
-    return this.isAdmin(user);
+    return rbac.can(user, 'user:manage');
   }
 
   static canManageContent(user: User): boolean {
-    return this.isAdmin(user) || this.isTeacher(user);
+    return rbac.can(user, 'course:create') || rbac.can(user, 'lesson:manage');
   }
 
   static filterUpdateFields(currentUser: User, updates: Partial<User>): Partial<User> {
-    if (this.isAdmin(currentUser)) {
+    if (rbac.can(currentUser, 'user:manage')) {
       return updates;
     }
 
