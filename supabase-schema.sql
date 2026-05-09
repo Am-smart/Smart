@@ -1141,7 +1141,7 @@ BEGIN
       admin_id,
       'New Support Ticket: ' || NEW.subject,
       'A new support ticket has been submitted by a user.',
-      'grading:' || NEW.id, -- Use grading prefix as placeholder for ticket deep link
+      'grading:' || NEW.id, -- placeholder deep link
       'system'
     );
   END LOOP;
@@ -1149,9 +1149,11 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+DROP TRIGGER IF EXISTS tr_support_ticket_created ON support_tickets;
 CREATE TRIGGER tr_support_ticket_created
   AFTER INSERT ON support_tickets
   FOR EACH ROW EXECUTE PROCEDURE tr_notify_admin_new_ticket();
+
 
 CREATE OR REPLACE FUNCTION tr_notify_user_ticket_resolved() RETURNS TRIGGER AS $$
 BEGIN
@@ -1168,6 +1170,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+DROP TRIGGER IF EXISTS tr_support_ticket_resolved ON support_tickets;
 CREATE TRIGGER tr_support_ticket_resolved
   AFTER UPDATE ON support_tickets
   FOR EACH ROW EXECUTE PROCEDURE tr_notify_user_ticket_resolved();
