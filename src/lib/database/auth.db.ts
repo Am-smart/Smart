@@ -12,48 +12,15 @@ export const authDb = {
   },
 
   async register(data: { full_name: string; email: string; password?: string; phone?: string; role: string }): Promise<{ data: unknown, error: unknown }> {
-    return supabase.rpc('register_user', {
-        p_full_name: data.full_name,
-        p_email: data.email,
-        p_password: data.password,
-        p_phone: data.phone,
-        p_role: data.role
-    });
+    const { data: userData, error } = await supabase.from('users').insert(data).select().single();
+    return { data: userData, error };
   },
 
-  async updatePassword(currentPass: string, newPass: string, sessionId: string): Promise<{ data: unknown, error: unknown }> {
-    return withSession(supabase.rpc('update_user_password', {
-        p_current_password: currentPass,
-        p_new_password: newPass
-    }), sessionId);
-  },
-
-  async requestPasswordReset(email: string, reason: string, riskLevel: string): Promise<{ data: unknown, error: unknown }> {
-    return supabase.rpc('request_password_reset', {
-        p_email: email,
-        p_reason: reason,
-        p_risk_level: riskLevel
-    });
-  },
-
-  async approvePasswordReset(userId: string, tempPassword: string, sessionId: string): Promise<{ data: unknown, error: unknown }> {
-    return withSession(supabase.rpc('approve_password_reset', {
-        p_user_id: userId,
-        p_temp_password: tempPassword
-    }), sessionId);
-  },
-
-  async denyPasswordReset(userId: string, reason: string, sessionId: string): Promise<{ data: unknown, error: unknown }> {
-    return withSession(supabase.rpc('deny_password_reset', {
-        p_user_id: userId,
-        p_reason: reason
-    }), sessionId);
-  },
-
-  async updatePreferences(preferences: object, sessionId: string): Promise<{ data: unknown, error: unknown }> {
-    return withSession(supabase.rpc('update_user_preferences', {
-        p_preferences: preferences
-    }), sessionId);
+  async updateUserRaw(id: string, updates: Partial<any>, sessionId?: string): Promise<{ data: unknown, error: unknown }> {
+    let query = supabase.from('users').update(updates).eq('id', id);
+    if (sessionId) query = withSession(query, sessionId);
+    const { data, error } = await query.select().single();
+    return { data, error };
   },
 
   // Session Table Operations (Original SessionRepository)
