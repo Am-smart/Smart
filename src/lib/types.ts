@@ -13,7 +13,7 @@ export interface ResetRequest {
 
 export interface User {
   id: string;
-  sessionId: string;
+  sessionId?: string;
   email: string;
   full_name: string;
   role: UserRole;
@@ -35,6 +35,7 @@ export interface User {
 
 export interface UserDTO {
   id: string;
+  sessionId?: string;
   email: string;
   full_name: string;
   role: UserRole;
@@ -50,13 +51,11 @@ export interface UserDTO {
   locked_until?: string | null;
   reset_request?: ResetRequest | null;
   version?: number;
-  sessionId?: string;
 }
 
 export interface AuthResponseDTO {
   success: boolean;
   user: UserDTO | null;
-  sessionId: string | null;
   error?: string | null;
 }
 

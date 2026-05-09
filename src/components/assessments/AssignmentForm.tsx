@@ -53,9 +53,6 @@ export const AssignmentForm: React.FC<AssignmentFormProps> = ({ assignment, user
 
     const res = await fetch('/api/system/upload', {
         method: 'POST',
-        headers: {
-            'x-session-id': user.sessionId || '',
-        },
         body: formData
     });
 
@@ -92,7 +89,7 @@ export const AssignmentForm: React.FC<AssignmentFormProps> = ({ assignment, user
                 throw new Error(res.error);
             }
         } else {
-            await addToQueue('SUBMISSION', payload, user.sessionId);
+            await addToQueue('SUBMISSION', payload);
             addToast('Offline: Submission queued for synchronization.', 'info');
             onComplete('temp-id');
         }

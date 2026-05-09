@@ -39,10 +39,10 @@ export interface ActionResponse<T = undefined> {
 }
 
 // Auth / Users
-export async function login(credentials: { email: string; password?: string }): Promise<ActionResponse<{ user: UserDTO; sessionId: string }>> {
+export async function login(credentials: { email: string; password?: string }): Promise<ActionResponse<{ user: UserDTO }>> {
   try {
-    const result = await apiClient.post<{ user: UserDTO; sessionId: string; error?: string }>('/api/v1/auth', { action: 'login', ...credentials });
-    return { success: true, data: result as { user: UserDTO; sessionId: string } };
+    const result = await apiClient.post<{ user: UserDTO; error?: string }>('/api/v1/auth', { action: 'login', ...credentials });
+    return { success: true, data: result as { user: UserDTO } };
   } catch (error: unknown) {
     return { success: false, error: (error as Error).message };
   }
@@ -52,10 +52,10 @@ export async function getAttendance(liveClassId: string): Promise<AttendanceDTO[
     return apiClient.get<AttendanceDTO[]>(`/api/v1/system?action=attendance&liveClassId=${liveClassId}`);
 }
 
-export async function signup(userData: Partial<User>): Promise<ActionResponse<{ user: UserDTO; sessionId: string }>> {
+export async function signup(userData: Partial<User>): Promise<ActionResponse<{ user: UserDTO }>> {
   try {
-    const result = await apiClient.post<{ user: UserDTO; sessionId: string; error?: string }>('/api/v1/auth', { action: 'signup', ...userData });
-    return { success: true, data: result as { user: UserDTO; sessionId: string } };
+    const result = await apiClient.post<{ user: UserDTO; error?: string }>('/api/v1/auth', { action: 'signup', ...userData });
+    return { success: true, data: result as { user: UserDTO } };
   } catch (error: unknown) {
     return { success: false, error: (error as Error).message };
   }

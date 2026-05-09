@@ -169,7 +169,7 @@ export const POST = withHandler(async (user, request) => {
             return UserMapper.toDTO(updated);
         } else {
             // New User Creation by Admin
-            const { data: rawData, error: rpcError } = await authService.createUser(user, {
+            const { data: rawData, error: serviceError } = await authService.createUser(user, {
                 full_name: data.full_name,
                 email: data.email,
                 password: data.password,
@@ -177,7 +177,7 @@ export const POST = withHandler(async (user, request) => {
                 role: data.role
             }, user.sessionId!);
 
-            if (rpcError) throw new Error('Failed to create user via service');
+            if (serviceError) throw new Error('Failed to create user via service');
             const result = rawData as { success: boolean, user: User, error?: string };
             if (!result.success) throw new Error(result.error || 'User creation failed');
 

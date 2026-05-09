@@ -179,8 +179,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     if (user) {
         fetchNotifications(user.id);
-        if (isOnline && user.sessionId) {
-            pullData(user.id, user.sessionId, user.role);
+        if (isOnline) {
+            pullData(user.id, user.role);
         }
 
         // Periodic refresh for notifications (every 5 minutes)

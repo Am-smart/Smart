@@ -309,7 +309,7 @@ export const useIndexedDB = () => {
     }
   }, [isOnline, db, getQueue, removeFromQueue, logSyncError, updateQueueItem, checkBackend]);
 
-  const pullData = useCallback(async (userId: string, sessionId: string, role: string) => {
+  const pullData = useCallback(async (userId: string, role: string) => {
     if (!isOnline) return;
 
     // Verify backend connectivity before fetching fresh data
