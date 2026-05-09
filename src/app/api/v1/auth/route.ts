@@ -4,7 +4,6 @@ import { UserMapper } from '@/lib/mappers';
 import { rbac } from '@/lib/auth/rbac';
 import { cookies } from 'next/headers';
 import { USER_ROLES, SESSION, SIGNUP_LIMITS } from '@/lib/constants';
-import { verifyToken, createSession } from '@/lib/crypto';
 import { validateLoginForm, normalizeEmail, validateSignupForm, normalizeInput, sanitizeObject } from '@/lib/validation';
 import { User } from '@/lib/types';
 import { UnauthorizedError, BadRequestError } from '@/lib/api-error';
@@ -16,13 +15,8 @@ export const GET = withHandler(async (user, request) => {
     switch (action) {
         case 'me':
             return user ? UserMapper.toDTO(user) : null;
-        case 'session': {
-            const cookieStore = await cookies();
-            const token = cookieStore.get('app-user-session');
-            if (!token) return null;
-            return await verifyToken(token.value);
-        }
         case 'role-count': {
+            if (!user) throw new UnauthorizedError();
             return authService.getRoleCount();
         }
         default:
@@ -52,8 +46,7 @@ export const POST = withHandler(async (user, request) => {
               throw new UnauthorizedError(result.error || 'Invalid credentials');
             }
 
-            const sessionId = result.session_id;
-            const token = await createSession(sessionId);
+            const token = result.session_id;
 
             (await cookies()).set('app-user-session', token, {
                 httpOnly: true,
@@ -102,8 +95,7 @@ export const POST = withHandler(async (user, request) => {
             const result = rawData as { success: boolean, user: User, session_id: string, error?: string };
             if (!result.success) throw new BadRequestError(result.error || 'Signup failed');
 
-            const sessionId = result.session_id;
-            const token = await createSession(sessionId);
+            const token = result.session_id;
 
             (await cookies()).set('app-user-session', token, {
                 httpOnly: true,
@@ -117,7 +109,12 @@ export const POST = withHandler(async (user, request) => {
             };
         }
         case 'logout':
-            (await cookies()).delete('app-user-session');
+            const cookieStore = await cookies();
+            const sessionCookie = cookieStore.get('app-user-session');
+            if (sessionCookie) {
+                await authService.logout(sessionCookie.value);
+            }
+            cookieStore.delete('app-user-session');
             return { success: true };
         case 'profile': {
             if (!user) throw new UnauthorizedError();
@@ -126,11 +123,16 @@ export const POST = withHandler(async (user, request) => {
         }
         case 'password': {
             if (!user) throw new UnauthorizedError();
-            const result = await authService.updatePassword(data.currentPassword, data.newPassword, user.sessionId!);
+
+            const cookieStore = await cookies();
+            const sessionCookie = cookieStore.get('app-user-session');
+            if (!sessionCookie) throw new UnauthorizedError();
+
+            const result = await authService.updatePassword(data.currentPassword, data.newPassword, sessionCookie.value);
 
             // Invalidate current cookie to force re-login (Token Rotation)
             if (result && typeof result === 'object' && 'success' in result && result.success) {
-                (await cookies()).delete('app-user-session');
+                cookieStore.delete('app-user-session');
             }
 
             return result;
@@ -155,4 +157,4 @@ export const POST = withHandler(async (user, request) => {
         default:
             throw new Error('Invalid POST action');
     }
-}, { requireAuth: false });
+}, { requireAuth: false, checkCSRF: true });

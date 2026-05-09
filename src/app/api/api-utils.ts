@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { verifyToken } from '@/lib/crypto';
 import { authService } from '@/lib/services/auth.service';
 import { User } from '@/lib/types';
 import { getErrorMessage, mapErrorToStatus } from '@/lib/api-error';
@@ -12,13 +11,8 @@ export async function getSessionUser(request?: Request): Promise<User | null> {
     const token = cookieStore.get('app-user-session');
     if (!token) return null;
 
-    const decoded = await verifyToken(token.value);
-    if (!decoded || !decoded.sessionId) return null;
-
-    const sessionId = decoded.sessionId as string;
-
     // Validate session against database and get user
-    const userSession = await authService.validateSession(sessionId);
+    const userSession = await authService.validateSession(token.value);
     if (!userSession) return null;
 
     return userSession as User;

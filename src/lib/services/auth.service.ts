@@ -7,14 +7,17 @@ import { sessionManager } from '../auth/session-cache';
 import { UserMapper } from '../mappers';
 
 export class AuthService {
-  async validateSession(sessionId: string): Promise<User | null> {
+  async validateSession(token: string): Promise<User | null> {
+    const { hashToken } = await import('../crypto');
+    const tokenHash = await hashToken(token);
+
     // Check cache first
-    const cachedUser = sessionManager.get(sessionId);
+    const cachedUser = sessionManager.get(tokenHash);
     if (cachedUser) {
-        return { ...cachedUser, sessionId } as User;
+        return { ...cachedUser, sessionId: tokenHash } as User;
     }
 
-    const session = await authDb.findSessionById(sessionId);
+    const session = await authDb.findSessionByHash(tokenHash);
     if (!session || new Date(session.expires_at) < new Date()) {
       return null;
     }
@@ -24,8 +27,8 @@ export class AuthService {
     const userDTO = UserMapper.toDTO(user);
     if (!userDTO) return null;
 
-    const userWithSession = { ...user, sessionId } as User;
-    sessionManager.set(sessionId, userDTO);
+    const userWithSession = { ...user, sessionId: tokenHash } as User;
+    sessionManager.set(tokenHash, userDTO);
 
     return userWithSession;
   }
@@ -33,16 +36,22 @@ export class AuthService {
   async createSession(userId: string): Promise<string> {
     // Implement strict single active session enforcement:
     // Invalidate all previously issued sessions for this user.
-    const { supabase } = await import('../supabase');
-    await supabase.from('sessions').delete().eq('user_id', userId);
+    await authDb.deleteUserSessions(userId);
+
+    const { generateToken, hashToken } = await import('../crypto');
+    const token = generateToken();
+    const tokenHash = await hashToken(token);
 
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
-    const session = await authDb.createSession(userId, expiresAt);
-    return session.id;
+    await authDb.createSession(userId, expiresAt, tokenHash);
+    return token;
   }
 
-  async logout(sessionId: string): Promise<void> {
-    await authDb.deleteSession(sessionId);
+  async logout(token: string): Promise<void> {
+    const { hashToken } = await import('../crypto');
+    const tokenHash = await hashToken(token);
+    await authDb.deleteSessionByHash(tokenHash);
+    sessionManager.invalidate(tokenHash);
   }
 
   async authenticate(email: string, password?: string) {
@@ -132,13 +141,7 @@ export class AuthService {
 
   async signup(data: { full_name: string; email: string; password?: string; phone?: string; role: string }) {
     const { hashPassword } = await import('../crypto');
-
-    if (data.password) {
-      const passwordValidation = validatePassword(data.password);
-      if (!passwordValidation.isValid) {
-        throw new Error(passwordValidation.errors[0].message);
-      }
-    }
+    const { rbac } = await import('../auth/rbac');
 
     // Check if email already exists
     const existingUser = await systemDb.findUserByEmail(data.email);
@@ -154,6 +157,13 @@ export class AuthService {
         }
       }
       return { data: { success: false, error: 'An account with this email already exists.' }, error: null };
+    }
+
+    if (data.password) {
+      const passwordValidation = validatePassword(data.password);
+      if (!passwordValidation.isValid) {
+        throw new Error(passwordValidation.errors[0].message);
+      }
     }
 
     // Role limits
@@ -188,8 +198,9 @@ export class AuthService {
 
   async createUser(currentUser: User, data: { full_name: string; email: string; password?: string; phone?: string; role: string }, _sessionId: string) {
     const { hashPassword } = await import('../crypto');
+    const { rbac } = await import('../auth/rbac');
 
-    if (!UserDomain.isAdmin(currentUser)) {
+    if (!rbac.can(currentUser, 'user:manage')) {
         throw new Error('Forbidden: Only admins can create users directly');
     }
 
@@ -208,23 +219,23 @@ export class AuthService {
     });
   }
 
-  async updatePassword(currentPass: string, newPass: string, sessionId: string) {
-    const { comparePassword, hashPassword } = await import('../crypto');
-    const session = await this.validateSession(sessionId);
-    if (!session) return { success: false, error: 'Unauthorized' };
+  async updatePassword(currentPass: string, newPass: string, token: string) {
+    const { comparePassword, hashPassword, hashToken } = await import('../crypto');
+    const sessionUser = await this.validateSession(token);
+    if (!sessionUser) return { success: false, error: 'Unauthorized' };
 
-    const user = await systemDb.findUserById(session.id as string, sessionId);
+    const user = await systemDb.findUserById(sessionUser.id as string, sessionUser.sessionId);
     if (!user) return { success: false, error: 'User not found' };
 
     const isPasswordValid = user.password && await comparePassword(currentPass, user.password);
     if (!isPasswordValid) return { success: false, error: 'Incorrect current password' };
 
     const hashedPassword = await hashPassword(newPass);
-    await authDb.updateUserRaw(user.id, { password: hashedPassword, reset_request: null }, sessionId);
+    await authDb.updateUserRaw(user.id, { password: hashedPassword, reset_request: null }, sessionUser.sessionId);
 
     // Invalidate other sessions
-    const { supabase } = await import('../supabase');
-    await supabase.from('sessions').delete().eq('user_id', user.id).neq('id', sessionId);
+    const currentTokenHash = await hashToken(token);
+    await authDb.deleteUserSessions(user.id, currentTokenHash);
 
     return { success: true };
   }
@@ -311,28 +322,23 @@ export class AuthService {
   }
 
   async getRoleCount() {
-    const { supabase } = await import('../supabase');
     const { USER_ROLES } = await import('../constants');
 
     const [teachers, admins, total] = await Promise.all([
-        supabase.from('users').select('*', { count: 'exact', head: true }).eq('role', USER_ROLES.TEACHER),
-        supabase.from('users').select('*', { count: 'exact', head: true }).eq('role', USER_ROLES.ADMIN),
-        supabase.from('users').select('*', { count: 'exact', head: true })
+        systemDb.countUsersByRole(USER_ROLES.TEACHER),
+        systemDb.countUsersByRole(USER_ROLES.ADMIN),
+        systemDb.countUsersByRole()
     ]);
     return {
-        teachers: teachers.count || 0,
-        admins: admins.count || 0,
-        total: total.count || 0
+        teachers,
+        admins,
+        total
     };
   }
 
   async getRoleUserCount(role: string): Promise<number> {
-    const { supabase } = await import('../supabase');
-    const { count } = await supabase
-        .from('users')
-        .select('*', { count: 'exact', head: true })
-        .eq('role', role);
-    return count || 0;
+    const { systemDb } = await import('../database/system.db');
+    return systemDb.countUsersByRole(role);
   }
 
   // Merged from UserService
@@ -344,17 +350,19 @@ export class AuthService {
   }
 
   async getAllUsers(currentUser: User, sessionId: string): Promise<User[]> {
-    if (!UserDomain.canManageUsers(currentUser)) throw new Error('Forbidden');
+    const { rbac } = await import('../auth/rbac');
+    if (!rbac.can(currentUser, 'user:manage')) throw new Error('Forbidden');
     return systemDb.findAllUsers(sessionId);
   }
 
   async updateUserProfile(currentUser: User, userId: string, updates: Partial<User>, sessionId: string): Promise<User> {
+    const { rbac } = await import('../auth/rbac');
     const targetUser = await systemDb.findUserById(userId, sessionId);
     if (!targetUser) throw new Error('User not found');
 
     UserDomain.validateUpdate(currentUser, userId);
 
-    if (UserDomain.isAdmin(currentUser)) {
+    if (rbac.can(currentUser, 'user:manage')) {
         await systemDb.adminUpdateUser(userId, updates, sessionId);
         return (await systemDb.findUserById(userId, sessionId))!;
     }
@@ -365,14 +373,16 @@ export class AuthService {
   }
 
   async toggleUserStatus(currentUser: User, userId: string, active: boolean, sessionId: string): Promise<void> {
-    if (!UserDomain.canManageUsers(currentUser)) throw new Error('Forbidden');
+    const { rbac } = await import('../auth/rbac');
+    if (!rbac.can(currentUser, 'user:manage')) throw new Error('Forbidden');
     const targetUser = await systemDb.findUserById(userId, sessionId);
     if (!targetUser) throw new Error('User not found');
     await systemDb.updateUser(userId, { active, version: targetUser.version }, sessionId);
   }
 
   async deleteUser(currentUser: User, userId: string, sessionId: string): Promise<void> {
-    if (!UserDomain.canManageUsers(currentUser)) throw new Error('Forbidden');
+    const { rbac } = await import('../auth/rbac');
+    if (!rbac.can(currentUser, 'user:manage')) throw new Error('Forbidden');
     await systemDb.deleteUser(userId, sessionId);
   }
 }

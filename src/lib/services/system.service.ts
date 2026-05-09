@@ -562,17 +562,16 @@ export class SystemService {
 
   // Maintenance Tasks
   async performSystemCleanup(sessionId: string): Promise<void> {
-    const { supabase } = await import('../supabase');
     const now = new Date().toISOString();
 
     // Cleanup expired notifications
-    await withSession(supabase.from('notifications').delete().lt('expires_at', now), sessionId);
+    await systemDb.cleanupExpiredNotifications(now, sessionId);
 
     // Cleanup expired sessions
-    await withSession(supabase.from('sessions').delete().lt('expires_at', now), sessionId);
+    await systemDb.cleanupExpiredSessions(now, sessionId);
 
     // Cleanup expired broadcasts
-    await withSession(supabase.from('broadcasts').delete().lt('expires_at', now), sessionId);
+    await systemDb.cleanupExpiredBroadcasts(now, sessionId);
   }
 
   // Stats & Health

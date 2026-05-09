@@ -20,7 +20,7 @@ function toCleanDTO<T>(obj: unknown): T {
     const clean: Record<string, unknown> = {};
 
     // List of relation keys to exclude from DTOs
-    const excludeKeys = ['courses', 'assignments', 'quizzes', 'assignment', 'quiz', 'users', 'student', 'lesson_completions', 'attendance', 'support_tickets', 'anti_cheat_logs'];
+    const excludeKeys = ['courses', 'assignments', 'quizzes', 'assignment', 'quiz', 'users', 'student', 'lesson_completions', 'attendance', 'support_tickets', 'anti_cheat_logs', 'sessionId'];
 
     for (const key in data) {
         if (!excludeKeys.includes(key)) {
