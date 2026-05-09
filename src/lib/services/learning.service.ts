@@ -47,6 +47,7 @@ export class LearningService {
   async saveLesson(lesson: Partial<Lesson>, sessionId: string, currentUser?: User): Promise<Lesson> {
     LearningDomain.validateLesson(lesson);
 
+    let isNew = !lesson.id;
     if (currentUser && currentUser.role === 'teacher') {
         let courseId = lesson.course_id;
         if (!courseId && lesson.id) {
@@ -63,7 +64,23 @@ export class LearningService {
     }
 
     const lessonToSave = LearningDomain.prepareLesson(lesson);
-    return learningDb.upsertLesson(lessonToSave, sessionId);
+    const saved = await learningDb.upsertLesson(lessonToSave, sessionId);
+
+    // Trigger Notification (Migrated from tr_lesson_created)
+    if (isNew) {
+        const { systemService } = await import('./system.service');
+        await systemService.createBroadcast({
+            course_id: saved.course_id,
+            target_role: 'student',
+            title: 'New Lesson Available',
+            message: `A new lesson "${saved.title}" has been added.`,
+            link: `lesson:${saved.course_id}:${saved.id}`,
+            type: 'lesson',
+            expires_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
+        }, sessionId);
+    }
+
+    return saved;
   }
 
   async deleteLesson(id: string, sessionId: string, currentUser?: User): Promise<void> {

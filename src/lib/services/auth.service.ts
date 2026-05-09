@@ -29,6 +29,11 @@ export class AuthService {
   }
 
   async createSession(userId: string): Promise<string> {
+    // Implement strict single active session enforcement:
+    // Invalidate all previously issued sessions for this user.
+    const { supabase } = await import('../supabase');
+    await supabase.from('sessions').delete().eq('user_id', userId);
+
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
     const session = await authDb.createSession(userId, expiresAt);
     return session.id;
@@ -106,6 +111,10 @@ export class AuthService {
 
     await authDb.updateUserRaw(user.id, { last_login: now.toISOString(), failed_attempts: 0, locked_until: null });
     const sessionId = await this.createSession(user.id);
+
+    // Call maintenance cleanup on login
+    const { systemService } = await import('./system.service');
+    systemService.performSystemCleanup(sessionId).catch(console.error);
 
     return {
       data: {

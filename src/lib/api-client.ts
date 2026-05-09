@@ -13,16 +13,12 @@ export async function apiFetch<T>(url: string, options: RequestInit = {}, retrie
       ? url.replace('/api/', '/api/v1/')
       : `/api/v1/${url}`;
 
-  // Get session ID from sessionStorage for authenticated requests
-  const sessionId = typeof window !== 'undefined' ? sessionStorage.getItem('session_id') || '' : '';
-  
   const makeRequest = async (signal?: AbortSignal): Promise<Response> => {
     return fetch(versionedUrl, {
       ...options,
       signal,
       headers: {
         'Content-Type': 'application/json',
-        ...(sessionId && { 'x-session-id': sessionId }),
         ...options.headers,
       },
     });

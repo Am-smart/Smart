@@ -24,11 +24,12 @@ export class AssessmentService {
   }
 
   async saveAssignment(teacherId: string, assignment: Partial<Assignment>, sessionId: string, currentUser?: User): Promise<Assignment> {
+    let existing: Assignment | null = null;
     if (currentUser && currentUser.role === 'teacher') {
         let courseId = assignment.course_id;
 
         if (!courseId && assignment.id) {
-            const existing = await assessmentDb.findAssignmentById(assignment.id, sessionId);
+            existing = await assessmentDb.findAssignmentById(assignment.id, sessionId);
             if (existing) {
                 courseId = existing.course_id;
             }
@@ -40,9 +41,27 @@ export class AssessmentService {
         if (course.teacher_id !== currentUser.id) {
             throw new ForbiddenError('Unauthorized: You can only manage assignments for your own courses');
         }
+    } else if (assignment.id) {
+        existing = await assessmentDb.findAssignmentById(assignment.id, sessionId);
     }
+
     const assignmentToSave = AssessmentDomain.prepareAssignment(assignment, teacherId);
-    return assessmentDb.upsertAssignment(assignmentToSave, sessionId);
+    const saved = await assessmentDb.upsertAssignment(assignmentToSave, sessionId);
+
+    // Trigger Notification (Migrated from tr_assignment_published)
+    if (saved.status === 'published' && (!existing || existing.status !== 'published')) {
+        await systemService.createBroadcast({
+            course_id: saved.course_id,
+            target_role: 'student',
+            title: 'New Assignment',
+            message: `A new assignment "${saved.title}" has been published.`,
+            link: `assignment:${saved.id}`,
+            type: 'assignment_published',
+            expires_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
+        }, sessionId);
+    }
+
+    return saved;
   }
 
   async deleteAssignment(id: string, sessionId: string, currentUser?: User): Promise<void> {
@@ -75,11 +94,12 @@ export class AssessmentService {
   }
 
   async saveQuiz(teacherId: string, quiz: Partial<Quiz>, sessionId: string, currentUser?: User): Promise<Quiz> {
+    let existing: Quiz | null = null;
     if (currentUser && currentUser.role === 'teacher') {
         let courseId = quiz.course_id;
 
         if (!courseId && quiz.id) {
-            const existing = await assessmentDb.findQuizById(quiz.id, sessionId);
+            existing = await assessmentDb.findQuizById(quiz.id, sessionId);
             if (existing) {
                 courseId = existing.course_id;
             }
@@ -91,9 +111,27 @@ export class AssessmentService {
         if (course.teacher_id !== currentUser.id) {
             throw new ForbiddenError('Unauthorized: You can only manage quizzes for your own courses');
         }
+    } else if (quiz.id) {
+        existing = await assessmentDb.findQuizById(quiz.id, sessionId);
     }
+
     const quizToSave = AssessmentDomain.prepareQuiz(quiz, teacherId);
-    return assessmentDb.upsertQuiz(quizToSave, sessionId);
+    const saved = await assessmentDb.upsertQuiz(quizToSave, sessionId);
+
+    // Trigger Notification (Migrated from tr_quiz_published)
+    if (saved.status === 'published' && (!existing || existing.status !== 'published')) {
+        await systemService.createBroadcast({
+            course_id: saved.course_id,
+            target_role: 'student',
+            title: 'New Quiz Available',
+            message: `A new quiz "${saved.title}" has been published.`,
+            link: `quiz:${saved.id}`,
+            type: 'quiz_published',
+            expires_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
+        }, sessionId);
+    }
+
+    return saved;
   }
 
   async deleteQuiz(id: string, sessionId: string, currentUser?: User): Promise<void> {
@@ -130,6 +168,11 @@ export class AssessmentService {
   }
 
   async gradeSubmission(submissionId: string, gradeData: Partial<Submission>, sessionId: string, performingUserId?: string, performingUserRole?: string): Promise<Submission> {
+    // Backend Grade Protection: Ensure students cannot modify grades
+    if (performingUserRole === 'student') {
+        throw new ForbiddenError('Students are not authorized to modify grades');
+    }
+
     const submission = await assessmentDb.findSubmissionById(submissionId, sessionId);
     if (!submission) throw new NotFoundError('Submission not found');
 
@@ -147,6 +190,17 @@ export class AssessmentService {
       status: SUBMISSION_STATUS.GRADED,
       graded_at: new Date().toISOString(),
     } as Partial<Submission>, sessionId);
+
+    // Trigger Notification (Migrated from tr_submission_graded)
+    if (submission.status !== SUBMISSION_STATUS.GRADED) {
+        await systemService.notifyUser({
+            target_id: updated.student_id,
+            n_title: 'Assignment Graded',
+            n_msg: 'Your submission for an assignment has been graded.',
+            n_link: `assignment:${updated.assignment_id}`,
+            n_type: 'grading'
+        }, sessionId);
+    }
 
     return updated;
   }

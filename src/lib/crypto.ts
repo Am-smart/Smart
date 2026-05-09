@@ -18,8 +18,8 @@ export async function comparePassword(password: string, hash: string): Promise<b
 // In production, SESSION_SECRET MUST be set as an environment variable.
 const SESSION_SECRET = process.env.SESSION_SECRET || 'dev-only-secret-do-not-use-in-production-1234567890';
 
-export async function createSession(data: object): Promise<string> {
-    return signData(data);
+export async function createSession(sessionId: string): Promise<string> {
+    return signData({ sessionId });
 }
 
 export async function signData(data: object): Promise<string> {

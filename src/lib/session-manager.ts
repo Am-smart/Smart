@@ -9,10 +9,6 @@ export const sessionManager = {
   initSession: () => {
     if (typeof window === 'undefined') return;
     
-    // Set initial session expiry time
-    const expiryTime = new Date(Date.now() + SESSION_TIMEOUT_MS).toISOString();
-    sessionStorage.setItem('session_expiry', expiryTime);
-    
     // Set up timeout to trigger refresh before actual expiry
     sessionManager.resetSessionTimeout();
     
@@ -29,10 +25,6 @@ export const sessionManager = {
     if (sessionTimeout) {
       clearTimeout(sessionTimeout);
     }
-    
-    // Set new expiry time
-    const expiryTime = new Date(Date.now() + SESSION_TIMEOUT_MS).toISOString();
-    sessionStorage.setItem('session_expiry', expiryTime);
     
     // Set new timeout (trigger 1 minute before actual expiry)
     sessionTimeout = setTimeout(() => {
@@ -69,10 +61,6 @@ export const sessionManager = {
   logout: () => {
     if (typeof window === 'undefined') return;
     
-    // Clear session data
-    sessionStorage.removeItem('session_id');
-    sessionStorage.removeItem('session_expiry');
-    
     // Clear timeout
     if (sessionTimeout) {
       clearTimeout(sessionTimeout);
@@ -89,20 +77,11 @@ export const sessionManager = {
   },
 
   isSessionExpired: (): boolean => {
-    if (typeof window === 'undefined') return true;
-    
-    const expiryStr = sessionStorage.getItem('session_expiry');
-    if (!expiryStr) return true;
-    
-    const expiryTime = new Date(expiryStr).getTime();
-    return Date.now() > expiryTime;
+    return false; // Driven by server-side cookie now
   },
 
   getSessionExpiryTime: (): Date | null => {
-    if (typeof window === 'undefined') return null;
-    
-    const expiryStr = sessionStorage.getItem('session_expiry');
-    return expiryStr ? new Date(expiryStr) : null;
+    return null; // Driven by server-side cookie now
   },
 
   getTimeUntilExpiry: (): number => {

@@ -254,8 +254,16 @@ export class SystemService {
       await systemDb.updateMultipleNotifications(ids, { viewed_at: new Date().toISOString() }, sessionId);
   }
 
-  async notifyUser(params: { target_id: string, n_title: string, n_msg: string, n_link?: string, n_type?: string }, sessionId: string): Promise<void> {
-    await systemDb.createNotification(params.target_id, params.n_title, params.n_msg, params.n_link, params.n_type, sessionId);
+  async notifyUser(params: { target_id: string, n_title: string, n_msg: string, n_link?: string, n_type?: string, expires_at?: string, metadata?: any }, sessionId: string): Promise<void> {
+    await systemDb.createNotification({
+      user_id: params.target_id,
+      title: params.n_title,
+      message: params.n_msg,
+      link: params.n_link,
+      type: params.n_type || 'system',
+      expires_at: params.expires_at,
+      metadata: params.metadata || {}
+    }, sessionId);
   }
 
   async getMergedNotifications(user: User, userId: string, sessionId: string): Promise<Notification[]> {
@@ -311,9 +319,10 @@ export class SystemService {
   async saveLiveClass(currentUser: User, liveClass: Partial<LiveClass>, sessionId: string): Promise<LiveClass> {
     if (!UserDomain.canManageContent(currentUser)) throw new ForbiddenError();
 
+    let existing: LiveClass | null = null;
     if (UserDomain.isTeacher(currentUser)) {
         if (liveClass.id) {
-            const existing = await systemDb.findLiveClassById(liveClass.id, sessionId);
+            existing = await systemDb.findLiveClassById(liveClass.id, sessionId);
             if (existing && existing.teacher_id !== currentUser.id) {
                 throw new ForbiddenError('Unauthorized: You can only manage your own live classes');
             }
@@ -323,10 +332,47 @@ export class SystemService {
                 throw new ForbiddenError('Unauthorized: You can only create live classes for your own courses');
             }
         }
+    } else if (liveClass.id) {
+        existing = await systemDb.findLiveClassById(liveClass.id, sessionId);
     }
 
     const liveClassToSave = CommunicationDomain.prepareLiveClass(liveClass, currentUser.id);
-    return systemDb.upsertLiveClass(liveClassToSave, sessionId);
+    const saved = await systemDb.upsertLiveClass(liveClassToSave, sessionId);
+
+    // Trigger Notifications (Migrated from tr_notify_live_class)
+    if (saved.status === 'live' && (!existing || existing.status !== 'live')) {
+        await this.createBroadcast({
+            course_id: saved.course_id,
+            target_role: 'student',
+            title: 'Live Class Started',
+            message: `The class "${saved.title}" has started! Join now.`,
+            link: `live:${saved.id}`,
+            type: 'live_class',
+            expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+        }, sessionId);
+    } else if (saved.status === 'scheduled' && !existing) {
+        await this.createBroadcast({
+            course_id: saved.course_id,
+            target_role: 'student',
+            title: 'Live Class Scheduled',
+            message: `A new live class "${saved.title}" has been scheduled for ${saved.start_at}`,
+            link: `live:${saved.id}`,
+            type: 'live_class',
+            expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+        }, sessionId);
+    } else if (saved.status === 'completed' && existing && existing.status === 'live') {
+        await this.createBroadcast({
+            course_id: saved.course_id,
+            target_role: 'student',
+            title: 'Class Ended',
+            message: `The live class "${saved.title}" has ended.`,
+            link: `live:${saved.id}`,
+            type: 'class_ended',
+            expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+        }, sessionId);
+    }
+
+    return saved;
   }
 
   async deleteLiveClass(id: string, sessionId: string, currentUser?: User): Promise<void> {
@@ -384,8 +430,9 @@ export class SystemService {
   async saveSupportTicket(currentUser: User, ticket: Partial<SupportTicket>, sessionId: string): Promise<SupportTicket> {
     if (!currentUser) throw new UnauthorizedError();
 
+    let existing: SupportTicket | null = null;
     if (ticket.id) {
-      const existing = await systemDb.findSupportTicketById(ticket.id, sessionId);
+      existing = await systemDb.findSupportTicketById(ticket.id, sessionId);
       if (!existing) throw new NotFoundError('Ticket not found');
 
       // Authorization: Owner or Admin or Assigned
@@ -397,7 +444,35 @@ export class SystemService {
       ticket.status = 'open';
     }
 
-    return systemDb.upsertSupportTicket(ticket, sessionId);
+    const saved = await systemDb.upsertSupportTicket(ticket, sessionId);
+
+    // Trigger Notifications (Migrated from tr_notify_admin_new_ticket and tr_notify_user_ticket_resolved)
+    if (!existing) {
+        // New ticket - notify admins
+        const { supabase } = await import('../supabase');
+        const { data: admins } = await supabase.from('users').select('id').eq('role', 'admin');
+        if (admins) {
+            for (const admin of admins) {
+                await this.notifyUser({
+                    target_id: admin.id,
+                    n_title: `New Support Ticket: ${saved.subject}`,
+                    n_msg: 'A new support ticket has been submitted by a user.',
+                    n_link: `grading:${saved.id}`, // placeholder deep link
+                    n_type: 'system'
+                }, sessionId);
+            }
+        }
+    } else if (existing.status !== 'resolved' && saved.status === 'resolved') {
+        // Resolved - notify owner
+        await this.notifyUser({
+            target_id: saved.user_id,
+            n_title: `Support Ticket Resolved: ${saved.subject}`,
+            n_msg: 'Your support ticket has been marked as resolved. Check the help center for details.',
+            n_type: 'system'
+        }, sessionId);
+    }
+
+    return saved;
   }
 
   async deleteSupportTicket(currentUser: User, id: string, sessionId: string): Promise<void> {
@@ -413,7 +488,88 @@ export class SystemService {
 
   async createBroadcast(broadcast: Partial<Broadcast>, sessionId: string): Promise<Broadcast> {
     const broadcastToSave = CommunicationDomain.prepareBroadcast(broadcast);
-    return systemDb.createBroadcast(broadcastToSave, sessionId);
+    const createdBroadcast = await systemDb.createBroadcast(broadcastToSave, sessionId);
+
+    // Manual Fan-out: Populate notifications table using efficient batch operations
+    const { supabase } = await import('../supabase');
+
+    let targetUserIds: string[] = [];
+
+    if (!createdBroadcast.course_id) {
+        // Global broadcast
+        let query = supabase.from('users').select('id');
+        if (createdBroadcast.target_role) {
+            query = query.eq('role', createdBroadcast.target_role);
+        }
+        const { data } = await query;
+        targetUserIds = (data || []).map(u => u.id);
+    } else {
+        // Course-specific broadcast
+        const courseId = createdBroadcast.course_id;
+        const targetRole = createdBroadcast.target_role;
+
+        // 1. Get enrolled students
+        if (!targetRole || targetRole === 'student') {
+            const { data: students } = await supabase.from('enrollments')
+                .select('student_id')
+                .eq('course_id', courseId);
+            if (students) targetUserIds.push(...students.map(s => s.student_id));
+        }
+
+        // 2. Get course teacher
+        if (!targetRole || targetRole === 'teacher') {
+            const { data: course } = await supabase.from('courses')
+                .select('teacher_id')
+                .eq('id', courseId)
+                .single();
+            if (course?.teacher_id) targetUserIds.push(course.teacher_id);
+        }
+
+        // 3. Always include admins
+        const { data: admins } = await supabase.from('users')
+            .select('id')
+            .eq('role', 'admin');
+        if (admins) targetUserIds.push(...admins.map(a => a.id));
+
+        // Deduplicate
+        targetUserIds = [...new Set(targetUserIds)];
+    }
+
+    if (targetUserIds.length > 0) {
+        const notificationsToInsert = targetUserIds.map(userId => ({
+            user_id: userId,
+            broadcast_id: createdBroadcast.id,
+            title: createdBroadcast.title,
+            message: createdBroadcast.message,
+            link: createdBroadcast.link,
+            type: createdBroadcast.type,
+            expires_at: createdBroadcast.expires_at,
+            metadata: { broadcast_id: createdBroadcast.id, expires_at: createdBroadcast.expires_at }
+        }));
+
+        // Batch insert in chunks of 1000 to avoid request size limits
+        for (let i = 0; i < notificationsToInsert.length; i += 1000) {
+            const chunk = notificationsToInsert.slice(i, i + 1000);
+            await supabase.from('notifications').insert(chunk);
+        }
+    }
+
+    return createdBroadcast;
+  }
+
+  // Maintenance Tasks
+  async performSystemCleanup(sessionId: string): Promise<void> {
+    const { supabase } = await import('../supabase');
+    const now = new Date().toISOString();
+
+    // Cleanup expired notifications
+    await withSession(supabase.from('notifications').delete().lt('expires_at', now), sessionId);
+
+    // Cleanup expired sessions
+    await withSession(supabase.from('sessions').delete().lt('expires_at', now), sessionId);
+
+    // Cleanup expired broadcasts
+    await withSession(supabase.from('broadcasts').delete().lt('expires_at', now), sessionId);
   }
 
   // Stats & Health
