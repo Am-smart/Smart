@@ -44,43 +44,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const initAuth = async () => {
         // 1. Try secure session first
         try {
-          const session = await actions.getSession();
-          if (session) {
-              // Session validation check
-              const sessionInfo = await actions.getSessions();
-              const currentSession = sessionInfo.find(s => s.id === session.sessionId);
-
-              if (!currentSession || new Date(currentSession.expires_at) < new Date()) {
-                  console.warn('Session expired or invalid');
-                  await logout();
-                  return;
-              }
-
-              // Token Rotation / Session Refresh logic
-              const expiresAt = new Date(currentSession.expires_at);
-              const now = new Date();
-              const diffMs = expiresAt.getTime() - now.getTime();
-              const refreshThreshold = 24 * 60 * 60 * 1000; // 1 day
-
-              const userDTO = await actions.getMe(controller.signal);
-
-              if (diffMs < refreshThreshold && isOnline && userDTO) {
-                  console.log('Refreshing session (Token Rotation)...');
-                  // We can re-save the user profile which in our simplified system could trigger session update
-                  // or we just call a dedicated refresh if we had one.
-                  // For now, we update preferences as a way to keep session alive in DB
-                  await actions.updatePreferences(userDTO.notification_preferences || {});
-              }
-              if (userDTO) {
-                  const user = { ...userDTO, sessionId: session.sessionId } as User;
-                  await setCache('current_user', user);
-                  setState({ user, role: user.role, isLoading: false });
-                  // Initialize session timeout tracking
-                  sessionManager.initSession();
-                  // Background pull
-                  pullData(user.id, user.sessionId!, user.role);
-                  return;
-              }
+      const userDTO = await actions.getMe(controller.signal);
+      if (userDTO) {
+          const user = userDTO as User;
+          await setCache('current_user', user);
+          setState({ user, role: user.role, isLoading: false });
+          // Initialize session timeout tracking
+          sessionManager.initSession();
+          // Background pull
+          pullData(user.id, user.role);
+          return;
           }
         } catch (err) {
             console.error('Auth initialization error:', err);
@@ -107,7 +80,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw new Error(result.error);
     }
 
-    const u = { ...result.data!.user, sessionId: result.data!.sessionId } as User;
+    const u = result.data!.user as User;
     await setCache('current_user', u);
     setState(prev => ({
         ...prev,
@@ -123,7 +96,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw new Error(result.error);
     }
 
-    const u = { ...result.data!.user, sessionId: result.data!.sessionId } as User;
+    const u = result.data!.user as User;
     await setCache('current_user', u);
     setState(prev => ({
         ...prev,
@@ -147,7 +120,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             throw new Error(res.error);
         }
     } else {
-        await addToQueue('PROFILE_UPDATE', { id: state.user.id, ...updates }, state.user.sessionId);
+        await addToQueue('PROFILE_UPDATE', { id: state.user.id, ...updates });
     }
   }, [state.user, isOnline, setCache, addToQueue]);
 

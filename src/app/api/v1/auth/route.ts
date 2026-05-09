@@ -43,9 +43,9 @@ export const POST = withHandler(async (user, request) => {
             }
 
             const normalizedEmail = normalizeEmail(data.email);
-            const { data: rawData, error: rpcError } = await authService.authenticate(normalizedEmail, data.password || '');
+            const { data: rawData, error: serviceError } = await authService.authenticate(normalizedEmail, data.password || '');
 
-            if (rpcError) throw new Error('Authentication service unavailable');
+            if (serviceError) throw new Error('Authentication service unavailable');
 
             const result = rawData as { success: boolean, user: User, session_id: string, error?: string };
             if (!result.success) {
@@ -63,8 +63,7 @@ export const POST = withHandler(async (user, request) => {
             });
 
             return {
-                user: UserMapper.toDTO(result.user),
-                sessionId: sessionId
+                user: UserMapper.toDTO(result.user)
             };
         }
         case 'signup': {
@@ -90,7 +89,7 @@ export const POST = withHandler(async (user, request) => {
                 }
             }
 
-            const { data: rawData, error: rpcError } = await authService.signup({
+            const { data: rawData, error: serviceError } = await authService.signup({
               full_name: normalizeInput(data.full_name),
               email: normalizeEmail(data.email),
               password: data.password || '',
@@ -98,7 +97,7 @@ export const POST = withHandler(async (user, request) => {
               role: data.role || USER_ROLES.STUDENT
             });
 
-            if (rpcError) throw new Error('Signup service unavailable');
+            if (serviceError) throw new Error('Signup service unavailable');
 
             const result = rawData as { success: boolean, user: User, session_id: string, error?: string };
             if (!result.success) throw new BadRequestError(result.error || 'Signup failed');
@@ -114,8 +113,7 @@ export const POST = withHandler(async (user, request) => {
             });
 
             return {
-                user: UserMapper.toDTO(result.user),
-                sessionId: sessionId
+                user: UserMapper.toDTO(result.user)
             };
         }
         case 'logout':

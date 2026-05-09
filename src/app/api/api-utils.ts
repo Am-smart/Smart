@@ -21,14 +21,6 @@ export async function getSessionUser(request?: Request): Promise<User | null> {
     const userSession = await authService.validateSession(sessionId);
     if (!userSession) return null;
 
-    // Optional: Validate session ID from header matches cookie for defense-in-depth
-    if (request) {
-        const headerSessionId = request.headers.get('x-session-id');
-        if (headerSessionId && headerSessionId !== sessionId) {
-            console.warn('Session ID mismatch between cookie and header');
-        }
-    }
-
     return userSession as User;
   } catch {
     return null;
