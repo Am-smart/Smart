@@ -53,20 +53,31 @@ export const systemDb = {
   },
 
   async adminUpdateUser(id: string, updates: Partial<User>, sessionId: string): Promise<void> {
-      const { data, error } = await withSession(supabase.rpc('admin_update_user_v2', {
-          p_user_id: id,
-          p_full_name: updates.full_name,
-          p_email: updates.email,
-          p_password: updates.password,
-          p_phone: updates.phone,
-          p_role: updates.role,
-          p_active: updates.active,
-          p_flagged: updates.flagged
-      }), sessionId);
+      const { hashPassword } = await import('../crypto');
+
+      const userUpdates: any = {
+          full_name: updates.full_name,
+          email: updates.email,
+          phone: updates.phone,
+          role: updates.role,
+          active: updates.active,
+          flagged: updates.flagged,
+          version: (updates.version || 0) + 1,
+          updated_at: new Date().toISOString()
+      };
+
+      if (updates.password && updates.password !== '') {
+          userUpdates.password = await hashPassword(updates.password);
+      }
+
+      // Filter out undefined values to only update provided fields
+      Object.keys(userUpdates).forEach(key => {
+          if (userUpdates[key] === undefined) delete userUpdates[key];
+      });
+
+      const { error } = await withSession(supabase.from('users').update(userUpdates).eq('id', id), sessionId);
 
       if (error) dbUtils.handleError(error);
-      const result = data as { success: boolean, error?: string };
-      if (result && !result.success) throw new Error(result.error || 'Admin update failed');
   },
 
   async deleteUser(id: string, sessionId: string): Promise<void> {

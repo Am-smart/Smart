@@ -39,20 +39,142 @@ export class AuthService {
   }
 
   async authenticate(email: string, password?: string) {
-    return authDb.authenticate(email, password);
+    const { comparePassword } = await import('../crypto');
+
+    const user = await systemDb.findUserByEmail(email);
+    if (!user) {
+      return { data: { success: false, error: 'Invalid email or password' }, error: null };
+    }
+
+    if (!user.active) {
+      return { data: { success: false, error: 'Account is deactivated' }, error: null };
+    }
+
+    if (user.flagged) {
+      return { data: { success: false, error: 'Account is flagged. Please contact support.' }, error: null };
+    }
+
+    const now = new Date();
+    if (user.locked_until && new Date(user.locked_until) > now) {
+      return { data: { success: false, error: `Account locked until ${new Date(user.locked_until).toLocaleTimeString()}` }, error: null };
+    }
+
+    // Block users who used their temp pass but haven't changed it
+    if (user.reset_request && (user.reset_request as any).status === 'approved_used') {
+       return { data: { success: false, error: 'Your session has expired. You must change your password using the secure prompt provided during your first login.' }, error: null };
+    }
+
+    // Verify password
+    const isPasswordValid = password && user.password && await comparePassword(password, user.password);
+    if (!isPasswordValid) {
+      // PASSWORD FAILED: Check if there is reset info to show
+      if (user.reset_request) {
+        const reset = user.reset_request as any;
+        if (reset.status === 'pending') {
+          return { data: { success: false, error: 'Your password reset request is under review.' }, error: null };
+        } else if (reset.status === 'approved') {
+          if (new Date(reset.expires_at) > now) {
+            return { data: { success: false, error: `Reset approved. Your temp password is: ${reset.temp_password}` }, error: null };
+          }
+        } else if (reset.status === 'denied') {
+          return { data: { success: false, error: `Reset denied: ${reset.denial_reason}` }, error: null };
+        }
+      }
+
+      const failedAttempts = (user.failed_attempts || 0) + 1;
+      const updates: any = {
+        failed_attempts: failedAttempts,
+        locked_until: failedAttempts >= 5 ? new Date(Date.now() + 30 * 60 * 1000).toISOString() : user.locked_until,
+        lockouts: failedAttempts >= 5 ? (user.lockouts || 0) + 1 : user.lockouts
+      };
+      await authDb.updateUserRaw(user.id, updates);
+
+      return { data: { success: false, error: 'Invalid email or password' }, error: null };
+    }
+
+    // Successful login
+    // One-time temp password usage: If login with temp pass succeeds, mark it as used
+    if (user.reset_request && (user.reset_request as any).status === 'approved') {
+       const reset = user.reset_request as any;
+       if (new Date(reset.expires_at) < now) {
+          return { data: { success: false, error: 'Temporary password has expired. Please request a new one.' }, error: null };
+       }
+       const newResetRequest = { ...reset, status: 'approved_used' };
+       delete newResetRequest.temp_password;
+       await authDb.updateUserRaw(user.id, { reset_request: newResetRequest });
+    }
+
+    await authDb.updateUserRaw(user.id, { last_login: now.toISOString(), failed_attempts: 0, locked_until: null });
+    const sessionId = await this.createSession(user.id);
+
+    return {
+      data: {
+        success: true,
+        user: user,
+        session_id: sessionId
+      },
+      error: null
+    };
   }
 
   async register(data: { full_name: string; email: string; password?: string; phone?: string; role: string }) {
+    const { hashPassword } = await import('../crypto');
+
     if (data.password) {
       const passwordValidation = validatePassword(data.password);
       if (!passwordValidation.isValid) {
         throw new Error(passwordValidation.errors[0].message);
       }
     }
-    return authDb.register(data);
+
+    // Check if email already exists
+    const existingUser = await systemDb.findUserByEmail(data.email);
+    if (existingUser) {
+      if (existingUser.reset_request) {
+        const reset = existingUser.reset_request as any;
+        if (reset.status === 'pending') {
+          return { data: { success: false, error: 'This email is registered. A password reset request is under review.' }, error: null };
+        } else if (reset.status === 'approved') {
+          return { data: { success: false, error: `This email is registered. Password reset approved. Temp Pass: ${reset.temp_password}` }, error: null };
+        } else if (reset.status === 'denied') {
+          return { data: { success: false, error: `This email is registered. Previous reset request denied: ${reset.denial_reason}` }, error: null };
+        }
+      }
+      return { data: { success: false, error: 'An account with this email already exists.' }, error: null };
+    }
+
+    // Role limits
+    if (data.role === 'teacher' || data.role === 'admin') {
+      const count = await this.getRoleUserCount(data.role);
+      if (count >= 3) {
+        return { data: { success: false, error: `Public creation limit reached for ${data.role}s.` }, error: null };
+      }
+    }
+
+    const hashedPassword = data.password ? await hashPassword(data.password) : '';
+    const { data: userData, error } = await authDb.register({
+      ...data,
+      password: hashedPassword
+    });
+
+    if (error) return { data: null, error };
+
+    const newUser = userData as User;
+    const sessionId = await this.createSession(newUser.id);
+
+    return {
+      data: {
+        success: true,
+        user: newUser,
+        session_id: sessionId
+      },
+      error: null
+    };
   }
 
   async createUser(currentUser: User, data: { full_name: string; email: string; password?: string; phone?: string; role: string }, _sessionId: string) {
+    const { hashPassword } = await import('../crypto');
+
     if (!UserDomain.isAdmin(currentUser)) {
         throw new Error('Forbidden: Only admins can create users directly');
     }
@@ -64,28 +186,108 @@ export class AuthService {
       }
     }
 
-    // Bypass signup limits for admin-initiated creation
-    return authDb.register(data);
+    const hashedPassword = data.password ? await hashPassword(data.password) : '';
+    return authDb.register({
+      ...data,
+      password: hashedPassword
+    });
   }
 
   async updatePassword(currentPass: string, newPass: string, sessionId: string) {
-    return authDb.updatePassword(currentPass, newPass, sessionId);
+    const { comparePassword, hashPassword } = await import('../crypto');
+    const session = await this.validateSession(sessionId);
+    if (!session) return { success: false, error: 'Unauthorized' };
+
+    const user = await systemDb.findUserById(session.id as string, sessionId);
+    if (!user) return { success: false, error: 'User not found' };
+
+    const isPasswordValid = user.password && await comparePassword(currentPass, user.password);
+    if (!isPasswordValid) return { success: false, error: 'Incorrect current password' };
+
+    const hashedPassword = await hashPassword(newPass);
+    await authDb.updateUserRaw(user.id, { password: hashedPassword, reset_request: null }, sessionId);
+
+    // Invalidate other sessions
+    const { supabase } = await import('../supabase');
+    await supabase.from('sessions').delete().eq('user_id', user.id).neq('id', sessionId);
+
+    return { success: true };
   }
 
   async requestPasswordReset(email: string, reason: string, riskLevel: string) {
-    return authDb.requestPasswordReset(email, reason, riskLevel);
+    const user = await systemDb.findUserByEmail(email);
+    if (!user) return { success: false, error: 'No account found with this email.' };
+
+    if (user.reset_request) {
+      const reset = user.reset_request as any;
+      if (reset.status === 'pending') {
+        return { success: false, error: 'A request is already under review for this account.' };
+      } else if (reset.status === 'approved' && new Date(reset.expires_at) > new Date()) {
+        return { success: false, error: `Reset approved. Temp Password: ${reset.temp_password}` };
+      }
+    }
+
+    const resetRequest = {
+      requested_at: new Date().toISOString(),
+      status: 'pending',
+      reason,
+      risk_level: riskLevel
+    };
+
+    await authDb.updateUserRaw(user.id, {
+      reset_request: resetRequest,
+      flagged: riskLevel === 'high' ? true : user.flagged
+    });
+
+    return { success: true };
   }
 
   async approvePasswordReset(userId: string, tempPassword: string, sessionId: string) {
-    return authDb.approvePasswordReset(userId, tempPassword, sessionId);
+    const { hashPassword } = await import('../crypto');
+    const hashedPassword = await hashPassword(tempPassword);
+
+    const user = await systemDb.findUserById(userId, sessionId);
+    if (!user) throw new Error('User not found');
+
+    const resetRequest = {
+      ...(user.reset_request as any || {}),
+      status: 'approved',
+      temp_password: tempPassword,
+      approved_at: new Date().toISOString(),
+      expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+    };
+
+    await authDb.updateUserRaw(userId, {
+      password: hashedPassword,
+      reset_request: resetRequest,
+      failed_attempts: 0,
+      locked_until: null
+    }, sessionId);
+
+    return { success: true };
   }
 
   async denyPasswordReset(userId: string, reason: string, sessionId: string) {
-    return authDb.denyPasswordReset(userId, reason, sessionId);
+    const user = await systemDb.findUserById(userId, sessionId);
+    if (!user) throw new Error('User not found');
+
+    const resetRequest = {
+      ...(user.reset_request as any || {}),
+      status: 'denied',
+      denial_reason: reason
+    };
+
+    await authDb.updateUserRaw(userId, { reset_request: resetRequest }, sessionId);
+
+    return { success: true };
   }
 
   async updatePreferences(preferences: object, sessionId: string) {
-    return authDb.updatePreferences(preferences, sessionId);
+    const session = await this.validateSession(sessionId);
+    if (!session) return { success: false, error: 'Unauthorized' };
+
+    await authDb.updateUserRaw(session.id as string, { notification_preferences: preferences }, sessionId);
+    return { success: true };
   }
 
   async getSessions(currentUser: User, sessionId: string) {
