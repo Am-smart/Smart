@@ -46,7 +46,8 @@ export default function AdminHelpPage() {
             const response = await updateSupportTicket(selectedTicket.id, {
                 status: 'resolved',
                 resolved_at: new Date().toISOString(),
-                metadata: updatedMetadata
+                metadata: updatedMetadata,
+                version: selectedTicket.version
             });
 
             if (response.success) {
@@ -69,7 +70,8 @@ export default function AdminHelpPage() {
         try {
             const response = await updateSupportTicket(ticket.id, {
                 status: 'resolved',
-                resolved_at: new Date().toISOString()
+                resolved_at: new Date().toISOString(),
+                version: ticket.version
             });
 
             if (response.success) {

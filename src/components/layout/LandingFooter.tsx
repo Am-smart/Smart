@@ -32,7 +32,7 @@ export const LandingFooter: React.FC<FooterProps> = ({ onRoleSelect }) => {
             <li><a href="#about" className="text-[#94a3b8] hover:text-white transition-colors">About Us</a></li>
             <li><a href="#" className="text-[#94a3b8] hover:text-white transition-colors">Privacy Policy</a></li>
             <li><a href="#" className="text-[#94a3b8] hover:text-white transition-colors">Terms of Service</a></li>
-            <li><a href="#" className="text-[#94a3b8] hover:text-white transition-colors">Support</a></li>
+            <li><a href="/help" className="text-[#94a3b8] hover:text-white transition-colors">Support & Help</a></li>
           </ul>
         </div>
       </div>

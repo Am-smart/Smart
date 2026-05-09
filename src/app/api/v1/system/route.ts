@@ -322,6 +322,9 @@ export const PATCH = withHandler(async (user, request) => {
         }
         case 'ticket': {
             if (!id) throw new Error('id required');
+            if (body.status || body.assigned_to) {
+                if (!rbac.can(user, 'ticket:manage')) throw new UnauthorizedError();
+            }
             await systemService.saveSupportTicket(user, { ...body, id }, user.sessionId!);
             return { success: true };
         }

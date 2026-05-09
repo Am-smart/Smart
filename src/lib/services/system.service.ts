@@ -345,11 +345,10 @@ export class SystemService {
     if (UserDomain.isStudent(currentUser)) {
       finalFilters.user_id = currentUser.id;
     } else if (UserDomain.isTeacher(currentUser)) {
-      // Teachers can see their own or tickets assigned to them
+      // Teachers can see their own tickets or tickets assigned to them
       if (!finalFilters.user_id && !finalFilters.assigned_to) {
-          // If no filter, we should probably only show assigned to them by default or their own
-          // but for now let's just allow what they can see via RLS or filter by them if not admin
-          finalFilters.assigned_to = currentUser.id;
+        // By default, systemDb.findAllSupportTickets will use RLS to filter what the teacher can see
+        // (owner or assigned_to), so we don't need to force a filter here.
       }
     }
 

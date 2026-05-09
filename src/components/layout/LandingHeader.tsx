@@ -34,6 +34,7 @@ export const LandingHeader: React.FC<HeaderProps> = ({ onSignIn, onGetStarted })
       <div className="hidden md:flex gap-8">
         <a href="#features" className="text-[#64748b] font-medium transition-colors hover:text-[#2563eb]">Features</a>
         <a href="#about" className="text-[#64748b] font-medium transition-colors hover:text-[#2563eb]">About</a>
+        <a href="/help" className="text-[#64748b] font-medium transition-colors hover:text-[#2563eb]">Help</a>
         <button onClick={onSignIn} className="text-[#64748b] font-medium transition-colors hover:text-[#2563eb]">Sign In</button>
       </div>
 
@@ -77,6 +78,13 @@ export const LandingHeader: React.FC<HeaderProps> = ({ onSignIn, onGetStarted })
               className="px-4 py-3 text-[#64748b] font-medium transition-colors hover:text-[#2563eb] hover:bg-slate-50 border-b border-slate-100"
             >
               About
+            </a>
+            <a
+              href="/help"
+              onClick={() => handleNavClick()}
+              className="px-4 py-3 text-[#64748b] font-medium transition-colors hover:text-[#2563eb] hover:bg-slate-50 border-b border-slate-100"
+            >
+              Help Center
             </a>
             <button 
               onClick={() => handleNavClick(onSignIn)}
