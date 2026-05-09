@@ -2,13 +2,13 @@ import {
   User, Course, Lesson, Material, UserRole,
   Assignment, Quiz, Submission, QuizSubmission,
   Notification, Broadcast, LiveClass, Discussion,
-  PlannerItem, Enrollment, Maintenance, Setting, SystemLog, Attendance
+  PlannerItem, Enrollment, Maintenance, Setting, SystemLog, Attendance, SupportTicket
 } from '../types';
 import { UserDTO } from '../types';
 import { CourseDTO, LessonDTO, MaterialDTO } from '../types';
 import { AssignmentDTO, QuizDTO, SubmissionDTO, QuizSubmissionDTO } from '../types';
 import { NotificationDTO, BroadcastDTO, LiveClassDTO, DiscussionDTO, AttendanceDTO } from '../types';
-import { PlannerItemDTO, EnrollmentDTO, MaintenanceDTO, SettingDTO, SystemLogDTO } from '../types';
+import { PlannerItemDTO, EnrollmentDTO, MaintenanceDTO, SettingDTO, SystemLogDTO, SupportTicketDTO } from '../types';
 
 /**
  * Generic mapper utility to clean up objects before DTO conversion
@@ -20,7 +20,7 @@ function toCleanDTO<T>(obj: unknown): T {
     const clean: Record<string, unknown> = {};
 
     // List of relation keys to exclude from DTOs
-    const excludeKeys = ['courses', 'assignments', 'quizzes', 'assignment', 'quiz', 'users', 'student', 'lesson_completions', 'attendance'];
+    const excludeKeys = ['courses', 'assignments', 'quizzes', 'assignment', 'quiz', 'users', 'student', 'lesson_completions', 'attendance', 'support_tickets'];
 
     for (const key in data) {
         if (!excludeKeys.includes(key)) {
@@ -152,7 +152,7 @@ export class CommunicationMapper {
   static toDiscussionDTO(d: Discussion): DiscussionDTO {
     return {
       ...toCleanDTO<DiscussionDTO>(d),
-      user: d.users ? (UserMapper.toDTO({ id: d.user_id, ...d.users }) || undefined) : undefined
+      user: d.users ? (UserMapper.toDTO({ ...d.users, id: d.user_id }) || undefined) : undefined
     };
   }
 
@@ -180,7 +180,14 @@ export class SystemMapper {
   static toSystemLogDTO(sl: SystemLog): SystemLogDTO {
     return {
       ...toCleanDTO<SystemLogDTO>(sl),
-      user: (sl.users && sl.user_id) ? (UserMapper.toDTO({ id: sl.user_id, ...sl.users }) || undefined) : undefined
+      user: (sl.users && sl.user_id) ? (UserMapper.toDTO({ ...sl.users, id: sl.user_id }) || undefined) : undefined
+    };
+  }
+
+  static toSupportTicketDTO(st: SupportTicket): SupportTicketDTO {
+    return {
+      ...toCleanDTO<SupportTicketDTO>(st),
+      user: (st.users && st.user_id) ? (UserMapper.toDTO({ ...st.users, id: st.user_id }) || undefined) : undefined
     };
   }
 

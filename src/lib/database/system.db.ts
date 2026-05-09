@@ -1,5 +1,5 @@
 import { withSession, supabase } from '../supabase';
-import { User, LiveClass, Notification, Broadcast, Discussion, PlannerItem, Maintenance, Setting, SystemLog, Attendance } from '../types';
+import { User, LiveClass, Notification, Broadcast, Discussion, PlannerItem, Maintenance, Setting, SystemLog, Attendance, SupportTicket } from '../types';
 import { dbUtils } from './db-utils';
 
 export const systemDb = {
@@ -352,6 +352,49 @@ export const systemDb = {
     const { data, error } = await withSession(supabase.from('system_logs'), sessionId).update(updates).eq('id', id).select().single();
     if (error) dbUtils.handleError(error);
     return data as SystemLog;
+  },
+
+  // Support Ticket Operations
+  async findAllSupportTickets(sessionId: string, filters: { user_id?: string; assigned_to?: string; status?: string } = {}): Promise<SupportTicket[]> {
+    let query = withSession(supabase.from('support_tickets'), sessionId)
+      .select('*, users!user_id(id, full_name, email)');
+
+    if (filters.user_id) query = query.eq('user_id', filters.user_id);
+    if (filters.assigned_to) query = query.eq('assigned_to', filters.assigned_to);
+    if (filters.status) query = query.eq('status', filters.status);
+
+    const { data, error } = await query.order('created_at', { ascending: false });
+    if (error) dbUtils.handleError(error);
+
+    const tickets = data as SupportTicket[];
+    return tickets.map(ticket => ({
+      ...ticket,
+      users: (ticket as any).users
+    }));
+  },
+
+  async findSupportTicketById(id: string, sessionId: string): Promise<SupportTicket | null> {
+    const { data, error } = await withSession(supabase.from('support_tickets').select('*, users!user_id(id, full_name, email)').eq('id', id), sessionId).maybeSingle();
+    if (error) dbUtils.handleError(error);
+    return data as SupportTicket;
+  },
+
+  async upsertSupportTicket(ticket: Partial<SupportTicket>, sessionId: string): Promise<SupportTicket> {
+    const upsertData = dbUtils.prepareUpsert(ticket, ['users']);
+    const query = dbUtils.applyVersionCheck(
+      withSession(supabase.from('support_tickets'), sessionId).upsert(upsertData as Record<string, unknown>),
+      ticket.id,
+      ticket.version
+    );
+
+    const { data, error } = await query.select().single();
+    if (error) dbUtils.handleUpsertError(error, 'Support ticket', ticket.id, ticket.version);
+    return data as SupportTicket;
+  },
+
+  async deleteSupportTicket(id: string, sessionId: string): Promise<void> {
+    const { error } = await withSession(supabase.from('support_tickets'), sessionId).delete().eq('id', id);
+    if (error) dbUtils.handleError(error);
   },
 
   async getSystemStats(sessionId?: string): Promise<Record<string, number>> {

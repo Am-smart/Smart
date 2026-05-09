@@ -3,7 +3,7 @@
 import React, { useState, useMemo } from 'react';
 import { Search, HelpCircle, Book, MessageSquare, Send, ChevronDown, ChevronUp, GraduationCap } from 'lucide-react';
 import { useAppContext } from '@/components/AppContext';
-import { createSystemLog } from '@/lib/api-actions';
+import { saveSupportTicket } from '@/lib/api-actions';
 
 const TEACHER_FAQ = [
     {
@@ -55,17 +55,19 @@ export default function TeacherHelpPage() {
 
         setIsSubmitting(true);
         try {
-            await createSystemLog({
-                level: 'info',
-                category: 'management',
-                message: `Instructor Support: ${contactForm.subject}`,
-                metadata: {
-                    user_message: contactForm.message,
-                    type: 'support_ticket'
-                }
+            const response = await saveSupportTicket({
+                subject: contactForm.subject,
+                message: contactForm.message,
+                category: 'instructor_support',
+                priority: 'high'
             });
-            addToast('Support request sent! We will prioritize your request.', 'success');
-            setContactForm({ subject: '', message: '' });
+
+            if (response.success) {
+                addToast('Support request sent! We will prioritize your request.', 'success');
+                setContactForm({ subject: '', message: '' });
+            } else {
+                addToast(response.error || 'Failed to send request', 'error');
+            }
         } catch (err) {
             console.error('Support request failed:', err);
             addToast('Failed to send request.', 'error');

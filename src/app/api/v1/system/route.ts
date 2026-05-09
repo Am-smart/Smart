@@ -111,6 +111,15 @@ export const GET = withHandler(async (user, request) => {
         if (!rbac.can(user, 'system:manage')) throw new UnauthorizedError();
         return systemService.getSystemStats(user.sessionId!);
     }
+    case 'support-tickets': {
+        if (!rbac.can(user, 'ticket:view')) throw new UnauthorizedError();
+        const tickets = await systemService.getSupportTickets(user, user.sessionId!, {
+            user_id: searchParams.get('userId') || undefined,
+            assigned_to: searchParams.get('assignedTo') || undefined,
+            status: searchParams.get('status') || undefined,
+        });
+        return tickets.map(SystemMapper.toSupportTicketDTO);
+    }
     case 'health': {
         if (!rbac.can(user, 'system:manage')) throw new UnauthorizedError();
         return systemService.getHealthMetrics(user.sessionId!);
@@ -203,6 +212,11 @@ export const POST = withHandler(async (user, request) => {
         });
         return { filePath };
     }
+    case 'save-ticket': {
+        if (!rbac.can(user, 'ticket:create')) throw new UnauthorizedError();
+        const saved = await systemService.saveSupportTicket(user, data, user.sessionId!);
+        return SystemMapper.toSupportTicketDTO(saved);
+    }
     case 'upload': {
         // This usually requires multipart/form-data, keep separate route for physical uploads
         throw new Error('Physical uploads must use /api/system/upload');
@@ -262,6 +276,10 @@ export const DELETE = withHandler(async (user, request) => {
             await systemService.clearLogs(user, user.sessionId!, filters);
             return { success: true };
         }
+        case 'ticket': {
+            await systemService.deleteSupportTicket(user, id, user.sessionId!);
+            return { success: true };
+        }
         default:
             throw new Error('Invalid DELETE action');
     }
@@ -300,6 +318,11 @@ export const PATCH = withHandler(async (user, request) => {
             if (!rbac.can(user, 'system:manage')) throw new UnauthorizedError();
             if (!id) throw new Error('id required');
             await systemService.updateLog(user, id, body, user.sessionId!);
+            return { success: true };
+        }
+        case 'ticket': {
+            if (!id) throw new Error('id required');
+            await systemService.saveSupportTicket(user, { ...body, id }, user.sessionId!);
             return { success: true };
         }
         default:

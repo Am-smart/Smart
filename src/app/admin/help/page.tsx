@@ -3,45 +3,23 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAppContext } from '@/components/AppContext';
 import { Search, MessageSquare, Send, CheckCircle, Clock, User, Mail, ShieldAlert } from 'lucide-react';
-import { getSystemLogs, createSystemLog } from '@/lib/api-actions';
-
-interface SupportTicket {
-    id: string;
-    level: string;
-    category: string;
-    message: string;
-    metadata: {
-        user_message: string;
-        type: string;
-        resolved?: boolean;
-        reply?: string;
-    };
-    user_id: string;
-    created_at: string;
-    users?: {
-        full_name: string;
-        email: string;
-    };
-}
+import { getSupportTickets, updateSupportTicket } from '@/lib/api-actions';
+import { SupportTicketDTO } from '@/lib/types';
 
 export default function AdminHelpPage() {
     const { addToast } = useAppContext();
-    const [tickets, setTickets] = useState<SupportTicket[]>([]);
+    const [tickets, setTickets] = useState<SupportTicketDTO[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
-    const [selectedTicket, setSelectedTicket] = useState<SupportTicket | null>(null);
+    const [selectedTicket, setSelectedTicket] = useState<SupportTicketDTO | null>(null);
     const [replyText, setReplyText] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const fetchTickets = useCallback(async () => {
         setIsLoading(true);
         try {
-            const data = await getSystemLogs(200);
-            const supportTickets = (data as unknown as SupportTicket[] || []).filter((log) =>
-                log.category === 'management' &&
-                log.metadata?.type === 'support_ticket'
-            );
-            setTickets(supportTickets);
+            const data = await getSupportTickets();
+            setTickets(data);
         } catch (err) {
             console.error('Failed to fetch tickets:', err);
             addToast('Error loading support tickets', 'error');
@@ -60,24 +38,25 @@ export default function AdminHelpPage() {
 
         setIsSubmitting(true);
         try {
-            // 1. Log the support ticket response
             const updatedMetadata = {
                 ...selectedTicket.metadata,
-                reply: replyText,
-                resolved: true
+                reply: replyText
             };
 
-            await createSystemLog({
-                level: 'info',
-                category: 'management',
-                message: `Support ticket ${selectedTicket.id} resolved`,
+            const response = await updateSupportTicket(selectedTicket.id, {
+                status: 'resolved',
+                resolved_at: new Date().toISOString(),
                 metadata: updatedMetadata
             });
 
-            addToast('Reply sent and ticket resolved!', 'success');
-            setReplyText('');
-            setSelectedTicket(null);
-            fetchTickets();
+            if (response.success) {
+                addToast('Reply sent and ticket resolved!', 'success');
+                setReplyText('');
+                setSelectedTicket(null);
+                fetchTickets();
+            } else {
+                addToast(response.error || 'Failed to send response', 'error');
+            }
         } catch (err) {
             console.error('Failed to reply:', err);
             addToast('Failed to send response', 'error');
@@ -86,16 +65,19 @@ export default function AdminHelpPage() {
         }
     };
 
-    const markResolved = async (ticket: SupportTicket) => {
+    const markResolved = async (ticket: SupportTicketDTO) => {
         try {
-            await createSystemLog({
-                level: 'info',
-                category: 'management',
-                message: `Support ticket ${ticket.id} marked as resolved`,
-                metadata: { ...ticket.metadata, resolved: true }
+            const response = await updateSupportTicket(ticket.id, {
+                status: 'resolved',
+                resolved_at: new Date().toISOString()
             });
-            addToast('Ticket marked as resolved', 'success');
-            fetchTickets();
+
+            if (response.success) {
+                addToast('Ticket marked as resolved', 'success');
+                fetchTickets();
+            } else {
+                addToast(response.error || 'Update failed', 'error');
+            }
         } catch (err) {
             console.error('Failed to resolve:', err);
             addToast('Update failed', 'error');
@@ -103,9 +85,9 @@ export default function AdminHelpPage() {
     };
 
     const filteredTickets = tickets.filter(t =>
-        t.message.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        t.users?.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        t.metadata.user_message.toLowerCase().includes(searchQuery.toLowerCase())
+        t.message?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        t.subject?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        t.user?.full_name?.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
     return (
@@ -145,7 +127,7 @@ export default function AdminHelpPage() {
                             >
                                 <div className="flex justify-between items-start mb-3">
                                     <div className="flex items-center gap-2">
-                                        {ticket.metadata.resolved ?
+                                        {ticket.status === 'resolved' ?
                                             <CheckCircle size={16} className={selectedTicket?.id === ticket.id ? 'text-blue-200' : 'text-green-500'} /> :
                                             <Clock size={16} className={selectedTicket?.id === ticket.id ? 'text-blue-200' : 'text-amber-500'} />
                                         }
@@ -154,18 +136,18 @@ export default function AdminHelpPage() {
                                         </span>
                                     </div>
                                     <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${selectedTicket?.id === ticket.id ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-500'}`}>
-                                        {ticket.metadata.resolved ? 'RESOLVED' : 'PENDING'}
+                                        {ticket.status.toUpperCase()}
                                     </span>
                                 </div>
-                                <h3 className="font-bold text-sm line-clamp-1 mb-1">{ticket.message.replace('Support Request: ', '')}</h3>
+                                <h3 className="font-bold text-sm line-clamp-1 mb-1">{ticket.subject}</h3>
                                 <div className={`text-xs ${selectedTicket?.id === ticket.id ? 'text-blue-100' : 'text-slate-500'} line-clamp-2 italic`}>
-                                    &quot;{ticket.metadata.user_message}&quot;
+                                    &quot;{ticket.message}&quot;
                                 </div>
                                 <div className="flex items-center gap-2 mt-4 pt-4 border-t border-current/10">
                                     <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold ${selectedTicket?.id === ticket.id ? 'bg-white text-blue-600' : 'bg-blue-100 text-blue-600'}`}>
-                                        {ticket.users?.full_name[0]}
+                                        {ticket.user?.full_name?.[0] || '?'}
                                     </div>
-                                    <span className="text-[10px] font-bold">{ticket.users?.full_name}</span>
+                                    <span className="text-[10px] font-bold">{ticket.user?.full_name || 'Unknown User'}</span>
                                 </div>
                             </button>
                         ))
@@ -183,8 +165,8 @@ export default function AdminHelpPage() {
                         <div className="bg-white rounded-[40px] shadow-2xl border border-slate-100 overflow-hidden sticky top-8">
                             <div className="p-8 md:p-10 space-y-8">
                                 <div className="flex flex-wrap items-center justify-between gap-4">
-                                    <h2 className="text-2xl font-black text-slate-900">{selectedTicket.message.replace('Support Request: ', '')}</h2>
-                                    {!selectedTicket.metadata.resolved && (
+                                    <h2 className="text-2xl font-black text-slate-900">{selectedTicket.subject}</h2>
+                                    {selectedTicket.status !== 'resolved' && (
                                         <button
                                             onClick={() => markResolved(selectedTicket)}
                                             className="px-6 py-2 bg-green-50 text-green-600 rounded-full text-xs font-black hover:bg-green-100 transition-colors uppercase tracking-widest"
@@ -199,14 +181,14 @@ export default function AdminHelpPage() {
                                         <User className="text-slate-400" size={18} />
                                         <div>
                                             <p className="text-[10px] font-bold text-slate-400 uppercase">From</p>
-                                            <p className="text-sm font-bold text-slate-700">{selectedTicket.users?.full_name}</p>
+                                            <p className="text-sm font-bold text-slate-700">{selectedTicket.user?.full_name || 'N/A'}</p>
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-3 p-4 bg-slate-50 rounded-2xl">
                                         <Mail className="text-slate-400" size={18} />
                                         <div>
                                             <p className="text-[10px] font-bold text-slate-400 uppercase">Email</p>
-                                            <p className="text-sm font-bold text-slate-700">{selectedTicket.users?.email}</p>
+                                            <p className="text-sm font-bold text-slate-700">{selectedTicket.user?.email || 'N/A'}</p>
                                         </div>
                                     </div>
                                 </div>
@@ -214,21 +196,21 @@ export default function AdminHelpPage() {
                                 <div className="space-y-3">
                                     <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest">User Message</h4>
                                     <div className="bg-slate-900 text-white p-8 rounded-[32px] text-sm leading-relaxed relative italic">
-                                        <div className="absolute -top-3 left-8 bg-blue-600 text-[10px] font-black px-3 py-1 rounded-full uppercase">Inquiry</div>
-                                        &quot;{selectedTicket.metadata.user_message}&quot;
+                                        <div className="absolute -top-3 left-8 bg-blue-600 text-[10px] font-black px-3 py-1 rounded-full uppercase">{selectedTicket.category || 'Inquiry'}</div>
+                                        &quot;{selectedTicket.message}&quot;
                                     </div>
                                 </div>
 
-                                {selectedTicket.metadata.reply && (
+                                {(selectedTicket.metadata as any)?.reply && (
                                     <div className="space-y-3">
                                         <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest">Your Previous Response</h4>
                                         <div className="bg-blue-50 text-blue-800 p-8 rounded-[32px] text-sm border-2 border-blue-100">
-                                            {selectedTicket.metadata.reply}
+                                            {(selectedTicket.metadata as any).reply}
                                         </div>
                                     </div>
                                 )}
 
-                                {!selectedTicket.metadata.resolved && (
+                                {selectedTicket.status !== 'resolved' && (
                                     <form onSubmit={handleReply} className="space-y-4 pt-4 border-t border-slate-100">
                                         <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest">Send Response</h4>
                                         <textarea

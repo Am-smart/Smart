@@ -3,7 +3,7 @@
 import React, { useState, useMemo } from 'react';
 import { Search, HelpCircle, Book, MessageSquare, Shield, ChevronDown, ChevronUp, Send, LifeBuoy } from 'lucide-react';
 import { useAppContext } from '@/components/AppContext';
-import { createSystemLog } from '@/lib/api-actions';
+import { saveSupportTicket } from '@/lib/api-actions';
 
 const FAQ_DATA = [
     {
@@ -56,17 +56,19 @@ export default function HelpPage() {
 
         setIsSubmitting(true);
         try {
-            await createSystemLog({
-                level: 'info',
-                category: 'management',
-                message: `Support Request: ${contactForm.subject}`,
-                metadata: {
-                    user_message: contactForm.message,
-                    type: 'support_ticket'
-                }
+            const response = await saveSupportTicket({
+                subject: contactForm.subject,
+                message: contactForm.message,
+                category: 'technical',
+                priority: 'medium'
             });
-            addToast('Support request sent! Our team will get back to you soon.', 'success');
-            setContactForm({ subject: '', message: '' });
+
+            if (response.success) {
+                addToast('Support request sent! Our team will get back to you soon.', 'success');
+                setContactForm({ subject: '', message: '' });
+            } else {
+                addToast(response.error || 'Failed to send support request', 'error');
+            }
         } catch (err) {
             console.error('Support request failed:', err);
             addToast('Failed to send support request. Please try again later.', 'error');

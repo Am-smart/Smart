@@ -1,7 +1,7 @@
 import { systemDb } from '../database/system.db';
 import { learningDb } from '../database/learning.db';
 import { supabase, withSession } from '../supabase';
-import { SystemLog, Maintenance, PlannerItem, User, Setting, Enrollment, Discussion, Notification, LiveClass, Broadcast, Attendance } from '../types';
+import { SystemLog, Maintenance, PlannerItem, User, Setting, Enrollment, Discussion, Notification, LiveClass, Broadcast, Attendance, SupportTicket } from '../types';
 import { UserDomain } from '../domain/user.domain';
 import { EnrollmentDomain } from '../domain/enrollment.domain';
 import { CommunicationDomain } from '../domain/communication.domain';
@@ -335,6 +335,55 @@ export class SystemService {
       }
 
       return systemDb.findAttendanceByClassId(liveClassId, sessionId);
+  }
+
+  // Support Tickets
+  async getSupportTickets(currentUser: User, sessionId: string, filters: { user_id?: string; assigned_to?: string; status?: string } = {}): Promise<SupportTicket[]> {
+    if (!currentUser) throw new UnauthorizedError();
+
+    const finalFilters = { ...filters };
+    if (UserDomain.isStudent(currentUser)) {
+      finalFilters.user_id = currentUser.id;
+    } else if (UserDomain.isTeacher(currentUser)) {
+      // Teachers can see their own or tickets assigned to them
+      if (!finalFilters.user_id && !finalFilters.assigned_to) {
+          // If no filter, we should probably only show assigned to them by default or their own
+          // but for now let's just allow what they can see via RLS or filter by them if not admin
+          finalFilters.assigned_to = currentUser.id;
+      }
+    }
+
+    return systemDb.findAllSupportTickets(sessionId, finalFilters);
+  }
+
+  async saveSupportTicket(currentUser: User, ticket: Partial<SupportTicket>, sessionId: string): Promise<SupportTicket> {
+    if (!currentUser) throw new UnauthorizedError();
+
+    if (ticket.id) {
+      const existing = await systemDb.findSupportTicketById(ticket.id, sessionId);
+      if (!existing) throw new NotFoundError('Ticket not found');
+
+      // Authorization: Owner or Admin or Assigned
+      if (existing.user_id !== currentUser.id && !UserDomain.isAdmin(currentUser) && existing.assigned_to !== currentUser.id) {
+        throw new ForbiddenError('Unauthorized to update this ticket');
+      }
+    } else {
+      ticket.user_id = currentUser.id;
+      ticket.status = 'open';
+    }
+
+    return systemDb.upsertSupportTicket(ticket, sessionId);
+  }
+
+  async deleteSupportTicket(currentUser: User, id: string, sessionId: string): Promise<void> {
+    const existing = await systemDb.findSupportTicketById(id, sessionId);
+    if (!existing) throw new NotFoundError('Ticket not found');
+
+    if (existing.user_id !== currentUser.id && !UserDomain.isAdmin(currentUser)) {
+      throw new ForbiddenError('Unauthorized to delete this ticket');
+    }
+
+    await systemDb.deleteSupportTicket(id, sessionId);
   }
 
   async createBroadcast(broadcast: Partial<Broadcast>, sessionId: string): Promise<Broadcast> {
