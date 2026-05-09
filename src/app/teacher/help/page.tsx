@@ -1,9 +1,11 @@
 "use client";
 
-import React, { useState, useMemo } from 'react';
-import { Search, HelpCircle, Book, MessageSquare, Send, ChevronDown, ChevronUp, GraduationCap } from 'lucide-react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import { Search, HelpCircle, Book, MessageSquare, Send, ChevronDown, ChevronUp, GraduationCap, Clock, CheckCircle } from 'lucide-react';
 import { useAppContext } from '@/components/AppContext';
-import { saveSupportTicket } from '@/lib/api-actions';
+import { useAuth } from '@/components/auth/AuthContext';
+import { saveSupportTicket, getSupportTickets } from '@/lib/api-actions';
+import { SupportTicketDTO } from '@/lib/types';
 
 const TEACHER_FAQ = [
     {
@@ -33,10 +35,31 @@ const TEACHER_FAQ = [
 
 export default function TeacherHelpPage() {
     const { addToast } = useAppContext();
+    const { user } = useAuth();
     const [searchQuery, setSearchQuery] = useState('');
     const [openIndex, setOpenIndex] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [contactForm, setContactForm] = useState({ subject: '', message: '' });
+    const [tickets, setTickets] = useState<SupportTicketDTO[]>([]);
+    const [isLoadingTickets, setIsLoadingTickets] = useState(true);
+
+    const fetchTickets = useCallback(async () => {
+        if (!user) return;
+        setIsLoadingTickets(true);
+        try {
+            // By default shows tickets assigned to them or created by them
+            const data = await getSupportTickets();
+            setTickets(data);
+        } catch (err) {
+            console.error('Failed to fetch tickets:', err);
+        } finally {
+            setIsLoadingTickets(false);
+        }
+    }, [user]);
+
+    useEffect(() => {
+        fetchTickets();
+    }, [fetchTickets]);
 
     const filteredFaqs = useMemo(() => {
         if (!searchQuery) return TEACHER_FAQ;
@@ -65,6 +88,7 @@ export default function TeacherHelpPage() {
             if (response.success) {
                 addToast('Support request sent! We will prioritize your request.', 'success');
                 setContactForm({ subject: '', message: '' });
+                fetchTickets();
             } else {
                 addToast(response.error || 'Failed to send request', 'error');
             }
@@ -98,10 +122,74 @@ export default function TeacherHelpPage() {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div className="lg:col-span-2 space-y-8">
-                    <div className="flex items-center gap-3 mb-2">
-                        <HelpCircle className="text-blue-600" size={24} />
-                        <h2 className="text-xl font-bold text-slate-900">Instructor FAQ</h2>
+                <div className="lg:col-span-2 space-y-12">
+                    {/* Recent Tickets Section */}
+                    <div className="space-y-6">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <Clock className="text-amber-500" size={24} />
+                                <h2 className="text-xl font-bold text-slate-900">Support Dashboard</h2>
+                            </div>
+                            <button
+                                onClick={fetchTickets}
+                                className="text-xs font-bold text-blue-600 hover:text-blue-700 transition-colors uppercase tracking-widest"
+                            >
+                                Refresh
+                            </button>
+                        </div>
+
+                        {isLoadingTickets ? (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {[1, 2].map(i => <div key={i} className="h-24 bg-white rounded-3xl animate-pulse border border-slate-100" />)}
+                            </div>
+                        ) : tickets.length > 0 ? (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {tickets.slice(0, 4).map(ticket => (
+                                    <div key={ticket.id} className="bg-white p-6 rounded-3xl border border-slate-100 shadow-sm space-y-3">
+                                        <div className="flex justify-between items-start">
+                                            <div className="flex items-center gap-2">
+                                                <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-full ${
+                                                    ticket.status === 'resolved' ? 'bg-green-50 text-green-600' :
+                                                    ticket.status === 'in_progress' ? 'bg-blue-50 text-blue-600' :
+                                                    'bg-amber-50 text-amber-600'
+                                                }`}>
+                                                    {ticket.status.replace('_', ' ')}
+                                                </span>
+                                                {ticket.assigned_to === user?.id && (
+                                                    <span className="text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-full bg-purple-50 text-purple-600 border border-purple-100">
+                                                        Assigned
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <span className="text-[10px] font-bold text-slate-400">
+                                                {new Date(ticket.created_at).toLocaleDateString()}
+                                            </span>
+                                        </div>
+                                        <h4 className="font-bold text-slate-800 text-sm line-clamp-1">{ticket.subject}</h4>
+                                        {(ticket.metadata as any)?.reply && (
+                                            <div className="mt-2 p-3 bg-blue-50 rounded-xl border border-blue-100">
+                                                <div className="flex items-center gap-2 mb-1">
+                                                    <CheckCircle size={12} className="text-blue-600" />
+                                                    <span className="text-[10px] font-black text-blue-600 uppercase">Response</span>
+                                                </div>
+                                                <p className="text-xs text-blue-800 line-clamp-2 italic">&quot;{(ticket.metadata as any).reply}&quot;</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="bg-white p-8 rounded-3xl border-2 border-dashed border-slate-100 text-center">
+                                <p className="text-sm text-slate-400 font-medium italic">No tickets found.</p>
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="space-y-8">
+                        <div className="flex items-center gap-3 mb-2">
+                            <HelpCircle className="text-blue-600" size={24} />
+                            <h2 className="text-xl font-bold text-slate-900">Instructor FAQ</h2>
+                        </div>
                     </div>
 
                     {filteredFaqs.map((category, catIdx) => (

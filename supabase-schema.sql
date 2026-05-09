@@ -329,6 +329,7 @@ CREATE TABLE IF NOT EXISTS support_tickets (
 CREATE INDEX IF NOT EXISTS idx_support_tickets_user ON support_tickets(user_id);
 CREATE INDEX IF NOT EXISTS idx_support_tickets_assigned ON support_tickets(assigned_to);
 CREATE INDEX IF NOT EXISTS idx_support_tickets_status ON support_tickets(status);
+CREATE INDEX IF NOT EXISTS idx_support_tickets_created ON support_tickets(created_at);
 CREATE INDEX IF NOT EXISTS idx_system_logs_course ON system_logs(course_id);
 CREATE INDEX IF NOT EXISTS idx_system_logs_resource ON system_logs(resource_id);
 CREATE INDEX IF NOT EXISTS idx_system_logs_category ON system_logs(category);
@@ -1108,6 +1109,47 @@ DROP TRIGGER IF EXISTS tr_user_creation_limit ON users;
 CREATE TRIGGER tr_user_creation_limit
   BEFORE INSERT ON users
   FOR EACH ROW EXECUTE PROCEDURE enforce_user_creation_limits();
+
+-- Support Ticket Notifications
+CREATE OR REPLACE FUNCTION tr_notify_admin_new_ticket() RETURNS TRIGGER AS $$
+DECLARE
+  admin_id UUID;
+BEGIN
+  FOR admin_id IN SELECT id FROM users WHERE role = 'admin' LOOP
+    PERFORM notify_user(
+      admin_id,
+      'New Support Ticket: ' || NEW.subject,
+      'A new support ticket has been submitted by a user.',
+      'grading:' || NEW.id, -- Use grading prefix as placeholder for ticket deep link
+      'system'
+    );
+  END LOOP;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE TRIGGER tr_support_ticket_created
+  AFTER INSERT ON support_tickets
+  FOR EACH ROW EXECUTE PROCEDURE tr_notify_admin_new_ticket();
+
+CREATE OR REPLACE FUNCTION tr_notify_user_ticket_resolved() RETURNS TRIGGER AS $$
+BEGIN
+  IF (OLD.status != 'resolved' AND NEW.status = 'resolved') THEN
+    PERFORM notify_user(
+      NEW.user_id,
+      'Support Ticket Resolved: ' || NEW.subject,
+      'Your support ticket has been marked as resolved. Check the help center for details.',
+      NULL,
+      'system'
+    );
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE TRIGGER tr_support_ticket_resolved
+  AFTER UPDATE ON support_tickets
+  FOR EACH ROW EXECUTE PROCEDURE tr_notify_user_ticket_resolved();
 
 -- ==========================================
 -- 9. Storage Setup
