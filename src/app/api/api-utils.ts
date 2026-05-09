@@ -12,18 +12,24 @@ export async function getSessionUser(request?: Request): Promise<User | null> {
     const token = cookieStore.get('app-user-session');
     if (!token) return null;
 
-    const session = await verifyToken(token.value);
-    if (!session || !session.sessionId) return null;
+    const decoded = await verifyToken(token.value);
+    if (!decoded || !decoded.sessionId) return null;
+
+    const sessionId = decoded.sessionId as string;
+
+    // Validate session against database and get user
+    const userSession = await authService.validateSession(sessionId);
+    if (!userSession) return null;
 
     // Optional: Validate session ID from header matches cookie for defense-in-depth
     if (request) {
         const headerSessionId = request.headers.get('x-session-id');
-        if (headerSessionId && headerSessionId !== session.sessionId) {
+        if (headerSessionId && headerSessionId !== sessionId) {
             console.warn('Session ID mismatch between cookie and header');
         }
     }
 
-    return await authService.getCurrentUser(session.id as string, session.sessionId as string);
+    return userSession as User;
   } catch {
     return null;
   }

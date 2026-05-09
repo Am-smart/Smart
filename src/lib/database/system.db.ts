@@ -186,15 +186,10 @@ export const systemDb = {
     if (error) throw error;
   },
 
-  async createNotification(target_id: string, n_title: string, n_msg: string, n_link?: string, n_type?: string, sessionId?: string): Promise<void> {
-    let query = supabase.rpc('notify_user', { target_id, n_title, n_msg, n_link, n_type });
+  async createNotification(notification: Partial<Notification>, sessionId?: string): Promise<void> {
+    let query = supabase.from('notifications').insert(notification);
     if (sessionId) query = withSession(query, sessionId);
     const { error } = await query;
-    if (error) dbUtils.handleError(error);
-  },
-
-  async broadcastToUsers(params: { n_course_id: string, n_role?: string, n_title: string, n_msg: string, n_link?: string, n_type?: string, n_expires_in?: string }, sessionId: string): Promise<void> {
-    const { error } = await withSession(supabase.rpc('broadcast_data', params), sessionId);
     if (error) dbUtils.handleError(error);
   },
 
@@ -286,7 +281,10 @@ export const systemDb = {
   },
 
   async updateSetting(key: string, value: unknown, sessionId: string): Promise<void> {
-    const { error } = await withSession(supabase.rpc('update_setting', { p_key: key, p_value: value }), sessionId);
+    const { error } = await withSession(
+      supabase.from('settings').upsert({ key, value, updated_at: new Date().toISOString() }),
+      sessionId
+    );
     if (error) dbUtils.handleError(error);
   },
 

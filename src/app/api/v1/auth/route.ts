@@ -53,11 +53,7 @@ export const POST = withHandler(async (user, request) => {
             }
 
             const sessionId = result.session_id;
-            const token = await createSession({
-                id: result.user?.id,
-                role: result.user?.role,
-                sessionId: sessionId
-            });
+            const token = await createSession(sessionId);
 
             (await cookies()).set('app-user-session', token, {
                 httpOnly: true,
@@ -94,7 +90,7 @@ export const POST = withHandler(async (user, request) => {
                 }
             }
 
-            const { data: rawData, error: rpcError } = await authService.register({
+            const { data: rawData, error: rpcError } = await authService.signup({
               full_name: normalizeInput(data.full_name),
               email: normalizeEmail(data.email),
               password: data.password || '',
@@ -108,11 +104,7 @@ export const POST = withHandler(async (user, request) => {
             if (!result.success) throw new BadRequestError(result.error || 'Signup failed');
 
             const sessionId = result.session_id;
-            const token = await createSession({
-                id: result.user?.id,
-                role: result.user?.role,
-                sessionId: sessionId
-            });
+            const token = await createSession(sessionId);
 
             (await cookies()).set('app-user-session', token, {
                 httpOnly: true,

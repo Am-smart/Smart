@@ -3,15 +3,10 @@ import { Session } from '../types';
 import { dbUtils } from './db-utils';
 
 export const authDb = {
-  // RPC Calls (Original AuthRepository)
-  async authenticate(email: string, password?: string): Promise<{ data: unknown, error: unknown }> {
-    return supabase.rpc('authenticate_user', {
-      p_email: email,
-      p_password: password
-    });
-  },
+  // RPC Calls (Original AuthRepository) - DEPRECATED
+  // authenticate removed - now in AuthService
 
-  async register(data: { full_name: string; email: string; password?: string; phone?: string; role: string }): Promise<{ data: unknown, error: unknown }> {
+  async register(data: { full_name: string; email: string; password?: string; phone?: string; role: string; active?: boolean }): Promise<{ data: unknown, error: unknown }> {
     const { data: userData, error } = await supabase.from('users').insert(data).select().single();
     return { data: userData, error };
   },
