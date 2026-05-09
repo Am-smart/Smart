@@ -5,7 +5,7 @@ import { systemService } from '@/lib/services/system.service';
 
 export async function POST(request: Request) {
   const user = await getSessionUser();
-  if (!user || !user.sessionId) return handleUnauthorized();
+  if (!user) return handleUnauthorized();
 
   try {
     const formData = await request.formData();
@@ -16,7 +16,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'No file provided' }, { status: 400 });
     }
 
-    const result = await systemService.uploadFile(file, category, user.id, user.sessionId);
+    const result = await systemService.uploadFile(file, category, user.id, user.sessionId!);
     return NextResponse.json(result);
   } catch (error: unknown) {
     return NextResponse.json({ error: getErrorMessage(error) }, { status: 500 });
