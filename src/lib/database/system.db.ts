@@ -366,10 +366,10 @@ export const systemDb = {
     const { data, error } = await query.order('created_at', { ascending: false });
     if (error) dbUtils.handleError(error);
 
-    const tickets = data as SupportTicket[];
+    const tickets = data as (SupportTicket & { users?: unknown })[];
     return tickets.map(ticket => ({
       ...ticket,
-      users: (ticket as any).users
+      users: ticket.users as { full_name: string; email: string }
     }));
   },
 

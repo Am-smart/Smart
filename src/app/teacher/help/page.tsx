@@ -166,15 +166,15 @@ export default function TeacherHelpPage() {
                                             </span>
                                         </div>
                                         <h4 className="font-bold text-slate-800 text-sm line-clamp-1">{ticket.subject}</h4>
-                                        {(ticket.metadata as any)?.reply && (
+                                        {ticket.metadata?.reply ? (
                                             <div className="mt-2 p-3 bg-blue-50 rounded-xl border border-blue-100">
                                                 <div className="flex items-center gap-2 mb-1">
                                                     <CheckCircle size={12} className="text-blue-600" />
                                                     <span className="text-[10px] font-black text-blue-600 uppercase">Response</span>
                                                 </div>
-                                                <p className="text-xs text-blue-800 line-clamp-2 italic">&quot;{(ticket.metadata as any).reply}&quot;</p>
+                                                <p className="text-xs text-blue-800 line-clamp-2 italic">&quot;{ticket.metadata.reply as string}&quot;</p>
                                             </div>
-                                        )}
+                                        ) : null}
                                     </div>
                                 ))}
                             </div>
