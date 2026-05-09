@@ -308,6 +308,18 @@ CREATE TABLE IF NOT EXISTS system_logs (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Centralized Anti-Cheat Logs
+CREATE TABLE IF NOT EXISTS anti_cheat_logs (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  course_id UUID REFERENCES courses(id) ON DELETE CASCADE,
+  resource_id UUID, -- References Assignment or Quiz ID
+  type VARCHAR(50) NOT NULL,
+  message TEXT,
+  metadata JSONB DEFAULT '{}'::jsonb,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
 CREATE INDEX IF NOT EXISTS idx_system_logs_user ON system_logs(user_id);
 
 CREATE TABLE IF NOT EXISTS support_tickets (
@@ -333,6 +345,11 @@ CREATE INDEX IF NOT EXISTS idx_support_tickets_created ON support_tickets(create
 CREATE INDEX IF NOT EXISTS idx_system_logs_course ON system_logs(course_id);
 CREATE INDEX IF NOT EXISTS idx_system_logs_resource ON system_logs(resource_id);
 CREATE INDEX IF NOT EXISTS idx_system_logs_category ON system_logs(category);
+
+-- Anti-Cheat Logs Indexes
+CREATE INDEX IF NOT EXISTS idx_anti_cheat_logs_user ON anti_cheat_logs(user_id);
+CREATE INDEX IF NOT EXISTS idx_anti_cheat_logs_course ON anti_cheat_logs(course_id);
+CREATE INDEX IF NOT EXISTS idx_anti_cheat_logs_resource ON anti_cheat_logs(resource_id);
 
 CREATE TABLE IF NOT EXISTS settings (
   key VARCHAR(255) PRIMARY KEY,
@@ -1191,6 +1208,7 @@ ALTER TABLE quiz_submissions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE materials ENABLE ROW LEVEL SECURITY;
 ALTER TABLE discussions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE anti_cheat_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE sessions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE broadcasts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE maintenance ENABLE ROW LEVEL SECURITY;
@@ -1231,6 +1249,33 @@ DROP POLICY IF EXISTS "Strict Backend Access" ON quizzes;
 CREATE POLICY "Strict Backend Access" ON quizzes FOR ALL TO anon USING (current_app_user() IS NOT NULL);
 DROP POLICY IF EXISTS "Strict Backend Access" ON quiz_submissions;
 CREATE POLICY "Strict Backend Access" ON quiz_submissions FOR ALL TO anon USING (current_app_user() IS NOT NULL);
+
+-- Anti-Cheat Logs Security (RBAC & ABAC)
+DROP POLICY IF EXISTS "anti_cheat_logs_admin_policy" ON anti_cheat_logs;
+CREATE POLICY "anti_cheat_logs_admin_policy" ON anti_cheat_logs
+  FOR ALL TO anon
+  USING (current_app_role() = 'admin');
+
+DROP POLICY IF EXISTS "anti_cheat_logs_teacher_policy" ON anti_cheat_logs;
+CREATE POLICY "anti_cheat_logs_teacher_policy" ON anti_cheat_logs
+  FOR SELECT TO anon
+  USING (
+    current_app_role() = 'teacher' AND
+    EXISTS (
+      SELECT 1 FROM courses c
+      WHERE c.id = anti_cheat_logs.course_id AND c.teacher_id = current_app_user()
+    )
+  );
+
+DROP POLICY IF EXISTS "anti_cheat_logs_student_select_policy" ON anti_cheat_logs;
+CREATE POLICY "anti_cheat_logs_student_select_policy" ON anti_cheat_logs
+  FOR SELECT TO anon
+  USING (user_id = current_app_user());
+
+DROP POLICY IF EXISTS "anti_cheat_logs_student_insert_policy" ON anti_cheat_logs;
+CREATE POLICY "anti_cheat_logs_student_insert_policy" ON anti_cheat_logs
+  FOR INSERT TO anon
+  WITH CHECK (user_id = current_app_user());
 DROP POLICY IF EXISTS "Strict Backend Access" ON materials;
 CREATE POLICY "Strict Backend Access" ON materials FOR ALL TO anon USING (current_app_user() IS NOT NULL);
 DROP POLICY IF EXISTS "Strict Backend Access" ON discussions;

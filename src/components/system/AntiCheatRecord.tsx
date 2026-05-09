@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
-import { SubmissionDTO, QuizSubmissionDTO } from '@/lib/types';
-import { SystemLogDTO } from '@/lib/types';
+import { SubmissionDTO, QuizSubmissionDTO, AntiCheatLogDTO } from '@/lib/types';
 
 interface AntiCheatRecordProps {
   submissions: SubmissionDTO[];
   quizSubmissions: QuizSubmissionDTO[];
-  logs?: SystemLogDTO[];
+  logs?: AntiCheatLogDTO[];
   isTeacher?: boolean;
 }
 
@@ -39,7 +38,7 @@ export const AntiCheatRecord: React.FC<AntiCheatRecordProps> = ({ submissions, q
 
   const filteredLogs = selectedAssessment && logs
     ? logs.filter(l =>
-        (l.metadata?.assessmentTitle === selectedAssessment.title || l.message?.includes(selectedAssessment.title)) &&
+        (l.resource_id === selectedAssessment.id || l.metadata?.assessmentTitle === selectedAssessment.title || l.message?.includes(selectedAssessment.title)) &&
         (!isTeacher || l.user_id === selectedAssessment.studentId)
       ).sort((a, b) => new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime())
     : [];
@@ -158,7 +157,7 @@ export const AntiCheatRecord: React.FC<AntiCheatRecordProps> = ({ submissions, q
                         </td>
                         <td className="px-6 py-4">
                           <span className="text-xs font-bold text-red-600 uppercase tracking-tight">
-                            {String(log.metadata?.type || 'Violation').replace(/_/g, ' ')}
+                            {String(log.type || log.metadata?.type || 'Violation').replace(/_/g, ' ')}
                           </span>
                         </td>
                         <td className="px-6 py-4">
@@ -215,11 +214,11 @@ export const AntiCheatRecord: React.FC<AntiCheatRecordProps> = ({ submissions, q
                         </td>
                         <td className="px-6 py-4">
                           <span className="text-xs font-black uppercase text-red-600 bg-red-50 px-2 py-1 rounded">
-                            {String(log.metadata?.type || 'Violation').replace(/_/g, ' ')}
+                            {String(log.type || log.metadata?.type || 'Violation').replace(/_/g, ' ')}
                           </span>
                         </td>
                         <td className="px-6 py-4 text-sm text-slate-600">
-                          {String(log.metadata?.assessmentTitle || 'Unknown')}
+                          {String(log.metadata?.assessmentTitle || log.course?.title || 'Unknown')}
                         </td>
                         <td className="px-6 py-4 text-xs text-slate-400 font-mono italic">
                           {log.message}

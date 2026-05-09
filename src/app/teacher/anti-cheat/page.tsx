@@ -2,16 +2,15 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
-import { getCourses, getAssignments, getQuizzes, getSystemLogs, getSubmissions, getQuizSubmissions } from '@/lib/api-actions';
+import { getCourses, getAssignments, getQuizzes, getAntiCheatLogs, getSubmissions, getQuizSubmissions } from '@/lib/api-actions';
 import { AntiCheatRecord } from "@/components/system/AntiCheatRecord";
-import { SubmissionDTO, QuizSubmissionDTO } from '@/lib/types';
-import { SystemLogDTO } from '@/lib/types';
+import { SubmissionDTO, QuizSubmissionDTO, AntiCheatLogDTO } from '@/lib/types';
 
 export default function AntiCheatPage() {
   const { user } = useAuth();
   const [submissions, setSubmissions] = useState<SubmissionDTO[]>([]);
   const [quizSubmissions, setQuizSubmissions] = useState<QuizSubmissionDTO[]>([]);
-  const [antiCheatLogs, setAntiCheatLogs] = useState<SystemLogDTO[]>([]);
+  const [antiCheatLogs, setAntiCheatLogs] = useState<AntiCheatLogDTO[]>([]);
 
   useEffect(() => {
     if (user) {
@@ -22,12 +21,10 @@ export default function AntiCheatPage() {
                 const [allAsgns, allQuizzes, logs] = await Promise.all([
                     getAssignments(user.id),
                     getQuizzes(undefined, user.id),
-                    getSystemLogs(200)
+                    getAntiCheatLogs({ limit: 200 })
                 ]);
 
-                // Filter logs for anti-cheat category
-                const acLogs = (logs as SystemLogDTO[]).filter(l => l.category === 'anti-cheat');
-                setAntiCheatLogs(acLogs);
+                setAntiCheatLogs(logs);
 
                 const asgnIds = allAsgns.map(a => a.id);
                 const quizIds = allQuizzes.map(q => q.id);

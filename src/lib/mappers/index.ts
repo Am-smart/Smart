@@ -2,13 +2,13 @@ import {
   User, Course, Lesson, Material, UserRole,
   Assignment, Quiz, Submission, QuizSubmission,
   Notification, Broadcast, LiveClass, Discussion,
-  PlannerItem, Enrollment, Maintenance, Setting, SystemLog, Attendance, SupportTicket
+  PlannerItem, Enrollment, Maintenance, Setting, SystemLog, Attendance, SupportTicket, AntiCheatLog
 } from '../types';
 import { UserDTO } from '../types';
 import { CourseDTO, LessonDTO, MaterialDTO } from '../types';
 import { AssignmentDTO, QuizDTO, SubmissionDTO, QuizSubmissionDTO } from '../types';
 import { NotificationDTO, BroadcastDTO, LiveClassDTO, DiscussionDTO, AttendanceDTO } from '../types';
-import { PlannerItemDTO, EnrollmentDTO, MaintenanceDTO, SettingDTO, SystemLogDTO, SupportTicketDTO } from '../types';
+import { PlannerItemDTO, EnrollmentDTO, MaintenanceDTO, SettingDTO, SystemLogDTO, SupportTicketDTO, AntiCheatLogDTO } from '../types';
 
 /**
  * Generic mapper utility to clean up objects before DTO conversion
@@ -20,7 +20,7 @@ function toCleanDTO<T>(obj: unknown): T {
     const clean: Record<string, unknown> = {};
 
     // List of relation keys to exclude from DTOs
-    const excludeKeys = ['courses', 'assignments', 'quizzes', 'assignment', 'quiz', 'users', 'student', 'lesson_completions', 'attendance', 'support_tickets'];
+    const excludeKeys = ['courses', 'assignments', 'quizzes', 'assignment', 'quiz', 'users', 'student', 'lesson_completions', 'attendance', 'support_tickets', 'anti_cheat_logs'];
 
     for (const key in data) {
         if (!excludeKeys.includes(key)) {
@@ -188,6 +188,14 @@ export class SystemMapper {
     return {
       ...toCleanDTO<SupportTicketDTO>(st),
       user: (st.users && st.user_id) ? (UserMapper.toDTO({ ...st.users, id: st.user_id }) || undefined) : undefined
+    };
+  }
+
+  static toAntiCheatLogDTO(acl: AntiCheatLog & { users?: { id: string, full_name: string, email: string }, courses?: Course }): AntiCheatLogDTO {
+    return {
+      ...toCleanDTO<AntiCheatLogDTO>(acl),
+      user: acl.users ? (UserMapper.toDTO({ ...acl.users, id: acl.user_id }) || undefined) : undefined,
+      course: acl.courses ? CourseMapper.toDTO(acl.courses) : undefined
     };
   }
 

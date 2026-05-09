@@ -2,15 +2,15 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
-import { getSubmissions, getQuizSubmissions, getSystemLogs } from '@/lib/api-actions';
+import { getSubmissions, getQuizSubmissions, getAntiCheatLogs } from '@/lib/api-actions';
 import { AntiCheatRecord } from "@/components/system/AntiCheatRecord";
-import { SubmissionDTO, QuizSubmissionDTO, SystemLogDTO } from '@/lib/types';
+import { SubmissionDTO, QuizSubmissionDTO, AntiCheatLogDTO } from '@/lib/types';
 
 export default function AntiCheatPage() {
   const { user } = useAuth();
   const [submissions, setSubmissions] = useState<SubmissionDTO[]>([]);
   const [quizSubmissions, setQuizSubmissions] = useState<QuizSubmissionDTO[]>([]);
-  const [antiCheatLogs, setAntiCheatLogs] = useState<SystemLogDTO[]>([]);
+  const [antiCheatLogs, setAntiCheatLogs] = useState<AntiCheatLogDTO[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -21,15 +21,12 @@ export default function AntiCheatPage() {
       Promise.all([
         getSubmissions({ studentId: user.id }),
         getQuizSubmissions(undefined, user.id),
-        getSystemLogs(200).catch(err => {
-            console.warn('System logs fetch failed (expected if not authorized):', err);
-            return [];
-        })
+        getAntiCheatLogs({ userId: user.id, limit: 200 })
       ])
         .then(([subs, quizSubs, logs]) => {
           setSubmissions(subs);
           setQuizSubmissions(quizSubs);
-          setAntiCheatLogs(logs.filter(l => l.category === 'anti-cheat'));
+          setAntiCheatLogs(logs);
         })
         .catch(err => {
           console.error('Failed to load anti-cheat records:', err);

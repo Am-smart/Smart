@@ -1,7 +1,7 @@
 import { systemDb } from '../database/system.db';
 import { learningDb } from '../database/learning.db';
 import { supabase, withSession } from '../supabase';
-import { SystemLog, Maintenance, PlannerItem, User, Setting, Enrollment, Discussion, Notification, LiveClass, Broadcast, Attendance, SupportTicket } from '../types';
+import { SystemLog, Maintenance, PlannerItem, User, Setting, Enrollment, Discussion, Notification, LiveClass, Broadcast, Attendance, SupportTicket, AntiCheatLog } from '../types';
 import { UserDomain } from '../domain/user.domain';
 import { EnrollmentDomain } from '../domain/enrollment.domain';
 import { CommunicationDomain } from '../domain/communication.domain';
@@ -18,6 +18,32 @@ export class SystemService {
     taskQueue.enqueue(async () => {
       await this.createLog(log);
     });
+  }
+
+  // Anti-Cheat Logs
+  async createAntiCheatLog(log: AntiCheatLog, sessionId?: string): Promise<void> {
+    return systemDb.createAntiCheatLog(log, sessionId);
+  }
+
+  async getAntiCheatLogs(
+    currentUser: User,
+    sessionId: string,
+    filters: { user_id?: string; course_id?: string; resource_id?: string; limit?: number } = {}
+  ): Promise<AntiCheatLog[]> {
+    if (!currentUser) throw new UnauthorizedError();
+
+    const finalFilters = { ...filters };
+
+    if (UserDomain.isAdmin(currentUser)) {
+      // Admins see all
+    } else if (UserDomain.isTeacher(currentUser)) {
+      // RLS handles teacher viewing logs for their own courses
+    } else {
+      // Students see only their own
+      finalFilters.user_id = currentUser.id;
+    }
+
+    return systemDb.findAllAntiCheatLogs(sessionId, finalFilters);
   }
 
   async getLogs(
