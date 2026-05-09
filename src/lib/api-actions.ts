@@ -586,14 +586,6 @@ export async function markNotificationsAsViewed(ids: string[]): Promise<ActionRe
     }
 }
 
-export async function markNotificationAsViewed(notificationId: string): Promise<ActionResponse> {
-    try {
-        await apiClient.patch(`/api/v1/system?action=notification&subAction=view&id=${notificationId}`, {});
-        return { success: true };
-    } catch (error: unknown) {
-        return { success: false, error: error instanceof Error ? (error as Error).message : 'Unknown error' };
-    }
-}
 
 export async function dismissNotification(notificationId: string): Promise<ActionResponse> {
     try {

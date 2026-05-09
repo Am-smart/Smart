@@ -433,8 +433,12 @@ BEGIN
         ALTER TABLE quizzes ADD COLUMN end_at TIMESTAMP WITH TIME ZONE;
     END IF;
 
-    -- Course Metadata
+    -- Course Metadata (Safe Migration)
     IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'courses' AND column_name = 'category') THEN
+        -- Migrate existing category data to metadata JSONB before dropping
+        UPDATE courses SET metadata = jsonb_set(COALESCE(metadata, '{}'::jsonb), '{category}', to_jsonb(category))
+        WHERE category IS NOT NULL;
+
         ALTER TABLE courses DROP COLUMN category;
     END IF;
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'courses' AND column_name = 'enrollment_id') THEN
@@ -1229,26 +1233,159 @@ GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon;
 -- which injects session context that our PL/pgSQL functions (like `current_app_user()`)
 -- use to evaluate permissions and identity without exposing Supabase Auth.
 
+-- 1. Users Table (Role & Ownership based)
 DROP POLICY IF EXISTS "Strict Backend Access" ON users;
-CREATE POLICY "Strict Backend Access" ON users FOR ALL TO anon USING (current_app_user() IS NOT NULL);
+CREATE POLICY "Users Select" ON users FOR SELECT TO anon
+USING (
+  id = current_app_user()
+  OR current_app_role() = 'admin'
+  OR (
+    current_app_role() = 'teacher' AND
+    EXISTS (
+      SELECT 1 FROM enrollments e
+      JOIN courses c ON c.id = e.course_id
+      WHERE e.student_id = users.id AND c.teacher_id = current_app_user()
+    )
+  )
+  OR (
+    EXISTS (
+      SELECT 1 FROM enrollments e1
+      JOIN enrollments e2 ON e1.course_id = e2.course_id
+      WHERE e1.student_id = current_app_user() AND e2.student_id = users.id
+    )
+  )
+);
+CREATE POLICY "Users Update" ON users FOR UPDATE TO anon
+USING (id = current_app_user() OR current_app_role() = 'admin');
+CREATE POLICY "Users Delete" ON users FOR DELETE TO anon
+USING (current_app_role() = 'admin');
+CREATE POLICY "Users Insert" ON users FOR INSERT TO anon
+WITH CHECK (current_app_role() = 'admin' OR current_app_user() IS NULL); -- Allow public registration but restricted via RPC logic
+
+-- 2. Courses Table
 DROP POLICY IF EXISTS "Strict Backend Access" ON courses;
-CREATE POLICY "Strict Backend Access" ON courses FOR ALL TO anon USING (current_app_user() IS NOT NULL);
+CREATE POLICY "Courses Select" ON courses FOR SELECT TO anon
+USING (
+  current_app_role() = 'admin'
+  OR teacher_id = current_app_user()
+  OR EXISTS (SELECT 1 FROM enrollments e WHERE e.course_id = courses.id AND e.student_id = current_app_user())
+  OR status = 'published' -- Allow browsing published courses
+);
+CREATE POLICY "Courses Manage" ON courses FOR ALL TO anon
+USING (current_app_role() = 'admin' OR teacher_id = current_app_user());
+
+-- 3. Lessons Table
 DROP POLICY IF EXISTS "Strict Backend Access" ON lessons;
-CREATE POLICY "Strict Backend Access" ON lessons FOR ALL TO anon USING (current_app_user() IS NOT NULL);
+CREATE POLICY "Lessons Select" ON lessons FOR SELECT TO anon
+USING (
+  current_app_role() = 'admin'
+  OR EXISTS (
+    SELECT 1 FROM courses c
+    LEFT JOIN enrollments e ON e.course_id = c.id
+    WHERE c.id = lessons.course_id
+    AND (c.teacher_id = current_app_user() OR e.student_id = current_app_user())
+  )
+);
+CREATE POLICY "Lessons Manage" ON lessons FOR ALL TO anon
+USING (
+  current_app_role() = 'admin'
+  OR EXISTS (SELECT 1 FROM courses c WHERE c.id = lessons.course_id AND c.teacher_id = current_app_user())
+);
+
+-- 4. Enrollments Table
 DROP POLICY IF EXISTS "Strict Backend Access" ON enrollments;
-CREATE POLICY "Strict Backend Access" ON enrollments FOR ALL TO anon USING (current_app_user() IS NOT NULL);
+CREATE POLICY "Enrollments Select" ON enrollments FOR SELECT TO anon
+USING (
+  current_app_role() = 'admin'
+  OR student_id = current_app_user()
+  OR EXISTS (SELECT 1 FROM courses c WHERE c.id = enrollments.course_id AND c.teacher_id = current_app_user())
+);
+CREATE POLICY "Enrollments Manage" ON enrollments FOR ALL TO anon
+USING (current_app_role() = 'admin' OR student_id = current_app_user());
+
+-- 5. Assignments Table
 DROP POLICY IF EXISTS "Strict Backend Access" ON assignments;
-CREATE POLICY "Strict Backend Access" ON assignments FOR ALL TO anon USING (current_app_user() IS NOT NULL);
+CREATE POLICY "Assignments Select" ON assignments FOR SELECT TO anon
+USING (
+  current_app_role() = 'admin'
+  OR teacher_id = current_app_user()
+  OR (
+    status = 'published' AND
+    EXISTS (SELECT 1 FROM enrollments e WHERE e.course_id = assignments.course_id AND e.student_id = current_app_user())
+  )
+);
+CREATE POLICY "Assignments Manage" ON assignments FOR ALL TO anon
+USING (current_app_role() = 'admin' OR teacher_id = current_app_user());
+
+-- 6. Submissions Table
 DROP POLICY IF EXISTS "Strict Backend Access" ON submissions;
-CREATE POLICY "Strict Backend Access" ON submissions FOR ALL TO anon USING (current_app_user() IS NOT NULL);
+CREATE POLICY "Submissions Select" ON submissions FOR SELECT TO anon
+USING (
+  current_app_role() = 'admin'
+  OR student_id = current_app_user()
+  OR EXISTS (SELECT 1 FROM assignments a WHERE a.id = submissions.assignment_id AND a.teacher_id = current_app_user())
+);
+CREATE POLICY "Submissions Manage" ON submissions FOR ALL TO anon
+USING (
+  current_app_role() = 'admin'
+  OR student_id = current_app_user()
+  OR EXISTS (SELECT 1 FROM assignments a WHERE a.id = submissions.assignment_id AND a.teacher_id = current_app_user())
+);
+
+-- 7. Live Classes Table
 DROP POLICY IF EXISTS "Strict Backend Access" ON live_classes;
-CREATE POLICY "Strict Backend Access" ON live_classes FOR ALL TO anon USING (current_app_user() IS NOT NULL);
+CREATE POLICY "Live Classes Select" ON live_classes FOR SELECT TO anon
+USING (
+  current_app_role() = 'admin'
+  OR teacher_id = current_app_user()
+  OR EXISTS (SELECT 1 FROM enrollments e WHERE e.course_id = live_classes.course_id AND e.student_id = current_app_user())
+);
+CREATE POLICY "Live Classes Manage" ON live_classes FOR ALL TO anon
+USING (current_app_role() = 'admin' OR teacher_id = current_app_user());
+
+-- 8. Attendance Table
 DROP POLICY IF EXISTS "Strict Backend Access" ON attendance;
-CREATE POLICY "Strict Backend Access" ON attendance FOR ALL TO anon USING (current_app_user() IS NOT NULL);
+CREATE POLICY "Attendance Select" ON attendance FOR SELECT TO anon
+USING (
+  current_app_role() = 'admin'
+  OR student_id = current_app_user()
+  OR EXISTS (SELECT 1 FROM live_classes lc WHERE lc.id = attendance.live_class_id AND lc.teacher_id = current_app_user())
+);
+CREATE POLICY "Attendance Manage" ON attendance FOR ALL TO anon
+USING (
+  current_app_role() = 'admin'
+  OR student_id = current_app_user()
+  OR EXISTS (SELECT 1 FROM live_classes lc WHERE lc.id = attendance.live_class_id AND lc.teacher_id = current_app_user())
+);
+
+-- 9. Quizzes Table
 DROP POLICY IF EXISTS "Strict Backend Access" ON quizzes;
-CREATE POLICY "Strict Backend Access" ON quizzes FOR ALL TO anon USING (current_app_user() IS NOT NULL);
+CREATE POLICY "Quizzes Select" ON quizzes FOR SELECT TO anon
+USING (
+  current_app_role() = 'admin'
+  OR teacher_id = current_app_user()
+  OR (
+    status = 'published' AND
+    EXISTS (SELECT 1 FROM enrollments e WHERE e.course_id = quizzes.course_id AND e.student_id = current_app_user())
+  )
+);
+CREATE POLICY "Quizzes Manage" ON quizzes FOR ALL TO anon
+USING (current_app_role() = 'admin' OR teacher_id = current_app_user());
+
+-- 10. Quiz Submissions Table
 DROP POLICY IF EXISTS "Strict Backend Access" ON quiz_submissions;
-CREATE POLICY "Strict Backend Access" ON quiz_submissions FOR ALL TO anon USING (current_app_user() IS NOT NULL);
+CREATE POLICY "Quiz Submissions Select" ON quiz_submissions FOR SELECT TO anon
+USING (
+  current_app_role() = 'admin'
+  OR student_id = current_app_user()
+  OR EXISTS (SELECT 1 FROM quizzes q WHERE q.id = quiz_submissions.quiz_id AND q.teacher_id = current_app_user())
+);
+CREATE POLICY "Quiz Submissions Manage" ON quiz_submissions FOR ALL TO anon
+USING (
+  current_app_role() = 'admin'
+  OR student_id = current_app_user()
+  OR EXISTS (SELECT 1 FROM quizzes q WHERE q.id = quiz_submissions.quiz_id AND q.teacher_id = current_app_user())
+);
 
 -- Anti-Cheat Logs Security (RBAC & ABAC)
 DROP POLICY IF EXISTS "anti_cheat_logs_admin_policy" ON anti_cheat_logs;
@@ -1276,10 +1413,31 @@ DROP POLICY IF EXISTS "anti_cheat_logs_student_insert_policy" ON anti_cheat_logs
 CREATE POLICY "anti_cheat_logs_student_insert_policy" ON anti_cheat_logs
   FOR INSERT TO anon
   WITH CHECK (user_id = current_app_user());
+-- 11. Materials Table
 DROP POLICY IF EXISTS "Strict Backend Access" ON materials;
-CREATE POLICY "Strict Backend Access" ON materials FOR ALL TO anon USING (current_app_user() IS NOT NULL);
+CREATE POLICY "Materials Select" ON materials FOR SELECT TO anon
+USING (
+  current_app_role() = 'admin'
+  OR teacher_id = current_app_user()
+  OR EXISTS (SELECT 1 FROM enrollments e WHERE e.course_id = materials.course_id AND e.student_id = current_app_user())
+);
+CREATE POLICY "Materials Manage" ON materials FOR ALL TO anon
+USING (current_app_role() = 'admin' OR teacher_id = current_app_user());
+-- 12. Discussions Table
 DROP POLICY IF EXISTS "Strict Backend Access" ON discussions;
-CREATE POLICY "Strict Backend Access" ON discussions FOR ALL TO anon USING (current_app_user() IS NOT NULL);
+CREATE POLICY "Discussions Select" ON discussions FOR SELECT TO anon
+USING (
+  current_app_role() = 'admin'
+  OR user_id = current_app_user()
+  OR EXISTS (
+    SELECT 1 FROM courses c
+    LEFT JOIN enrollments e ON e.course_id = c.id
+    WHERE c.id = discussions.course_id
+    AND (c.teacher_id = current_app_user() OR e.student_id = current_app_user())
+  )
+);
+CREATE POLICY "Discussions Manage" ON discussions FOR ALL TO anon
+USING (current_app_role() = 'admin' OR user_id = current_app_user());
 DROP POLICY IF EXISTS "Strict Backend Access" ON notifications;
 DROP POLICY IF EXISTS "Notifications Access" ON notifications;
 
@@ -1322,20 +1480,50 @@ DROP POLICY IF EXISTS "Strict Backend Access" ON sessions;
 CREATE POLICY "Strict Backend Access" ON sessions FOR ALL TO anon
 USING (user_id = current_app_user() OR current_app_role() = 'admin');
 
+-- 13. Broadcasts Table
 DROP POLICY IF EXISTS "Strict Backend Access" ON broadcasts;
-CREATE POLICY "Strict Backend Access" ON broadcasts FOR ALL TO anon USING (current_app_user() IS NOT NULL);
+CREATE POLICY "Broadcasts Select" ON broadcasts FOR SELECT TO anon
+USING (
+  current_app_role() = 'admin'
+  OR (
+    (target_role IS NULL OR target_role = current_app_role())
+    AND (
+      course_id IS NULL
+      OR EXISTS (SELECT 1 FROM enrollments e WHERE e.course_id = broadcasts.course_id AND e.student_id = current_app_user())
+      OR EXISTS (SELECT 1 FROM courses c WHERE c.id = broadcasts.course_id AND c.teacher_id = current_app_user())
+    )
+  )
+);
+CREATE POLICY "Broadcasts Manage" ON broadcasts FOR ALL TO anon
+USING (current_app_role() = 'admin');
 
 DROP POLICY IF EXISTS "Strict Backend Access" ON maintenance;
-CREATE POLICY "Strict Backend Access" ON maintenance FOR SELECT TO anon USING (true); -- Publicly readable
-CREATE POLICY "Strict Backend Access Manage" ON maintenance FOR ALL TO anon USING (current_app_user() IS NOT NULL); -- Manageable with session
+DROP POLICY IF EXISTS "Strict Backend Access Manage" ON maintenance;
+CREATE POLICY "Maintenance Select" ON maintenance FOR SELECT TO anon USING (true); -- Publicly readable
+CREATE POLICY "Maintenance Manage" ON maintenance FOR ALL TO anon USING (current_app_role() = 'admin');
 
 DROP POLICY IF EXISTS "Strict Backend Access" ON planner;
 CREATE POLICY "Strict Backend Access" ON planner FOR ALL TO anon
 USING (user_id = current_app_user() OR current_app_role() = 'admin');
+-- 14. Lesson Completions Table
 DROP POLICY IF EXISTS "Strict Backend Access" ON lesson_completions;
-CREATE POLICY "Strict Backend Access" ON lesson_completions FOR ALL TO anon USING (current_app_user() IS NOT NULL);
+CREATE POLICY "Lesson Completions Select" ON lesson_completions FOR SELECT TO anon
+USING (
+  current_app_role() = 'admin'
+  OR student_id = current_app_user()
+  OR EXISTS (
+    SELECT 1 FROM lessons l
+    JOIN courses c ON c.id = l.course_id
+    WHERE l.id = lesson_completions.lesson_id AND c.teacher_id = current_app_user()
+  )
+);
+CREATE POLICY "Lesson Completions Manage" ON lesson_completions FOR ALL TO anon
+USING (current_app_role() = 'admin' OR student_id = current_app_user());
+
+-- 15. System Logs Table
 DROP POLICY IF EXISTS "Strict Backend Access" ON system_logs;
-CREATE POLICY "Strict Backend Access" ON system_logs FOR ALL TO anon USING (current_app_user() IS NOT NULL);
+CREATE POLICY "System Logs Admin" ON system_logs FOR ALL TO anon
+USING (current_app_role() = 'admin');
 
 DROP POLICY IF EXISTS "Support Tickets Access" ON support_tickets;
 CREATE POLICY "Support Tickets Access" ON support_tickets FOR ALL TO anon
@@ -1350,8 +1538,12 @@ WITH CHECK (
     OR assigned_to = current_app_user()
 );
 
+-- 16. Settings Table
 DROP POLICY IF EXISTS "Strict Backend Access" ON settings;
-CREATE POLICY "Strict Backend Access" ON settings FOR ALL TO anon USING (current_app_user() IS NOT NULL);
+CREATE POLICY "Settings Select" ON settings FOR SELECT TO anon
+USING (current_app_user() IS NOT NULL);
+CREATE POLICY "Settings Manage" ON settings FOR ALL TO anon
+USING (current_app_role() = 'admin');
 
 -- ==========================================
 -- 11. Initial Data

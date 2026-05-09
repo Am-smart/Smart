@@ -203,14 +203,14 @@ export default function AdminHelpPage() {
                                     </div>
                                 </div>
 
-                                {(selectedTicket.metadata as any)?.reply && (
+                                {selectedTicket.metadata?.reply ? (
                                     <div className="space-y-3">
                                         <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest">Your Previous Response</h4>
                                         <div className="bg-blue-50 text-blue-800 p-8 rounded-[32px] text-sm border-2 border-blue-100">
-                                            {(selectedTicket.metadata as any).reply}
+                                            {selectedTicket.metadata.reply as string}
                                         </div>
                                     </div>
-                                )}
+                                ) : null}
 
                                 {selectedTicket.status !== 'resolved' && (
                                     <form onSubmit={handleReply} className="space-y-4 pt-4 border-t border-slate-100">
