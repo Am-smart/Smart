@@ -3,7 +3,7 @@ import { systemDb } from '../database/system.db';
 import { User } from '../types';
 import { UserDomain } from '../domain/user.domain';
 import { validatePassword } from '../validation';
-import { sessionManager } from '../auth/session-cache';
+import { sessionManager } from '../auth/server-session';
 import { UserMapper } from '../mappers';
 import { rbac } from '../auth/rbac';
 import { comparePassword, hashPassword, generateToken, hashToken } from '../crypto';
