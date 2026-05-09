@@ -1,5 +1,5 @@
 import { withSession, supabase } from '../supabase';
-import { User, LiveClass, Notification, Broadcast, Discussion, PlannerItem, Maintenance, Setting, SystemLog, Attendance, SupportTicket } from '../types';
+import { User, LiveClass, Notification, Broadcast, Discussion, PlannerItem, Maintenance, Setting, SystemLog, Attendance, SupportTicket, AntiCheatLog } from '../types';
 import { dbUtils } from './db-utils';
 
 export const systemDb = {
@@ -395,6 +395,31 @@ export const systemDb = {
   async deleteSupportTicket(id: string, sessionId: string): Promise<void> {
     const { error } = await withSession(supabase.from('support_tickets'), sessionId).delete().eq('id', id);
     if (error) dbUtils.handleError(error);
+  },
+
+  // Anti-Cheat Operations
+  async createAntiCheatLog(log: AntiCheatLog, sessionId?: string): Promise<void> {
+    const query = supabase.from('anti_cheat_logs').insert(log);
+    const { error } = sessionId ? await withSession(query, sessionId) : await query;
+    if (error) dbUtils.handleError(error);
+  },
+
+  async findAllAntiCheatLogs(
+    sessionId: string,
+    filters: { user_id?: string; course_id?: string; resource_id?: string; limit?: number } = {}
+  ): Promise<AntiCheatLog[]> {
+    let query = withSession(supabase.from('anti_cheat_logs'), sessionId)
+      .select('*, users!user_id(id, full_name, email), courses!course_id(*)')
+      .order('created_at', { ascending: false });
+
+    if (filters.user_id) query = query.eq('user_id', filters.user_id);
+    if (filters.course_id) query = query.eq('course_id', filters.course_id);
+    if (filters.resource_id) query = query.eq('resource_id', filters.resource_id);
+    if (filters.limit) query = query.limit(filters.limit);
+
+    const { data, error } = await query;
+    if (error) dbUtils.handleError(error);
+    return data as AntiCheatLog[];
   },
 
   async getSystemStats(sessionId?: string): Promise<Record<string, number>> {

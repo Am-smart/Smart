@@ -26,6 +26,7 @@ import {
   MaintenanceDTO,
   SettingDTO,
   SystemLogDTO,
+  AntiCheatLogDTO,
   SupportTicket,
   SupportTicketDTO
 } from './types';
@@ -438,6 +439,15 @@ export async function getSystemLogs(limit: number = 100): Promise<SystemLogDTO[]
     return apiClient.get<SystemLogDTO[]>(`/api/v1/system?action=logs&limit=${limit}`);
 }
 
+export async function getAntiCheatLogs(filters: { userId?: string, courseId?: string, resourceId?: string, limit?: number } = {}): Promise<AntiCheatLogDTO[]> {
+    let url = '/api/v1/system?action=anti-cheat-logs';
+    if (filters.userId) url += `&userId=${filters.userId}`;
+    if (filters.courseId) url += `&courseId=${filters.courseId}`;
+    if (filters.resourceId) url += `&resourceId=${filters.resourceId}`;
+    if (filters.limit) url += `&limit=${filters.limit}`;
+    return apiClient.get<AntiCheatLogDTO[]>(url);
+}
+
 // Support Tickets
 export async function getSupportTickets(filters: { user_id?: string; assigned_to?: string; status?: string } = {}): Promise<SupportTicketDTO[]> {
     let url = '/api/v1/system?action=support-tickets';
@@ -474,13 +484,12 @@ export async function updateSupportTicket(id: string, updates: Partial<SupportTi
     }
 }
 
-export async function logAntiCheatViolation(data: Record<string, unknown> & { message?: string; courseId?: string; resourceId?: string }): Promise<ActionResponse> {
+export async function logAntiCheatViolation(data: Record<string, unknown> & { type: string, message?: string; courseId?: string; resourceId?: string }): Promise<ActionResponse> {
   try {
     await apiClient.post('/api/v1/system', {
-        action: 'log',
-        level: 'warning',
-        category: 'anti-cheat',
-        message: data.message || 'Anti-cheat violation detected',
+        action: 'anti-cheat-log',
+        type: data.type,
+        message: data.message || `Anti-cheat violation: ${data.type}`,
         course_id: data.courseId,
         resource_id: data.resourceId,
         metadata: data

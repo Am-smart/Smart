@@ -124,6 +124,16 @@ export const GET = withHandler(async (user, request) => {
         if (!rbac.can(user, 'system:manage')) throw new UnauthorizedError();
         return systemService.getHealthMetrics(user.sessionId!);
     }
+    case 'anti-cheat-logs': {
+        const filters = {
+            user_id: searchParams.get('userId') || undefined,
+            course_id: searchParams.get('courseId') || undefined,
+            resource_id: searchParams.get('resourceId') || undefined,
+            limit: parseInt(searchParams.get('limit') || '200')
+        };
+        const logs = await systemService.getAntiCheatLogs(user, user.sessionId!, filters);
+        return logs.map(SystemMapper.toAntiCheatLogDTO);
+    }
     default:
       throw new Error('Invalid GET action');
   }
@@ -138,6 +148,10 @@ export const POST = withHandler(async (user, request) => {
     case 'log': {
       await systemService.createLog({ ...data, user_id: user.id }, user.sessionId!);
       return { success: true };
+    }
+    case 'anti-cheat-log': {
+        await systemService.createAntiCheatLog({ ...data, user_id: user.id }, user.sessionId!);
+        return { success: true };
     }
     case 'update-maintenance': {
       await systemService.updateMaintenance(user, data, user.sessionId!);

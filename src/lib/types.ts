@@ -674,6 +674,30 @@ export interface SystemLogDTO {
   user?: UserDTO;
 }
 
+export interface AntiCheatLog {
+  id?: string;
+  user_id: string;
+  course_id: string;
+  resource_id?: string;
+  type: string;
+  message?: string;
+  metadata?: Record<string, unknown>;
+  created_at?: string;
+}
+
+export interface AntiCheatLogDTO {
+  id: string;
+  user_id: string;
+  course_id: string;
+  resource_id?: string;
+  type: string;
+  message?: string;
+  metadata?: Record<string, unknown>;
+  created_at: string;
+  user?: UserDTO;
+  course?: CourseDTO;
+}
+
 export interface SupportTicket {
   id: string;
   user_id: string;
