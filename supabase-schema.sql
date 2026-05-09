@@ -1254,6 +1254,14 @@ USING (
       WHERE e1.student_id = current_app_user() AND e2.student_id = users.id
     )
   )
+  OR (
+    current_app_role() = 'student' AND
+    EXISTS (
+      SELECT 1 FROM enrollments e
+      JOIN courses c ON c.id = e.course_id
+      WHERE c.teacher_id = users.id AND e.student_id = current_app_user()
+    )
+  )
 );
 CREATE POLICY "Users Update" ON users FOR UPDATE TO anon
 USING (id = current_app_user() OR current_app_role() = 'admin');
@@ -1522,7 +1530,11 @@ USING (current_app_role() = 'admin' OR student_id = current_app_user());
 
 -- 15. System Logs Table
 DROP POLICY IF EXISTS "Strict Backend Access" ON system_logs;
-CREATE POLICY "System Logs Admin" ON system_logs FOR ALL TO anon
+CREATE POLICY "System Logs Select" ON system_logs FOR SELECT TO anon
+USING (current_app_role() = 'admin');
+CREATE POLICY "System Logs Insert" ON system_logs FOR INSERT TO anon
+WITH CHECK (current_app_user() IS NOT NULL);
+CREATE POLICY "System Logs Manage" ON system_logs FOR ALL TO anon
 USING (current_app_role() = 'admin');
 
 DROP POLICY IF EXISTS "Support Tickets Access" ON support_tickets;
