@@ -258,7 +258,7 @@ CREATE TABLE IF NOT EXISTS notifications (
 
 CREATE TABLE IF NOT EXISTS sessions (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  token_hash VARCHAR(255) UNIQUE NOT NULL,
+  token_hash VARCHAR(255) UNIQUE,
   user_id UUID REFERENCES users(id) ON DELETE CASCADE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
@@ -473,6 +473,11 @@ BEGIN
         ALTER TABLE quiz_submissions ADD COLUMN attempt_number INTEGER DEFAULT 1;
         ALTER TABLE quiz_submissions DROP CONSTRAINT IF EXISTS quiz_submissions_quiz_id_student_id_key;
         ALTER TABLE quiz_submissions ADD UNIQUE(quiz_id, student_id, attempt_number);
+    END IF;
+
+    -- Session Token Hash Migration
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'sessions' AND column_name = 'token_hash') THEN
+        ALTER TABLE sessions ADD COLUMN token_hash VARCHAR(255) UNIQUE;
     END IF;
 END $$;
 
