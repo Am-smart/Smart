@@ -254,7 +254,7 @@ export class SystemService {
       await systemDb.updateMultipleNotifications(ids, { viewed_at: new Date().toISOString() }, sessionId);
   }
 
-  async notifyUser(params: { target_id: string, n_title: string, n_msg: string, n_link?: string, n_type?: string, expires_at?: string, metadata?: any }, sessionId: string): Promise<void> {
+  async notifyUser(params: { target_id: string, n_title: string, n_msg: string, n_link?: string, n_type?: string, expires_at?: string, metadata?: Record<string, string | number | boolean> }, sessionId: string): Promise<void> {
     await systemDb.createNotification({
       user_id: params.target_id,
       title: params.n_title,
@@ -490,69 +490,72 @@ export class SystemService {
     const broadcastToSave = CommunicationDomain.prepareBroadcast(broadcast);
     const createdBroadcast = await systemDb.createBroadcast(broadcastToSave, sessionId);
 
-    // Manual Fan-out: Populate notifications table using efficient batch operations
-    const { supabase } = await import('../supabase');
+    // Asynchronous Fan-out using Task Queue to prevent request timeouts
+    const { taskQueue } = await import('../queue/task-queue');
+    taskQueue.enqueue(async () => {
+        const { supabase } = await import('../supabase');
 
-    let targetUserIds: string[] = [];
+        let targetUserIds: string[] = [];
 
-    if (!createdBroadcast.course_id) {
-        // Global broadcast
-        let query = supabase.from('users').select('id');
-        if (createdBroadcast.target_role) {
-            query = query.eq('role', createdBroadcast.target_role);
+        if (!createdBroadcast.course_id) {
+            // Global broadcast
+            let query = supabase.from('users').select('id');
+            if (createdBroadcast.target_role) {
+                query = query.eq('role', createdBroadcast.target_role);
+            }
+            const { data } = await query;
+            targetUserIds = (data || []).map(u => u.id);
+        } else {
+            // Course-specific broadcast
+            const courseId = createdBroadcast.course_id;
+            const targetRole = createdBroadcast.target_role;
+
+            // 1. Get enrolled students
+            if (!targetRole || targetRole === 'student') {
+                const { data: students } = await supabase.from('enrollments')
+                    .select('student_id')
+                    .eq('course_id', courseId);
+                if (students) targetUserIds.push(...students.map(s => s.student_id));
+            }
+
+            // 2. Get course teacher
+            if (!targetRole || targetRole === 'teacher') {
+                const { data: course } = await supabase.from('courses')
+                    .select('teacher_id')
+                    .eq('id', courseId)
+                    .single();
+                if (course?.teacher_id) targetUserIds.push(course.teacher_id);
+            }
+
+            // 3. Always include admins
+            const { data: admins } = await supabase.from('users')
+                .select('id')
+                .eq('role', 'admin');
+            if (admins) targetUserIds.push(...admins.map(a => a.id));
+
+            // Deduplicate
+            targetUserIds = [...new Set(targetUserIds)];
         }
-        const { data } = await query;
-        targetUserIds = (data || []).map(u => u.id);
-    } else {
-        // Course-specific broadcast
-        const courseId = createdBroadcast.course_id;
-        const targetRole = createdBroadcast.target_role;
 
-        // 1. Get enrolled students
-        if (!targetRole || targetRole === 'student') {
-            const { data: students } = await supabase.from('enrollments')
-                .select('student_id')
-                .eq('course_id', courseId);
-            if (students) targetUserIds.push(...students.map(s => s.student_id));
+        if (targetUserIds.length > 0) {
+            const notificationsToInsert = targetUserIds.map(userId => ({
+                user_id: userId,
+                broadcast_id: createdBroadcast.id,
+                title: createdBroadcast.title,
+                message: createdBroadcast.message,
+                link: createdBroadcast.link,
+                type: createdBroadcast.type,
+                expires_at: createdBroadcast.expires_at,
+                metadata: { broadcast_id: createdBroadcast.id, expires_at: createdBroadcast.expires_at }
+            }));
+
+            // Batch insert in chunks of 1000
+            for (let i = 0; i < notificationsToInsert.length; i += 1000) {
+                const chunk = notificationsToInsert.slice(i, i + 1000);
+                await supabase.from('notifications').insert(chunk);
+            }
         }
-
-        // 2. Get course teacher
-        if (!targetRole || targetRole === 'teacher') {
-            const { data: course } = await supabase.from('courses')
-                .select('teacher_id')
-                .eq('id', courseId)
-                .single();
-            if (course?.teacher_id) targetUserIds.push(course.teacher_id);
-        }
-
-        // 3. Always include admins
-        const { data: admins } = await supabase.from('users')
-            .select('id')
-            .eq('role', 'admin');
-        if (admins) targetUserIds.push(...admins.map(a => a.id));
-
-        // Deduplicate
-        targetUserIds = [...new Set(targetUserIds)];
-    }
-
-    if (targetUserIds.length > 0) {
-        const notificationsToInsert = targetUserIds.map(userId => ({
-            user_id: userId,
-            broadcast_id: createdBroadcast.id,
-            title: createdBroadcast.title,
-            message: createdBroadcast.message,
-            link: createdBroadcast.link,
-            type: createdBroadcast.type,
-            expires_at: createdBroadcast.expires_at,
-            metadata: { broadcast_id: createdBroadcast.id, expires_at: createdBroadcast.expires_at }
-        }));
-
-        // Batch insert in chunks of 1000 to avoid request size limits
-        for (let i = 0; i < notificationsToInsert.length; i += 1000) {
-            const chunk = notificationsToInsert.slice(i, i + 1000);
-            await supabase.from('notifications').insert(chunk);
-        }
-    }
+    });
 
     return createdBroadcast;
   }

@@ -7,11 +7,11 @@ import { sessionManager } from '../auth/session-cache';
 import { UserMapper } from '../mappers';
 
 export class AuthService {
-  async validateSession(sessionId: string): Promise<Record<string, unknown> | null> {
+  async validateSession(sessionId: string): Promise<User | null> {
     // Check cache first
     const cachedUser = sessionManager.get(sessionId);
     if (cachedUser) {
-        return { ...cachedUser, sessionId };
+        return { ...cachedUser, sessionId } as User;
     }
 
     const session = await authDb.findSessionById(sessionId);
@@ -23,9 +23,11 @@ export class AuthService {
 
     const userDTO = UserMapper.toDTO(user);
     if (!userDTO) return null;
+
+    const userWithSession = { ...user, sessionId } as User;
     sessionManager.set(sessionId, userDTO);
 
-    return { ...userDTO, sessionId };
+    return userWithSession;
   }
 
   async createSession(userId: string): Promise<string> {
@@ -87,10 +89,12 @@ export class AuthService {
       }
 
       const failedAttempts = (user.failed_attempts || 0) + 1;
-      const updates: any = {
+      const newLockouts = failedAttempts >= 5 ? (user.lockouts || 0) + 1 : user.lockouts;
+      const updates: Record<string, unknown> = {
         failed_attempts: failedAttempts,
         locked_until: failedAttempts >= 5 ? new Date(Date.now() + 30 * 60 * 1000).toISOString() : user.locked_until,
-        lockouts: failedAttempts >= 5 ? (user.lockouts || 0) + 1 : user.lockouts
+        lockouts: newLockouts,
+        flagged: (newLockouts || 0) >= 3 ? true : user.flagged
       };
       await authDb.updateUserRaw(user.id, updates);
 
@@ -126,7 +130,7 @@ export class AuthService {
     };
   }
 
-  async register(data: { full_name: string; email: string; password?: string; phone?: string; role: string }) {
+  async signup(data: { full_name: string; email: string; password?: string; phone?: string; role: string }) {
     const { hashPassword } = await import('../crypto');
 
     if (data.password) {
@@ -163,7 +167,8 @@ export class AuthService {
     const hashedPassword = data.password ? await hashPassword(data.password) : '';
     const { data: userData, error } = await authDb.register({
       ...data,
-      password: hashedPassword
+      password: hashedPassword,
+      active: true
     });
 
     if (error) return { data: null, error };
@@ -198,7 +203,8 @@ export class AuthService {
     const hashedPassword = data.password ? await hashPassword(data.password) : '';
     return authDb.register({
       ...data,
-      password: hashedPassword
+      password: hashedPassword,
+      active: true
     });
   }
 

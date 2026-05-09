@@ -90,7 +90,7 @@ export const POST = withHandler(async (user, request) => {
                 }
             }
 
-            const { data: rawData, error: rpcError } = await authService.register({
+            const { data: rawData, error: rpcError } = await authService.signup({
               full_name: normalizeInput(data.full_name),
               email: normalizeEmail(data.email),
               password: data.password || '',

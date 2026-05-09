@@ -29,7 +29,7 @@ export async function getSessionUser(request?: Request): Promise<User | null> {
         }
     }
 
-    return userSession as unknown as User;
+    return userSession as User;
   } catch {
     return null;
   }
