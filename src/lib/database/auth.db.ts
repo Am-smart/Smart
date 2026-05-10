@@ -1,23 +1,27 @@
 import { withSession, supabase } from '../supabase';
+import { adminClient } from '../supabase-admin';
 import { Session } from '../types';
 import { dbUtils } from './db-utils';
 
 export const authDb = {
   async register(data: { full_name: string; email: string; password?: string; phone?: string; role: string; active?: boolean }): Promise<{ data: unknown, error: unknown }> {
-    const { data: userData, error } = await supabase.from('users').insert(data).select().single();
+    const client = adminClient || supabase;
+    const { data: userData, error } = await client.from('users').insert(data).select().single();
     return { data: userData, error };
   },
 
   async updateUserRaw(id: string, updates: Partial<any>, sessionId?: string): Promise<{ data: unknown, error: unknown }> {
-    let query = supabase.from('users').update(updates).eq('id', id);
-    if (sessionId) query = withSession(query, sessionId);
+    const client = adminClient || supabase;
+    let query = client.from('users').update(updates).eq('id', id);
+    if (sessionId && !adminClient) query = withSession(query, sessionId);
     const { data, error } = await query.select().single();
     return { data, error };
   },
 
   // Session Table Operations (Original SessionRepository)
   async findSessionByHash(tokenHash: string): Promise<Session | null> {
-    const { data, error } = await supabase
+    const client = adminClient || supabase;
+    const { data, error } = await client
       .from('sessions')
       .select('*')
       .eq('token_hash', tokenHash)
@@ -31,7 +35,8 @@ export const authDb = {
   },
 
   async createSession(userId: string, expiresAt: string, tokenHash: string): Promise<Session> {
-    const { data, error } = await supabase
+    const client = adminClient || supabase;
+    const { data, error } = await client
       .from('sessions')
       .insert({
         user_id: userId,
@@ -46,7 +51,8 @@ export const authDb = {
   },
 
   async deleteSessionByHash(tokenHash: string): Promise<void> {
-    const { error } = await supabase
+    const client = adminClient || supabase;
+    const { error } = await client
       .from('sessions')
       .delete()
       .eq('token_hash', tokenHash);
@@ -55,7 +61,8 @@ export const authDb = {
   },
 
   async deleteUserSessions(userId: string, exceptHash?: string): Promise<void> {
-    let query = supabase.from('sessions').delete().eq('user_id', userId);
+    const client = adminClient || supabase;
+    let query = client.from('sessions').delete().eq('user_id', userId);
     if (exceptHash) {
       query = query.neq('token_hash', exceptHash);
     }
@@ -64,7 +71,9 @@ export const authDb = {
   },
 
   async findAllSessions(sessionId: string, userId?: string): Promise<Session[]> {
-    let query = withSession(supabase.from('sessions').select('*'), sessionId);
+    const client = adminClient || supabase;
+    let query = client.from('sessions').select('*');
+    if (sessionId && !adminClient) query = withSession(query, sessionId);
     if (userId) query = query.eq('user_id', userId);
     const { data, error } = await query;
     if (error) dbUtils.handleError(error);

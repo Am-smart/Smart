@@ -1,11 +1,14 @@
 import { withSession, supabase } from '../supabase';
+import { adminClient } from '../supabase-admin';
 import { User, LiveClass, Notification, Broadcast, Discussion, PlannerItem, Maintenance, Setting, SystemLog, Attendance, SupportTicket, AntiCheatLog } from '../types';
 import { dbUtils } from './db-utils';
 
 export const systemDb = {
   // User Operations
   async findUserById(id: string, sessionId?: string): Promise<User | null> {
-    const query = withSession(supabase.from('users').select('*').eq('id', id).single(), sessionId);
+    const client = adminClient || supabase;
+    let query = client.from('users').select('*').eq('id', id).single();
+    if (sessionId && !adminClient) query = withSession(query, sessionId);
     const { data, error } = await query;
     if (error) {
       if (error.code === 'PGRST116') return null;
@@ -15,7 +18,8 @@ export const systemDb = {
   },
 
   async findUserByEmail(email: string): Promise<User | null> {
-    const { data, error } = await supabase.from('users').select('*').eq('email', email).single();
+    const client = adminClient || supabase;
+    const { data, error } = await client.from('users').select('*').eq('email', email).single();
     if (error) {
       if (error.code === 'PGRST116') return null;
       dbUtils.handleError(error);
@@ -24,28 +28,31 @@ export const systemDb = {
   },
 
   async findAllUsers(sessionId: string): Promise<User[]> {
-    const { data, error } = await withSession(supabase.from('users').select('*'), sessionId);
+    const client = adminClient || supabase;
+    let query = client.from('users').select('*');
+    if (sessionId && !adminClient) query = withSession(query, sessionId);
+    const { data, error } = await query;
     if (error) dbUtils.handleError(error);
     return data as User[];
   },
 
   async createUser(userData: Partial<User>): Promise<User> {
-    const { data, error } = await supabase.from('users').insert(userData).select().single();
+    const client = adminClient || supabase;
+    const { data, error } = await client.from('users').insert(userData).select().single();
     if (error) dbUtils.handleError(error);
     return data as User;
   },
 
   async updateUser(id: string, updates: Partial<User>, sessionId: string, version?: number): Promise<User> {
+    const client = adminClient || supabase;
     // Strip sensitive fields for non-admin update path
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { role, flagged, active, password, ...safeUpdates } = updates as Record<string, unknown>;
 
     const upsertData = dbUtils.prepareUpsert({ ...safeUpdates, id, version });
-    const query = dbUtils.applyVersionCheck(
-      withSession(supabase.from('users'), sessionId).update(upsertData as Record<string, unknown>).eq('id', id),
-      id,
-      version
-    );
+    let query = client.from('users').update(upsertData as Record<string, unknown>).eq('id', id);
+    if (!adminClient) query = withSession(query, sessionId);
+    query = dbUtils.applyVersionCheck(query, id, version);
 
     const { data, error } = await query.select().single();
     if (error) dbUtils.handleUpsertError(error, 'User profile', id, version);
@@ -53,6 +60,7 @@ export const systemDb = {
   },
 
   async adminUpdateUser(id: string, updates: Partial<User>, sessionId: string): Promise<void> {
+      const client = adminClient || supabase;
       const { hashPassword } = await import('../crypto');
 
       const userUpdates: any = {
@@ -75,13 +83,18 @@ export const systemDb = {
           if (userUpdates[key] === undefined) delete userUpdates[key];
       });
 
-      const { error } = await withSession(supabase.from('users').update(userUpdates).eq('id', id), sessionId);
+      let query = client.from('users').update(userUpdates).eq('id', id);
+      if (!adminClient) query = withSession(query, sessionId);
+      const { error } = await query;
 
       if (error) dbUtils.handleError(error);
   },
 
   async deleteUser(id: string, sessionId: string): Promise<void> {
-    const { error } = await withSession(supabase.from('users'), sessionId).delete().eq('id', id);
+    const client = adminClient || supabase;
+    let query = client.from('users').delete().eq('id', id);
+    if (!adminClient) query = withSession(query, sessionId);
+    const { error } = await query;
     if (error) dbUtils.handleError(error);
   },
 
@@ -432,12 +445,13 @@ export const systemDb = {
   },
 
   async getSystemStats(sessionId?: string): Promise<Record<string, number>> {
-    let usersQuery = supabase.from('users').select('*', { count: 'exact', head: true });
-    let coursesQuery = supabase.from('courses').select('*', { count: 'exact', head: true });
-    let enrollmentsQuery = supabase.from('enrollments').select('*', { count: 'exact', head: true });
-    let submissionsQuery = supabase.from('submissions').select('*', { count: 'exact', head: true });
+    const client = adminClient || supabase;
+    let usersQuery = client.from('users').select('*', { count: 'exact', head: true });
+    let coursesQuery = client.from('courses').select('*', { count: 'exact', head: true });
+    let enrollmentsQuery = client.from('enrollments').select('*', { count: 'exact', head: true });
+    let submissionsQuery = client.from('submissions').select('*', { count: 'exact', head: true });
 
-    if (sessionId) {
+    if (sessionId && !adminClient) {
         usersQuery = withSession(usersQuery, sessionId);
         coursesQuery = withSession(coursesQuery, sessionId);
         enrollmentsQuery = withSession(enrollmentsQuery, sessionId);
@@ -461,11 +475,12 @@ export const systemDb = {
 
   async getHealthMetrics(sessionId?: string): Promise<unknown> {
     // Basic health check for multiple systems
+    const client = adminClient || supabase;
     const startTime = Date.now();
     let dbStatus = 'healthy';
     try {
-        let query = supabase.from('settings').select('count', { count: 'exact', head: true });
-        if (sessionId) query = withSession(query, sessionId);
+        let query = client.from('settings').select('count', { count: 'exact', head: true });
+        if (sessionId && !adminClient) query = withSession(query, sessionId);
         const { error } = await query;
         if (error) dbStatus = 'degraded';
     } catch {
@@ -485,7 +500,8 @@ export const systemDb = {
   },
 
   async countUsersByRole(role?: string): Promise<number> {
-      let query = supabase.from('users').select('*', { count: 'exact', head: true });
+      const client = adminClient || supabase;
+      let query = client.from('users').select('*', { count: 'exact', head: true });
       if (role) {
           query = query.eq('role', role);
       }
@@ -495,17 +511,26 @@ export const systemDb = {
   },
 
   async cleanupExpiredNotifications(now: string, sessionId: string): Promise<void> {
-    const { error } = await withSession(supabase.from('notifications').delete().lt('expires_at', now), sessionId);
+    const client = adminClient || supabase;
+    let query = client.from('notifications').delete().lt('expires_at', now);
+    if (!adminClient) query = withSession(query, sessionId);
+    const { error } = await query;
     if (error) dbUtils.handleError(error);
   },
 
   async cleanupExpiredSessions(now: string, sessionId: string): Promise<void> {
-    const { error } = await withSession(supabase.from('sessions').delete().lt('expires_at', now), sessionId);
+    const client = adminClient || supabase;
+    let query = client.from('sessions').delete().lt('expires_at', now);
+    if (!adminClient) query = withSession(query, sessionId);
+    const { error } = await query;
     if (error) dbUtils.handleError(error);
   },
 
   async cleanupExpiredBroadcasts(now: string, sessionId: string): Promise<void> {
-    const { error } = await withSession(supabase.from('broadcasts').delete().lt('expires_at', now), sessionId);
+    const client = adminClient || supabase;
+    let query = client.from('broadcasts').delete().lt('expires_at', now);
+    if (!adminClient) query = withSession(query, sessionId);
+    const { error } = await query;
     if (error) dbUtils.handleError(error);
   }
 };

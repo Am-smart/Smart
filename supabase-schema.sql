@@ -552,14 +552,86 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql STABLE SECURITY DEFINER;
 
+-- Internal helper to get role without RLS interference
+CREATE OR REPLACE FUNCTION get_user_role(p_user_id UUID) RETURNS TEXT AS $$
+BEGIN
+  RETURN (SELECT role FROM users WHERE id = p_user_id);
+END;
+$$ LANGUAGE plpgsql STABLE SECURITY DEFINER;
+
 -- Custom App Role Resolver
 DROP FUNCTION IF EXISTS current_app_role() CASCADE;
 CREATE OR REPLACE FUNCTION current_app_role() RETURNS TEXT AS $$
-DECLARE
-  v_role TEXT;
 BEGIN
-  SELECT role INTO v_role FROM users WHERE id = current_app_user();
-  RETURN v_role;
+  RETURN get_user_role(current_app_user());
+END;
+$$ LANGUAGE plpgsql STABLE SECURITY DEFINER;
+
+-- Helper functions to break RLS recursion
+CREATE OR REPLACE FUNCTION is_admin(p_user_id UUID) RETURNS BOOLEAN AS $$
+BEGIN
+  RETURN get_user_role(p_user_id) = 'admin';
+END;
+$$ LANGUAGE plpgsql STABLE SECURITY DEFINER;
+
+CREATE OR REPLACE FUNCTION is_teacher(p_user_id UUID) RETURNS BOOLEAN AS $$
+BEGIN
+  RETURN get_user_role(p_user_id) = 'teacher';
+END;
+$$ LANGUAGE plpgsql STABLE SECURITY DEFINER;
+
+-- Helper to check enrollment without recursion
+CREATE OR REPLACE FUNCTION is_enrolled(p_course_id UUID, p_user_id UUID)
+RETURNS BOOLEAN AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM enrollments
+    WHERE course_id = p_course_id AND student_id = p_user_id
+  );
+END;
+$$ LANGUAGE plpgsql STABLE SECURITY DEFINER;
+
+-- Helper to check course ownership without recursion
+CREATE OR REPLACE FUNCTION is_course_teacher(p_course_id UUID, p_user_id UUID)
+RETURNS BOOLEAN AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM courses
+    WHERE id = p_course_id AND teacher_id = p_user_id
+  );
+END;
+$$ LANGUAGE plpgsql STABLE SECURITY DEFINER;
+
+-- Helper to check assignment ownership without recursion
+CREATE OR REPLACE FUNCTION is_assignment_teacher(p_assignment_id UUID, p_user_id UUID)
+RETURNS BOOLEAN AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM assignments
+    WHERE id = p_assignment_id AND teacher_id = p_user_id
+  );
+END;
+$$ LANGUAGE plpgsql STABLE SECURITY DEFINER;
+
+-- Helper to check quiz ownership without recursion
+CREATE OR REPLACE FUNCTION is_quiz_teacher(p_quiz_id UUID, p_user_id UUID)
+RETURNS BOOLEAN AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM quizzes
+    WHERE id = p_quiz_id AND teacher_id = p_user_id
+  );
+END;
+$$ LANGUAGE plpgsql STABLE SECURITY DEFINER;
+
+-- Helper to check live class ownership without recursion
+CREATE OR REPLACE FUNCTION is_live_class_teacher(p_live_class_id UUID, p_user_id UUID)
+RETURNS BOOLEAN AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM live_classes
+    WHERE id = p_live_class_id AND teacher_id = p_user_id
+  );
 END;
 $$ LANGUAGE plpgsql STABLE SECURITY DEFINER;
 
@@ -600,191 +672,160 @@ GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO anon;
 -- use to evaluate permissions and identity.
 
 -- 1. Users Table
+ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Users Select" ON users;
 CREATE POLICY "Users Select" ON users FOR SELECT TO anon
-USING (
-  id = current_app_user()
-  OR current_app_role() = 'admin'
-  OR (
-    current_app_role() = 'teacher' AND
-    EXISTS (
-      SELECT 1 FROM enrollments e
-      JOIN courses c ON c.id = e.course_id
-      WHERE e.student_id = users.id AND c.teacher_id = current_app_user()
-    )
-  )
-  OR (
-    EXISTS (
-      SELECT 1 FROM enrollments e1
-      JOIN enrollments e2 ON e1.course_id = e2.course_id
-      WHERE e1.student_id = current_app_user() AND e2.student_id = users.id
-    )
-  )
-  OR (
-    current_app_role() = 'student' AND
-    EXISTS (
-      SELECT 1 FROM enrollments e
-      JOIN courses c ON c.id = e.course_id
-      WHERE c.teacher_id = users.id AND e.student_id = current_app_user()
-    )
-  )
-);
+USING (true); -- Public profiles, sensitive data filtered by DTO mappers
 DROP POLICY IF EXISTS "Users Update" ON users;
 CREATE POLICY "Users Update" ON users FOR UPDATE TO anon
-USING (id = current_app_user() OR current_app_role() = 'admin');
+USING (id = current_app_user() OR is_admin(current_app_user()));
 DROP POLICY IF EXISTS "Users Delete" ON users;
 CREATE POLICY "Users Delete" ON users FOR DELETE TO anon
-USING (current_app_role() = 'admin');
+USING (is_admin(current_app_user()));
 DROP POLICY IF EXISTS "Users Insert" ON users;
 CREATE POLICY "Users Insert" ON users FOR INSERT TO anon
-WITH CHECK (current_app_role() = 'admin' OR current_app_user() IS NULL);
+WITH CHECK (is_admin(current_app_user()) OR current_app_user() IS NULL);
 
 -- 2. Courses Table
 DROP POLICY IF EXISTS "Courses Select" ON courses;
 CREATE POLICY "Courses Select" ON courses FOR SELECT TO anon
 USING (
-  current_app_role() = 'admin'
+  is_admin(current_app_user())
   OR teacher_id = current_app_user()
-  OR EXISTS (SELECT 1 FROM enrollments e WHERE e.course_id = courses.id AND e.student_id = current_app_user())
+  OR EXISTS (SELECT 1 FROM enrollments WHERE course_id = courses.id AND student_id = current_app_user())
   OR status = 'published'
 );
 DROP POLICY IF EXISTS "Courses Manage" ON courses;
 CREATE POLICY "Courses Manage" ON courses FOR ALL TO anon
-USING (current_app_role() = 'admin' OR teacher_id = current_app_user());
+USING (is_admin(current_app_user()) OR teacher_id = current_app_user());
 
 -- 3. Lessons Table
 DROP POLICY IF EXISTS "Lessons Select" ON lessons;
 CREATE POLICY "Lessons Select" ON lessons FOR SELECT TO anon
 USING (
-  current_app_role() = 'admin'
-  OR EXISTS (
-    SELECT 1 FROM courses c
-    LEFT JOIN enrollments e ON e.course_id = c.id
-    WHERE c.id = lessons.course_id
-    AND (c.teacher_id = current_app_user() OR e.student_id = current_app_user())
-  )
+  is_admin(current_app_user())
+  OR EXISTS (SELECT 1 FROM courses WHERE id = lessons.course_id AND teacher_id = current_app_user())
+  OR EXISTS (SELECT 1 FROM enrollments WHERE course_id = lessons.course_id AND student_id = current_app_user())
 );
 DROP POLICY IF EXISTS "Lessons Manage" ON lessons;
 CREATE POLICY "Lessons Manage" ON lessons FOR ALL TO anon
 USING (
-  current_app_role() = 'admin'
-  OR EXISTS (SELECT 1 FROM courses c WHERE c.id = lessons.course_id AND c.teacher_id = current_app_user())
+  is_admin(current_app_user())
+  OR EXISTS (SELECT 1 FROM courses WHERE id = lessons.course_id AND teacher_id = current_app_user())
 );
 
 -- 4. Enrollments Table
+ALTER TABLE enrollments ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Enrollments Select" ON enrollments;
 CREATE POLICY "Enrollments Select" ON enrollments FOR SELECT TO anon
 USING (
-  current_app_role() = 'admin'
-  OR student_id = current_app_user()
-  OR EXISTS (SELECT 1 FROM courses c WHERE c.id = enrollments.course_id AND c.teacher_id = current_app_user())
+  student_id = current_app_user()
+  OR is_admin(current_app_user())
+  OR EXISTS (SELECT 1 FROM courses WHERE id = enrollments.course_id AND teacher_id = current_app_user())
 );
 DROP POLICY IF EXISTS "Enrollments Manage" ON enrollments;
 CREATE POLICY "Enrollments Manage" ON enrollments FOR ALL TO anon
-USING (current_app_role() = 'admin' OR student_id = current_app_user());
+USING (is_admin(current_app_user()) OR student_id = current_app_user());
 
 -- 5. Assignments Table
 DROP POLICY IF EXISTS "Assignments Select" ON assignments;
 CREATE POLICY "Assignments Select" ON assignments FOR SELECT TO anon
 USING (
-  current_app_role() = 'admin'
+  is_admin(current_app_user())
   OR teacher_id = current_app_user()
   OR (
     status = 'published' AND
-    EXISTS (SELECT 1 FROM enrollments e WHERE e.course_id = assignments.course_id AND e.student_id = current_app_user())
+    EXISTS (SELECT 1 FROM enrollments WHERE course_id = assignments.course_id AND student_id = current_app_user())
   )
 );
 DROP POLICY IF EXISTS "Assignments Manage" ON assignments;
 CREATE POLICY "Assignments Manage" ON assignments FOR ALL TO anon
-USING (current_app_role() = 'admin' OR teacher_id = current_app_user());
+USING (is_admin(current_app_user()) OR teacher_id = current_app_user());
 
 -- 6. Submissions Table
 DROP POLICY IF EXISTS "Submissions Select" ON submissions;
 CREATE POLICY "Submissions Select" ON submissions FOR SELECT TO anon
 USING (
-  current_app_role() = 'admin'
+  is_admin(current_app_user())
   OR student_id = current_app_user()
-  OR EXISTS (SELECT 1 FROM assignments a WHERE a.id = submissions.assignment_id AND a.teacher_id = current_app_user())
+  OR is_assignment_teacher(assignment_id, current_app_user())
 );
 DROP POLICY IF EXISTS "Submissions Manage" ON submissions;
 CREATE POLICY "Submissions Manage" ON submissions FOR ALL TO anon
 USING (
-  current_app_role() = 'admin'
+  is_admin(current_app_user())
   OR student_id = current_app_user()
-  OR EXISTS (SELECT 1 FROM assignments a WHERE a.id = submissions.assignment_id AND a.teacher_id = current_app_user())
+  OR is_assignment_teacher(assignment_id, current_app_user())
 );
 
 -- 7. Live Classes Table
 DROP POLICY IF EXISTS "Live Classes Select" ON live_classes;
 CREATE POLICY "Live Classes Select" ON live_classes FOR SELECT TO anon
 USING (
-  current_app_role() = 'admin'
+  is_admin(current_app_user())
   OR teacher_id = current_app_user()
-  OR EXISTS (SELECT 1 FROM enrollments e WHERE e.course_id = live_classes.course_id AND e.student_id = current_app_user())
+  OR EXISTS (SELECT 1 FROM enrollments WHERE course_id = live_classes.course_id AND student_id = current_app_user())
 );
 DROP POLICY IF EXISTS "Live Classes Manage" ON live_classes;
 CREATE POLICY "Live Classes Manage" ON live_classes FOR ALL TO anon
-USING (current_app_role() = 'admin' OR teacher_id = current_app_user());
+USING (is_admin(current_app_user()) OR teacher_id = current_app_user());
 
 -- 8. Attendance Table
 DROP POLICY IF EXISTS "Attendance Select" ON attendance;
 CREATE POLICY "Attendance Select" ON attendance FOR SELECT TO anon
 USING (
-  current_app_role() = 'admin'
+  is_admin(current_app_user())
   OR student_id = current_app_user()
-  OR EXISTS (SELECT 1 FROM live_classes lc WHERE lc.id = attendance.live_class_id AND lc.teacher_id = current_app_user())
+  OR is_live_class_teacher(live_class_id, current_app_user())
 );
 DROP POLICY IF EXISTS "Attendance Manage" ON attendance;
 CREATE POLICY "Attendance Manage" ON attendance FOR ALL TO anon
 USING (
-  current_app_role() = 'admin'
+  is_admin(current_app_user())
   OR student_id = current_app_user()
-  OR EXISTS (SELECT 1 FROM live_classes lc WHERE lc.id = attendance.live_class_id AND lc.teacher_id = current_app_user())
+  OR is_live_class_teacher(live_class_id, current_app_user())
 );
 
 -- 9. Quizzes Table
 DROP POLICY IF EXISTS "Quizzes Select" ON quizzes;
 CREATE POLICY "Quizzes Select" ON quizzes FOR SELECT TO anon
 USING (
-  current_app_role() = 'admin'
+  is_admin(current_app_user())
   OR teacher_id = current_app_user()
   OR (
     status = 'published' AND
-    EXISTS (SELECT 1 FROM enrollments e WHERE e.course_id = quizzes.course_id AND e.student_id = current_app_user())
+    EXISTS (SELECT 1 FROM enrollments WHERE course_id = quizzes.course_id AND student_id = current_app_user())
   )
 );
 DROP POLICY IF EXISTS "Quizzes Manage" ON quizzes;
 CREATE POLICY "Quizzes Manage" ON quizzes FOR ALL TO anon
-USING (current_app_role() = 'admin' OR teacher_id = current_app_user());
+USING (is_admin(current_app_user()) OR teacher_id = current_app_user());
 
 -- 10. Quiz Submissions Table
 DROP POLICY IF EXISTS "Quiz Submissions Select" ON quiz_submissions;
 CREATE POLICY "Quiz Submissions Select" ON quiz_submissions FOR SELECT TO anon
 USING (
-  current_app_role() = 'admin'
+  is_admin(current_app_user())
   OR student_id = current_app_user()
-  OR EXISTS (SELECT 1 FROM quizzes q WHERE q.id = quiz_submissions.quiz_id AND q.teacher_id = current_app_user())
+  OR is_quiz_teacher(quiz_id, current_app_user())
 );
 DROP POLICY IF EXISTS "Quiz Submissions Manage" ON quiz_submissions;
 CREATE POLICY "Quiz Submissions Manage" ON quiz_submissions FOR ALL TO anon
 USING (
-  current_app_role() = 'admin'
+  is_admin(current_app_user())
   OR student_id = current_app_user()
-  OR EXISTS (SELECT 1 FROM quizzes q WHERE q.id = quiz_submissions.quiz_id AND q.teacher_id = current_app_user())
+  OR is_quiz_teacher(quiz_id, current_app_user())
 );
 
 -- 11. Anti-Cheat Logs Table
 DROP POLICY IF EXISTS "anti_cheat_logs_admin_policy" ON anti_cheat_logs;
 CREATE POLICY "anti_cheat_logs_admin_policy" ON anti_cheat_logs FOR ALL TO anon
-USING (current_app_role() = 'admin');
+USING (is_admin(current_app_user()));
 DROP POLICY IF EXISTS "anti_cheat_logs_teacher_policy" ON anti_cheat_logs;
 CREATE POLICY "anti_cheat_logs_teacher_policy" ON anti_cheat_logs FOR SELECT TO anon
 USING (
-  current_app_role() = 'teacher' AND
-  EXISTS (
-    SELECT 1 FROM courses c
-    WHERE c.id = anti_cheat_logs.course_id AND c.teacher_id = current_app_user()
-  )
+  is_teacher(current_app_user()) AND
+  EXISTS (SELECT 1 FROM courses WHERE id = anti_cheat_logs.course_id AND teacher_id = current_app_user())
 );
 DROP POLICY IF EXISTS "anti_cheat_logs_student_select_policy" ON anti_cheat_logs;
 CREATE POLICY "anti_cheat_logs_student_select_policy" ON anti_cheat_logs FOR SELECT TO anon
@@ -797,54 +838,49 @@ WITH CHECK (user_id = current_app_user());
 DROP POLICY IF EXISTS "Materials Select" ON materials;
 CREATE POLICY "Materials Select" ON materials FOR SELECT TO anon
 USING (
-  current_app_role() = 'admin'
+  is_admin(current_app_user())
   OR teacher_id = current_app_user()
-  OR EXISTS (SELECT 1 FROM enrollments e WHERE e.course_id = materials.course_id AND e.student_id = current_app_user())
+  OR EXISTS (SELECT 1 FROM enrollments WHERE course_id = materials.course_id AND student_id = current_app_user())
 );
 DROP POLICY IF EXISTS "Materials Manage" ON materials;
 CREATE POLICY "Materials Manage" ON materials FOR ALL TO anon
-USING (current_app_role() = 'admin' OR teacher_id = current_app_user());
+USING (is_admin(current_app_user()) OR teacher_id = current_app_user());
 
 -- 13. Discussions Table
 DROP POLICY IF EXISTS "Discussions Select" ON discussions;
 CREATE POLICY "Discussions Select" ON discussions FOR SELECT TO anon
 USING (
-  current_app_role() = 'admin'
+  is_admin(current_app_user())
   OR user_id = current_app_user()
-  OR EXISTS (
-    SELECT 1 FROM courses c
-    LEFT JOIN enrollments e ON e.course_id = c.id
-    WHERE c.id = discussions.course_id
-    AND (c.teacher_id = current_app_user() OR e.student_id = current_app_user())
-  )
+  OR EXISTS (SELECT 1 FROM courses WHERE id = discussions.course_id AND teacher_id = current_app_user())
+  OR EXISTS (SELECT 1 FROM enrollments WHERE course_id = discussions.course_id AND student_id = current_app_user())
 );
 DROP POLICY IF EXISTS "Discussions Manage" ON discussions;
 CREATE POLICY "Discussions Manage" ON discussions FOR ALL TO anon
-USING (current_app_role() = 'admin' OR user_id = current_app_user());
+USING (is_admin(current_app_user()) OR user_id = current_app_user());
 
 -- 14. Notifications Table
 DROP POLICY IF EXISTS "Notifications SELECT" ON notifications;
 CREATE POLICY "Notifications SELECT" ON notifications FOR SELECT TO anon
 USING (
     user_id = current_app_user()
-    OR (current_app_role() = 'admin')
+    OR is_admin(current_app_user())
     OR (
-        current_app_role() = 'teacher' AND
+        is_teacher(current_app_user()) AND
         EXISTS (
-            SELECT 1 FROM enrollments e
-            JOIN courses c ON e.course_id = c.id
-            WHERE e.student_id = notifications.user_id
-            AND c.teacher_id = current_app_user()
+            SELECT 1 FROM enrollments
+            WHERE student_id = notifications.user_id
+            AND course_id IN (SELECT id FROM courses WHERE teacher_id = current_app_user())
         )
     )
 );
 DROP POLICY IF EXISTS "Notifications UPDATE" ON notifications;
 CREATE POLICY "Notifications UPDATE" ON notifications FOR UPDATE TO anon
-USING (user_id = current_app_user() OR current_app_role() = 'admin')
-WITH CHECK (user_id = current_app_user() OR current_app_role() = 'admin');
+USING (user_id = current_app_user() OR is_admin(current_app_user()))
+WITH CHECK (user_id = current_app_user() OR is_admin(current_app_user()));
 DROP POLICY IF EXISTS "Notifications DELETE" ON notifications;
 CREATE POLICY "Notifications DELETE" ON notifications FOR DELETE TO anon
-USING (user_id = current_app_user() OR current_app_role() = 'admin');
+USING (user_id = current_app_user() OR is_admin(current_app_user()));
 DROP POLICY IF EXISTS "Notifications INSERT" ON notifications;
 CREATE POLICY "Notifications INSERT" ON notifications FOR INSERT TO anon
 WITH CHECK (current_app_user() IS NOT NULL);
@@ -852,63 +888,64 @@ WITH CHECK (current_app_user() IS NOT NULL);
 -- 15. Sessions Table
 DROP POLICY IF EXISTS "Strict Backend Access" ON sessions;
 CREATE POLICY "Strict Backend Access" ON sessions FOR ALL TO anon
-USING (user_id = current_app_user() OR current_app_role() = 'admin');
+USING (true); -- Managed by SECURITY DEFINER functions current_app_user()
 
 -- 16. Broadcasts Table
 DROP POLICY IF EXISTS "Broadcasts Select" ON broadcasts;
 CREATE POLICY "Broadcasts Select" ON broadcasts FOR SELECT TO anon
 USING (
-  current_app_role() = 'admin'
+  is_admin(current_app_user())
   OR (
-    (target_role IS NULL OR target_role = current_app_role())
+    (target_role IS NULL OR target_role = get_user_role(current_app_user()))
     AND (
       course_id IS NULL
-      OR EXISTS (SELECT 1 FROM enrollments e WHERE e.course_id = broadcasts.course_id AND e.student_id = current_app_user())
-      OR EXISTS (SELECT 1 FROM courses c WHERE c.id = broadcasts.course_id AND c.teacher_id = current_app_user())
+      OR EXISTS (SELECT 1 FROM enrollments WHERE course_id = broadcasts.course_id AND student_id = current_app_user())
+      OR EXISTS (SELECT 1 FROM courses WHERE id = broadcasts.course_id AND teacher_id = current_app_user())
     )
   )
 );
 DROP POLICY IF EXISTS "Broadcasts Manage" ON broadcasts;
 CREATE POLICY "Broadcasts Manage" ON broadcasts FOR ALL TO anon
-USING (current_app_role() = 'admin');
+USING (is_admin(current_app_user()));
 
 -- 17. Maintenance Table
 DROP POLICY IF EXISTS "Maintenance Select" ON maintenance;
 CREATE POLICY "Maintenance Select" ON maintenance FOR SELECT TO anon USING (true);
 DROP POLICY IF EXISTS "Maintenance Manage" ON maintenance;
-CREATE POLICY "Maintenance Manage" ON maintenance FOR ALL TO anon USING (current_app_role() = 'admin');
+CREATE POLICY "Maintenance Manage" ON maintenance FOR ALL TO anon USING (is_admin(current_app_user()));
 
 -- 18. Planner Table
 DROP POLICY IF EXISTS "Planner Access" ON planner;
 CREATE POLICY "Planner Access" ON planner FOR ALL TO anon
-USING (user_id = current_app_user() OR current_app_role() = 'admin');
+USING (user_id = current_app_user() OR is_admin(current_app_user()));
 
 -- 19. Lesson Completions Table
 DROP POLICY IF EXISTS "Lesson Completions Select" ON lesson_completions;
 CREATE POLICY "Lesson Completions Select" ON lesson_completions FOR SELECT TO anon
 USING (
-  current_app_role() = 'admin'
+  is_admin(current_app_user())
   OR student_id = current_app_user()
   OR EXISTS (
     SELECT 1 FROM lessons l
     JOIN courses c ON c.id = l.course_id
-    WHERE l.id = lesson_completions.lesson_id AND c.teacher_id = current_app_user()
+    WHERE l.id = lesson_completions.lesson_id
+    AND c.teacher_id = current_app_user()
   )
 );
 DROP POLICY IF EXISTS "Lesson Completions Manage" ON lesson_completions;
 CREATE POLICY "Lesson Completions Manage" ON lesson_completions FOR ALL TO anon
-USING (current_app_role() = 'admin' OR student_id = current_app_user());
+USING (is_admin(current_app_user()) OR student_id = current_app_user());
 
 -- 20. System Logs Table
 DROP POLICY IF EXISTS "System Logs Select" ON system_logs;
 CREATE POLICY "System Logs Select" ON system_logs FOR SELECT TO anon
-USING (current_app_role() = 'admin');
+USING (is_admin(current_app_user()));
 DROP POLICY IF EXISTS "System Logs Insert" ON system_logs;
 CREATE POLICY "System Logs Insert" ON system_logs FOR INSERT TO anon
 WITH CHECK (current_app_user() IS NOT NULL);
 DROP POLICY IF EXISTS "System Logs Manage" ON system_logs;
 CREATE POLICY "System Logs Manage" ON system_logs FOR ALL TO anon
-USING (current_app_role() = 'admin');
+USING (is_admin(current_app_user()));
 
 -- 21. Support Tickets Table
 DROP POLICY IF EXISTS "Support Tickets Access" ON support_tickets;
@@ -916,11 +953,11 @@ CREATE POLICY "Support Tickets Access" ON support_tickets FOR ALL TO anon
 USING (
     user_id = current_app_user()
     OR assigned_to = current_app_user()
-    OR current_app_role() = 'admin'
+    OR is_admin(current_app_user())
 )
 WITH CHECK (
     user_id = current_app_user()
-    OR current_app_role() = 'admin'
+    OR is_admin(current_app_user())
     OR assigned_to = current_app_user()
 );
 
@@ -930,7 +967,7 @@ CREATE POLICY "Settings Select" ON settings FOR SELECT TO anon
 USING (current_app_user() IS NOT NULL);
 DROP POLICY IF EXISTS "Settings Manage" ON settings;
 CREATE POLICY "Settings Manage" ON settings FOR ALL TO anon
-USING (current_app_role() = 'admin');
+USING (is_admin(current_app_user()));
 
 -- ==========================================
 -- 8. Initial Data

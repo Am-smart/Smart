@@ -3,7 +3,7 @@ import { systemDb } from '../database/system.db';
 import { User } from '../types';
 import { UserDomain } from '../domain/user.domain';
 import { validatePassword } from '../validation';
-import { sessionManager } from '../auth/server-session';
+import { serverSessionCache } from '../auth/server-session';
 import { UserMapper } from '../mappers';
 import { rbac } from '../auth/rbac';
 import { comparePassword, hashPassword, generateToken, hashToken } from '../crypto';
@@ -13,7 +13,7 @@ export class AuthService {
   async validateSession(token: string): Promise<User | null> {
     const tokenHash = await hashToken(token);
 
-    const cachedUser = sessionManager.get(tokenHash);
+    const cachedUser = serverSessionCache.get(tokenHash);
     if (cachedUser) {
         return { ...cachedUser, sessionId: tokenHash } as User;
     }
@@ -28,7 +28,7 @@ export class AuthService {
     const userDTO = UserMapper.toDTO(user);
     if (!userDTO) return null;
 
-    sessionManager.set(tokenHash, userDTO);
+    serverSessionCache.set(tokenHash, userDTO);
 
     return { ...user, sessionId: tokenHash } as User;
   }
@@ -47,7 +47,7 @@ export class AuthService {
   async logout(token: string): Promise<void> {
     const tokenHash = await hashToken(token);
     await authDb.deleteSessionByHash(tokenHash);
-    sessionManager.invalidate(tokenHash);
+    serverSessionCache.invalidate(tokenHash);
   }
 
   async authenticate(email: string, password?: string) {
@@ -112,6 +112,8 @@ export class AuthService {
     }
 
     await authDb.updateUserRaw(user.id, { last_login: now.toISOString(), failed_attempts: 0, locked_until: null });
+
+    // Explicitly create session and get token
     const token = await this.createSession(user.id);
 
     const { systemService } = await import('./system.service');
@@ -158,6 +160,8 @@ export class AuthService {
     if (error) return { data: null, error };
 
     const newUser = userData as User;
+
+    // Explicitly create session and get token
     const token = await this.createSession(newUser.id);
 
     return {

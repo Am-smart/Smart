@@ -1,14 +1,14 @@
 import { UserDTO } from '../types';
+import { SESSION } from '../constants';
 
 interface CachedSession {
   user: UserDTO;
   expiresAt: number;
 }
 
-const SESSION_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 const sessionCache = new Map<string, CachedSession>();
 
-export const sessionManager = {
+export const serverSessionCache = {
   get(sessionId: string): UserDTO | null {
     const cached = sessionCache.get(sessionId);
     if (!cached) return null;
@@ -24,7 +24,7 @@ export const sessionManager = {
   set(sessionId: string, user: UserDTO): void {
     sessionCache.set(sessionId, {
       user,
-      expiresAt: Date.now() + SESSION_CACHE_TTL
+      expiresAt: Date.now() + SESSION.CACHE_EXPIRY_MS
     });
   },
 

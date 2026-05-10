@@ -4,7 +4,7 @@
  */
 
 const REQUIRED_SERVER_ENV_VARS = [
-  'SESSION_SECRET',
+  'SUPABASE_SERVICE_ROLE_KEY',
 ] as const;
 
 const REQUIRED_PUBLIC_ENV_VARS = [
