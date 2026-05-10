@@ -635,6 +635,30 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql STABLE SECURITY DEFINER;
 
+-- Helper to check lesson course ownership
+CREATE OR REPLACE FUNCTION is_lesson_teacher(p_lesson_id UUID, p_user_id UUID)
+RETURNS BOOLEAN AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM lessons l
+    JOIN courses c ON c.id = l.course_id
+    WHERE l.id = p_lesson_id AND c.teacher_id = p_user_id
+  );
+END;
+$$ LANGUAGE plpgsql STABLE SECURITY DEFINER;
+
+-- Helper to check if a user is a teacher of a specific student
+CREATE OR REPLACE FUNCTION is_teacher_of_student(p_teacher_id UUID, p_student_id UUID)
+RETURNS BOOLEAN AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM enrollments e
+    JOIN courses c ON c.id = e.course_id
+    WHERE e.student_id = p_student_id AND c.teacher_id = p_teacher_id
+  );
+END;
+$$ LANGUAGE plpgsql STABLE SECURITY DEFINER;
+
 -- ==========================================
 -- 7. Security (RLS Policies)
 -- ==========================================
@@ -692,7 +716,7 @@ CREATE POLICY "Courses Select" ON courses FOR SELECT TO anon
 USING (
   is_admin(current_app_user())
   OR teacher_id = current_app_user()
-  OR EXISTS (SELECT 1 FROM enrollments WHERE course_id = courses.id AND student_id = current_app_user())
+  OR is_enrolled(id, current_app_user())
   OR status = 'published'
 );
 DROP POLICY IF EXISTS "Courses Manage" ON courses;
@@ -704,14 +728,14 @@ DROP POLICY IF EXISTS "Lessons Select" ON lessons;
 CREATE POLICY "Lessons Select" ON lessons FOR SELECT TO anon
 USING (
   is_admin(current_app_user())
-  OR EXISTS (SELECT 1 FROM courses WHERE id = lessons.course_id AND teacher_id = current_app_user())
-  OR EXISTS (SELECT 1 FROM enrollments WHERE course_id = lessons.course_id AND student_id = current_app_user())
+  OR is_course_teacher(course_id, current_app_user())
+  OR is_enrolled(course_id, current_app_user())
 );
 DROP POLICY IF EXISTS "Lessons Manage" ON lessons;
 CREATE POLICY "Lessons Manage" ON lessons FOR ALL TO anon
 USING (
   is_admin(current_app_user())
-  OR EXISTS (SELECT 1 FROM courses WHERE id = lessons.course_id AND teacher_id = current_app_user())
+  OR is_course_teacher(course_id, current_app_user())
 );
 
 -- 4. Enrollments Table
@@ -721,7 +745,7 @@ CREATE POLICY "Enrollments Select" ON enrollments FOR SELECT TO anon
 USING (
   student_id = current_app_user()
   OR is_admin(current_app_user())
-  OR EXISTS (SELECT 1 FROM courses WHERE id = enrollments.course_id AND teacher_id = current_app_user())
+  OR is_course_teacher(course_id, current_app_user())
 );
 DROP POLICY IF EXISTS "Enrollments Manage" ON enrollments;
 CREATE POLICY "Enrollments Manage" ON enrollments FOR ALL TO anon
@@ -735,7 +759,7 @@ USING (
   OR teacher_id = current_app_user()
   OR (
     status = 'published' AND
-    EXISTS (SELECT 1 FROM enrollments WHERE course_id = assignments.course_id AND student_id = current_app_user())
+    is_enrolled(course_id, current_app_user())
   )
 );
 DROP POLICY IF EXISTS "Assignments Manage" ON assignments;
@@ -764,7 +788,7 @@ CREATE POLICY "Live Classes Select" ON live_classes FOR SELECT TO anon
 USING (
   is_admin(current_app_user())
   OR teacher_id = current_app_user()
-  OR EXISTS (SELECT 1 FROM enrollments WHERE course_id = live_classes.course_id AND student_id = current_app_user())
+  OR is_enrolled(course_id, current_app_user())
 );
 DROP POLICY IF EXISTS "Live Classes Manage" ON live_classes;
 CREATE POLICY "Live Classes Manage" ON live_classes FOR ALL TO anon
@@ -794,7 +818,7 @@ USING (
   OR teacher_id = current_app_user()
   OR (
     status = 'published' AND
-    EXISTS (SELECT 1 FROM enrollments WHERE course_id = quizzes.course_id AND student_id = current_app_user())
+    is_enrolled(course_id, current_app_user())
   )
 );
 DROP POLICY IF EXISTS "Quizzes Manage" ON quizzes;
@@ -825,7 +849,7 @@ DROP POLICY IF EXISTS "anti_cheat_logs_teacher_policy" ON anti_cheat_logs;
 CREATE POLICY "anti_cheat_logs_teacher_policy" ON anti_cheat_logs FOR SELECT TO anon
 USING (
   is_teacher(current_app_user()) AND
-  EXISTS (SELECT 1 FROM courses WHERE id = anti_cheat_logs.course_id AND teacher_id = current_app_user())
+  is_course_teacher(course_id, current_app_user())
 );
 DROP POLICY IF EXISTS "anti_cheat_logs_student_select_policy" ON anti_cheat_logs;
 CREATE POLICY "anti_cheat_logs_student_select_policy" ON anti_cheat_logs FOR SELECT TO anon
@@ -840,7 +864,7 @@ CREATE POLICY "Materials Select" ON materials FOR SELECT TO anon
 USING (
   is_admin(current_app_user())
   OR teacher_id = current_app_user()
-  OR EXISTS (SELECT 1 FROM enrollments WHERE course_id = materials.course_id AND student_id = current_app_user())
+  OR is_enrolled(course_id, current_app_user())
 );
 DROP POLICY IF EXISTS "Materials Manage" ON materials;
 CREATE POLICY "Materials Manage" ON materials FOR ALL TO anon
@@ -852,8 +876,8 @@ CREATE POLICY "Discussions Select" ON discussions FOR SELECT TO anon
 USING (
   is_admin(current_app_user())
   OR user_id = current_app_user()
-  OR EXISTS (SELECT 1 FROM courses WHERE id = discussions.course_id AND teacher_id = current_app_user())
-  OR EXISTS (SELECT 1 FROM enrollments WHERE course_id = discussions.course_id AND student_id = current_app_user())
+  OR is_course_teacher(course_id, current_app_user())
+  OR is_enrolled(course_id, current_app_user())
 );
 DROP POLICY IF EXISTS "Discussions Manage" ON discussions;
 CREATE POLICY "Discussions Manage" ON discussions FOR ALL TO anon
@@ -867,11 +891,7 @@ USING (
     OR is_admin(current_app_user())
     OR (
         is_teacher(current_app_user()) AND
-        EXISTS (
-            SELECT 1 FROM enrollments
-            WHERE student_id = notifications.user_id
-            AND course_id IN (SELECT id FROM courses WHERE teacher_id = current_app_user())
-        )
+        is_teacher_of_student(current_app_user(), user_id)
     )
 );
 DROP POLICY IF EXISTS "Notifications UPDATE" ON notifications;
@@ -899,8 +919,8 @@ USING (
     (target_role IS NULL OR target_role = get_user_role(current_app_user()))
     AND (
       course_id IS NULL
-      OR EXISTS (SELECT 1 FROM enrollments WHERE course_id = broadcasts.course_id AND student_id = current_app_user())
-      OR EXISTS (SELECT 1 FROM courses WHERE id = broadcasts.course_id AND teacher_id = current_app_user())
+      OR is_enrolled(course_id, current_app_user())
+      OR is_course_teacher(course_id, current_app_user())
     )
   )
 );
@@ -925,12 +945,7 @@ CREATE POLICY "Lesson Completions Select" ON lesson_completions FOR SELECT TO an
 USING (
   is_admin(current_app_user())
   OR student_id = current_app_user()
-  OR EXISTS (
-    SELECT 1 FROM lessons l
-    JOIN courses c ON c.id = l.course_id
-    WHERE l.id = lesson_completions.lesson_id
-    AND c.teacher_id = current_app_user()
-  )
+  OR is_lesson_teacher(lesson_id, current_app_user())
 );
 DROP POLICY IF EXISTS "Lesson Completions Manage" ON lesson_completions;
 CREATE POLICY "Lesson Completions Manage" ON lesson_completions FOR ALL TO anon

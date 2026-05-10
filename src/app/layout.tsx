@@ -13,6 +13,10 @@ export const metadata: Metadata = {
   title: "SmartLMS - Modern Learning Platform",
   description: "Empower your education with our all-in-one learning management system.",
   manifest: "/manifest.json",
+  icons: {
+    icon: "/window.svg",
+    apple: "/window.svg",
+  },
 };
 
 export default function RootLayout({
