@@ -26,7 +26,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const { setCache, getCache, addToQueue, isOnline, pullData } = useIndexedDB();
 
   const logout = useCallback(async () => {
-    sessionManager.cleanupSession();
     const res = await actions.logout();
     if (!res.success) {
         console.error('Logout failed:', res.error);
@@ -49,8 +48,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           const user = userDTO as User;
           await setCache('current_user', user);
           setState({ user, role: user.role, isLoading: false });
-          // Initialize session timeout tracking
-          sessionManager.initSession();
           // Background pull
           pullData(user.id, user.role);
           return;
@@ -63,7 +60,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const cachedUser = await getCache<User>('current_user');
         if (cachedUser) {
             setState({ user: cachedUser, role: cachedUser.role, isLoading: false });
-            sessionManager.initSession();
         } else {
             setState(prev => ({ ...prev, isLoading: false }));
         }
