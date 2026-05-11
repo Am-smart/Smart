@@ -70,17 +70,17 @@ export class AuthService {
       return { data: { success: false, error: `Account locked until ${new Date(user.locked_until).toLocaleTimeString()}` }, error: null };
     }
 
-    if (user.reset_request && (user.reset_request as any).status === 'approved_used') {
+    if (user.reset_request && user.reset_request.status === 'approved_used') {
        return { data: { success: false, error: 'Your session has expired. You must change your password using the secure prompt provided during your first login.' }, error: null };
     }
 
     const isPasswordValid = password && user.password && await comparePassword(password, user.password);
     if (!isPasswordValid) {
       if (user.reset_request) {
-        const reset = user.reset_request as any;
+        const reset = user.reset_request;
         if (reset.status === 'pending') {
           return { data: { success: false, error: 'Your password reset request is under review.' }, error: null };
-        } else if (reset.status === 'approved') {
+        } else if (reset.status === 'approved' && reset.expires_at) {
           if (new Date(reset.expires_at) > now) {
             return { data: { success: false, error: `Reset approved. Your temp password is: ${reset.temp_password}` }, error: null };
           }
@@ -102,12 +102,12 @@ export class AuthService {
       return { data: { success: false, error: 'Invalid email or password' }, error: null };
     }
 
-    if (user.reset_request && (user.reset_request as any).status === 'approved') {
-       const reset = user.reset_request as any;
-       if (new Date(reset.expires_at) < now) {
+    if (user.reset_request && user.reset_request.status === 'approved') {
+       const reset = user.reset_request;
+       if (reset.expires_at && new Date(reset.expires_at) < now) {
           return { data: { success: false, error: 'Temporary password has expired. Please request a new one.' }, error: null };
        }
-       const newResetRequest = { ...reset, status: 'approved_used' };
+       const newResetRequest: NonNullable<User['reset_request']> = { ...reset, status: 'approved_used' };
        delete newResetRequest.temp_password;
 
        // Use atomic consumption to prevent race conditions
@@ -182,7 +182,7 @@ export class AuthService {
     };
   }
 
-  async createUser(currentUser: User, data: { full_name: string; email: string; password?: string; phone?: string; role: string }) {
+  async createUser(currentUser: User, data: { full_name: string; email: string; password?: string; phone?: string; role: string }): Promise<User | null> {
     if (!rbac.can(currentUser, 'user:manage')) {
         throw new Error('Forbidden: Only admins can create users directly');
     }
@@ -197,11 +197,14 @@ export class AuthService {
     }
 
     const hashedPassword = await hashPassword(data.password);
-    return authDb.register({
+    const { data: userData, error } = await authDb.register({
       ...data,
       password: hashedPassword,
       active: true
     });
+
+    if (error) throw new Error('Failed to create user in database');
+    return userData;
   }
 
   async updatePassword(currentPass: string, newPass: string, token: string) {
@@ -227,15 +230,15 @@ export class AuthService {
     if (!user) return { success: false, error: 'No account found with this email.' };
 
     if (user.reset_request) {
-      const reset = user.reset_request as any;
+      const reset = user.reset_request;
       if (reset.status === 'pending') {
         return { success: false, error: 'A request is already under review for this account.' };
-      } else if (reset.status === 'approved' && new Date(reset.expires_at) > new Date()) {
+      } else if (reset.status === 'approved' && reset.expires_at && new Date(reset.expires_at) > new Date()) {
         return { success: false, error: `Reset approved. Temp Password: ${reset.temp_password}` };
       }
     }
 
-    const resetRequest = {
+    const resetRequest: NonNullable<User['reset_request']> = {
       requested_at: new Date().toISOString(),
       status: 'pending',
       reason,
@@ -256,8 +259,8 @@ export class AuthService {
     const user = await systemDb.findUserById(userId, currentUser.sessionId);
     if (!user) throw new Error('User not found');
 
-    const resetRequest = {
-      ...(user.reset_request as any || {}),
+    const resetRequest: NonNullable<User['reset_request']> = {
+      ...(user.reset_request || { status: 'pending', requested_at: new Date().toISOString() }),
       status: 'approved',
       temp_password: tempPassword,
       approved_at: new Date().toISOString(),
@@ -278,8 +281,8 @@ export class AuthService {
     const user = await systemDb.findUserById(userId, currentUser.sessionId);
     if (!user) throw new Error('User not found');
 
-    const resetRequest = {
-      ...(user.reset_request as any || {}),
+    const resetRequest: NonNullable<User['reset_request']> = {
+      ...(user.reset_request || { status: 'pending', requested_at: new Date().toISOString() }),
       status: 'denied',
       denial_reason: reason
     };
@@ -289,7 +292,7 @@ export class AuthService {
     return { success: true };
   }
 
-  async updatePreferences(preferences: object, currentUser: User) {
+  async updatePreferences(preferences: Record<string, boolean>, currentUser: User) {
     await authDb.updateUserRaw(currentUser.id, { notification_preferences: preferences }, currentUser.sessionId);
     return { success: true };
   }

@@ -16,13 +16,70 @@ export class SystemService {
   async createLogAsync(log: SystemLog): Promise<void> {
     const { taskQueue } = await import('../queue/task-queue');
     taskQueue.enqueue(async () => {
-      await this.createLog(log);
+        // Use systemService instance to ensure proper this context
+        await systemService.createLog(log);
     });
   }
 
   // Anti-Cheat Logs
   async createAntiCheatLog(log: AntiCheatLog, sessionId?: string): Promise<void> {
-    return systemDb.createAntiCheatLog(log, sessionId);
+    // Distributed-safe rate limiting via database check
+    const recentUserLogs = await systemDb.findAllAntiCheatLogs(sessionId || '', {
+        user_id: log.user_id,
+        limit: 1
+    });
+
+    if (recentUserLogs.length > 0) {
+        const lastLog = recentUserLogs[0];
+        if (lastLog.created_at) {
+            const lastTime = new Date(lastLog.created_at).getTime();
+            if (Date.now() - lastTime < 1000) {
+                console.warn(`[Anti-Cheat] Rate limit exceeded for user ${log.user_id} (distributed)`);
+                return;
+            }
+        }
+    }
+
+    await systemDb.createAntiCheatLog(log, sessionId);
+
+    // Automated Violation Threshold Response
+    const { ANTI_CHEAT } = await import('../constants');
+    const recentLogs = await systemDb.findAllAntiCheatLogs(sessionId || '', {
+        user_id: log.user_id,
+        course_id: log.course_id,
+        limit: ANTI_CHEAT.MAX_VIOLATIONS
+    });
+
+    if (recentLogs.length >= ANTI_CHEAT.MAX_VIOLATIONS) {
+        // Threshold exceeded - flag user and notify admin
+        const user = await systemDb.findUserById(log.user_id, sessionId);
+        if (user && !user.flagged) {
+            await systemDb.updateUser(user.id, { flagged: true, version: user.version }, sessionId || '');
+            await systemService.createLogAsync({
+                level: 'warn',
+                category: 'security',
+                message: `User ${user.full_name} automatically flagged due to excessive anti-cheat violations (${recentLogs.length}).`,
+                user_id: user.id,
+                course_id: log.course_id,
+                metadata: { violations: recentLogs.length, last_type: log.type }
+            });
+
+            // Notify Admins
+            const { supabase } = await import('../supabase');
+            const { data: admins } = await supabase.from('users').select('id').eq('role', 'admin');
+            if (admins) {
+                for (const admin of admins) {
+                    await this.notifyUser({
+                        target_id: admin.id,
+                        n_title: 'Security Alert: User Flagged',
+                        n_msg: `Student ${user.full_name} has been flagged for ${recentLogs.length} anti-cheat violations in course.`,
+                        n_type: 'security',
+                        metadata: { student_id: user.id, course_id: log.course_id }
+                    }, sessionId || '');
+                }
+            }
+        }
+    }
   }
 
   async getAntiCheatLogs(

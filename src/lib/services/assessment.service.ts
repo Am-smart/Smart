@@ -1,6 +1,4 @@
 import { assessmentDb } from '../database/assessment.db';
-import { learningService } from './learning.service';
-import { systemService } from './system.service';
 import { Assignment, Quiz, Submission, QuizSubmission, QuizQuestion, User } from '../types';
 import { AssessmentDomain } from '../domain/assessment.domain';
 import { SUBMISSION_STATUS } from '../constants';
@@ -10,6 +8,7 @@ export class AssessmentService {
   // Assignments
   async getAssignments(teacherId?: string, courseId?: string, sessionId?: string, limit?: number, offset?: number, userId?: string, userRole?: string): Promise<Assignment[]> {
     if (userRole === 'student' && userId) {
+        const { systemService } = await import('./system.service');
         const enrollments = await systemService.getStudentEnrollments(userId, sessionId!);
         const enrolledCourseIds = enrollments.map(e => e.course_id);
 
@@ -37,6 +36,7 @@ export class AssessmentService {
 
         if (!courseId) throw new Error('Course ID is required');
 
+        const { learningService } = await import('./learning.service');
         const course = await learningService.getCourse(courseId, sessionId);
         if (course.teacher_id !== currentUser.id) {
             throw new ForbiddenError('Unauthorized: You can only manage assignments for your own courses');
@@ -50,6 +50,7 @@ export class AssessmentService {
 
     // Trigger Notification (Migrated from tr_assignment_published)
     if (saved.status === 'published' && (!existing || existing.status !== 'published')) {
+        const { systemService } = await import('./system.service');
         await systemService.createBroadcast({
             course_id: saved.course_id,
             target_role: 'student',
@@ -68,6 +69,7 @@ export class AssessmentService {
     if (currentUser && currentUser.role === 'teacher') {
         const assignment = await assessmentDb.findAssignmentById(id, sessionId);
         if (assignment) {
+            const { learningService } = await import('./learning.service');
             const course = await learningService.getCourse(assignment.course_id, sessionId);
             if (course.teacher_id !== currentUser.id) {
                 throw new ForbiddenError('Unauthorized: You can only manage assignments for your own courses');
@@ -80,6 +82,7 @@ export class AssessmentService {
   // Quizzes
   async getQuizzes(courseId?: string, teacherId?: string, sessionId?: string, limit?: number, offset?: number, userId?: string, userRole?: string): Promise<Quiz[]> {
     if (userRole === 'student' && userId) {
+        const { systemService } = await import('./system.service');
         const enrollments = await systemService.getStudentEnrollments(userId, sessionId!);
         const enrolledCourseIds = enrollments.map(e => e.course_id);
 
@@ -107,6 +110,7 @@ export class AssessmentService {
 
         if (!courseId) throw new Error('Course ID is required');
 
+        const { learningService } = await import('./learning.service');
         const course = await learningService.getCourse(courseId, sessionId);
         if (course.teacher_id !== currentUser.id) {
             throw new ForbiddenError('Unauthorized: You can only manage quizzes for your own courses');
@@ -120,6 +124,7 @@ export class AssessmentService {
 
     // Trigger Notification (Migrated from tr_quiz_published)
     if (saved.status === 'published' && (!existing || existing.status !== 'published')) {
+        const { systemService } = await import('./system.service');
         await systemService.createBroadcast({
             course_id: saved.course_id,
             target_role: 'student',
@@ -138,6 +143,7 @@ export class AssessmentService {
     if (currentUser && currentUser.role === 'teacher') {
         const quiz = await assessmentDb.findQuizById(id, sessionId);
         if (quiz) {
+            const { learningService } = await import('./learning.service');
             const course = await learningService.getCourse(quiz.course_id, sessionId);
             if (course.teacher_id !== currentUser.id) {
                 throw new ForbiddenError('Unauthorized: You can only manage quizzes for your own courses');
@@ -215,6 +221,7 @@ export class AssessmentService {
 
     // Trigger Notification (Migrated from tr_submission_graded)
     if (submission.status !== SUBMISSION_STATUS.GRADED) {
+        const { systemService } = await import('./system.service');
         await systemService.notifyUser({
             target_id: updated.student_id,
             n_title: 'Assignment Graded',
