@@ -182,7 +182,7 @@ export class AuthService {
     };
   }
 
-  async createUser(currentUser: User, data: { full_name: string; email: string; password?: string; phone?: string; role: string }) {
+  async createUser(currentUser: User, data: { full_name: string; email: string; password?: string; phone?: string; role: string }): Promise<User | null> {
     if (!rbac.can(currentUser, 'user:manage')) {
         throw new Error('Forbidden: Only admins can create users directly');
     }
@@ -197,11 +197,14 @@ export class AuthService {
     }
 
     const hashedPassword = await hashPassword(data.password);
-    return authDb.register({
+    const { data: userData, error } = await authDb.register({
       ...data,
       password: hashedPassword,
       active: true
     });
+
+    if (error) throw new Error('Failed to create user in database');
+    return userData;
   }
 
   async updatePassword(currentPass: string, newPass: string, token: string) {
@@ -235,7 +238,7 @@ export class AuthService {
       }
     }
 
-    const resetRequest = {
+    const resetRequest: NonNullable<User['reset_request']> = {
       requested_at: new Date().toISOString(),
       status: 'pending',
       reason,
@@ -289,7 +292,7 @@ export class AuthService {
     return { success: true };
   }
 
-  async updatePreferences(preferences: object, currentUser: User) {
+  async updatePreferences(preferences: Record<string, boolean>, currentUser: User) {
     await authDb.updateUserRaw(currentUser.id, { notification_preferences: preferences }, currentUser.sessionId);
     return { success: true };
   }

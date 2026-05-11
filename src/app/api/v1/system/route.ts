@@ -169,7 +169,7 @@ export const POST = withHandler(async (user, request) => {
             return UserMapper.toDTO(updated);
         } else {
             // New User Creation by Admin
-            const { data: rawData, error: serviceError } = await authService.createUser(user, {
+            const newUser = await authService.createUser(user, {
                 full_name: data.full_name,
                 email: data.email,
                 password: data.password,
@@ -177,11 +177,9 @@ export const POST = withHandler(async (user, request) => {
                 role: data.role
             });
 
-            if (serviceError) throw new Error('Failed to create user via service');
-            const result = rawData as { success: boolean, user: User, error?: string };
-            if (!result.success) throw new Error(result.error || 'User creation failed');
+            if (!newUser) throw new Error('User creation failed');
 
-            return UserMapper.toDTO(result.user);
+            return UserMapper.toDTO(newUser);
         }
     }
     case 'save-planner': {

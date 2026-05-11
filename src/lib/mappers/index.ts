@@ -29,10 +29,9 @@ function toCleanDTO<T>(obj: unknown): T {
         }
     }
 
-    // Ensure common fields are present
-    if (!clean.created_at && (data.created_at || (obj as { created_at?: string }).created_at)) {
-        clean.created_at = data.created_at;
-    }
+    // Standardize common fields
+    const createdAt = (data.created_at || (obj as { created_at?: string }).created_at);
+    clean.created_at = createdAt || new Date().toISOString();
 
     if (!clean.updated_at && (data.updated_at || (obj as { updated_at?: string }).updated_at)) {
       clean.updated_at = data.updated_at;
@@ -74,21 +73,13 @@ export class UserMapper {
 
 export class CourseMapper {
   static toDTO(course: Course): CourseDTO {
-    const dto = toCleanDTO<CourseDTO>(course);
-    return {
-      ...dto,
-      created_at: course.created_at || new Date().toISOString(),
-      metadata: course.metadata || {}
-    };
+    return toCleanDTO<CourseDTO>(course);
   }
 }
 
 export class LearningMapper {
   static toLessonDTO(lesson: Lesson): LessonDTO {
-    return {
-      ...toCleanDTO<LessonDTO>(lesson),
-      created_at: lesson.created_at || new Date().toISOString()
-    };
+    return toCleanDTO<LessonDTO>(lesson);
   }
 
   static toMaterialDTO(material: Material): MaterialDTO {
@@ -103,16 +94,14 @@ export class AssessmentMapper {
   static toAssignmentDTO(assignment: Assignment): AssignmentDTO {
     return {
       ...toCleanDTO<AssignmentDTO>(assignment),
-      course: assignment.courses ? CourseMapper.toDTO(assignment.courses) : undefined,
-      metadata: assignment.metadata || {}
+      course: assignment.courses ? CourseMapper.toDTO(assignment.courses) : undefined
     };
   }
 
   static toQuizDTO(quiz: Quiz): QuizDTO {
     return {
       ...toCleanDTO<QuizDTO>(quiz),
-      course: quiz.courses ? CourseMapper.toDTO(quiz.courses) : undefined,
-      metadata: quiz.metadata || {}
+      course: quiz.courses ? CourseMapper.toDTO(quiz.courses) : undefined
     };
   }
 
