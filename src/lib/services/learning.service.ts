@@ -30,14 +30,6 @@ export class LearningService {
 
     const courseToSave = CourseDomain.create(course, teacherId, teacherName);
 
-    // Ensure category is preserved in metadata for backward compatibility if needed
-    if (course.category) {
-        courseToSave.metadata = {
-            ...courseToSave.metadata,
-            category: course.category
-        };
-    }
-
     return learningDb.upsertCourse(courseToSave, sessionId);
   }
 

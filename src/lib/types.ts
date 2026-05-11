@@ -86,7 +86,6 @@ export interface Course {
   status: 'draft' | 'published' | 'archived';
   teacher_id: string;
   max_enrollment?: number;
-  category?: string;
   thumbnail_url?: string;
   created_at?: string;
   updated_at?: string;
@@ -103,7 +102,6 @@ export interface CourseDTO {
   status: 'draft' | 'published' | 'archived';
   teacher_id: string;
   max_enrollment?: number;
-  category?: string;
   thumbnail_url?: string;
   created_at?: string;
   updated_at?: string;
