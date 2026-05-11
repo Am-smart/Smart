@@ -226,6 +226,21 @@ export const POST = withHandler(async (user, request) => {
         });
         return { filePath };
     }
+    case 'register-push': {
+        const { systemDb } = await import('@/lib/database/system.db');
+        const saved = await systemDb.upsertPushSubscription({
+            user_id: user.id,
+            endpoint: data.endpoint,
+            p256dh: data.keys.p256dh,
+            auth: data.keys.auth
+        }, user.sessionId!);
+        return SystemMapper.toPushSubscriptionDTO(saved);
+    }
+    case 'unregister-push': {
+        const { systemDb } = await import('@/lib/database/system.db');
+        await systemDb.deletePushSubscription(data.endpoint, user.sessionId!);
+        return { success: true };
+    }
     case 'save-ticket': {
         if (!rbac.can(user, 'ticket:create')) throw new UnauthorizedError();
         const saved = await systemService.saveSupportTicket(user, data, user.sessionId!);

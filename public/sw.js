@@ -15,6 +15,7 @@ self.addEventListener('install', (event) => {
       return cache.addAll(STATIC_ASSETS);
     })
   );
+  self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
@@ -25,6 +26,7 @@ self.addEventListener('activate', (event) => {
       );
     })
   );
+  self.clients.claim();
 });
 
 self.addEventListener('fetch', (event) => {
@@ -82,6 +84,52 @@ self.addEventListener('fetch', (event) => {
         return cachedResponse;
       });
       return cachedResponse || fetchPromise;
+    })
+  );
+});
+
+// Push Notification Handling
+self.addEventListener('push', (event) => {
+  if (!event.data) return;
+
+  try {
+    const data = event.data.json();
+    const options = {
+      body: data.body,
+      icon: data.icon || '/window.svg',
+      badge: '/window.svg',
+      tag: data.tag || (data.data && data.data.url) || 'smartlms-general', // Smart tag based on URL or fallback
+      renotify: true,
+      data: {
+        url: (data.data && data.data.url) || '/'
+      }
+    };
+
+    event.waitUntil(
+      self.registration.showNotification(data.title, options)
+    );
+  } catch (err) {
+    console.error('Error handling push event:', err);
+  }
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+
+  const urlToOpen = new URL(event.notification.data.url, self.location.origin).href;
+
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      // If a window client is already open, focus it and navigate to the URL
+      for (const client of clientList) {
+        if (client.url === urlToOpen && 'focus' in client) {
+          return client.focus();
+        }
+      }
+      // If no window client is open, open a new one
+      if (self.clients.openWindow) {
+        return self.clients.openWindow(urlToOpen);
+      }
     })
   );
 });

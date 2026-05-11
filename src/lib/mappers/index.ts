@@ -2,13 +2,14 @@ import {
   User, Course, Lesson, Material, UserRole,
   Assignment, Quiz, Submission, QuizSubmission,
   Notification, Broadcast, LiveClass, Discussion,
-  PlannerItem, Enrollment, Maintenance, Setting, SystemLog, Attendance, SupportTicket, AntiCheatLog
+  PlannerItem, Enrollment, Maintenance, Setting, SystemLog, Attendance, SupportTicket, AntiCheatLog,
+  PushSubscription
 } from '../types';
 import { UserDTO } from '../types';
 import { CourseDTO, LessonDTO, MaterialDTO } from '../types';
 import { AssignmentDTO, QuizDTO, SubmissionDTO, QuizSubmissionDTO } from '../types';
 import { NotificationDTO, BroadcastDTO, LiveClassDTO, DiscussionDTO, AttendanceDTO } from '../types';
-import { PlannerItemDTO, EnrollmentDTO, MaintenanceDTO, SettingDTO, SystemLogDTO, SupportTicketDTO, AntiCheatLogDTO } from '../types';
+import { PlannerItemDTO, EnrollmentDTO, MaintenanceDTO, SettingDTO, SystemLogDTO, SupportTicketDTO, AntiCheatLogDTO, PushSubscriptionDTO } from '../types';
 
 /**
  * Generic mapper utility to clean up objects before DTO conversion
@@ -207,5 +208,9 @@ export class SystemMapper {
       course: e.courses ? CourseMapper.toDTO(e.courses) : undefined,
       student: e.users ? (UserMapper.toDTO(e.users) || undefined) : undefined
     };
+  }
+
+  static toPushSubscriptionDTO(ps: PushSubscription): PushSubscriptionDTO {
+    return toCleanDTO<PushSubscriptionDTO>(ps);
   }
 }

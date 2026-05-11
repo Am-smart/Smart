@@ -6,6 +6,8 @@
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#2563eb",
+  "orientation": "portrait",
+  "scope": "/",
   "icons": [
     {
       "src": "/window.svg",
@@ -18,6 +20,29 @@
       "sizes": "512x512",
       "type": "image/svg+xml",
       "purpose": "any maskable"
+    },
+    {
+      "src": "/window.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "/window.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml"
     }
-  ]
+  ],
+  "shortcuts": [
+    {
+      "name": "My Courses",
+      "url": "/student/my-courses",
+      "icons": [{ "src": "/window.svg", "sizes": "192x192" }]
+    },
+    {
+      "name": "Schedule",
+      "url": "/student/calendar",
+      "icons": [{ "src": "/window.svg", "sizes": "192x192" }]
+    }
+  ],
+  "categories": ["education", "productivity"]
 }

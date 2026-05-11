@@ -200,7 +200,26 @@ export class SystemService {
 
   async saveDiscussionPost(currentUser: User, post: Partial<Discussion>, sessionId: string): Promise<Discussion> {
     const postToSave = CommunicationDomain.prepareDiscussion(post, currentUser.id);
-    return systemDb.upsertDiscussion(postToSave, sessionId);
+    const saved = await systemDb.upsertDiscussion(postToSave, sessionId);
+
+    // Notify parent post author if it's a reply
+    if (saved.parent_id) {
+        const { taskQueue } = await import('../queue/task-queue');
+        taskQueue.enqueue(async () => {
+            const { data: parent } = await supabase.from('discussions').select('user_id, title').eq('id', saved.parent_id).single();
+            if (parent && parent.user_id !== currentUser.id) {
+                await this.notifyUser({
+                    target_id: parent.user_id,
+                    n_title: 'New Reply on Discussion',
+                    n_msg: `${currentUser.full_name} replied to your post "${parent.title || 'Untitled'}"`,
+                    n_link: `course:${saved.course_id}`, // Deep link to course discussion
+                    n_type: 'discussion'
+                }, sessionId);
+            }
+        });
+    }
+
+    return saved;
   }
 
   async deleteDiscussionPost(currentUser: User, id: string, sessionId: string): Promise<void> {
@@ -264,6 +283,28 @@ export class SystemService {
       expires_at: params.expires_at,
       metadata: params.metadata || {}
     }, sessionId);
+
+    // Trigger Push Notification
+    const { taskQueue } = await import('../queue/task-queue');
+    taskQueue.enqueue(async () => {
+        const { pushService } = await import('./push.service');
+        const subscriptions = await systemDb.findPushSubscriptionsByUserId(params.target_id, sessionId);
+        if (subscriptions.length > 0) {
+            const results = await pushService.sendToMany(subscriptions, {
+                title: params.n_title,
+                body: params.n_msg,
+                data: { url: params.n_link || '/' }
+            });
+
+            // Cleanup invalid subscriptions
+            for (let i = 0; i < results.length; i++) {
+                const res = results[i];
+                if (res && !res.success && res.expired) {
+                    await systemDb.deletePushSubscription(subscriptions[i].endpoint, sessionId);
+                }
+            }
+        }
+    });
   }
 
   async getMergedNotifications(user: User, userId: string, sessionId: string): Promise<Notification[]> {
@@ -554,6 +595,27 @@ export class SystemService {
                 const chunk = notificationsToInsert.slice(i, i + 1000);
                 await supabase.from('notifications').insert(chunk);
             }
+
+            // Trigger Push Notifications for all targets
+            const { pushService } = await import('./push.service');
+            for (const userId of targetUserIds) {
+                const subscriptions = await systemDb.findPushSubscriptionsByUserId(userId, sessionId);
+                if (subscriptions.length > 0) {
+                    const results = await pushService.sendToMany(subscriptions, {
+                        title: createdBroadcast.title,
+                        body: createdBroadcast.message,
+                        data: { url: createdBroadcast.link || '/' }
+                    });
+
+                    // Cleanup invalid subscriptions
+                    for (let i = 0; i < results.length; i++) {
+                        const res = results[i];
+                        if (res && !res.success && res.expired) {
+                            await systemDb.deletePushSubscription(subscriptions[i].endpoint, sessionId);
+                        }
+                    }
+                }
+            }
         }
     });
 
@@ -572,6 +634,10 @@ export class SystemService {
 
     // Cleanup expired broadcasts
     await systemDb.cleanupExpiredBroadcasts(now, sessionId);
+
+    // Cleanup very old push subscriptions (> 90 days)
+    const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
+    await supabase.from('push_subscriptions').delete().lt('updated_at', ninetyDaysAgo);
   }
 
   // Stats & Health
