@@ -5,21 +5,24 @@ import { dbUtils } from './db-utils';
 
 export const authDb = {
   async register(data: { full_name: string; email: string; password?: string; phone?: string; role: string; active?: boolean }): Promise<{ data: unknown, error: unknown }> {
+    // Registration often happens without an active session (public signup)
     const client = adminClient || supabase;
     const { data: userData, error } = await client.from('users').insert(data).select().single();
     return { data: userData, error };
   },
 
   async updateUserRaw(id: string, updates: Partial<any>, sessionId?: string): Promise<{ data: unknown, error: unknown }> {
-    const client = adminClient || supabase;
+    // Prefer RLS-enforced client when sessionId is available
+    const client = (sessionId && adminClient) ? supabase : (adminClient || supabase);
     let query = client.from('users').update(updates).eq('id', id);
-    if (sessionId && !adminClient) query = withSession(query, sessionId);
+    if (sessionId) query = withSession(query, sessionId);
     const { data, error } = await query.select().single();
     return { data, error };
   },
 
   // Session Table Operations (Original SessionRepository)
   async findSessionByHash(tokenHash: string): Promise<Session | null> {
+    // Used for session validation, usually requires admin bypass or specific header
     const client = adminClient || supabase;
     const { data, error } = await client
       .from('sessions')
@@ -71,12 +74,28 @@ export const authDb = {
   },
 
   async findAllSessions(sessionId: string, userId?: string): Promise<Session[]> {
-    const client = adminClient || supabase;
+    // Prefer RLS-enforced client
+    const client = (sessionId && adminClient) ? supabase : (adminClient || supabase);
     let query = client.from('sessions').select('*');
-    if (sessionId && !adminClient) query = withSession(query, sessionId);
+    if (sessionId) query = withSession(query, sessionId);
     if (userId) query = query.eq('user_id', userId);
     const { data, error } = await query;
     if (error) dbUtils.handleError(error);
     return data as Session[];
+  },
+
+  async consumeTempPassword(userId: string, newResetRequest: any, sessionId?: string): Promise<boolean> {
+    const client = (sessionId && adminClient) ? supabase : (adminClient || supabase);
+    let query = client
+      .from('users')
+      .update({ reset_request: newResetRequest })
+      .eq('id', userId)
+      .filter('reset_request->>status', 'eq', 'approved');
+
+    if (sessionId) query = withSession(query, sessionId);
+    const { data, error } = await query.select('id');
+
+    if (error) dbUtils.handleError(error);
+    return !!data && data.length > 0;
   }
 };

@@ -908,7 +908,7 @@ WITH CHECK (current_app_user() IS NOT NULL);
 -- 15. Sessions Table
 DROP POLICY IF EXISTS "Strict Backend Access" ON sessions;
 CREATE POLICY "Strict Backend Access" ON sessions FOR ALL TO anon
-USING (true); -- Managed by SECURITY DEFINER functions current_app_user()
+USING (user_id = current_app_user() OR current_app_role() = 'admin');
 
 -- 16. Broadcasts Table
 DROP POLICY IF EXISTS "Broadcasts Select" ON broadcasts;

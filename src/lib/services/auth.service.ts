@@ -8,6 +8,7 @@ import { UserMapper } from '../mappers';
 import { rbac } from '../auth/rbac';
 import { comparePassword, hashPassword, generateToken, hashToken } from '../crypto';
 import { USER_ROLES, SIGNUP_LIMITS } from '../constants';
+import { BadRequestError } from '../api-error';
 
 export class AuthService {
   async validateSession(token: string): Promise<User | null> {
@@ -108,7 +109,12 @@ export class AuthService {
        }
        const newResetRequest = { ...reset, status: 'approved_used' };
        delete newResetRequest.temp_password;
-       await authDb.updateUserRaw(user.id, { reset_request: newResetRequest });
+
+       // Use atomic consumption to prevent race conditions
+       const consumed = await authDb.consumeTempPassword(user.id, newResetRequest);
+       if (!consumed) {
+          return { data: { success: false, error: 'Temporary password has already been used or is no longer valid.' }, error: null };
+       }
     }
 
     await authDb.updateUserRaw(user.id, { last_login: now.toISOString(), failed_attempts: 0, locked_until: null });
@@ -130,16 +136,18 @@ export class AuthService {
   }
 
   async signup(data: { full_name: string; email: string; password?: string; phone?: string; role: string }) {
+    if (!data.password || data.password.trim() === '') {
+      throw new BadRequestError('Password is required');
+    }
+
     const existingUser = await systemDb.findUserByEmail(data.email);
     if (existingUser) {
       return { data: { success: false, error: 'An account with this email already exists.' }, error: null };
     }
 
-    if (data.password) {
-      const passwordValidation = validatePassword(data.password);
-      if (!passwordValidation.isValid) {
-        throw new Error(passwordValidation.errors[0].message);
-      }
+    const passwordValidation = validatePassword(data.password);
+    if (!passwordValidation.isValid) {
+      throw new Error(passwordValidation.errors[0].message);
     }
 
     if (data.role === USER_ROLES.TEACHER || data.role === USER_ROLES.ADMIN) {
@@ -150,7 +158,7 @@ export class AuthService {
       }
     }
 
-    const hashedPassword = data.password ? await hashPassword(data.password) : '';
+    const hashedPassword = await hashPassword(data.password);
     const { data: userData, error } = await authDb.register({
       ...data,
       password: hashedPassword,
@@ -179,14 +187,16 @@ export class AuthService {
         throw new Error('Forbidden: Only admins can create users directly');
     }
 
-    if (data.password) {
-      const passwordValidation = validatePassword(data.password);
-      if (!passwordValidation.isValid) {
-        throw new Error(passwordValidation.errors[0].message);
-      }
+    if (!data.password || data.password.trim() === '') {
+      throw new BadRequestError('Password is required');
     }
 
-    const hashedPassword = data.password ? await hashPassword(data.password) : '';
+    const passwordValidation = validatePassword(data.password);
+    if (!passwordValidation.isValid) {
+      throw new Error(passwordValidation.errors[0].message);
+    }
+
+    const hashedPassword = await hashPassword(data.password);
     return authDb.register({
       ...data,
       password: hashedPassword,

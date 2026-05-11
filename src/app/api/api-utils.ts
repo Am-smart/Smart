@@ -47,7 +47,7 @@ export function withHandler<T>(
   options: { requireAuth?: boolean; checkCSRF?: boolean } = { requireAuth: true, checkCSRF: true }
 ) {
   return async (request: Request) => {
-    // CSRF Protection
+    // CSRF Protection: Only enforced for mutation requests
     if (options.checkCSRF && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method)) {
         const headerList = await headers();
         const origin = headerList.get('origin');
@@ -62,7 +62,8 @@ export function withHandler<T>(
         // Basic check: Origin must match Host if present
         if (origin) {
             try {
-                const originHost = new URL(origin).host;
+                const originUrl = new URL(origin);
+                const originHost = originUrl.host;
                 if (originHost !== host) {
                     return NextResponse.json({ success: false, error: 'CSRF Protection: Invalid Origin' }, { status: 403 });
                 }
@@ -78,6 +79,12 @@ export function withHandler<T>(
             } catch {
                 return NextResponse.json({ success: false, error: 'CSRF Protection: Malformed Referer' }, { status: 403 });
             }
+        }
+
+        // Require custom header for state-changing requests
+        const requestedWith = headerList.get('x-requested-with');
+        if (!requestedWith) {
+            return NextResponse.json({ success: false, error: 'CSRF Protection: Missing X-Requested-With header' }, { status: 403 });
         }
     }
 

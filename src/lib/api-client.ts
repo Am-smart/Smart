@@ -19,6 +19,7 @@ export async function apiFetch<T>(url: string, options: RequestInit = {}, retrie
       signal,
       headers: {
         'Content-Type': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest',
         ...options.headers,
       },
     });
