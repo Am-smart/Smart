@@ -26,16 +26,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const { setCache, getCache, addToQueue, isOnline, pullData } = useIndexedDB();
 
   const logout = useCallback(async () => {
-    const res = await actions.logout();
-    if (!res.success) {
-        console.error('Logout failed:', res.error);
+    // 1. Ensure backend session is invalidated first
+    try {
+        const res = await actions.logout();
+        if (!res.success) {
+            console.error('Logout backend failure:', res.error);
+        }
+    } catch (err) {
+        console.error('Logout network/server error:', err);
     }
+
+    // 2. Clear local state and cache regardless of backend success to avoid trapping user
     await setCache('current_user', null);
     setState({
         user: null,
         role: null,
         isLoading: false
     });
+
+    // 3. Force redirect to landing
+    sessionManager.redirectToLanding();
   }, [setCache]);
 
   useEffect(() => {

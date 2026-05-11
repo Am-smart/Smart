@@ -6,9 +6,9 @@ import { dbUtils } from './db-utils';
 export const systemDb = {
   // User Operations
   async findUserById(id: string, sessionId?: string): Promise<User | null> {
-    const client = adminClient || supabase;
+    const client = (sessionId && adminClient) ? supabase : (adminClient || supabase);
     let query = client.from('users').select('*').eq('id', id).single();
-    if (sessionId && !adminClient) query = withSession(query, sessionId);
+    if (sessionId) query = withSession(query, sessionId);
     const { data, error } = await query;
     if (error) {
       if (error.code === 'PGRST116') return null;
@@ -28,9 +28,9 @@ export const systemDb = {
   },
 
   async findAllUsers(sessionId: string): Promise<User[]> {
-    const client = adminClient || supabase;
+    const client = (sessionId && adminClient) ? supabase : (adminClient || supabase);
     let query = client.from('users').select('*');
-    if (sessionId && !adminClient) query = withSession(query, sessionId);
+    if (sessionId) query = withSession(query, sessionId);
     const { data, error } = await query;
     if (error) dbUtils.handleError(error);
     return data as User[];
@@ -44,14 +44,14 @@ export const systemDb = {
   },
 
   async updateUser(id: string, updates: Partial<User>, sessionId: string, version?: number): Promise<User> {
-    const client = adminClient || supabase;
+    const client = (sessionId && adminClient) ? supabase : (adminClient || supabase);
     // Strip sensitive fields for non-admin update path
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { role, flagged, active, password, ...safeUpdates } = updates as Record<string, unknown>;
 
     const upsertData = dbUtils.prepareUpsert({ ...safeUpdates, id, version });
     let query = client.from('users').update(upsertData as Record<string, unknown>).eq('id', id);
-    if (!adminClient) query = withSession(query, sessionId);
+    if (sessionId) query = withSession(query, sessionId);
     query = dbUtils.applyVersionCheck(query, id, version);
 
     const { data, error } = await query.select().single();
@@ -60,7 +60,7 @@ export const systemDb = {
   },
 
   async adminUpdateUser(id: string, updates: Partial<User>, sessionId: string): Promise<void> {
-      const client = adminClient || supabase;
+      const client = adminClient || supabase; // Admin update explicitly uses adminClient if available
       const { hashPassword } = await import('../crypto');
 
       const userUpdates: any = {
@@ -91,9 +91,9 @@ export const systemDb = {
   },
 
   async deleteUser(id: string, sessionId: string): Promise<void> {
-    const client = adminClient || supabase;
+    const client = (sessionId && adminClient) ? supabase : (adminClient || supabase);
     let query = client.from('users').delete().eq('id', id);
-    if (!adminClient) query = withSession(query, sessionId);
+    if (sessionId) query = withSession(query, sessionId);
     const { error } = await query;
     if (error) dbUtils.handleError(error);
   },

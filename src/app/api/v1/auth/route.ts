@@ -61,7 +61,7 @@ export const POST = withHandler(async (user, request) => {
               data.full_name,
               data.email,
               data.password || '',
-              data.password || '',
+              data.confirmPassword || '',
               data.phone
             );
 
