@@ -1,6 +1,6 @@
 import { withSession, supabase } from '../supabase';
 import { adminClient } from '../supabase-admin';
-import { User, LiveClass, Notification, Broadcast, Discussion, PlannerItem, Maintenance, Setting, SystemLog, Attendance, SupportTicket, AntiCheatLog } from '../types';
+import { User, LiveClass, Notification, Broadcast, Discussion, PlannerItem, Maintenance, Setting, SystemLog, Attendance, SupportTicket, AntiCheatLog, PushSubscription } from '../types';
 import { dbUtils } from './db-utils';
 
 export const systemDb = {
@@ -199,11 +199,12 @@ export const systemDb = {
     if (error) throw error;
   },
 
-  async createNotification(notification: Partial<Notification>, sessionId?: string): Promise<void> {
-    let query = supabase.from('notifications').insert(notification);
+  async createNotification(notification: Partial<Notification>, sessionId?: string): Promise<Notification> {
+    let query = supabase.from('notifications').insert(notification).select().single();
     if (sessionId) query = withSession(query, sessionId);
-    const { error } = await query;
+    const { data, error } = await query;
     if (error) dbUtils.handleError(error);
+    return data as Notification;
   },
 
   // Broadcast Operations (Table-based)
@@ -530,6 +531,45 @@ export const systemDb = {
     const client = adminClient || supabase;
     let query = client.from('broadcasts').delete().lt('expires_at', now);
     if (!adminClient) query = withSession(query, sessionId);
+    const { error } = await query;
+    if (error) dbUtils.handleError(error);
+  },
+
+  // Push Subscription Operations
+  async findPushSubscriptionsByUserId(userId: string, sessionId?: string): Promise<PushSubscription[]> {
+    const client = adminClient || supabase;
+    let query = client.from('push_subscriptions').select('*').eq('user_id', userId);
+    if (sessionId && !adminClient) query = withSession(query, sessionId);
+    const { data, error } = await query;
+    if (error) dbUtils.handleError(error);
+    return data as PushSubscription[];
+  },
+
+  async upsertPushSubscription(subscription: Partial<PushSubscription>, sessionId: string): Promise<PushSubscription> {
+    const client = adminClient || supabase;
+    const upsertData = {
+        ...subscription,
+        updated_at: new Date().toISOString()
+    };
+    let query = client.from('push_subscriptions').upsert(upsertData, { onConflict: 'endpoint' });
+    if (sessionId && !adminClient) query = withSession(query, sessionId);
+    const { data, error } = await query.select().single();
+    if (error) dbUtils.handleError(error);
+    return data as PushSubscription;
+  },
+
+  async deletePushSubscription(endpoint: string, sessionId: string): Promise<void> {
+    const client = adminClient || supabase;
+    let query = client.from('push_subscriptions').delete().eq('endpoint', endpoint);
+    if (sessionId && !adminClient) query = withSession(query, sessionId);
+    const { error } = await query;
+    if (error) dbUtils.handleError(error);
+  },
+
+  async cleanupStalePushSubscriptions(before: string, sessionId: string): Promise<void> {
+    const client = adminClient || supabase;
+    let query = client.from('push_subscriptions').delete().lt('updated_at', before);
+    if (sessionId && !adminClient) query = withSession(query, sessionId);
     const { error } = await query;
     if (error) dbUtils.handleError(error);
   }

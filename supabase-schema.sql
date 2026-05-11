@@ -990,3 +990,25 @@ USING (is_admin(current_app_user()));
 INSERT INTO maintenance (enabled, schedules)
 SELECT false, '[]'::jsonb
 WHERE NOT EXISTS (SELECT 1 FROM maintenance);
+
+-- ==========================================
+-- 9. Push Subscriptions
+-- ==========================================
+CREATE TABLE IF NOT EXISTS push_subscriptions (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  endpoint TEXT NOT NULL UNIQUE,
+  p256dh TEXT NOT NULL,
+  auth TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_push_subscriptions_user ON push_subscriptions(user_id);
+
+ALTER TABLE push_subscriptions ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Push Subscriptions Manage" ON push_subscriptions;
+CREATE POLICY "Push Subscriptions Manage" ON push_subscriptions FOR ALL TO anon
+USING (user_id = current_app_user())
+WITH CHECK (user_id = current_app_user());

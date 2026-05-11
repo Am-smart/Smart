@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { UserDTO } from '@/lib/types';
 import { User } from '@/lib/types';
-import { Bell, User as UserIcon, Lock, Save } from 'lucide-react';
+import { Bell, User as UserIcon, Lock, Save, Globe } from 'lucide-react';
 import { useAppContext } from '../AppContext';
 import { updatePassword, updatePreferences } from '@/lib/api-actions';
+import { usePushNotifications } from '@/hooks/usePushNotifications';
 
 interface TeacherSettingsProps {
     user: UserDTO;
@@ -28,6 +29,7 @@ export const TeacherSettings: React.FC<TeacherSettingsProps> = ({ user, onUpdate
         confirm_password: '',
     });
     const [isSaving, setIsSaving] = useState(false);
+    const { isSupported, subscription, subscribe, unsubscribe, isLoading: isPushLoading } = usePushNotifications();
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -175,6 +177,32 @@ export const TeacherSettings: React.FC<TeacherSettingsProps> = ({ user, onUpdate
                                         </label>
                                     ))}
                                 </div>
+
+                                {isSupported && (
+                                    <div className="mt-8 p-6 bg-blue-50 rounded-2xl border border-blue-100">
+                                        <div className="flex items-center gap-4 mb-4">
+                                            <div className="p-3 bg-blue-600 text-white rounded-xl">
+                                                <Globe size={20} />
+                                            </div>
+                                            <div>
+                                                <h4 className="font-bold text-slate-900">Web Push Notifications</h4>
+                                                <p className="text-xs text-slate-500">Receive real-time updates directly on your device</p>
+                                            </div>
+                                        </div>
+
+                                        <button
+                                            onClick={subscription ? unsubscribe : subscribe}
+                                            disabled={isPushLoading}
+                                            className={`w-full p-4 rounded-xl font-bold transition-all flex items-center justify-center gap-2 ${
+                                                subscription
+                                                    ? 'bg-white text-red-600 border border-red-100 hover:bg-red-50'
+                                                    : 'bg-blue-600 text-white hover:bg-blue-700 shadow-md shadow-blue-100'
+                                            }`}
+                                        >
+                                            {isPushLoading ? 'Processing...' : (subscription ? 'Disable Push Notifications' : 'Enable Push Notifications')}
+                                        </button>
+                                    </div>
+                                )}
 
                                 <div className="pt-6 border-t">
                                     <button 
