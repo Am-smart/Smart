@@ -5,7 +5,7 @@ import { SystemLog, Maintenance, PlannerItem, User, Setting, Enrollment, Discuss
 import { UserDomain } from '../domain/user.domain';
 import { EnrollmentDomain } from '../domain/enrollment.domain';
 import { CommunicationDomain } from '../domain/communication.domain';
-import { NotFoundError, UnauthorizedError, ForbiddenError } from '../api-error';
+import { NotFoundError, UnauthorizedError, ForbiddenError, BadRequestError } from '../api-error';
 
 export class SystemService {
   // Logs
@@ -675,6 +675,23 @@ export class SystemService {
 
   // Storage
   async uploadFile(file: File, category: string, userId: string, sessionId: string): Promise<{ filePath: string, publicUrl: string }> {
+    // File Validation
+    const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+    const ALLOWED_TYPES = [
+        'image/jpeg', 'image/png', 'image/webp',
+        'application/pdf', 'application/zip',
+        'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'text/plain'
+    ];
+
+    if (file.size > MAX_FILE_SIZE) {
+        throw new BadRequestError(`File size exceeds 10MB limit (size: ${(file.size / (1024 * 1024)).toFixed(2)}MB)`);
+    }
+
+    if (!ALLOWED_TYPES.includes(file.type)) {
+        throw new BadRequestError(`File type ${file.type} is not allowed. Allowed types: images, PDF, Word, Zip, Text.`);
+    }
+
     const fileName = file.name;
     const filePath = `${category}/${userId}/${Date.now()}_${fileName}`;
     const buffer = await file.arrayBuffer();

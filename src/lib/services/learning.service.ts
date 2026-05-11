@@ -2,7 +2,7 @@ import { learningDb } from '../database/learning.db';
 import { Course, Lesson, Material, LessonCompletion, User } from '../types';
 import { CourseDomain } from '../domain/course.domain';
 import { LearningDomain } from '../domain/learning.domain';
-import { NotFoundError, ForbiddenError } from '../api-error';
+import { NotFoundError, ForbiddenError, BadRequestError } from '../api-error';
 
 export class LearningService {
   // Courses
@@ -72,6 +72,16 @@ export class LearningService {
     }
 
     const lessonToSave = LearningDomain.prepareLesson(lesson);
+
+    // Order index conflict detection
+    if (lessonToSave.course_id && lessonToSave.order_index !== undefined) {
+        const existingLessons = await learningDb.findLessonsByCourseId(lessonToSave.course_id, sessionId);
+        const duplicate = existingLessons.find(l => l.order_index === lessonToSave.order_index && l.id !== lessonToSave.id);
+        if (duplicate) {
+            throw new BadRequestError(`Order index ${lessonToSave.order_index} is already taken in this course`);
+        }
+    }
+
     const saved = await learningDb.upsertLesson(lessonToSave, sessionId);
 
     // Trigger Notification (Migrated from tr_lesson_created)
@@ -170,7 +180,8 @@ export class LearningService {
     const lessonIds = lessons.map(l => l.id);
     const completedIds = await learningDb.findLessonCompletions(studentId, lessonIds, sessionId);
 
-    const progress = Math.round(((completedIds.length || 0) / (lessons.length || 1)) * 100);
+    const totalLessons = lessons.length;
+    const progress = totalLessons > 0 ? Math.round(((completedIds.length || 0) / totalLessons) * 100) : 0;
     await learningDb.updateEnrollmentProgress(studentId, courseId, progress, sessionId);
 
     return { success: true };
