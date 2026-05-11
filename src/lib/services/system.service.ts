@@ -7,8 +7,6 @@ import { EnrollmentDomain } from '../domain/enrollment.domain';
 import { CommunicationDomain } from '../domain/communication.domain';
 import { NotFoundError, UnauthorizedError, ForbiddenError, BadRequestError } from '../api-error';
 
-let ANTI_CHEAT_RATE_LIMITS = new Map<string, number>();
-
 export class SystemService {
   // Logs
   async createLog(log: SystemLog, sessionId?: string): Promise<boolean> {
@@ -18,27 +16,29 @@ export class SystemService {
   async createLogAsync(log: SystemLog): Promise<void> {
     const { taskQueue } = await import('../queue/task-queue');
     taskQueue.enqueue(async () => {
-      await this.createLog(log);
+        // Use systemService instance to ensure proper this context
+        await systemService.createLog(log);
     });
   }
 
   // Anti-Cheat Logs
   async createAntiCheatLog(log: AntiCheatLog, sessionId?: string): Promise<void> {
-    // Server-side rate limiting with basic memory management
-    const now = Date.now();
+    // Distributed-safe rate limiting via database check
+    const recentUserLogs = await systemDb.findAllAntiCheatLogs(sessionId || '', {
+        user_id: log.user_id,
+        limit: 1
+    });
 
-    if (ANTI_CHEAT_RATE_LIMITS.size > 10000) {
-        // Simple eviction: clear oldest half if Map grows too large
-        const entries = Array.from(ANTI_CHEAT_RATE_LIMITS.entries());
-        ANTI_CHEAT_RATE_LIMITS = new Map(entries.slice(5000));
+    if (recentUserLogs.length > 0) {
+        const lastLog = recentUserLogs[0];
+        if (lastLog.created_at) {
+            const lastTime = new Date(lastLog.created_at).getTime();
+            if (Date.now() - lastTime < 1000) {
+                console.warn(`[Anti-Cheat] Rate limit exceeded for user ${log.user_id} (distributed)`);
+                return;
+            }
+        }
     }
-
-    const lastLog = ANTI_CHEAT_RATE_LIMITS.get(log.user_id) || 0;
-    if (now - lastLog < 1000) { // 1 second floor per user on server
-        console.warn(`[Anti-Cheat] Rate limit exceeded for user ${log.user_id}`);
-        return;
-    }
-    ANTI_CHEAT_RATE_LIMITS.set(log.user_id, now);
 
     await systemDb.createAntiCheatLog(log, sessionId);
 
@@ -47,7 +47,7 @@ export class SystemService {
     const recentLogs = await systemDb.findAllAntiCheatLogs(sessionId || '', {
         user_id: log.user_id,
         course_id: log.course_id,
-        limit: ANTI_CHEAT.MAX_VIOLATIONS + 1
+        limit: ANTI_CHEAT.MAX_VIOLATIONS
     });
 
     if (recentLogs.length >= ANTI_CHEAT.MAX_VIOLATIONS) {
@@ -55,7 +55,7 @@ export class SystemService {
         const user = await systemDb.findUserById(log.user_id, sessionId);
         if (user && !user.flagged) {
             await systemDb.updateUser(user.id, { flagged: true, version: user.version }, sessionId || '');
-            await this.createLogAsync({
+            await systemService.createLogAsync({
                 level: 'warn',
                 category: 'security',
                 message: `User ${user.full_name} automatically flagged due to excessive anti-cheat violations (${recentLogs.length}).`,

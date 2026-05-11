@@ -42,7 +42,7 @@ function toCleanDTO<T>(obj: unknown): T {
     }
 
     if (clean.metadata === undefined || clean.metadata === null) {
-        clean.metadata = {};
+        clean.metadata = (data.metadata || (obj as { metadata?: Record<string, unknown> }).metadata || {});
     }
 
     return clean as T;
