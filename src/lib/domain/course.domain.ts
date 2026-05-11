@@ -11,8 +11,16 @@ export class CourseDomain {
   }
 
   static validate(course: Partial<Course>): void {
-    if (!course.title) {
+    if (!course.title || course.title.trim() === '') {
       throw new Error('Course title is required');
+    }
+
+    if (course.status && !['draft', 'published', 'archived'].includes(course.status)) {
+      throw new Error('Invalid course status');
+    }
+
+    if (course.max_enrollment !== undefined && (course.max_enrollment < 0 || !Number.isInteger(course.max_enrollment))) {
+      throw new Error('Max enrollment must be a non-negative integer');
     }
   }
 }

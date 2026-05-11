@@ -16,8 +16,18 @@ export class LearningService {
     return learningDb.findAllCourses(teacherId, sessionId!, limit, offset);
   }
 
-  async saveCourse(teacherId: string, teacherName: string, course: Partial<Course>, sessionId: string): Promise<Course> {
+  async saveCourse(teacherId: string, teacherName: string, course: Partial<Course>, sessionId: string, currentUser?: User): Promise<Course> {
     CourseDomain.validate(course);
+
+    if (course.id) {
+        const existing = await learningDb.findCourseById(course.id, sessionId);
+        if (existing) {
+            if (currentUser && currentUser.role !== 'admin' && existing.teacher_id !== currentUser.id) {
+                throw new ForbiddenError('Unauthorized: You can only update your own courses');
+            }
+        }
+    }
+
     const courseToSave = CourseDomain.create(course, teacherId, teacherName);
 
     // Ensure category is preserved in metadata for backward compatibility if needed
@@ -31,7 +41,13 @@ export class LearningService {
     return learningDb.upsertCourse(courseToSave, sessionId);
   }
 
-  async deleteCourse(id: string, sessionId: string): Promise<void> {
+  async deleteCourse(id: string, sessionId: string, currentUser?: User): Promise<void> {
+    const existing = await learningDb.findCourseById(id, sessionId);
+    if (existing) {
+        if (currentUser && currentUser.role !== 'admin' && existing.teacher_id !== currentUser.id) {
+            throw new ForbiddenError('Unauthorized: You can only delete your own courses');
+        }
+    }
     await learningDb.deleteCourse(id, sessionId);
   }
 

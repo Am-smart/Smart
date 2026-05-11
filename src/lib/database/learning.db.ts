@@ -162,5 +162,13 @@ export const learningDb = {
       .eq('course_id', courseId)
       .eq('student_id', studentId);
     if (error) dbUtils.handleError(error);
+  },
+
+  async countEnrollmentsByCourseId(courseId: string, sessionId: string): Promise<number> {
+    const { count, error } = await withSession(supabase.from('enrollments'), sessionId)
+      .select('*', { count: 'exact', head: true })
+      .eq('course_id', courseId);
+    if (error) dbUtils.handleError(error);
+    return count || 0;
   }
 };

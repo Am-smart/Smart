@@ -49,7 +49,7 @@ export const POST = withHandler(async (user, request) => {
         throw new UnauthorizedError();
       }
       CourseDomain.validate(data);
-      const course = await learningService.saveCourse(user.id, user.full_name, data, user.sessionId!);
+      const course = await learningService.saveCourse(user.id, user.full_name, data, user.sessionId!, user);
       return CourseMapper.toDTO(course);
     }
     case 'save-lesson': {
@@ -79,7 +79,7 @@ export const DELETE = withHandler(async (user, request) => {
   switch (action) {
     case 'course': {
       if (!rbac.can(user, 'course:delete')) throw new UnauthorizedError();
-      await learningService.deleteCourse(id, user.sessionId!);
+      await learningService.deleteCourse(id, user.sessionId!, user);
       return { success: true };
     }
     case 'lesson': {
