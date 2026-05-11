@@ -60,7 +60,7 @@ export const systemDb = {
   },
 
   async adminUpdateUser(id: string, updates: Partial<User>, sessionId: string): Promise<void> {
-      const client = adminClient || supabase; // Admin update explicitly uses adminClient if available
+      const client = (sessionId && adminClient) ? supabase : (adminClient || supabase); // Admin update explicitly uses adminClient if available
       const { hashPassword } = await import('../crypto');
 
       const userUpdates: any = {
@@ -84,7 +84,7 @@ export const systemDb = {
       });
 
       let query = client.from('users').update(userUpdates).eq('id', id);
-      if (!adminClient) query = withSession(query, sessionId);
+      if (sessionId) query = withSession(query, sessionId);
       const { error } = await query;
 
       if (error) dbUtils.handleError(error);
@@ -446,13 +446,13 @@ export const systemDb = {
   },
 
   async getSystemStats(sessionId?: string): Promise<Record<string, number>> {
-    const client = adminClient || supabase;
+    const client = (sessionId && adminClient) ? supabase : (adminClient || supabase);
     let usersQuery = client.from('users').select('*', { count: 'exact', head: true });
     let coursesQuery = client.from('courses').select('*', { count: 'exact', head: true });
     let enrollmentsQuery = client.from('enrollments').select('*', { count: 'exact', head: true });
     let submissionsQuery = client.from('submissions').select('*', { count: 'exact', head: true });
 
-    if (sessionId && !adminClient) {
+    if (sessionId) {
         usersQuery = withSession(usersQuery, sessionId);
         coursesQuery = withSession(coursesQuery, sessionId);
         enrollmentsQuery = withSession(enrollmentsQuery, sessionId);
@@ -476,12 +476,12 @@ export const systemDb = {
 
   async getHealthMetrics(sessionId?: string): Promise<unknown> {
     // Basic health check for multiple systems
-    const client = adminClient || supabase;
+    const client = (sessionId && adminClient) ? supabase : (adminClient || supabase);
     const startTime = Date.now();
     let dbStatus = 'healthy';
     try {
         let query = client.from('settings').select('count', { count: 'exact', head: true });
-        if (sessionId && !adminClient) query = withSession(query, sessionId);
+        if (sessionId) query = withSession(query, sessionId);
         const { error } = await query;
         if (error) dbStatus = 'degraded';
     } catch {
@@ -512,64 +512,64 @@ export const systemDb = {
   },
 
   async cleanupExpiredNotifications(now: string, sessionId: string): Promise<void> {
-    const client = adminClient || supabase;
+    const client = (sessionId && adminClient) ? supabase : (adminClient || supabase);
     let query = client.from('notifications').delete().lt('expires_at', now);
-    if (!adminClient) query = withSession(query, sessionId);
+    if (sessionId) query = withSession(query, sessionId);
     const { error } = await query;
     if (error) dbUtils.handleError(error);
   },
 
   async cleanupExpiredSessions(now: string, sessionId: string): Promise<void> {
-    const client = adminClient || supabase;
+    const client = (sessionId && adminClient) ? supabase : (adminClient || supabase);
     let query = client.from('sessions').delete().lt('expires_at', now);
-    if (!adminClient) query = withSession(query, sessionId);
+    if (sessionId) query = withSession(query, sessionId);
     const { error } = await query;
     if (error) dbUtils.handleError(error);
   },
 
   async cleanupExpiredBroadcasts(now: string, sessionId: string): Promise<void> {
-    const client = adminClient || supabase;
+    const client = (sessionId && adminClient) ? supabase : (adminClient || supabase);
     let query = client.from('broadcasts').delete().lt('expires_at', now);
-    if (!adminClient) query = withSession(query, sessionId);
+    if (sessionId) query = withSession(query, sessionId);
     const { error } = await query;
     if (error) dbUtils.handleError(error);
   },
 
   // Push Subscription Operations
   async findPushSubscriptionsByUserId(userId: string, sessionId?: string): Promise<PushSubscription[]> {
-    const client = adminClient || supabase;
+    const client = (sessionId && adminClient) ? supabase : (adminClient || supabase);
     let query = client.from('push_subscriptions').select('*').eq('user_id', userId);
-    if (sessionId && !adminClient) query = withSession(query, sessionId);
+    if (sessionId) query = withSession(query, sessionId);
     const { data, error } = await query;
     if (error) dbUtils.handleError(error);
     return data as PushSubscription[];
   },
 
   async upsertPushSubscription(subscription: Partial<PushSubscription>, sessionId: string): Promise<PushSubscription> {
-    const client = adminClient || supabase;
+    const client = (sessionId && adminClient) ? supabase : (adminClient || supabase);
     const upsertData = {
         ...subscription,
         updated_at: new Date().toISOString()
     };
     let query = client.from('push_subscriptions').upsert(upsertData, { onConflict: 'endpoint' });
-    if (sessionId && !adminClient) query = withSession(query, sessionId);
+    if (sessionId) query = withSession(query, sessionId);
     const { data, error } = await query.select().single();
     if (error) dbUtils.handleError(error);
     return data as PushSubscription;
   },
 
   async deletePushSubscription(endpoint: string, sessionId: string): Promise<void> {
-    const client = adminClient || supabase;
+    const client = (sessionId && adminClient) ? supabase : (adminClient || supabase);
     let query = client.from('push_subscriptions').delete().eq('endpoint', endpoint);
-    if (sessionId && !adminClient) query = withSession(query, sessionId);
+    if (sessionId) query = withSession(query, sessionId);
     const { error } = await query;
     if (error) dbUtils.handleError(error);
   },
 
   async cleanupStalePushSubscriptions(before: string, sessionId: string): Promise<void> {
-    const client = adminClient || supabase;
+    const client = (sessionId && adminClient) ? supabase : (adminClient || supabase);
     let query = client.from('push_subscriptions').delete().lt('updated_at', before);
-    if (sessionId && !adminClient) query = withSession(query, sessionId);
+    if (sessionId) query = withSession(query, sessionId);
     const { error } = await query;
     if (error) dbUtils.handleError(error);
   }

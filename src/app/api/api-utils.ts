@@ -47,7 +47,7 @@ export function withHandler<T>(
   options: { requireAuth?: boolean; checkCSRF?: boolean } = { requireAuth: true, checkCSRF: true }
 ) {
   return async (request: Request) => {
-    // CSRF Protection
+    // CSRF Protection: Only enforced for mutation requests
     if (options.checkCSRF && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method)) {
         const headerList = await headers();
         const origin = headerList.get('origin');
