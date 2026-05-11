@@ -199,11 +199,12 @@ export const systemDb = {
     if (error) throw error;
   },
 
-  async createNotification(notification: Partial<Notification>, sessionId?: string): Promise<void> {
-    let query = supabase.from('notifications').insert(notification);
+  async createNotification(notification: Partial<Notification>, sessionId?: string): Promise<Notification> {
+    let query = supabase.from('notifications').insert(notification).select().single();
     if (sessionId) query = withSession(query, sessionId);
-    const { error } = await query;
+    const { data, error } = await query;
     if (error) dbUtils.handleError(error);
+    return data as Notification;
   },
 
   // Broadcast Operations (Table-based)
@@ -560,6 +561,14 @@ export const systemDb = {
   async deletePushSubscription(endpoint: string, sessionId: string): Promise<void> {
     const client = adminClient || supabase;
     let query = client.from('push_subscriptions').delete().eq('endpoint', endpoint);
+    if (sessionId && !adminClient) query = withSession(query, sessionId);
+    const { error } = await query;
+    if (error) dbUtils.handleError(error);
+  },
+
+  async cleanupStalePushSubscriptions(before: string, sessionId: string): Promise<void> {
+    const client = adminClient || supabase;
+    let query = client.from('push_subscriptions').delete().lt('updated_at', before);
     if (sessionId && !adminClient) query = withSession(query, sessionId);
     const { error } = await query;
     if (error) dbUtils.handleError(error);

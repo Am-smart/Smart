@@ -274,7 +274,7 @@ export class SystemService {
   }
 
   async notifyUser(params: { target_id: string, n_title: string, n_msg: string, n_link?: string, n_type?: string, expires_at?: string, metadata?: Record<string, string | number | boolean> }, sessionId: string): Promise<void> {
-    await systemDb.createNotification({
+    const notification = await systemDb.createNotification({
       user_id: params.target_id,
       title: params.n_title,
       message: params.n_msg,
@@ -293,6 +293,7 @@ export class SystemService {
             const results = await pushService.sendToMany(subscriptions, {
                 title: params.n_title,
                 body: params.n_msg,
+                tag: notification.id, // Use notification ID for exact duplicate prevention
                 data: { url: params.n_link || '/' }
             });
 
@@ -579,6 +580,9 @@ export class SystemService {
         }
 
         if (targetUserIds.length > 0) {
+            // Use broadcast ID as tag for broadcast notifications
+            const pushTag = `broadcast:${createdBroadcast.id}`;
+
             const notificationsToInsert = targetUserIds.map(userId => ({
                 user_id: userId,
                 broadcast_id: createdBroadcast.id,
@@ -604,6 +608,7 @@ export class SystemService {
                     const results = await pushService.sendToMany(subscriptions, {
                         title: createdBroadcast.title,
                         body: createdBroadcast.message,
+                        tag: pushTag,
                         data: { url: createdBroadcast.link || '/' }
                     });
 
@@ -637,7 +642,7 @@ export class SystemService {
 
     // Cleanup very old push subscriptions (> 90 days)
     const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
-    await supabase.from('push_subscriptions').delete().lt('updated_at', ninetyDaysAgo);
+    await systemDb.cleanupStalePushSubscriptions(ninetyDaysAgo, sessionId);
   }
 
   // Stats & Health

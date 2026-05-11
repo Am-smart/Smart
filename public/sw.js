@@ -116,17 +116,27 @@ self.addEventListener('push', (event) => {
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
 
-  const urlToOpen = new URL(event.notification.data.url, self.location.origin).href;
+  // Ensure we have an absolute URL
+  const urlToOpen = new URL(event.notification.data.url || '/', self.location.origin).href;
 
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      // If a window client is already open, focus it and navigate to the URL
+      // 1. Try to find a window already open at this exact URL
       for (const client of clientList) {
         if (client.url === urlToOpen && 'focus' in client) {
           return client.focus();
         }
       }
-      // If no window client is open, open a new one
+
+      // 2. Try to find any window belonging to our app and navigate it
+      for (const client of clientList) {
+        if ('focus' in client && 'navigate' in client) {
+          client.focus();
+          return client.navigate(urlToOpen);
+        }
+      }
+
+      // 3. If no window is open, open a new one
       if (self.clients.openWindow) {
         return self.clients.openWindow(urlToOpen);
       }

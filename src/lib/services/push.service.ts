@@ -36,7 +36,7 @@ export class PushService {
   /**
    * Sends a push notification to a specific subscription.
    */
-  static async sendNotification(subscription: PushSubscription, payload: { title: string, body: string, icon?: string, data?: any }) {
+  static async sendNotification(subscription: PushSubscription, payload: { title: string, body: string, icon?: string, tag?: string, data?: any }) {
     if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) {
       console.warn('PushService: VAPID keys not configured, skipping push notification.');
       return;
@@ -52,10 +52,13 @@ export class PushService {
 
     try {
       const pushPayload = {
-        ...payload,
+        title: payload.title,
+        body: payload.body,
+        icon: payload.icon || '/window.svg',
+        tag: payload.tag,
         data: {
           ...payload.data,
-          url: this.resolveLink(payload.data?.url)
+          url: this.resolveLink(payload.data?.url || payload.data?.link)
         }
       };
 
@@ -76,7 +79,7 @@ export class PushService {
   /**
    * Sends notifications to multiple subscriptions.
    */
-  static async sendToMany(subscriptions: PushSubscription[], payload: { title: string, body: string, icon?: string, data?: any }) {
+  static async sendToMany(subscriptions: PushSubscription[], payload: { title: string, body: string, icon?: string, tag?: string, data?: any }) {
     const results = await Promise.all(
       subscriptions.map(sub => this.sendNotification(sub, payload))
     );
