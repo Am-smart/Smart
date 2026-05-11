@@ -59,6 +59,18 @@ export const parseDeepLink = (link?: string, role: string = 'student'): string |
 };
 
 /**
+ * Simple HTML sanitizer to prevent XSS
+ */
+export function sanitizeHtml(html: string): string {
+    if (!html) return html;
+    return html
+        .replace(/<script\b[^>]*>([\s\S]*?)<\/script>/gim, "")
+        .replace(/on\w+="[^"]*"/gim, "")
+        .replace(/on\w+='[^']*'/gim, "")
+        .replace(/javascript:[^"']*/gim, "");
+}
+
+/**
  * Type guard for UserRole
  */
 export function isUserRole(role: unknown): role is UserRole {

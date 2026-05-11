@@ -42,6 +42,7 @@ export class AssessmentDomain {
         if (assignment.questions.length === 0) {
             throw new Error('Assignment must have at least one question or task step');
         }
+        let totalPoints = 0;
         assignment.questions.forEach((q, idx) => {
             if (!q.text || q.text.trim().length === 0) {
                 throw new Error(`Question ${idx + 1} text is required`);
@@ -49,7 +50,12 @@ export class AssessmentDomain {
             if (!['essay', 'file', 'link'].includes(q.type)) {
                 throw new Error(`Invalid type for assignment question ${idx + 1}`);
             }
+            totalPoints += q.points || 0;
         });
+
+        if (assignment.points_possible !== undefined && totalPoints !== assignment.points_possible) {
+            throw new Error(`Total question points (${totalPoints}) must match points possible (${assignment.points_possible})`);
+        }
     }
   }
 
@@ -67,6 +73,7 @@ export class AssessmentDomain {
         if (quiz.questions.length === 0) {
             throw new Error('Quiz must have at least one question');
         }
+        let totalPoints = 0;
         quiz.questions.forEach((q, idx) => {
             if (!q.text || q.text.trim().length === 0) {
                 throw new Error(`Question ${idx + 1} text is required`);
@@ -77,7 +84,11 @@ export class AssessmentDomain {
             if (q.points !== undefined && q.points < 0) {
                 throw new Error(`Points for question ${idx + 1} cannot be negative`);
             }
+            totalPoints += q.points || 0;
         });
+        if (totalPoints <= 0) {
+            throw new Error('Total quiz points must be greater than zero');
+        }
     }
     if (quiz.time_limit !== undefined && quiz.time_limit < 0) {
         throw new Error('Time limit cannot be negative');
@@ -100,9 +111,15 @@ export class AssessmentDomain {
 
         const userAnswer = answers[q.id];
         // Ensure comparison handles both string and number for MCQ/TF
-        if (userAnswer !== undefined && String(userAnswer).toLowerCase() === String(q.correct_answer).toLowerCase()) {
-            correctCount++;
-            earnedPoints += points;
+        if (userAnswer !== undefined) {
+            const isMatch = q.type === 'short'
+                ? String(userAnswer) === String(q.correct_answer)
+                : String(userAnswer).toLowerCase() === String(q.correct_answer).toLowerCase();
+
+            if (isMatch) {
+                correctCount++;
+                earnedPoints += points;
+            }
         }
     });
 

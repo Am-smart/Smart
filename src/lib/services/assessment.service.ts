@@ -163,7 +163,22 @@ export class AssessmentService {
   }
 
   async submitAssignment(studentId: string, assignmentId: string, content: Partial<Submission>, sessionId: string): Promise<Submission> {
+    const assignment = await assessmentDb.findAssignmentById(assignmentId, sessionId);
+    if (!assignment) throw new NotFoundError('Assignment not found');
+
     const submissionToSave = AssessmentDomain.prepareSubmission(studentId, assignmentId, content);
+
+    // Calculate late penalty
+    const submittedAt = new Date(submissionToSave.submitted_at!);
+    const dueDate = new Date(assignment.due_date);
+
+    if (submittedAt > dueDate && assignment.allow_late_submissions) {
+        const diffMs = submittedAt.getTime() - dueDate.getTime();
+        const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+        const penaltyPerDay = assignment.late_penalty_per_day || 0;
+        submissionToSave.late_penalty_applied = diffDays * penaltyPerDay;
+    }
+
     return assessmentDb.upsertSubmission(submissionToSave, sessionId);
   }
 
@@ -178,7 +193,14 @@ export class AssessmentService {
 
     // Authorization check: Teachers can only grade submissions for their own assignments
     if (performingUserRole === 'teacher' && performingUserId) {
-        if (submission.assignments?.teacher_id !== performingUserId) {
+        let teacherId = submission.assignments?.teacher_id;
+
+        if (!teacherId) {
+            const assignment = await assessmentDb.findAssignmentById(submission.assignment_id, sessionId);
+            teacherId = assignment?.teacher_id;
+        }
+
+        if (teacherId !== performingUserId) {
             throw new ForbiddenError('You are not authorized to grade this submission');
         }
     }
@@ -220,6 +242,25 @@ export class AssessmentService {
 
   async findQuizAttempts(quizId: string, studentId: string, sessionId: string): Promise<QuizSubmission[]> {
     return assessmentDb.findQuizAttempts(quizId, studentId, sessionId);
+  }
+
+  async saveQuizProgress(studentId: string, quizId: string, submissionData: Partial<QuizSubmission>, sessionId: string): Promise<QuizSubmission> {
+    const quiz = await assessmentDb.findQuizById(quizId, sessionId);
+    if (!quiz) throw new NotFoundError('Quiz not found');
+
+    const existingSubmissions = await assessmentDb.findQuizAttempts(quizId, studentId, sessionId);
+    const attemptNumber = existingSubmissions.length > 0 ? (existingSubmissions[0].attempt_number || 1) : 1;
+
+    const submissionToSave: Partial<QuizSubmission> = {
+      ...submissionData,
+      quiz_id: quizId,
+      student_id: studentId,
+      attempt_number: attemptNumber,
+      status: SUBMISSION_STATUS.IN_PROGRESS as any,
+      updated_at: new Date().toISOString()
+    };
+
+    return assessmentDb.upsertQuizSubmission(submissionToSave, sessionId);
   }
 
   async submitQuiz(studentId: string, quizId: string, submissionData: Partial<QuizSubmission>, sessionId: string): Promise<{ success: boolean, score: number }> {

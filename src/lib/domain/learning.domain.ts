@@ -1,4 +1,5 @@
 import { Lesson, Material } from '../types';
+import { sanitizeHtml } from '../utils';
 
 export class LearningDomain {
   static validateLesson(lesson: Partial<Lesson>) {
@@ -14,6 +15,7 @@ export class LearningDomain {
   static prepareLesson(lesson: Partial<Lesson>): Partial<Lesson> {
     return {
       ...lesson,
+      content: lesson.content ? sanitizeHtml(lesson.content) : lesson.content,
       order_index: lesson.order_index || 0
     };
   }
