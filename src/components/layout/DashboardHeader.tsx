@@ -81,7 +81,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   };
 
   const centerContent = user.role === 'student' && stats ? (
-    <div className="flex gap-4 sm:gap-6 items-center">
+    <div className="hidden sm:flex gap-4 sm:gap-6 items-center">
         <div className="text-center px-2 sm:px-4 border-r border-[#e2e8f0]">
           <div className="text-[0.6rem] sm:text-[0.7rem] uppercase font-bold text-[#64748b] tracking-wider mb-0.5 sm:mb-1">Courses</div>
           <div className="text-[#1e293b] font-extrabold text-sm sm:text-lg">{stats.courses}</div>

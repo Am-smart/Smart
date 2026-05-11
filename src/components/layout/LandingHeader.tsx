@@ -58,7 +58,7 @@ export const LandingHeader: React.FC<HeaderProps> = ({ onSignIn, onGetStarted })
 
       {/* Mobile Menu */}
       {mobileMenuOpen && (
-        <div className="absolute top-full left-0 right-0 bg-white border-t border-slate-100 md:hidden shadow-lg">
+        <div className="absolute top-full left-0 right-0 bg-white border-t border-slate-100 md:hidden shadow-xl animate-in slide-in-from-top duration-300">
           <nav className="flex flex-col gap-0">
             <a 
               href="#features" 

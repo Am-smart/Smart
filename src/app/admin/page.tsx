@@ -42,9 +42,9 @@ export default function AdminDashboard() {
   }, [fetchData]);
 
   return (
-    <div className="space-y-8">
-      <h2 className="text-2xl font-bold mb-6">Admin Overview</h2>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+    <div className="space-y-6 sm:space-y-8">
+      <h2 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6">Admin Overview</h2>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
         <StatCard 
           label="Total Users" 
           value={stats.totalUsers} 
@@ -65,9 +65,9 @@ export default function AdminDashboard() {
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100">
-            <h3 className="text-lg font-bold mb-6">System Health</h3>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
+        <div className="bg-white p-4 sm:p-8 rounded-3xl shadow-sm border border-slate-100 overflow-x-auto">
+            <h3 className="text-lg font-bold mb-4 sm:mb-6">System Health</h3>
             <div className="space-y-4">
                 <div className="flex justify-between items-center p-4 bg-slate-50 rounded-2xl">
                     <span className="font-medium">Database Connection</span>
@@ -83,8 +83,8 @@ export default function AdminDashboard() {
                 </div>
             </div>
         </div>
-        <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100">
-            <h3 className="text-lg font-bold mb-6">Recent Activity Logs</h3>
+        <div className="bg-white p-4 sm:p-8 rounded-3xl shadow-sm border border-slate-100 overflow-x-auto">
+            <h3 className="text-lg font-bold mb-4 sm:mb-6">Recent Activity Logs</h3>
             <div className="text-slate-500 text-sm italic">
                 Logs are being recorded. Visit the System Logs page for detailed tracking.
             </div>
