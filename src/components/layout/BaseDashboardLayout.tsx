@@ -72,13 +72,14 @@ export const BaseDashboardLayout: React.FC<BaseDashboardLayoutProps> = ({
         />
         <main className={`flex-1 transition-all duration-300 ${isSidebarOpen ? 'md:ml-[240px]' : 'md:ml-0'} w-full overflow-x-hidden`}>
           <HeaderComponent
+            className={`${isSidebarOpen ? 'md:left-[240px]' : 'md:left-0'}`}
             {...headerProps}
             user={user}
             onLogout={handleLogout}
             onMenuClick={toggleSidebar}
           />
 
-          <div className="content-area p-4 md:p-8 bg-[#f8fafc] min-h-[calc(100vh-70px)] overflow-x-hidden">
+          <div className="content-area p-4 md:p-8 pt-[60px] md:pt-[70px] bg-[#f8fafc] min-h-screen overflow-x-hidden">
             {children}
           </div>
         </main>
