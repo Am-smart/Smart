@@ -88,7 +88,6 @@ export default function StudentGradesPage() {
                             <div className="p-6 md:p-8 flex flex-col md:flex-row md:items-center justify-between gap-6 bg-slate-50/50 border-b border-slate-100">
                                 <div className="space-y-1">
                                     <h3 className="text-xl font-black text-slate-900">{e.course?.title}</h3>
-                                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">{e.course?.category || 'General'}</p>
                                 </div>
                                 <div className="flex items-center gap-6">
                                     <div className="text-right">

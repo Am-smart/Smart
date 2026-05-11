@@ -157,7 +157,26 @@ export class SystemService {
     const course = await learningDb.findCourseById(courseId, sessionId);
     if (!course) throw new NotFoundError('Course not found');
 
-    EnrollmentDomain.validateEnrollmentCode(course.enrollment_id, enrollmentCode);
+    // Prevent duplicate enrollment
+    const existing = await learningDb.findEnrollmentByCourseAndStudent(courseId, studentId, sessionId);
+    if (existing) {
+        throw new Error('You are already enrolled in this course');
+    }
+
+    // Enrollment code validation
+    if (course.enrollment_id && course.enrollment_id.trim() !== '') {
+        if (!enrollmentCode || enrollmentCode.trim() !== course.enrollment_id.trim()) {
+            throw new ForbiddenError('Invalid enrollment code');
+        }
+    }
+
+    // Max enrollment limit enforcement
+    if (course.max_enrollment && course.max_enrollment > 0) {
+        const currentCount = await learningDb.countEnrollmentsByCourseId(courseId, sessionId);
+        if (currentCount >= course.max_enrollment) {
+            throw new ForbiddenError('Course has reached its maximum enrollment capacity');
+        }
+    }
 
     const enrollmentToSave = EnrollmentDomain.create(studentId, courseId);
     return learningDb.upsertEnrollment(enrollmentToSave, sessionId);

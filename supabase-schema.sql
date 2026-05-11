@@ -441,6 +441,10 @@ BEGIN
         ALTER TABLE courses ADD COLUMN thumbnail_url TEXT;
     END IF;
 
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'courses' AND column_name = 'max_enrollment') THEN
+        ALTER TABLE courses ADD COLUMN max_enrollment INTEGER DEFAULT 0;
+    END IF;
+
     -- Submission Details
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'submissions' AND column_name = 'submission_text') THEN
         ALTER TABLE submissions ADD COLUMN submission_text TEXT;

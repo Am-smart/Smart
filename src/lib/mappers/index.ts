@@ -77,7 +77,6 @@ export class CourseMapper {
     const dto = toCleanDTO<CourseDTO>(course);
     return {
       ...dto,
-      category: course.category || (course.metadata?.category as string),
       created_at: course.created_at || new Date().toISOString(),
       metadata: course.metadata || {}
     };
