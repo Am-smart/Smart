@@ -70,19 +70,19 @@ export default function TeacherDashboard() {
   }
 
   return (
-    <div className="space-y-8">
-      <h2 className="text-2xl font-bold mb-6">Teacher Dashboard</h2>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+    <div className="space-y-6 sm:space-y-8">
+      <h2 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6">Teacher Dashboard</h2>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
         <StatCard label="Your Courses" value={stats.courses} color="blue" />
         <StatCard label="Pending Grading" value={stats.pendingGrading} color="amber" />
         <StatCard label="Active Live Classes" value={stats.liveClasses} color="green" />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
-              <h3 className="text-lg font-bold mb-6">Recent Courses</h3>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
+          <div className="bg-white p-4 sm:p-8 rounded-2xl shadow-sm border border-slate-100 overflow-x-auto">
+              <h3 className="text-lg font-bold mb-4 sm:mb-6">Recent Courses</h3>
               {recentCourses.length > 0 ? (
-                  <div className="space-y-4">
+                  <div className="space-y-4 min-w-[300px]">
                       {recentCourses.map(course => (
                           <div key={course.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
                               <div className="flex items-center gap-3">
@@ -115,10 +115,10 @@ export default function TeacherDashboard() {
                   />
               )}
           </div>
-          <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-100">
-              <h3 className="text-lg font-bold mb-6">Grading Tasks</h3>
+          <div className="bg-white p-4 sm:p-8 rounded-2xl shadow-sm border border-slate-100 overflow-x-auto">
+              <h3 className="text-lg font-bold mb-4 sm:mb-6">Grading Tasks</h3>
               {pendingItems.length > 0 ? (
-                  <div className="space-y-4">
+                  <div className="space-y-4 min-w-[300px]">
                       {pendingItems.map(sub => (
                           <div key={sub.id} className="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
                               <div>

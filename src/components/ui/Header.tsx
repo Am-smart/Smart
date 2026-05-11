@@ -9,7 +9,7 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({ title, onMenuClick, rightContent, centerContent }) => {
   return (
-    <header className="h-[60px] md:h-[70px] bg-white border-b border-slate-200 px-2 md:px-8 flex justify-between items-center sticky top-0 z-[900]">
+    <header className="h-[60px] md:h-[70px] bg-white border-b border-slate-200 px-3 md:px-8 flex justify-between items-center sticky top-0 z-[900]">
       <div className="flex items-center gap-2 md:gap-4">
         <button onClick={onMenuClick} className="md:hidden text-xl p-1.5 rounded-lg transition-colors hover:bg-slate-100">☰</button>
         <div className="text-base md:text-lg font-bold text-slate-800 truncate max-w-[100px] xs:max-w-[150px] md:max-w-none">{title}</div>
