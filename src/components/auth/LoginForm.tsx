@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from './AuthContext';
 import { validateLoginForm, normalizeEmail } from '@/lib/validation';
-import { X } from 'lucide-react';
+import { X, Eye, EyeOff } from 'lucide-react';
 
 interface LoginFormProps {
   onClose: () => void;
@@ -14,6 +14,7 @@ interface LoginFormProps {
 export const LoginForm: React.FC<LoginFormProps> = ({ onClose, onShowSignup, onShowReset }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
@@ -128,18 +129,26 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onClose, onShowSignup, onS
             <p id="email-error" className="text-red-500 text-xs mt-1">{errors.email}</p>
           )}
         </div>
-        <div>
+        <div className="relative">
           <input
-            type="password"
+            type={showPassword ? "text" : "password"}
             placeholder="Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className={`input-custom ${errors.password ? 'border-red-500 focus:ring-red-500' : ''}`}
+            className={`input-custom pr-10 ${errors.password ? 'border-red-500 focus:ring-red-500' : ''}`}
             required
             disabled={isLoading}
             aria-invalid={!!errors.password}
             aria-describedby={errors.password ? 'password-error' : undefined}
           />
+          <button
+            type="button"
+            onClick={() => setShowPassword(!showPassword)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
+            aria-label={showPassword ? "Hide password" : "Show password"}
+          >
+            {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+          </button>
           {errors.password && (
             <p id="password-error" className="text-red-500 text-xs mt-1">{errors.password}</p>
           )}
