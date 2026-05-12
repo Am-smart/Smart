@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Submission, QuizSubmission, Course, User, PlannerItem, Discussion } from '@/lib/types';
 import * as actions from '@/lib/api-actions';
 
@@ -473,5 +473,18 @@ export const useIndexedDB = () => {
     }
   }, [isOnline, db, processSync]);
 
-  return { addToQueue, getQueue, removeFromQueue, setCache, getCache, processSync, pullData, isOnline, isBackendConnected, checkBackend, syncErrors, getSyncErrors };
+  return useMemo(() => ({
+    addToQueue,
+    getQueue,
+    removeFromQueue,
+    setCache,
+    getCache,
+    processSync,
+    pullData,
+    isOnline,
+    isBackendConnected,
+    checkBackend,
+    syncErrors,
+    getSyncErrors
+  }), [addToQueue, getQueue, removeFromQueue, setCache, getCache, processSync, pullData, isOnline, isBackendConnected, checkBackend, syncErrors, getSyncErrors]);
 };

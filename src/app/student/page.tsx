@@ -11,17 +11,11 @@ import { useRouter } from 'next/navigation';
 export default function StudentDashboard() {
   const router = useRouter();
   const { user } = useAuth();
-  const { enrollments, assignments, stats, isLoading, refreshDashboardData } = useAppContext();
-
-  React.useEffect(() => {
-    if (user) {
-        refreshDashboardData();
-    }
-  }, [user, refreshDashboardData]);
+  const { enrollments, assignments, stats, isDataLoading } = useAppContext();
 
   if (!user) return null;
 
-  if (isLoading && enrollments.length === 0) {
+  if (isDataLoading && enrollments.length === 0) {
     return (
         <div className="space-y-8 animate-pulse">
             <div className="h-64 bg-slate-100 rounded-3xl"></div>

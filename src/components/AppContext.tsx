@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
-  User, Maintenance, Notification, EnrollmentDTO, AssignmentDTO, SubmissionDTO, SignupRequestDTO
+  User, Maintenance, Notification, CourseDTO, EnrollmentDTO, AssignmentDTO, SubmissionDTO, SignupRequestDTO
 } from '@/lib/types';
 import { useIndexedDB } from '@/hooks/useIndexedDB';
 import { Toast, ToastMessage, ToastType } from './ui/Toast';
@@ -13,11 +13,21 @@ import { useRouter } from 'next/navigation';
 export interface DashboardStats {
   courses: number;
   dueSoon: number;
+  pendingGrading?: number;
+  liveClasses?: number;
+  totalUsers?: number;
+  activeCourses?: number;
+  flaggedUsers?: number;
+  teachers?: number;
+  students?: number;
+  pendingResets?: number;
 }
 
 interface AppState {
   user: User | null;
   isLoading: boolean;
+  isAuthLoading: boolean;
+  isDataLoading: boolean;
   maintenance: Maintenance;
   notifications: Notification[];
   isSidebarOpen: boolean;
@@ -25,6 +35,7 @@ interface AppState {
   isBackendConnected: boolean;
   stats: DashboardStats;
   enrollments: EnrollmentDTO[];
+  courses: CourseDTO[];
   assignments: AssignmentDTO[];
   submissions: SubmissionDTO[];
 }
@@ -57,6 +68,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [stats, setStats] = useState<DashboardStats>({ courses: 0, dueSoon: 0 });
   const [enrollments, setEnrollments] = useState<EnrollmentDTO[]>([]);
+  const [courses, setCourses] = useState<CourseDTO[]>([]);
   const [assignments, setAssignments] = useState<AssignmentDTO[]>([]);
   const [submissions, setSubmissions] = useState<SubmissionDTO[]>([]);
   const [isDataLoading, setIsDataLoading] = useState(false);
@@ -114,6 +126,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setNotifications([]);
     setStats({ courses: 0, dueSoon: 0 });
     setEnrollments([]);
+    setCourses([]);
     setAssignments([]);
     setSubmissions([]);
 
@@ -222,15 +235,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Dashboard Data
   const refreshDashboardData = useCallback(async () => {
-    if (!user || user.role !== 'student') return;
+    if (!user) return;
 
     if (!isOnline) {
-        const cachedEnrollments = await getCache<EnrollmentDTO[]>('my_enrollments');
-        const cachedAssignments = await getCache<AssignmentDTO[]>('all_assignments');
-        const cachedSubmissions = await getCache<SubmissionDTO[]>('my_submissions');
-        if (cachedEnrollments) setEnrollments(cachedEnrollments);
-        if (cachedAssignments) setAssignments(cachedAssignments);
-        if (cachedSubmissions) setSubmissions(cachedSubmissions);
+        if (user.role === 'student') {
+            const cachedEnrollments = await getCache<EnrollmentDTO[]>('my_enrollments');
+            const cachedAssignments = await getCache<AssignmentDTO[]>('all_assignments');
+            const cachedSubmissions = await getCache<SubmissionDTO[]>('my_submissions');
+            if (cachedEnrollments) setEnrollments(cachedEnrollments);
+            if (cachedAssignments) setAssignments(cachedAssignments);
+            if (cachedSubmissions) setSubmissions(cachedSubmissions);
+        } else if (user.role === 'teacher') {
+            const cachedCourses = await getCache<CourseDTO[]>('teacher_courses');
+            const cachedSubmissions = await getCache<SubmissionDTO[]>('teacher_submissions');
+            if (cachedCourses) setCourses(cachedCourses);
+            if (cachedSubmissions) setSubmissions(cachedSubmissions);
+        }
         return;
     }
 
@@ -239,31 +259,67 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     setIsDataLoading(true);
     try {
-      const [myEnrollments, allAssignments, mySubmissions] = await Promise.all([
-        actions.getEnrollments(user.id),
-        actions.getAssignments(),
-        actions.getSubmissions({ studentId: user.id })
-      ]);
+      if (user.role === 'student') {
+          const [myEnrollments, allAssignments, mySubmissions] = await Promise.all([
+            actions.getEnrollments(user.id),
+            actions.getAssignments(),
+            actions.getSubmissions({ studentId: user.id })
+          ]);
 
-      setEnrollments(myEnrollments);
-      setSubmissions(mySubmissions);
+          setEnrollments(myEnrollments);
+          setSubmissions(mySubmissions);
 
-      const enrolledIds = myEnrollments.map((e: EnrollmentDTO) => e.course_id);
-      const pending = allAssignments.filter((a: AssignmentDTO) =>
-        enrolledIds.includes(a.course_id) &&
-        new Date(a.due_date) > new Date() &&
-        !mySubmissions.some((s: SubmissionDTO) => s.assignment_id === a.id)
-      );
+          const enrolledIds = myEnrollments.map((e: EnrollmentDTO) => e.course_id);
+          const pending = allAssignments.filter((a: AssignmentDTO) =>
+            enrolledIds.includes(a.course_id) &&
+            new Date(a.due_date) > new Date() &&
+            !mySubmissions.some((s: SubmissionDTO) => s.assignment_id === a.id)
+          );
 
-      setAssignments(pending);
-      setStats({
-        courses: myEnrollments.length,
-        dueSoon: pending.length
-      });
+          setAssignments(pending);
+          setStats({
+            courses: myEnrollments.length,
+            dueSoon: pending.length
+          });
 
-      await setCache('my_enrollments', myEnrollments);
-      await setCache('all_assignments', allAssignments);
-      await setCache('my_submissions', mySubmissions);
+          await setCache('my_enrollments', myEnrollments);
+          await setCache('all_assignments', allAssignments);
+          await setCache('my_submissions', mySubmissions);
+      } else if (user.role === 'teacher') {
+          const [myCourses, pendingSubmissions, myLiveClasses] = await Promise.all([
+              actions.getCourses(user.id),
+              actions.getSubmissions({ status: 'submitted' }),
+              actions.getLiveClasses(undefined, user.id)
+          ]);
+
+          setCourses(myCourses);
+          setSubmissions(pendingSubmissions);
+          setStats({
+            courses: myCourses.length,
+            pendingGrading: pendingSubmissions.length,
+            liveClasses: myLiveClasses.length,
+            dueSoon: 0 // Not applicable but matching interface
+          });
+
+          await setCache('teacher_courses', myCourses);
+          await setCache('teacher_submissions', pendingSubmissions);
+      } else if (user.role === 'admin') {
+          const [allUsers, systemStats] = await Promise.all([
+              actions.getUsers(),
+              actions.getSystemStats()
+          ]);
+
+          setStats({
+            courses: systemStats.courses ?? 0,
+            dueSoon: 0,
+            totalUsers: systemStats.users ?? allUsers.length,
+            activeCourses: systemStats.courses ?? 0,
+            flaggedUsers: allUsers.filter(u => u.flagged).length,
+            teachers: allUsers.filter(u => u.role === 'teacher').length,
+            students: allUsers.filter(u => u.role === 'student').length,
+            pendingResets: allUsers.filter(u => !!u.reset_request).length
+          });
+      }
     } catch (err) {
       console.error('Dashboard refresh error:', err);
     } finally {
@@ -272,7 +328,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [user, isOnline, getCache, setCache, checkBackend]);
 
   useEffect(() => {
-    if (user?.role === 'student') {
+    if (user) {
         refreshDashboardData();
     }
   }, [user, refreshDashboardData]);
@@ -298,6 +354,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const value = useMemo(() => ({
     user,
     isLoading: isAuthLoading || isDataLoading,
+    isAuthLoading,
+    isDataLoading,
     role: user?.role || null,
     maintenance: { ...maintenance, enabled: isCurrentlyInMaintenance },
     notifications,
@@ -306,6 +364,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     isBackendConnected,
     stats,
     enrollments,
+    courses,
     assignments,
     submissions,
     login,
