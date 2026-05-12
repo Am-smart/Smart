@@ -91,7 +91,23 @@ export class AssessmentService {
         }
 
         const quizzes = await assessmentDb.findAllQuizzes(courseId, teacherId, sessionId!, limit, offset);
-        return quizzes.filter(q => enrolledCourseIds.includes(q.course_id));
+        const filtered = quizzes.filter(q => enrolledCourseIds.includes(q.course_id));
+
+        // Server-side Shuffling for Students (Fisher-Yates)
+        return filtered.map(q => {
+            if (q.shuffle_questions && q.questions && Array.isArray(q.questions)) {
+                const shuffled = [...q.questions];
+                for (let i = shuffled.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+                }
+                return {
+                    ...q,
+                    questions: shuffled
+                };
+            }
+            return q;
+        });
     }
     return assessmentDb.findAllQuizzes(courseId, teacherId, sessionId!, limit, offset);
   }
@@ -169,6 +185,12 @@ export class AssessmentService {
   }
 
   async submitAssignment(studentId: string, assignmentId: string, content: Partial<Submission>, sessionId: string): Promise<Submission> {
+    // Idempotency: Check if already submitted
+    const existing = await assessmentDb.findAllSubmissions(assignmentId, studentId, sessionId);
+    if (existing.length > 0 && existing[0].status !== SUBMISSION_STATUS.DRAFT) {
+        return existing[0];
+    }
+
     const assignment = await assessmentDb.findAssignmentById(assignmentId, sessionId);
     if (!assignment) throw new NotFoundError('Assignment not found');
 
@@ -196,6 +218,11 @@ export class AssessmentService {
 
     const submission = await assessmentDb.findSubmissionById(submissionId, sessionId);
     if (!submission) throw new NotFoundError('Submission not found');
+
+    // Prevent re-grading if already graded with same score to ensure atomicity and avoid redundant notifications
+    if (submission.status === SUBMISSION_STATUS.GRADED && submission.grade === gradeData.grade && !gradeData.feedback) {
+        return submission;
+    }
 
     // Authorization check: Teachers can only grade submissions for their own assignments
     if (performingUserRole === 'teacher' && performingUserId) {
@@ -275,6 +302,16 @@ export class AssessmentService {
     if (!quiz) throw new NotFoundError('Quiz not found');
 
     const existingSubmissions = await assessmentDb.findQuizAttempts(quizId, studentId, sessionId);
+
+    // Idempotency check: prevent duplicate submission for the same started_at timestamp
+    if (submissionData.started_at) {
+        const duplicate = (await assessmentDb.findAllQuizSubmissions(quizId, studentId, sessionId))
+            .find(s => s.started_at === submissionData.started_at && s.status === 'submitted');
+        if (duplicate) {
+            return { success: true, score: duplicate.score || 0 };
+        }
+    }
+
     const currentAttempts = existingSubmissions.length;
 
     AssessmentDomain.validateQuizAttempt(quiz, currentAttempts);
