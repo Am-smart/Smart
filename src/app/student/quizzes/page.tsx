@@ -17,18 +17,24 @@ export default function QuizzesPage() {
   const [submissions, setSubmissions] = useState<QuizSubmissionDTO[]>([]);
   const [activeQuiz, setActiveQuiz] = useState<QuizDTO | null>(null);
   const [viewingResult, setViewingResult] = useState<{ quiz: QuizDTO, submission: QuizSubmissionDTO } | null>(null);
+  const [loading, setLoading] = useState(true);
 
   const fetchData = useCallback(async () => {
     if (!user) return;
-    const [myEnrollments, allQuizzes, mySubmissions] = await Promise.all([
-      getEnrollments(user.id),
-      getQuizzes(),
-      getQuizSubmissions(undefined, user.id)
-    ]);
+    setLoading(true);
+    try {
+        const [myEnrollments, allQuizzes, mySubmissions] = await Promise.all([
+          getEnrollments(user.id),
+          getQuizzes(),
+          getQuizSubmissions(undefined, user.id)
+        ]);
 
-    const enrolledIds = myEnrollments.map(e => e.course_id);
-    setQuizzes(allQuizzes.filter(q => enrolledIds.includes(q.course_id) && q.status === 'published'));
-    setSubmissions(mySubmissions);
+        const enrolledIds = myEnrollments.map(e => e.course_id);
+        setQuizzes(allQuizzes.filter(q => enrolledIds.includes(q.course_id) && q.status === 'published'));
+        setSubmissions(mySubmissions);
+    } finally {
+        setLoading(false);
+    }
   }, [user]);
 
   useEffect(() => {
@@ -36,17 +42,32 @@ export default function QuizzesPage() {
   }, [fetchData]);
 
   useEffect(() => {
-    if (quizzes.length > 0) {
+    if (!loading && quizzes.length > 0) {
       const params = new URLSearchParams(window.location.search);
       const id = params.get('id');
       if (id) {
         const quiz = quizzes.find(q => q.id === id);
         if (quiz) {
-          setActiveQuiz(quiz);
+            // Validate availability before setting as active
+            const now = new Date();
+            const startAt = quiz.start_at ? new Date(quiz.start_at) : null;
+            const endAt = quiz.end_at ? new Date(quiz.end_at) : null;
+            const isNotStarted = startAt && now < startAt;
+            const isEnded = endAt && now > endAt;
+
+            const mySubs = submissions.filter(s => s.quiz_id === quiz.id && s.status === 'submitted');
+            const canAttempt = mySubs.length < quiz.attempts_allowed;
+
+            if (!isNotStarted && !isEnded && canAttempt) {
+                setActiveQuiz(quiz);
+            } else {
+                console.warn('[Quiz] Deeplink rejected: Quiz is either not started, already closed, or maximum attempts reached.');
+                // Clear the ID from URL to avoid repeated warnings/checks if needed, or just let it be
+            }
         }
       }
     }
-  }, [quizzes]);
+  }, [quizzes, submissions]);
 
   const handleViewResults = (quizId: string, submissionId: string) => {
       const quiz = quizzes.find(q => q.id === quizId);

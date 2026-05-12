@@ -80,6 +80,21 @@ export class AssessmentService {
   }
 
   // Quizzes
+  /**
+   * Internal helper to shuffle quiz questions if enabled.
+   */
+  private shuffleQuizQuestions(quiz: Quiz): Quiz {
+    if (quiz.shuffle_questions && quiz.questions && Array.isArray(quiz.questions)) {
+        const shuffled = [...quiz.questions];
+        for (let i = shuffled.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+        }
+        return { ...quiz, questions: shuffled };
+    }
+    return quiz;
+  }
+
   async getQuizzes(courseId?: string, teacherId?: string, sessionId?: string, limit?: number, offset?: number, userId?: string, userRole?: string): Promise<Quiz[]> {
     if (userRole === 'student' && userId) {
         const { systemService } = await import('./system.service');
@@ -91,9 +106,25 @@ export class AssessmentService {
         }
 
         const quizzes = await assessmentDb.findAllQuizzes(courseId, teacherId, sessionId!, limit, offset);
-        return quizzes.filter(q => enrolledCourseIds.includes(q.course_id));
+        const filtered = quizzes.filter(q => enrolledCourseIds.includes(q.course_id));
+
+        // Server-side Shuffling for Students
+        return filtered.map(q => this.shuffleQuizQuestions(q));
     }
     return assessmentDb.findAllQuizzes(courseId, teacherId, sessionId!, limit, offset);
+  }
+
+  async getQuiz(id: string, sessionId: string, userId?: string, userRole?: string): Promise<Quiz> {
+    const quiz = await assessmentDb.findQuizById(id, sessionId);
+    if (!quiz) throw new NotFoundError('Quiz not found');
+
+    if (userRole === 'student' && userId) {
+        const { systemService } = await import('./system.service');
+        const enrolled = await systemService.isEnrolled(quiz.course_id, userId, sessionId);
+        if (!enrolled) throw new ForbiddenError('You are not enrolled in this course');
+        return this.shuffleQuizQuestions(quiz);
+    }
+    return quiz;
   }
 
   async saveQuiz(teacherId: string, quiz: Partial<Quiz>, sessionId: string, currentUser?: User): Promise<Quiz> {
@@ -169,6 +200,12 @@ export class AssessmentService {
   }
 
   async submitAssignment(studentId: string, assignmentId: string, content: Partial<Submission>, sessionId: string): Promise<Submission> {
+    // Idempotency: Check if already submitted
+    const existing = await assessmentDb.findAllSubmissions(assignmentId, studentId, sessionId);
+    if (existing.length > 0 && existing[0].status !== SUBMISSION_STATUS.DRAFT) {
+        return existing[0];
+    }
+
     const assignment = await assessmentDb.findAssignmentById(assignmentId, sessionId);
     if (!assignment) throw new NotFoundError('Assignment not found');
 
@@ -196,6 +233,11 @@ export class AssessmentService {
 
     const submission = await assessmentDb.findSubmissionById(submissionId, sessionId);
     if (!submission) throw new NotFoundError('Submission not found');
+
+    // Prevent re-grading if already graded with same score to ensure atomicity and avoid redundant notifications
+    if (submission.status === SUBMISSION_STATUS.GRADED && submission.grade === gradeData.grade && !gradeData.feedback) {
+        return submission;
+    }
 
     // Authorization check: Teachers can only grade submissions for their own assignments
     if (performingUserRole === 'teacher' && performingUserId) {
@@ -255,6 +297,9 @@ export class AssessmentService {
     const quiz = await assessmentDb.findQuizById(quizId, sessionId);
     if (!quiz) throw new NotFoundError('Quiz not found');
 
+    // Ensure we don't use shuffled questions for grading if we fetched them shuffled
+    // but AssessmentDomain.calculateQuizScore works with question IDs so it should be fine.
+
     const existingSubmissions = await assessmentDb.findQuizAttempts(quizId, studentId, sessionId);
     const attemptNumber = existingSubmissions.length > 0 ? (existingSubmissions[0].attempt_number || 1) : 1;
 
@@ -275,6 +320,16 @@ export class AssessmentService {
     if (!quiz) throw new NotFoundError('Quiz not found');
 
     const existingSubmissions = await assessmentDb.findQuizAttempts(quizId, studentId, sessionId);
+
+    // Idempotency check: prevent duplicate submission for the same started_at timestamp
+    if (submissionData.started_at) {
+        const duplicate = (await assessmentDb.findAllQuizSubmissions(quizId, studentId, sessionId))
+            .find(s => s.started_at === submissionData.started_at && s.status === 'submitted');
+        if (duplicate) {
+            return { success: true, score: duplicate.score || 0 };
+        }
+    }
+
     const currentAttempts = existingSubmissions.length;
 
     AssessmentDomain.validateQuizAttempt(quiz, currentAttempts);

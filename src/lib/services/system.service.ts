@@ -210,6 +210,11 @@ export class SystemService {
   }
 
   // Enrollments (Merged from EnrollmentService)
+  async isEnrolled(courseId: string, studentId: string, sessionId: string): Promise<boolean> {
+    const enrollment = await learningDb.findEnrollmentByCourseAndStudent(courseId, studentId, sessionId);
+    return !!enrollment;
+  }
+
   async enrollInCourse(studentId: string, courseId: string, sessionId: string, enrollmentCode?: string): Promise<Enrollment> {
     const course = await learningDb.findCourseById(courseId, sessionId);
     if (!course) throw new NotFoundError('Course not found');

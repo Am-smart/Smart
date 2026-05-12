@@ -40,15 +40,10 @@ export const QuizView: React.FC<QuizViewProps> = ({ quiz, user, onComplete, onCa
     return () => window.removeEventListener('anti-cheat-violation', handleViolation);
   }, [quiz.anti_cheat_enabled, addToast]);
 
-  // Handle Shuffling
+  // Note: Shuffling is handled server-side for students to prevent client-side manipulation.
   useEffect(() => {
-    if (quiz.shuffle_questions && quiz.questions) {
-        const shuffled = [...quiz.questions].sort(() => Math.random() - 0.5);
-        setQuestions(shuffled);
-    } else {
-        setQuestions(quiz.questions || []);
-    }
-  }, [quiz.shuffle_questions, quiz.questions]);
+    setQuestions(quiz.questions || []);
+  }, [quiz.questions]);
 
   // Load saved progress from IndexedDB
   useEffect(() => {
