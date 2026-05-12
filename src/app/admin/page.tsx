@@ -1,67 +1,45 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
-import { getUsers, getSystemStats } from '@/lib/api-actions';
+import { useAppContext } from '@/components/AppContext';
 import { StatCard } from '@/components/ui/StatCard';
 
 export default function AdminDashboard() {
   const { user } = useAuth();
-  const [stats, setStats] = useState({
-      totalUsers: 0,
-      activeCourses: 0,
-      flaggedUsers: 0,
-      teachers: 0,
-      students: 0,
-      pendingResets: 0
-  });
+  const { stats, isDataLoading, refreshDashboardData } = useAppContext();
 
-  const fetchData = useCallback(async () => {
-    if (!user) return;
-    try {
-        const [allUsers, systemStats] = await Promise.all([
-            getUsers(),
-            getSystemStats()
-        ]);
-
-        setStats({
-          totalUsers: systemStats.users ?? allUsers.length,
-          activeCourses: systemStats.courses ?? 0,
-          flaggedUsers: allUsers.filter(u => u.flagged).length,
-          teachers: allUsers.filter(u => u.role === 'teacher').length,
-          students: allUsers.filter(u => u.role === 'student').length,
-          pendingResets: allUsers.filter(u => !!u.reset_request).length
-        });
-    } catch (err) {
-        console.error('Failed to fetch admin stats:', err);
-    }
-  }, [user]);
-
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  if (!user) return null;
 
   return (
     <div className="space-y-6 sm:space-y-8">
-      <h2 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6">Admin Overview</h2>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
+      <div className="flex justify-between items-center">
+          <h2 className="text-xl sm:text-2xl font-bold">Admin Overview</h2>
+          <button
+            onClick={() => refreshDashboardData()}
+            className="text-xs font-bold text-blue-600 hover:underline uppercase tracking-widest"
+          >
+            Refresh
+          </button>
+      </div>
+      <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8 ${isDataLoading ? 'animate-pulse opacity-70' : ''}`}>
         <StatCard 
           label="Total Users" 
-          value={stats.totalUsers} 
-          subtext={`Teachers: ${stats.teachers} | Students: ${stats.students}`}
+          value={stats.totalUsers || 0}
+          subtext={`Teachers: ${stats.teachers || 0} | Students: ${stats.students || 0}`}
           color="blue"
         />
         <StatCard 
           label="Active Courses" 
-          value={stats.activeCourses} 
+          value={stats.activeCourses || 0}
           subtext="Live & Published"
           color="green"
         />
         <StatCard 
           label="Security Alerts" 
-          value={stats.flaggedUsers} 
-          subtext={`Flagged: ${stats.flaggedUsers} | Pending Resets: ${stats.pendingResets}`}
-          color={stats.flaggedUsers > 0 ? 'red' : 'default'}
+          value={stats.flaggedUsers || 0}
+          subtext={`Flagged: ${stats.flaggedUsers || 0} | Pending Resets: ${stats.pendingResets || 0}`}
+          color={(stats.flaggedUsers || 0) > 0 ? 'red' : 'default'}
         />
       </div>
 
