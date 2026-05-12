@@ -173,6 +173,18 @@ export const useAntiCheat = (enabled: boolean = false, assessmentTitle: string =
       window.addEventListener('drop', preventDefault);
       window.addEventListener('keydown', handleKeyDown);
 
+      // 5. Mobile/Tablet specific selection blocking
+      const handleSelectionChange = () => {
+        if (window.getSelection) {
+            const selection = window.getSelection();
+            if (selection && selection.toString().length > 0) {
+                selection.removeAllRanges();
+                reportViolation('SELECTION_ATTEMPT');
+            }
+        }
+      };
+      document.addEventListener('selectionchange', handleSelectionChange);
+
       // Block selection via CSS
       document.body.style.userSelect = 'none';
       document.body.style.webkitUserSelect = 'none';
@@ -192,6 +204,7 @@ export const useAntiCheat = (enabled: boolean = false, assessmentTitle: string =
         window.removeEventListener('dragstart', preventDefault);
         window.removeEventListener('drop', preventDefault);
         window.removeEventListener('keydown', handleKeyDown);
+        document.removeEventListener('selectionchange', handleSelectionChange);
         document.body.style.userSelect = 'auto';
         document.body.style.webkitUserSelect = 'auto';
       };
