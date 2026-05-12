@@ -106,19 +106,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         console.error('Logout network/server error:', err);
     }
 
+    // 1. Trigger full client-side data purge (Storage + IndexedDB)
     sessionManager.cleanupSession();
-    await setCache('current_user', null);
-    setUser(null);
 
-    // Clear app data
+    // 2. Clear application state
+    setUser(null);
     setNotifications([]);
     setStats({ courses: 0, dueSoon: 0 });
     setEnrollments([]);
     setAssignments([]);
     setSubmissions([]);
 
+    // 3. SPA-friendly redirect
     router.push('/');
-  }, [setCache, router]);
+  }, [router]);
 
   const updateProfile = useCallback(async (updates: Partial<User>) => {
     if (!user) return;

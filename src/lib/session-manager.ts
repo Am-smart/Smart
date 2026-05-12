@@ -19,10 +19,5 @@ export const sessionManager = {
     } else {
       window.location.href = '/';
     }
-  },
-
-  logout: (router?: { push: (path: string) => void }) => {
-    sessionManager.cleanupSession();
-    sessionManager.redirectToLanding(router);
   }
 };
