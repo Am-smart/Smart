@@ -12,13 +12,7 @@ function StudentLayoutContent({
   children: React.ReactNode;
 }) {
   const { user } = useAuth();
-  const { stats, refreshDashboardData } = useAppContext();
-
-  useEffect(() => {
-    if (user && user.role === 'student') {
-        refreshDashboardData();
-    }
-  }, [user, refreshDashboardData]);
+  const { stats } = useAppContext();
 
   return (
     <BaseDashboardLayout

@@ -23,18 +23,18 @@ export const BaseDashboardLayout: React.FC<BaseDashboardLayoutProps> = ({
   HeaderComponent,
   headerProps = {}
 }) => {
-  const { user, role, logout, isLoading: authLoading, updateProfile } = useAuth();
+  const { user, role, logout, isAuthLoading, updateProfile } = useAuth();
   const { isSidebarOpen, toggleSidebar, maintenance } = useAppContext();
   const router = useRouter();
   const pathname = usePathname();
 
   useEffect(() => {
-    if (!authLoading) {
+    if (!isAuthLoading) {
       if (!user || role !== requiredRole) {
         router.push('/');
       }
     }
-  }, [authLoading, user, role, router, requiredRole]);
+  }, [isAuthLoading, user, role, router, requiredRole]);
 
   const handleLogout = async () => {
     await logout();
@@ -43,7 +43,7 @@ export const BaseDashboardLayout: React.FC<BaseDashboardLayoutProps> = ({
 
   const activePage = pathname.split('/').pop() || 'dashboard';
 
-  if (authLoading || !user || role !== requiredRole) {
+  if (isAuthLoading || !user || role !== requiredRole) {
     return <div className="flex items-center justify-center min-h-screen font-bold text-slate-400 uppercase tracking-widest animate-pulse">Loading...</div>;
   }
 

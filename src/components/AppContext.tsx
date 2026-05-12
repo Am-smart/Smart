@@ -18,6 +18,8 @@ export interface DashboardStats {
 interface AppState {
   user: User | null;
   isLoading: boolean;
+  isAuthLoading: boolean;
+  isDataLoading: boolean;
   maintenance: Maintenance;
   notifications: Notification[];
   isSidebarOpen: boolean;
@@ -298,6 +300,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const value = useMemo(() => ({
     user,
     isLoading: isAuthLoading || isDataLoading,
+    isAuthLoading,
+    isDataLoading,
     role: user?.role || null,
     maintenance: { ...maintenance, enabled: isCurrentlyInMaintenance },
     notifications,
