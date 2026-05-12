@@ -3,9 +3,10 @@
 import React, { useState, useEffect } from 'react';
 import { UserRole } from '@/lib/types';
 import { useAuth } from './AuthContext';
-import { validateSignupForm, normalizeEmail, normalizeInput } from '@/lib/validation';
+import { validateSignupForm, normalizeEmail, normalizeInput, calculatePasswordStrength } from '@/lib/validation';
 import { getRoleCount } from '@/lib/api-actions';
 import { SIGNUP_LIMITS, USER_ROLES } from '@/lib/constants';
+import { Eye, EyeOff } from 'lucide-react';
 
 interface SignupFormProps {
   initialRole?: UserRole;
@@ -22,12 +23,19 @@ export const SignupForm: React.FC<SignupFormProps> = ({ initialRole, onClose, on
     confirmPassword: '',
     role: initialRole || USER_ROLES.STUDENT
   });
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [passwordStrength, setPasswordStrength] = useState({ score: 0, label: 'Empty', color: 'bg-slate-200' });
   const [error, setError] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [roleCounts, setRoleCounts] = useState({ teachers: 0, admins: 0, total: 0 });
 
   const { signup } = useAuth();
+
+  useEffect(() => {
+      setPasswordStrength(calculatePasswordStrength(formData.password));
+  }, [formData.password]);
 
   // Fetch role counts on mount
   useEffect(() => {
@@ -80,6 +88,7 @@ export const SignupForm: React.FC<SignupFormProps> = ({ initialRole, onClose, on
           email: normalizedEmail,
           phone: formData.phone ? normalizeInput(formData.phone) : undefined,
           password: formData.password,
+          confirmPassword: formData.confirmPassword,
           role: formData.role
       });
       onClose();
@@ -146,34 +155,64 @@ export const SignupForm: React.FC<SignupFormProps> = ({ initialRole, onClose, on
             <p id="phone-error" className="text-red-500 text-xs mt-1">{errors.phone}</p>
           )}
         </div>
-        <div>
+        <div className="relative">
           <input
-            type="password"
+            type={showPassword ? "text" : "password"}
             placeholder="Password"
             value={formData.password}
             onChange={(e) => setFormData({...formData, password: e.target.value})}
-            className={`input-custom ${errors.password ? 'border-red-500 focus:ring-red-500' : ''}`}
+            className={`input-custom pr-10 ${errors.password ? 'border-red-500 focus:ring-red-500' : ''}`}
             required
             disabled={isLoading}
             aria-invalid={!!errors.password}
             aria-describedby={errors.password ? 'password-error' : undefined}
           />
+          <button
+            type="button"
+            onClick={() => setShowPassword(!showPassword)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
+            aria-label={showPassword ? "Hide password" : "Show password"}
+          >
+            {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+          </button>
           {errors.password && (
             <p id="password-error" className="text-red-500 text-xs mt-1">{errors.password}</p>
           )}
+          {formData.password && (
+              <div className="mt-2 space-y-1">
+                  <div className="flex justify-between items-center text-[10px] font-semibold">
+                      <span className="text-slate-500">Strength:</span>
+                      <span className={passwordStrength.color.replace('bg-', 'text-')}>{passwordStrength.label}</span>
+                  </div>
+                  <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full transition-all duration-300 ${passwordStrength.color}`}
+                        style={{ width: `${(passwordStrength.score / 5) * 100}%` }}
+                      />
+                  </div>
+              </div>
+          )}
         </div>
-        <div>
+        <div className="relative">
           <input
-            type="password"
+            type={showConfirmPassword ? "text" : "password"}
             placeholder="Confirm Password"
             value={formData.confirmPassword}
             onChange={(e) => setFormData({...formData, confirmPassword: e.target.value})}
-            className={`input-custom ${errors.confirmPassword ? 'border-red-500 focus:ring-red-500' : ''}`}
+            className={`input-custom pr-10 ${errors.confirmPassword ? 'border-red-500 focus:ring-red-500' : ''}`}
             required
             disabled={isLoading}
             aria-invalid={!!errors.confirmPassword}
             aria-describedby={errors.confirmPassword ? 'confirmPassword-error' : undefined}
           />
+          <button
+            type="button"
+            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
+            aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+          >
+            {showConfirmPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+          </button>
           {errors.confirmPassword && (
             <p id="confirmPassword-error" className="text-red-500 text-xs mt-1">{errors.confirmPassword}</p>
           )}

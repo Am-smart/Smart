@@ -71,9 +71,10 @@ export interface LoginRequestDTO {
 
 export interface SignupRequestDTO {
   email: string;
-  password?: string;
+  password: string;
+  confirmPassword: string;
   full_name: string;
-  role?: UserRole;
+  role: UserRole;
   phone?: string;
 }
 

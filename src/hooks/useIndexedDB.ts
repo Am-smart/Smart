@@ -3,7 +3,7 @@ import { Submission, QuizSubmission, Course, User, PlannerItem, Discussion } fro
 import * as actions from '@/lib/api-actions';
 
 const DB_NAME = 'smartlms-offline-v4';
-const DB_VERSION = 4;
+const DB_VERSION = 5;
 const STORE_SYNC = 'sync-queue';
 const STORE_CACHE = 'lms-cache';
 const STORE_ERRORS = 'sync-errors';
@@ -19,6 +19,7 @@ export interface QueueItem {
 
 export const useIndexedDB = () => {
   const [db, setDb] = useState<IDBDatabase | null>(null);
+  const dbRef = useRef<IDBDatabase | null>(null);
   const [isOnline, setIsOnline] = useState(true);
   const [isBackendConnected, setIsBackendConnected] = useState(true);
   const [syncErrors] = useState<unknown[]>([]);
@@ -57,19 +58,91 @@ export const useIndexedDB = () => {
 
     request.onupgradeneeded = (event: IDBVersionChangeEvent) => {
       const db = (event.target as IDBOpenDBRequest).result;
+      const oldVersion = event.oldVersion;
+
+      console.log(`IndexedDB Upgrade: ${oldVersion} -> ${DB_VERSION}`);
+
+      // Basic stores creation and migration
       if (!db.objectStoreNames.contains(STORE_SYNC)) {
-        db.createObjectStore(STORE_SYNC, { keyPath: 'id', autoIncrement: true });
+        const store = db.createObjectStore(STORE_SYNC, { keyPath: 'id', autoIncrement: true });
+        store.createIndex('timestamp', 'timestamp', { unique: false });
+      } else if (oldVersion < 5) {
+          const tx = (event.target as IDBOpenDBRequest).transaction;
+          if (tx) {
+              const store = tx.objectStore(STORE_SYNC);
+              if (!store.indexNames.contains('timestamp')) {
+                  store.createIndex('timestamp', 'timestamp', { unique: false });
+              }
+          }
       }
+
       if (!db.objectStoreNames.contains(STORE_CACHE)) {
-        db.createObjectStore(STORE_CACHE, { keyPath: 'key' });
+        const store = db.createObjectStore(STORE_CACHE, { keyPath: 'key' });
+        store.createIndex('timestamp', 'timestamp', { unique: false });
+      } else if (oldVersion < 5) {
+          const tx = (event.target as IDBOpenDBRequest).transaction;
+          if (tx) {
+              const store = tx.objectStore(STORE_CACHE);
+              if (!store.indexNames.contains('timestamp')) {
+                  store.createIndex('timestamp', 'timestamp', { unique: false });
+              }
+          }
       }
+
       if (!db.objectStoreNames.contains(STORE_ERRORS)) {
         db.createObjectStore(STORE_ERRORS, { keyPath: 'id', autoIncrement: true });
+      }
+
+      // Migration logic for clearing old cache on major version changes
+      if (oldVersion > 0 && oldVersion < 4) {
+          console.log(`Migrating to v4+: clearing old cache`);
+          if (db.objectStoreNames.contains(STORE_CACHE)) {
+              db.deleteObjectStore(STORE_CACHE);
+              const store = db.createObjectStore(STORE_CACHE, { keyPath: 'key' });
+              store.createIndex('timestamp', 'timestamp', { unique: false });
+          }
       }
     };
 
     request.onsuccess = (event: Event) => {
-      setDb((event.target as IDBOpenDBRequest).result);
+      const database = (event.target as IDBOpenDBRequest).result;
+      setDb(database);
+      dbRef.current = database;
+
+      // Scalable cleanup using timestamp indices - non-blocking
+      setTimeout(() => {
+          if (!database) return;
+          try {
+              const now = Date.now();
+              const tx = database.transaction([STORE_SYNC, STORE_CACHE], 'readwrite');
+
+              // Cleanup sync queue (items > 7 days)
+              const syncStore = tx.objectStore(STORE_SYNC);
+              const syncIndex = syncStore.index('timestamp');
+              const syncRange = IDBKeyRange.upperBound(now - (7 * 24 * 60 * 60 * 1000));
+              syncIndex.openCursor(syncRange).onsuccess = (e) => {
+                  const cursor = (e.target as IDBRequest<IDBCursorWithValue>).result;
+                  if (cursor) {
+                      cursor.delete();
+                      cursor.continue();
+                  }
+              };
+
+              // Cleanup cache (items > 30 days)
+              const cacheStore = tx.objectStore(STORE_CACHE);
+              const cacheIndex = cacheStore.index('timestamp');
+              const cacheRange = IDBKeyRange.upperBound(now - (30 * 24 * 60 * 60 * 1000));
+              cacheIndex.openCursor(cacheRange).onsuccess = (e) => {
+                  const cursor = (e.target as IDBRequest<IDBCursorWithValue>).result;
+                  if (cursor) {
+                      cursor.delete();
+                      cursor.continue();
+                  }
+              };
+          } catch (err) {
+              console.warn('Deferred cleanup failed:', err);
+          }
+      }, 1000);
     };
 
     request.onerror = (event: Event) => {
@@ -79,8 +152,9 @@ export const useIndexedDB = () => {
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
 
-    // Sync initial online status to avoid hydration mismatch
-    setIsOnline(navigator.onLine);
+    // Sync initial online status to avoid hydration mismatch - wrapped to avoid render loop if it differs
+    const currentOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
+    setIsOnline(prev => prev !== currentOnline ? currentOnline : prev);
 
     const handleConnectivityChange = (event: Event) => {
         const detail = (event as CustomEvent).detail;
@@ -90,9 +164,10 @@ export const useIndexedDB = () => {
     };
 
     const handleClearData = async () => {
-      if (!db) return;
+      const database = dbRef.current;
+      if (!database) return;
       const stores = [STORE_SYNC, STORE_CACHE, STORE_ERRORS];
-      const tx = db.transaction(stores, 'readwrite');
+      const tx = database.transaction(stores, 'readwrite');
       stores.forEach(store => tx.objectStore(store).clear());
       console.log('IndexedDB cleared');
     };
@@ -108,7 +183,7 @@ export const useIndexedDB = () => {
       window.removeEventListener('backend-connectivity-changed', handleConnectivityChange);
       window.removeEventListener('clear-offline-data', handleClearData);
     };
-  }, [db]);
+  }, []);
 
   const getQueue = useCallback(async (): Promise<QueueItem[]> => {
     if (!db) return [];
@@ -293,15 +368,24 @@ export const useIndexedDB = () => {
         } catch (err: unknown) {
           console.error('Sync failed for item:', item, err);
           const error = err as Error;
-          const terminalErrors = ['Conflict detected', 'Forbidden', 'Unauthorized', 'Invalid enrollment code', 'Course not found', 'User not found'];
-          const isTerminal = terminalErrors.some(msg => error.message?.includes(msg));
+          const message = error.message || 'Unknown error';
+
+          // Conflict Resolution: Check for version mismatch or conflict errors
+          const isConflict = message.includes('Conflict') || message.includes('version mismatch') || message.includes('already exists');
+          const terminalErrors = ['Forbidden', 'Unauthorized', 'Invalid enrollment code', 'Course not found', 'User not found'];
+          const isTerminal = terminalErrors.some(msg => message.includes(msg));
 
           if (item.id) {
-            if (isTerminal) {
-              console.warn('Terminal error during sync, moving to error store:', item, error.message);
-              await logSyncError(item, error.message);
+            if (isConflict) {
+                // Strategy: Last-Write-Wins (User notified, but item discarded or moved to errors)
+                console.warn('Conflict detected during sync:', item, message);
+                await logSyncError(item, `Sync Conflict: ${message}. The server has a newer version or a duplicate exists.`);
+                await removeFromQueue(item.id);
+                window.dispatchEvent(new CustomEvent('sync-conflict', { detail: { item, error: message } }));
+            } else if (isTerminal) {
+              console.warn('Terminal error during sync, moving to error store:', item, message);
+              await logSyncError(item, message);
               await removeFromQueue(item.id);
-              window.dispatchEvent(new CustomEvent('sync-conflict', { detail: { item, error: error.message } }));
             } else {
                 const retryCount = (item.retry_count || 0) + 1;
                 if (retryCount >= 5) {

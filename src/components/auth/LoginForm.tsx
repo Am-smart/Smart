@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from './AuthContext';
 import { validateLoginForm, normalizeEmail } from '@/lib/validation';
-import { X } from 'lucide-react';
+import { X, Eye, EyeOff } from 'lucide-react';
 
 interface LoginFormProps {
   onClose: () => void;
@@ -14,9 +14,11 @@ interface LoginFormProps {
 export const LoginForm: React.FC<LoginFormProps> = ({ onClose, onShowSignup, onShowReset }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
+  const [lockoutUntil, setLockoutUntil] = useState<number | null>(null);
   const { login } = useAuth();
   const modalRef = useRef<HTMLDivElement>(null);
 
@@ -59,14 +61,39 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onClose, onShowSignup, onS
       await login(normalizedEmail, password);
       onClose();
     } catch (err: unknown) {
-      if (err instanceof Error) {
-          setError(err.message || 'Login failed');
+      const message = err instanceof Error ? err.message : 'Login failed';
+      if (message.startsWith('LOCKOUT:')) {
+          const timestamp = parseInt(message.split(':')[1]);
+          setLockoutUntil(timestamp);
+          setError('');
       } else {
-          setError('Login failed');
+          setError(message);
       }
     } finally {
       setIsLoading(false);
     }
+  };
+
+  useEffect(() => {
+      if (!lockoutUntil) return;
+
+      const interval = setInterval(() => {
+          const now = Date.now();
+          if (now >= lockoutUntil) {
+              setLockoutUntil(null);
+              clearInterval(interval);
+          }
+      }, 1000);
+
+      return () => clearInterval(interval);
+  }, [lockoutUntil]);
+
+  const getLockoutMessage = () => {
+      if (!lockoutUntil) return null;
+      const seconds = Math.ceil((lockoutUntil - Date.now()) / 1000);
+      const mins = Math.floor(seconds / 60);
+      const secs = seconds % 60;
+      return `Account locked. Please try again in ${mins}m ${secs}s`;
   };
 
   return (
@@ -102,29 +129,46 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onClose, onShowSignup, onS
             <p id="email-error" className="text-red-500 text-xs mt-1">{errors.email}</p>
           )}
         </div>
-        <div>
+        <div className="relative">
           <input
-            type="password"
+            type={showPassword ? "text" : "password"}
             placeholder="Password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className={`input-custom ${errors.password ? 'border-red-500 focus:ring-red-500' : ''}`}
+            className={`input-custom pr-10 ${errors.password ? 'border-red-500 focus:ring-red-500' : ''}`}
             required
             disabled={isLoading}
             aria-invalid={!!errors.password}
             aria-describedby={errors.password ? 'password-error' : undefined}
           />
+          <button
+            type="button"
+            onClick={() => setShowPassword(!showPassword)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-1"
+            aria-label={showPassword ? "Hide password" : "Show password"}
+          >
+            {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+          </button>
           {errors.password && (
             <p id="password-error" className="text-red-500 text-xs mt-1">{errors.password}</p>
           )}
         </div>
-        <button type="submit" className="btn-primary w-full py-2 sm:py-3 text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed" disabled={isLoading}>
-          {isLoading ? 'Logging in...' : 'Login'}
+        <button
+          type="submit"
+          className="btn-primary w-full py-2 sm:py-3 text-sm sm:text-base disabled:opacity-50 disabled:cursor-not-allowed"
+          disabled={isLoading || !!lockoutUntil}
+        >
+          {isLoading ? 'Logging in...' : lockoutUntil ? 'Locked' : 'Login'}
         </button>
         <p className="text-center text-xs sm:text-sm text-slate-600">Don&apos;t have an account? <button onClick={(e) => { e.preventDefault(); onShowSignup(); }} className="text-primary font-semibold hover:underline">Sign up</button></p>
         <p className="text-center text-xs sm:text-sm text-slate-600"><button onClick={(e) => { e.preventDefault(); onShowReset(); }} className="text-primary font-semibold hover:underline">Forgot your password?</button></p>
       </form>
       {error && <p className="text-red-500 text-xs sm:text-sm mt-4 text-center">{error}</p>}
+      {lockoutUntil && (
+          <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-center">
+              <p className="text-red-600 text-xs sm:text-sm font-semibold">{getLockoutMessage()}</p>
+          </div>
+      )}
     </div>
   );
 };

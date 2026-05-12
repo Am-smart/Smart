@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
-  User, Maintenance, Notification, EnrollmentDTO, AssignmentDTO, SubmissionDTO
+  User, Maintenance, Notification, EnrollmentDTO, AssignmentDTO, SubmissionDTO, SignupRequestDTO
 } from '@/lib/types';
 import { useIndexedDB } from '@/hooks/useIndexedDB';
 import { Toast, ToastMessage, ToastType } from './ui/Toast';
@@ -32,7 +32,7 @@ interface AppState {
 interface AppContextType extends AppState {
   role: string | null;
   login: (email: string, pass: string) => Promise<void>;
-  signup: (userData: Partial<User>) => Promise<void>;
+  signup: (userData: SignupRequestDTO) => Promise<void>;
   logout: () => Promise<void>;
   updateProfile: (updates: Partial<User>) => Promise<void>;
   toggleSidebar: () => void;
@@ -85,7 +85,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setUser(u);
   }, [setCache]);
 
-  const signup = useCallback(async (userData: Partial<User>) => {
+  const signup = useCallback(async (userData: SignupRequestDTO) => {
     const result = await actions.signup(userData);
     if (!result.success) {
         throw new Error(result.error);

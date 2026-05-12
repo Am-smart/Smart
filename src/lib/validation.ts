@@ -136,6 +136,37 @@ export function validateLoginForm(email: string, password: string): ValidationRe
 }
 
 /**
+ * Calculates password strength score (0-4)
+ */
+export function calculatePasswordStrength(password: string): { score: number; label: string; color: string } {
+    if (!password) return { score: 0, label: 'Empty', color: 'bg-slate-200' };
+
+    let score = 0;
+    if (password.length >= 8) score++;
+    if (/[A-Z]/.test(password)) score++;
+    if (/[a-z]/.test(password)) score++;
+    if (/\d/.test(password)) score++;
+    if (/[@$!%*?&#]/.test(password)) score++;
+
+    // Normalize to 0-4 scale if needed, but here it's 0-5
+    const labels = ['Very Weak', 'Weak', 'Fair', 'Good', 'Strong', 'Very Strong'];
+    const colors = [
+        'bg-red-500',
+        'bg-red-400',
+        'bg-orange-400',
+        'bg-yellow-400',
+        'bg-green-400',
+        'bg-green-600'
+    ];
+
+    return {
+        score: score,
+        label: labels[score],
+        color: colors[score]
+    };
+}
+
+/**
  * Validates signup form
  */
 export function validateSignupForm(
@@ -159,11 +190,16 @@ export function validateSignupForm(
     ...phoneValidation.errors
   );
 
-  if (password !== confirmPassword) {
+  if (password && confirmPassword && password !== confirmPassword) {
     errors.push({
       field: 'confirmPassword',
       message: 'Passwords do not match'
     });
+  } else if (!confirmPassword && password) {
+      errors.push({
+          field: 'confirmPassword',
+          message: 'Please confirm your password'
+      });
   }
 
   return {
