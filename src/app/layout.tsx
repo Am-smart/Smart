@@ -1,4 +1,3 @@
-import { AuthProvider } from "@/components/auth/AuthContext";
 import { AppProvider } from "@/components/AppContext";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
@@ -37,11 +36,9 @@ export default function RootLayout({
             }
           `}
         </Script>
-        <AuthProvider>
-          <AppProvider>
-            {children}
-          </AppProvider>
-        </AuthProvider>
+        <AppProvider>
+          {children}
+        </AppProvider>
       </body>
     </html>
   );

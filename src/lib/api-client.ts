@@ -17,6 +17,7 @@ export async function apiFetch<T>(url: string, options: RequestInit = {}, retrie
     return fetch(versionedUrl, {
       ...options,
       signal,
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
         'X-Requested-With': 'XMLHttpRequest',

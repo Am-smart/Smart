@@ -44,11 +44,13 @@ export function handleError(error: unknown) {
  */
 export function withHandler<T>(
   handler: (user: User, request: Request) => Promise<T>,
-  options: { requireAuth?: boolean; checkCSRF?: boolean } = { requireAuth: true, checkCSRF: true }
+  options: { requireAuth?: boolean; checkCSRF?: boolean } = {}
 ) {
+  const { requireAuth = true, checkCSRF = true } = options;
+
   return async (request: Request) => {
     // CSRF Protection: Only enforced for mutation requests
-    if (options.checkCSRF && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method)) {
+    if (checkCSRF && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(request.method)) {
         const headerList = await headers();
         const origin = headerList.get('origin');
         const referer = headerList.get('referer');
@@ -90,7 +92,7 @@ export function withHandler<T>(
 
     try {
       const user = await getSessionUser(request);
-      if (options.requireAuth && !user) {
+      if (requireAuth && !user) {
         return handleUnauthorized();
       }
 

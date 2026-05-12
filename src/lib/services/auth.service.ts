@@ -26,6 +26,13 @@ export class AuthService {
     const user = await systemDb.findUserById(session.user_id);
     if (!user) return null;
 
+    // Safety check: sessions are invalid for deactivated or locked users
+    if (user.active === false || (user.locked_until && new Date(user.locked_until) > new Date())) {
+        await authDb.deleteSessionByHash(tokenHash);
+        serverSessionCache.invalidate(tokenHash);
+        return null;
+    }
+
     const userDTO = UserMapper.toDTO(user);
     if (!userDTO) return null;
 
