@@ -36,14 +36,7 @@ export const POST = withHandler(async (user, request) => {
             }
 
             const normalizedEmail = normalizeEmail(data.email);
-            const { data: rawData, error: serviceError } = await authService.authenticate(normalizedEmail, data.password || '');
-
-            if (serviceError) throw new Error('Authentication service unavailable');
-
-            const result = rawData as { success: boolean, user: User, session_id: string, error?: string };
-            if (!result.success) {
-              throw new UnauthorizedError(result.error || 'Invalid credentials');
-            }
+            const result = await authService.authenticate(normalizedEmail, data.password || '');
 
             (await cookies()).set('app-user-session', result.session_id, {
                 httpOnly: true,
@@ -69,18 +62,14 @@ export const POST = withHandler(async (user, request) => {
               throw new BadRequestError(validation.errors[0].message);
             }
 
-            const { data: rawData, error: serviceError } = await authService.signup({
+            const result = await authService.signup({
               full_name: normalizeInput(data.full_name),
               email: normalizeEmail(data.email),
               password: data.password || '',
+              confirmPassword: data.confirmPassword || '',
               phone: data.phone ? normalizeInput(data.phone) : undefined,
               role: data.role
             });
-
-            if (serviceError) throw new Error('Signup service unavailable');
-
-            const result = rawData as { success: boolean, user: User, session_id: string, error?: string };
-            if (!result.success) throw new BadRequestError(result.error || 'Signup failed');
 
             (await cookies()).set('app-user-session', result.session_id, {
                 httpOnly: true,

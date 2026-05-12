@@ -8,7 +8,7 @@ import { UserMapper } from '../mappers';
 import { rbac } from '../auth/rbac';
 import { comparePassword, hashPassword, generateToken, hashToken } from '../crypto';
 import { USER_ROLES, SIGNUP_LIMITS } from '../constants';
-import { BadRequestError } from '../api-error';
+import { BadRequestError, UnauthorizedError, ForbiddenError } from '../api-error';
 
 export class AuthService {
   async validateSession(token: string): Promise<User | null> {
@@ -58,27 +58,27 @@ export class AuthService {
     serverSessionCache.invalidate(tokenHash);
   }
 
-  async authenticate(email: string, password?: string) {
+  async authenticate(email: string, password?: string): Promise<{ success: boolean; user: User; session_id: string }> {
     const user = await systemDb.findUserByEmail(email);
     if (!user) {
-      return { data: { success: false, error: 'Email not found' }, error: null };
+      throw new BadRequestError('Email not found');
     }
 
     if (!user.active) {
-      return { data: { success: false, error: 'Account is deactivated' }, error: null };
+      throw new BadRequestError('Account is deactivated');
     }
 
     if (user.flagged) {
-      return { data: { success: false, error: 'Account is flagged. Please contact support.' }, error: null };
+      throw new BadRequestError('Account is flagged. Please contact support.');
     }
 
     const now = new Date();
     if (user.locked_until && new Date(user.locked_until) > now) {
-      return { data: { success: false, error: `LOCKOUT:${new Date(user.locked_until).getTime()}` }, error: null };
+      throw new BadRequestError(`LOCKOUT:${new Date(user.locked_until).getTime()}`);
     }
 
     if (user.reset_request && user.reset_request.status === 'approved_used') {
-       return { data: { success: false, error: 'Your session has expired. You must change your password using the secure prompt provided during your first login.' }, error: null };
+       throw new BadRequestError('Your session has expired. You must change your password using the secure prompt provided during your first login.');
     }
 
     const isPasswordValid = password && user.password && await comparePassword(password, user.password);
@@ -86,13 +86,13 @@ export class AuthService {
       if (user.reset_request) {
         const reset = user.reset_request;
         if (reset.status === 'pending') {
-          return { data: { success: false, error: 'Your password reset request is under review.' }, error: null };
+          throw new BadRequestError('Your password reset request is under review.');
         } else if (reset.status === 'approved' && reset.expires_at) {
           if (new Date(reset.expires_at) > now) {
-            return { data: { success: false, error: `Reset approved. Your temp password is: ${reset.temp_password}` }, error: null };
+            throw new BadRequestError(`Reset approved. Your temp password is: ${reset.temp_password}`);
           }
         } else if (reset.status === 'denied') {
-          return { data: { success: false, error: `Reset denied: ${reset.denial_reason}` }, error: null };
+          throw new BadRequestError(`Reset denied: ${reset.denial_reason}`);
         }
       }
 
@@ -109,16 +109,16 @@ export class AuthService {
       await authDb.updateUserRaw(user.id, updates);
 
       if (failedAttempts >= 5) {
-          return { data: { success: false, error: `LOCKOUT:${new Date(lockedUntil as string).getTime()}` }, error: null };
+          throw new BadRequestError(`LOCKOUT:${new Date(lockedUntil as string).getTime()}`);
       }
 
-      return { data: { success: false, error: `Incorrect password. ${5 - failedAttempts} attempts remaining.` }, error: null };
+      throw new BadRequestError(`Incorrect password. ${5 - failedAttempts} attempts remaining.`);
     }
 
     if (user.reset_request && user.reset_request.status === 'approved') {
        const reset = user.reset_request;
        if (reset.expires_at && new Date(reset.expires_at) < now) {
-          return { data: { success: false, error: 'Temporary password has expired. Please request a new one.' }, error: null };
+          throw new BadRequestError('Temporary password has expired. Please request a new one.');
        }
        const newResetRequest: NonNullable<User['reset_request']> = { ...reset, status: 'approved_used' };
        delete newResetRequest.temp_password;
@@ -126,7 +126,7 @@ export class AuthService {
        // Use atomic consumption to prevent race conditions
        const consumed = await authDb.consumeTempPassword(user.id, newResetRequest);
        if (!consumed) {
-          return { data: { success: false, error: 'Temporary password has already been used or is no longer valid.' }, error: null };
+          throw new BadRequestError('Temporary password has already been used or is no longer valid.');
        }
     }
 
@@ -139,23 +139,20 @@ export class AuthService {
     systemService.performSystemCleanup(await hashToken(token)).catch(console.error);
 
     return {
-      data: {
         success: true,
         user: user,
         session_id: token
-      },
-      error: null
     };
   }
 
-  async signup(data: { full_name: string; email: string; password?: string; phone?: string; role: string }) {
+  async signup(data: { full_name: string; email: string; password?: string; phone?: string; role: string; confirmPassword?: string }): Promise<{ success: boolean; user: User; session_id: string }> {
     if (!data.password || data.password.trim() === '') {
       throw new BadRequestError('Password is required');
     }
 
     const existingUser = await systemDb.findUserByEmail(data.email);
     if (existingUser) {
-      return { data: { success: false, error: 'An account with this email already exists.' }, error: null };
+      throw new BadRequestError('An account with this email already exists.');
     }
 
     const passwordValidation = validatePassword(data.password);
@@ -179,12 +176,15 @@ export class AuthService {
 
     const hashedPassword = await hashPassword(data.password);
     const { data: userData, error } = await authDb.register({
-      ...data,
+      full_name: data.full_name,
+      email: data.email,
       password: hashedPassword,
+      phone: data.phone,
+      role: data.role,
       active: true
     });
 
-    if (error) return { data: null, error };
+    if (error) throw new Error('Signup failed in database');
 
     const newUser = userData as User;
 
@@ -192,18 +192,15 @@ export class AuthService {
     const token = await this.createSession(newUser.id);
 
     return {
-      data: {
         success: true,
         user: newUser,
         session_id: token
-      },
-      error: null
     };
   }
 
-  async createUser(currentUser: User, data: { full_name: string; email: string; password?: string; phone?: string; role: string }): Promise<User | null> {
+  async createUser(currentUser: User, data: { full_name: string; email: string; password?: string; phone?: string; role: string }): Promise<User> {
     if (!rbac.can(currentUser, 'user:manage')) {
-        throw new Error('Forbidden: Only admins can create users directly');
+        throw new ForbiddenError('Only admins can create users directly');
     }
 
     if (!data.password || data.password.trim() === '') {
@@ -212,29 +209,32 @@ export class AuthService {
 
     const passwordValidation = validatePassword(data.password);
     if (!passwordValidation.isValid) {
-      throw new Error(passwordValidation.errors[0].message);
+      throw new BadRequestError(passwordValidation.errors[0].message);
     }
 
     const hashedPassword = await hashPassword(data.password);
     const { data: userData, error } = await authDb.register({
-      ...data,
+      full_name: data.full_name,
+      email: data.email,
       password: hashedPassword,
+      phone: data.phone,
+      role: data.role,
       active: true
     });
 
     if (error) throw new Error('Failed to create user in database');
-    return userData;
+    return userData as User;
   }
 
   async updatePassword(currentPass: string, newPass: string, token: string) {
     const sessionUser = await this.validateSession(token);
-    if (!sessionUser) return { success: false, error: 'Unauthorized' };
+    if (!sessionUser) throw new UnauthorizedError();
 
     const user = await systemDb.findUserById(sessionUser.id as string, sessionUser.sessionId);
-    if (!user) return { success: false, error: 'User not found' };
+    if (!user) throw new BadRequestError('User not found');
 
     const isPasswordValid = user.password && await comparePassword(currentPass, user.password);
-    if (!isPasswordValid) return { success: false, error: 'Incorrect current password' };
+    if (!isPasswordValid) throw new BadRequestError('Incorrect current password');
 
     const hashedPassword = await hashPassword(newPass);
     await authDb.updateUserRaw(user.id, { password: hashedPassword, reset_request: null }, sessionUser.sessionId);
@@ -246,14 +246,14 @@ export class AuthService {
 
   async requestPasswordReset(email: string, reason: string, riskLevel: string) {
     const user = await systemDb.findUserByEmail(email);
-    if (!user) return { success: false, error: 'No account found with this email.' };
+    if (!user) throw new BadRequestError('No account found with this email.');
 
     if (user.reset_request) {
       const reset = user.reset_request;
       if (reset.status === 'pending') {
-        return { success: false, error: 'A request is already under review for this account.' };
+        throw new BadRequestError('A request is already under review for this account.');
       } else if (reset.status === 'approved' && reset.expires_at && new Date(reset.expires_at) > new Date()) {
-        return { success: false, error: `Reset approved. Temp Password: ${reset.temp_password}` };
+        throw new BadRequestError(`Reset approved. Temp Password: ${reset.temp_password}`);
       }
     }
 
@@ -276,7 +276,7 @@ export class AuthService {
     const hashedPassword = await hashPassword(tempPassword);
 
     const user = await systemDb.findUserById(userId, currentUser.sessionId);
-    if (!user) throw new Error('User not found');
+    if (!user) throw new BadRequestError('User not found');
 
     const resetRequest: NonNullable<User['reset_request']> = {
       ...(user.reset_request || { status: 'pending', requested_at: new Date().toISOString() }),
@@ -298,7 +298,7 @@ export class AuthService {
 
   async denyPasswordReset(userId: string, reason: string, currentUser: User) {
     const user = await systemDb.findUserById(userId, currentUser.sessionId);
-    if (!user) throw new Error('User not found');
+    if (!user) throw new BadRequestError('User not found');
 
     const resetRequest: NonNullable<User['reset_request']> = {
       ...(user.reset_request || { status: 'pending', requested_at: new Date().toISOString() }),

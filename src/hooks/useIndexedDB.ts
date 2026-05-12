@@ -3,7 +3,7 @@ import { Submission, QuizSubmission, Course, User, PlannerItem, Discussion } fro
 import * as actions from '@/lib/api-actions';
 
 const DB_NAME = 'smartlms-offline-v4';
-const DB_VERSION = 4;
+const DB_VERSION = 5;
 const STORE_SYNC = 'sync-queue';
 const STORE_CACHE = 'lms-cache';
 const STORE_ERRORS = 'sync-errors';
@@ -19,6 +19,7 @@ export interface QueueItem {
 
 export const useIndexedDB = () => {
   const [db, setDb] = useState<IDBDatabase | null>(null);
+  const dbRef = useRef<IDBDatabase | null>(null);
   const [isOnline, setIsOnline] = useState(true);
   const [isBackendConnected, setIsBackendConnected] = useState(true);
   const [syncErrors] = useState<unknown[]>([]);
@@ -61,60 +62,87 @@ export const useIndexedDB = () => {
 
       console.log(`IndexedDB Upgrade: ${oldVersion} -> ${DB_VERSION}`);
 
-      // Basic stores creation
+      // Basic stores creation and migration
       if (!db.objectStoreNames.contains(STORE_SYNC)) {
-        db.createObjectStore(STORE_SYNC, { keyPath: 'id', autoIncrement: true });
+        const store = db.createObjectStore(STORE_SYNC, { keyPath: 'id', autoIncrement: true });
+        store.createIndex('timestamp', 'timestamp', { unique: false });
+      } else if (oldVersion < 5) {
+          const tx = (event.target as IDBOpenDBRequest).transaction;
+          if (tx) {
+              const store = tx.objectStore(STORE_SYNC);
+              if (!store.indexNames.contains('timestamp')) {
+                  store.createIndex('timestamp', 'timestamp', { unique: false });
+              }
+          }
       }
+
       if (!db.objectStoreNames.contains(STORE_CACHE)) {
-        db.createObjectStore(STORE_CACHE, { keyPath: 'key' });
+        const store = db.createObjectStore(STORE_CACHE, { keyPath: 'key' });
+        store.createIndex('timestamp', 'timestamp', { unique: false });
+      } else if (oldVersion < 5) {
+          const tx = (event.target as IDBOpenDBRequest).transaction;
+          if (tx) {
+              const store = tx.objectStore(STORE_CACHE);
+              if (!store.indexNames.contains('timestamp')) {
+                  store.createIndex('timestamp', 'timestamp', { unique: false });
+              }
+          }
       }
+
       if (!db.objectStoreNames.contains(STORE_ERRORS)) {
         db.createObjectStore(STORE_ERRORS, { keyPath: 'id', autoIncrement: true });
       }
 
-      // Migration logic for specific versions
+      // Migration logic for clearing old cache on major version changes
       if (oldVersion > 0 && oldVersion < 4) {
-          console.log(`Migrating to v4: clearing old stores`);
-          const storesToClear = [STORE_CACHE];
-          storesToClear.forEach(storeName => {
-              if (db.objectStoreNames.contains(storeName)) {
-                  // Re-create store to effectively clear it during migration
-                  db.deleteObjectStore(storeName);
-                  db.createObjectStore(storeName, { keyPath: 'key' });
-              }
-          });
+          console.log(`Migrating to v4+: clearing old cache`);
+          if (db.objectStoreNames.contains(STORE_CACHE)) {
+              db.deleteObjectStore(STORE_CACHE);
+              const store = db.createObjectStore(STORE_CACHE, { keyPath: 'key' });
+              store.createIndex('timestamp', 'timestamp', { unique: false });
+          }
       }
     };
 
     request.onsuccess = (event: Event) => {
       const database = (event.target as IDBOpenDBRequest).result;
       setDb(database);
+      dbRef.current = database;
 
-      // Cleanup old items only on successful connection
-      const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
-      const now = Date.now();
+      // Scalable cleanup using timestamp indices - non-blocking
+      setTimeout(() => {
+          if (!database) return;
+          try {
+              const now = Date.now();
+              const tx = database.transaction([STORE_SYNC, STORE_CACHE], 'readwrite');
 
-      const tx = database.transaction([STORE_SYNC, STORE_CACHE], 'readwrite');
-      const syncStore = tx.objectStore(STORE_SYNC);
-      const cacheStore = tx.objectStore(STORE_CACHE);
+              // Cleanup sync queue (items > 7 days)
+              const syncStore = tx.objectStore(STORE_SYNC);
+              const syncIndex = syncStore.index('timestamp');
+              const syncRange = IDBKeyRange.upperBound(now - (7 * 24 * 60 * 60 * 1000));
+              syncIndex.openCursor(syncRange).onsuccess = (e) => {
+                  const cursor = (e.target as IDBRequest<IDBCursorWithValue>).result;
+                  if (cursor) {
+                      cursor.delete();
+                      cursor.continue();
+                  }
+              };
 
-      syncStore.openCursor().onsuccess = (e) => {
-          const cursor = (e.target as IDBRequest<IDBCursorWithValue>).result;
-          if (cursor) {
-              const item = cursor.value;
-              if (now - item.timestamp > MAX_AGE_MS) cursor.delete();
-              cursor.continue();
+              // Cleanup cache (items > 30 days)
+              const cacheStore = tx.objectStore(STORE_CACHE);
+              const cacheIndex = cacheStore.index('timestamp');
+              const cacheRange = IDBKeyRange.upperBound(now - (30 * 24 * 60 * 60 * 1000));
+              cacheIndex.openCursor(cacheRange).onsuccess = (e) => {
+                  const cursor = (e.target as IDBRequest<IDBCursorWithValue>).result;
+                  if (cursor) {
+                      cursor.delete();
+                      cursor.continue();
+                  }
+              };
+          } catch (err) {
+              console.warn('Deferred cleanup failed:', err);
           }
-      };
-
-      cacheStore.openCursor().onsuccess = (e) => {
-          const cursor = (e.target as IDBRequest<IDBCursorWithValue>).result;
-          if (cursor) {
-              const item = cursor.value;
-              if (now - item.timestamp > 30 * 24 * 60 * 60 * 1000) cursor.delete();
-              cursor.continue();
-          }
-      };
+      }, 1000);
     };
 
     request.onerror = (event: Event) => {
@@ -124,8 +152,9 @@ export const useIndexedDB = () => {
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
 
-    // Sync initial online status to avoid hydration mismatch
-    setIsOnline(navigator.onLine);
+    // Sync initial online status to avoid hydration mismatch - wrapped to avoid render loop if it differs
+    const currentOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
+    setIsOnline(prev => prev !== currentOnline ? currentOnline : prev);
 
     const handleConnectivityChange = (event: Event) => {
         const detail = (event as CustomEvent).detail;
@@ -135,9 +164,10 @@ export const useIndexedDB = () => {
     };
 
     const handleClearData = async () => {
-      if (!db) return;
+      const database = dbRef.current;
+      if (!database) return;
       const stores = [STORE_SYNC, STORE_CACHE, STORE_ERRORS];
-      const tx = db.transaction(stores, 'readwrite');
+      const tx = database.transaction(stores, 'readwrite');
       stores.forEach(store => tx.objectStore(store).clear());
       console.log('IndexedDB cleared');
     };
@@ -153,7 +183,7 @@ export const useIndexedDB = () => {
       window.removeEventListener('backend-connectivity-changed', handleConnectivityChange);
       window.removeEventListener('clear-offline-data', handleClearData);
     };
-  }, [db]);
+  }, []);
 
   const getQueue = useCallback(async (): Promise<QueueItem[]> => {
     if (!db) return [];

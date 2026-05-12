@@ -29,7 +29,6 @@ export interface User {
   reset_request?: ResetRequest | null;
   notification_preferences?: Record<string, boolean>;
   active?: boolean;
-  confirmPassword?: string;
   version?: number;
   metadata?: Record<string, string | number | boolean>;
 }
@@ -72,9 +71,10 @@ export interface LoginRequestDTO {
 
 export interface SignupRequestDTO {
   email: string;
-  password?: string;
+  password: string;
+  confirmPassword: string;
   full_name: string;
-  role?: UserRole;
+  role: UserRole;
   phone?: string;
 }
 

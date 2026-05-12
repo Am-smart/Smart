@@ -28,7 +28,8 @@ import {
   SystemLogDTO,
   AntiCheatLogDTO,
   SupportTicket,
-  SupportTicketDTO
+  SupportTicketDTO,
+  SignupRequestDTO
 } from './types';
 
 // Standardized Response types
@@ -52,7 +53,7 @@ export async function getAttendance(liveClassId: string): Promise<AttendanceDTO[
     return apiClient.get<AttendanceDTO[]>(`/api/v1/system?action=attendance&liveClassId=${liveClassId}`);
 }
 
-export async function signup(userData: Partial<User>): Promise<ActionResponse<{ user: UserDTO }>> {
+export async function signup(userData: SignupRequestDTO): Promise<ActionResponse<{ user: UserDTO }>> {
   try {
     const result = await apiClient.post<{ user: UserDTO; error?: string }>('/api/v1/auth', { action: 'signup', ...userData });
     return { success: true, data: result as { user: UserDTO } };
