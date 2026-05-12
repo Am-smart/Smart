@@ -350,6 +350,20 @@ export class SystemService {
   }
 
   async notifyUser(params: { target_id: string, n_title: string, n_msg: string, n_link?: string, n_type?: string, expires_at?: string, metadata?: Record<string, string | number | boolean> }, sessionId: string): Promise<void> {
+    // Idempotency: Prevent duplicate notifications within short timeframes (5 mins)
+    const recentNotifications = await systemDb.findNotificationsByUserId(params.target_id, sessionId);
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+    const isDuplicate = recentNotifications.some(n =>
+        n.title === params.n_title &&
+        n.message === params.n_msg &&
+        new Date(n.created_at) > fiveMinutesAgo
+    );
+
+    if (isDuplicate) {
+        console.log(`[Notification] Skipping duplicate notification for user ${params.target_id}: ${params.n_title}`);
+        return;
+    }
+
     const notification = await systemDb.createNotification({
       user_id: params.target_id,
       title: params.n_title,
@@ -605,6 +619,21 @@ export class SystemService {
   }
 
   async createBroadcast(broadcast: Partial<Broadcast>, sessionId: string): Promise<Broadcast> {
+    // Idempotency: Prevent identical broadcasts within 1 hour
+    const recentBroadcasts = await systemDb.findAllBroadcasts(sessionId);
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+    const existingBroadcast = recentBroadcasts.find(b =>
+        b.title === broadcast.title &&
+        b.message === broadcast.message &&
+        b.course_id === broadcast.course_id &&
+        new Date(b.created_at) > oneHourAgo
+    );
+
+    if (existingBroadcast) {
+        console.log(`[Broadcast] Skipping duplicate broadcast: ${broadcast.title}`);
+        return existingBroadcast;
+    }
+
     const broadcastToSave = CommunicationDomain.prepareBroadcast(broadcast);
     const createdBroadcast = await systemDb.createBroadcast(broadcastToSave, sessionId);
 
