@@ -2,8 +2,8 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { Submission, QuizSubmission, Course, User, PlannerItem, Discussion } from '@/lib/types';
 import * as actions from '@/lib/api-actions';
 
-const DB_NAME = 'smartlms-offline-v4';
-const DB_VERSION = 4;
+const DB_NAME = 'smartlms-offline-v5';
+const DB_VERSION = 5;
 const STORE_SYNC = 'sync-queue';
 const STORE_CACHE = 'lms-cache';
 const STORE_ERRORS = 'sync-errors';
@@ -46,11 +46,42 @@ export const useIndexedDB = () => {
     return new Promise<unknown[]>((resolve, reject) => {
       const tx = db.transaction(STORE_ERRORS, 'readonly');
       const store = tx.objectStore(STORE_ERRORS);
-      const request = store.getAll();
-      request.onsuccess = () => resolve(request.result);
+      const results: unknown[] = [];
+      const request = store.openCursor();
+      request.onsuccess = (event) => {
+          const cursor = (event.target as IDBRequest<IDBCursorWithValue>).result;
+          if (cursor) {
+              results.push(cursor.value);
+              cursor.continue();
+          } else {
+              resolve(results);
+          }
+      };
       request.onerror = () => reject(request.error);
     });
   }, [db]);
+
+  const pruneCache = useCallback(async (currentDb: IDBDatabase) => {
+    const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+    const expirationLimit = Date.now() - SEVEN_DAYS_MS;
+    return new Promise<void>((resolve, reject) => {
+        const tx = currentDb.transaction(STORE_CACHE, 'readwrite');
+        const store = tx.objectStore(STORE_CACHE);
+        const index = store.index('timestamp');
+        const range = IDBKeyRange.upperBound(expirationLimit);
+        const request = index.openCursor(range);
+        request.onsuccess = (event) => {
+            const cursor = (event.target as IDBRequest<IDBCursorWithValue>).result;
+            if (cursor) {
+                cursor.delete();
+                cursor.continue();
+            } else {
+                resolve();
+            }
+        };
+        request.onerror = () => reject(request.error);
+    });
+  }, []);
 
   useEffect(() => {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
@@ -61,15 +92,27 @@ export const useIndexedDB = () => {
         db.createObjectStore(STORE_SYNC, { keyPath: 'id', autoIncrement: true });
       }
       if (!db.objectStoreNames.contains(STORE_CACHE)) {
-        db.createObjectStore(STORE_CACHE, { keyPath: 'key' });
+        const cacheStore = db.createObjectStore(STORE_CACHE, { keyPath: 'key' });
+        cacheStore.createIndex('timestamp', 'timestamp', { unique: false });
       }
       if (!db.objectStoreNames.contains(STORE_ERRORS)) {
         db.createObjectStore(STORE_ERRORS, { keyPath: 'id', autoIncrement: true });
       }
+
+      // Handle migration if stores already exist but index doesn't
+      if (db.objectStoreNames.contains(STORE_CACHE)) {
+          const tx = (event.target as IDBOpenDBRequest).transaction!;
+          const cacheStore = tx.objectStore(STORE_CACHE);
+          if (!cacheStore.indexNames.contains('timestamp')) {
+              cacheStore.createIndex('timestamp', 'timestamp', { unique: false });
+          }
+      }
     };
 
     request.onsuccess = (event: Event) => {
-      setDb((event.target as IDBOpenDBRequest).result);
+      const currentDb = (event.target as IDBOpenDBRequest).result;
+      setDb(currentDb);
+      pruneCache(currentDb).catch(err => console.error('Cache pruning failed:', err));
     };
 
     request.onerror = (event: Event) => {
@@ -82,6 +125,16 @@ export const useIndexedDB = () => {
     // Sync initial online status to avoid hydration mismatch
     setIsOnline(navigator.onLine);
 
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, [pruneCache]);
+
+  useEffect(() => {
     const handleConnectivityChange = (event: Event) => {
         const detail = (event as CustomEvent).detail;
         if (detail && typeof detail.connected === 'boolean') {
@@ -97,14 +150,10 @@ export const useIndexedDB = () => {
       console.log('IndexedDB cleared');
     };
 
-    window.addEventListener('online', handleOnline);
-    window.addEventListener('offline', handleOffline);
     window.addEventListener('backend-connectivity-changed', handleConnectivityChange);
     window.addEventListener('clear-offline-data', handleClearData);
 
     return () => {
-      window.removeEventListener('online', handleOnline);
-      window.removeEventListener('offline', handleOffline);
       window.removeEventListener('backend-connectivity-changed', handleConnectivityChange);
       window.removeEventListener('clear-offline-data', handleClearData);
     };
@@ -115,8 +164,17 @@ export const useIndexedDB = () => {
     return new Promise<QueueItem[]>((resolve, reject) => {
       const tx = db.transaction(STORE_SYNC, 'readonly');
       const store = tx.objectStore(STORE_SYNC);
-      const request = store.getAll();
-      request.onsuccess = () => resolve(request.result as QueueItem[]);
+      const results: QueueItem[] = [];
+      const request = store.openCursor();
+      request.onsuccess = (event) => {
+          const cursor = (event.target as IDBRequest<IDBCursorWithValue>).result;
+          if (cursor) {
+              results.push(cursor.value as QueueItem);
+              cursor.continue();
+          } else {
+              resolve(results);
+          }
+      };
       request.onerror = () => reject(request.error);
     });
   }, [db]);

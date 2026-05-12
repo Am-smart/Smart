@@ -1,0 +1,29 @@
+
+> next-app@0.1.0 dev
+> next dev
+
+▲ Next.js 16.2.4 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.0.2:3000
+✓ Ready in 912ms
+
+○ Compiling / ...
+ GET / 200 in 4.0s (next.js: 3.7s, application-code: 385ms)
+ GET /api/v1/auth?action=me 200 in 1936ms (next.js: 1888ms, application-code: 47ms)
+ GET /api/v1/system?action=maintenance 200 in 2.5s (next.js: 1904ms, application-code: 548ms)
+ GET /api/v1/system?action=maintenance 200 in 531ms (next.js: 32ms, application-code: 499ms)
+ GET /api/v1/system?action=maintenance 200 in 2.5s (next.js: 1893ms, application-code: 566ms)
+ GET /api/v1/system?action=maintenance 200 in 200ms (next.js: 4ms, application-code: 196ms)
+ GET / 200 in 85ms (next.js: 6ms, application-code: 79ms)
+ GET /api/v1/auth?action=me 200 in 19ms (next.js: 6ms, application-code: 13ms)
+ GET /api/v1/system?action=maintenance 200 in 197ms (next.js: 13ms, application-code: 185ms)
+ GET /api/v1/system?action=maintenance 200 in 170ms (next.js: 3ms, application-code: 167ms)
+ GET /api/v1/system?action=maintenance 200 in 223ms (next.js: 18ms, application-code: 206ms)
+ GET /api/v1/system?action=maintenance 200 in 129ms (next.js: 3ms, application-code: 126ms)
+ GET / 200 in 99ms (next.js: 3ms, application-code: 96ms)
+ GET /api/v1/auth?action=me 200 in 13ms (next.js: 5ms, application-code: 8ms)
+ GET /api/v1/system?action=maintenance 200 in 190ms (next.js: 6ms, application-code: 184ms)
+ GET /api/v1/system?action=maintenance 200 in 193ms (next.js: 3ms, application-code: 191ms)
+ GET /api/v1/system?action=maintenance 200 in 218ms (next.js: 6ms, application-code: 212ms)
+ GET /api/v1/system?action=maintenance 200 in 131ms (next.js: 3ms, application-code: 129ms)
+ GET /api/v1/auth?action=role-count 200 in 2.1s (next.js: 3ms, application-code: 2.1s)

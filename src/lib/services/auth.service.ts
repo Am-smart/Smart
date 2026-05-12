@@ -8,7 +8,7 @@ import { UserMapper } from '../mappers';
 import { rbac } from '../auth/rbac';
 import { comparePassword, hashPassword, generateToken, hashToken } from '../crypto';
 import { USER_ROLES, SIGNUP_LIMITS } from '../constants';
-import { BadRequestError } from '../api-error';
+import { BadRequestError, UnauthorizedError, ConflictError, ForbiddenError } from '../api-error';
 
 export class AuthService {
   async validateSession(token: string): Promise<User | null> {
@@ -61,24 +61,24 @@ export class AuthService {
   async authenticate(email: string, password?: string) {
     const user = await systemDb.findUserByEmail(email);
     if (!user) {
-      return { data: { success: false, error: 'Invalid email or password' }, error: null };
+      throw new UnauthorizedError('Invalid email or password');
     }
 
     if (!user.active) {
-      return { data: { success: false, error: 'Account is deactivated' }, error: null };
+      throw new ForbiddenError('Account is deactivated');
     }
 
     if (user.flagged) {
-      return { data: { success: false, error: 'Account is flagged. Please contact support.' }, error: null };
+      throw new ForbiddenError('Account is flagged. Please contact support.');
     }
 
     const now = new Date();
     if (user.locked_until && new Date(user.locked_until) > now) {
-      return { data: { success: false, error: `Account locked until ${new Date(user.locked_until).toLocaleTimeString()}` }, error: null };
+      throw new ForbiddenError(`Account locked until ${new Date(user.locked_until).toLocaleTimeString()}`);
     }
 
     if (user.reset_request && user.reset_request.status === 'approved_used') {
-       return { data: { success: false, error: 'Your session has expired. You must change your password using the secure prompt provided during your first login.' }, error: null };
+       throw new UnauthorizedError('Your session has expired. You must change your password using the secure prompt provided during your first login.');
     }
 
     const isPasswordValid = password && user.password && await comparePassword(password, user.password);
@@ -86,13 +86,13 @@ export class AuthService {
       if (user.reset_request) {
         const reset = user.reset_request;
         if (reset.status === 'pending') {
-          return { data: { success: false, error: 'Your password reset request is under review.' }, error: null };
+          throw new ForbiddenError('Your password reset request is under review.');
         } else if (reset.status === 'approved' && reset.expires_at) {
           if (new Date(reset.expires_at) > now) {
-            return { data: { success: false, error: `Reset approved. Your temp password is: ${reset.temp_password}` }, error: null };
+            throw new UnauthorizedError(`Reset approved. Your temp password is: ${reset.temp_password}`);
           }
         } else if (reset.status === 'denied') {
-          return { data: { success: false, error: `Reset denied: ${reset.denial_reason}` }, error: null };
+          throw new ForbiddenError(`Reset denied: ${reset.denial_reason}`);
         }
       }
 
@@ -106,13 +106,13 @@ export class AuthService {
       };
       await authDb.updateUserRaw(user.id, updates);
 
-      return { data: { success: false, error: 'Invalid email or password' }, error: null };
+      throw new UnauthorizedError('Invalid email or password');
     }
 
     if (user.reset_request && user.reset_request.status === 'approved') {
        const reset = user.reset_request;
        if (reset.expires_at && new Date(reset.expires_at) < now) {
-          return { data: { success: false, error: 'Temporary password has expired. Please request a new one.' }, error: null };
+          throw new UnauthorizedError('Temporary password has expired. Please request a new one.');
        }
        const newResetRequest: NonNullable<User['reset_request']> = { ...reset, status: 'approved_used' };
        delete newResetRequest.temp_password;
@@ -120,7 +120,7 @@ export class AuthService {
        // Use atomic consumption to prevent race conditions
        const consumed = await authDb.consumeTempPassword(user.id, newResetRequest);
        if (!consumed) {
-          return { data: { success: false, error: 'Temporary password has already been used or is no longer valid.' }, error: null };
+          throw new UnauthorizedError('Temporary password has already been used or is no longer valid.');
        }
     }
 
@@ -133,12 +133,9 @@ export class AuthService {
     systemService.performSystemCleanup(await hashToken(token)).catch(console.error);
 
     return {
-      data: {
-        success: true,
-        user: user,
-        session_id: token
-      },
-      error: null
+      success: true,
+      user: user,
+      session_id: token
     };
   }
 
@@ -149,19 +146,19 @@ export class AuthService {
 
     const existingUser = await systemDb.findUserByEmail(data.email);
     if (existingUser) {
-      return { data: { success: false, error: 'An account with this email already exists.' }, error: null };
+      throw new ConflictError('An account with this email already exists.');
     }
 
     const passwordValidation = validatePassword(data.password);
     if (!passwordValidation.isValid) {
-      throw new Error(passwordValidation.errors[0].message);
+      throw new BadRequestError(passwordValidation.errors[0].message);
     }
 
     if (data.role === USER_ROLES.TEACHER || data.role === USER_ROLES.ADMIN) {
       const count = await this.getRoleUserCount(data.role);
       const limit = data.role === USER_ROLES.TEACHER ? SIGNUP_LIMITS.TEACHER : SIGNUP_LIMITS.ADMIN;
       if (count >= limit) {
-        return { data: { success: false, error: `Public creation limit reached for ${data.role}s.` }, error: null };
+        throw new ForbiddenError(`Public creation limit reached for ${data.role}s.`);
       }
     }
 
@@ -172,7 +169,7 @@ export class AuthService {
       active: true
     });
 
-    if (error) return { data: null, error };
+    if (error) throw new Error('Failed to register user');
 
     const newUser = userData as User;
 
@@ -180,12 +177,9 @@ export class AuthService {
     const token = await this.createSession(newUser.id);
 
     return {
-      data: {
-        success: true,
-        user: newUser,
-        session_id: token
-      },
-      error: null
+      success: true,
+      user: newUser,
+      session_id: token
     };
   }
 
@@ -200,7 +194,7 @@ export class AuthService {
 
     const passwordValidation = validatePassword(data.password);
     if (!passwordValidation.isValid) {
-      throw new Error(passwordValidation.errors[0].message);
+      throw new BadRequestError(passwordValidation.errors[0].message);
     }
 
     const hashedPassword = await hashPassword(data.password);
