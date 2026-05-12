@@ -1,5 +1,6 @@
 import { withHandler } from '@/app/api/api-utils';
 import { systemService } from '@/lib/services/system.service';
+import { BadRequestError } from '@/lib/api-error';
 
 export const POST = withHandler(async (user, request) => {
   const formData = await request.formData();
@@ -7,7 +8,7 @@ export const POST = withHandler(async (user, request) => {
   const category = formData.get('category') as string || 'general';
 
   if (!file) {
-    throw new Error('No file provided');
+    throw new BadRequestError('No file provided');
   }
 
   return await systemService.uploadFile(file, category, user.id, user.sessionId!);
