@@ -145,7 +145,7 @@ export class AuthService {
     };
   }
 
-  async signup(data: { full_name: string; email: string; password?: string; phone?: string; role: string; confirmPassword?: string }): Promise<{ success: boolean; user: User; session_id: string }> {
+  async signup(data: { full_name: string; email: string; password?: string; phone?: string; role: string }): Promise<{ success: boolean; user: User; session_id: string }> {
     if (!data.password || data.password.trim() === '') {
       throw new BadRequestError('Password is required');
     }

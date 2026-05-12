@@ -66,7 +66,6 @@ export const POST = withHandler(async (user, request) => {
               full_name: normalizeInput(data.full_name),
               email: normalizeEmail(data.email),
               password: data.password || '',
-              confirmPassword: data.confirmPassword || '',
               phone: data.phone ? normalizeInput(data.phone) : undefined,
               role: data.role
             });
