@@ -12,12 +12,17 @@ export const sessionManager = {
     }
   },
 
-  redirectToLanding: () => {
+  redirectToLanding: (router?: { push: (path: string) => void }) => {
     if (typeof window === 'undefined') return;
-    window.location.href = '/';
+    if (router) {
+      router.push('/');
+    } else {
+      window.location.href = '/';
+    }
   },
 
-  logout: () => {
-    sessionManager.redirectToLanding();
+  logout: (router?: { push: (path: string) => void }) => {
+    sessionManager.cleanupSession();
+    sessionManager.redirectToLanding(router);
   }
 };
