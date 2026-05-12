@@ -100,10 +100,11 @@ export const AssignmentEditor: React.FC<AssignmentEditorProps> = ({ teacherId, a
             formDataUpload.append('file', file);
             formDataUpload.append('category', 'materials');
 
-            const res = await fetch('/api/system/upload', {
+            const res = await fetch('/api/v1/system/upload', {
                 method: 'POST',
                 headers: {
                     'x-session-id': user?.sessionId || '',
+                    'X-Requested-With': 'XMLHttpRequest',
                 },
                 body: formDataUpload
             });
@@ -113,7 +114,8 @@ export const AssignmentEditor: React.FC<AssignmentEditorProps> = ({ teacherId, a
                 throw new Error(errorData.error || 'Upload failed');
             }
 
-            const { publicUrl } = await res.json();
+            const result = await res.json();
+            const publicUrl = result.data?.publicUrl || result.publicUrl;
 
             setFormData(prev => ({
                 ...prev,

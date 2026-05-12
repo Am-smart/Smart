@@ -736,9 +736,11 @@ export class SystemService {
     const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
     const ALLOWED_TYPES = [
         'image/jpeg', 'image/png', 'image/webp',
-        'application/pdf', 'application/zip',
+        'application/pdf', 'application/zip', 'application/x-zip-compressed',
         'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        'text/plain'
+        'application/vnd.ms-powerpoint', 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        'application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        'text/plain', 'text/csv'
     ];
 
     if (file.size > MAX_FILE_SIZE) {

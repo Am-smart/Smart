@@ -51,8 +51,12 @@ export const AssignmentForm: React.FC<AssignmentFormProps> = ({ assignment, user
     formData.append('file', file);
     formData.append('category', category);
 
-    const res = await fetch('/api/system/upload', {
+    const res = await fetch('/api/v1/system/upload', {
         method: 'POST',
+        headers: {
+            'x-session-id': (user as any).sessionId || '',
+            'X-Requested-With': 'XMLHttpRequest',
+        },
         body: formData
     });
 
@@ -61,7 +65,8 @@ export const AssignmentForm: React.FC<AssignmentFormProps> = ({ assignment, user
         throw new Error(errorData.error || 'Upload failed');
     }
 
-    const { publicUrl } = await res.json();
+    const result = await res.json();
+    const publicUrl = result.data?.publicUrl || result.publicUrl;
     return { url: publicUrl };
   };
 
