@@ -3,8 +3,17 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
 import * as actions from '@/lib/api-actions';
-import { CourseEditor } from "@/components/courses/CourseEditor";
-import { LessonEditor } from "@/components/courses/LessonEditor";
+import dynamic from 'next/dynamic';
+
+const CourseEditor = dynamic(() => import('@/components/courses/CourseEditor').then(mod => mod.CourseEditor), {
+    loading: () => <div className="h-96 bg-slate-100 animate-pulse rounded-lg" />
+});
+
+const LessonEditor = dynamic(() => import('@/components/courses/LessonEditor').then(mod => mod.LessonEditor), {
+    loading: () => <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center">
+        <div className="bg-white p-8 rounded-lg animate-pulse w-full max-w-4xl h-[80vh]" />
+    </div>
+});
 import { CourseDTO } from '@/lib/types';
 import { CourseList } from '@/components/common/CourseList';
 import { Button } from '@/components/ui/Button';

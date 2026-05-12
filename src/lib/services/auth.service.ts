@@ -340,9 +340,9 @@ export class AuthService {
     return { ...user, sessionId };
   }
 
-  async getAllUsers(currentUser: User): Promise<User[]> {
+  async getAllUsers(currentUser: User, limit?: number, offset?: number): Promise<User[]> {
     if (!rbac.can(currentUser, 'user:manage')) throw new Error('Forbidden');
-    return systemDb.findAllUsers(currentUser.sessionId!);
+    return systemDb.findAllUsers(currentUser.sessionId!, { limit, offset });
   }
 
   async updateUserProfile(currentUser: User, userId: string, updates: Partial<User>, sessionId: string): Promise<User> {

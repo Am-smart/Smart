@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import Image from 'next/image';
 import { X, Upload, Image as ImageIcon } from 'lucide-react';
 import { CourseDTO } from '@/lib/types';
 import { useIndexedDB } from '@/hooks/useIndexedDB';
@@ -191,11 +192,16 @@ export const CourseEditor: React.FC<CourseEditorProps> = ({ course, teacherId, o
                                         />
                                     </div>
                                 </div>
-                                <div className="w-16 h-16 rounded-xl border-2 border-slate-100 bg-slate-50 flex items-center justify-center overflow-hidden shrink-0">
+                                <div className="w-16 h-16 rounded-xl border-2 border-slate-100 bg-slate-50 flex items-center justify-center overflow-hidden shrink-0 relative">
                                     {formData.thumbnail_url && (
                                         formData.thumbnail_url.startsWith('http') ? (
-                                            /* eslint-disable-next-line @next/next/no-img-element */
-                                            <img src={formData.thumbnail_url} alt="Preview" className="w-full h-full object-cover" />
+                                            <Image
+                                                src={formData.thumbnail_url}
+                                                alt="Preview"
+                                                fill
+                                                sizes="64px"
+                                                className="object-cover"
+                                            />
                                         ) : (
                                             <span className="text-3xl">{formData.thumbnail_url}</span>
                                         )

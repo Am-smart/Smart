@@ -30,7 +30,9 @@ export const GET = withHandler(async (user, request) => {
     }
     case 'materials': {
       const courseId = searchParams.get('courseId') || undefined;
-      const materials = await learningService.getMaterials(courseId, user.sessionId!, user.id, user.role);
+      const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : undefined;
+      const offset = searchParams.get('offset') ? parseInt(searchParams.get('offset')!) : undefined;
+      const materials = await learningService.getMaterials(courseId, user.sessionId!, user.id, user.role, { limit, offset });
       return materials.map(LearningMapper.toMaterialDTO);
     }
     default:

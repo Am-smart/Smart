@@ -2,8 +2,15 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { getCourses, getMaintenance } from '@/lib/api-actions';
-import { MaintenancePanel } from "@/components/system/MaintenancePanel";
-import { BroadcastManager } from "@/components/communication/BroadcastManager";
+import dynamic from 'next/dynamic';
+
+const MaintenancePanel = dynamic(() => import('@/components/system/MaintenancePanel').then(mod => mod.MaintenancePanel), {
+    loading: () => <div className="h-48 bg-slate-100 animate-pulse rounded-lg" />
+});
+
+const BroadcastManager = dynamic(() => import('@/components/communication/BroadcastManager').then(mod => mod.BroadcastManager), {
+    loading: () => <div className="h-48 bg-slate-100 animate-pulse rounded-lg" />
+});
 import { CourseDTO } from '@/lib/types';
 import { MaintenanceDTO } from '@/lib/types';
 
