@@ -1,8 +1,15 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { UserManagement } from "@/components/users/UserManagement";
-import { UserEditor } from "@/components/users/UserEditor";
+import dynamic from 'next/dynamic';
+
+const UserManagement = dynamic(() => import('@/components/users/UserManagement').then(mod => mod.UserManagement), {
+    loading: () => <div className="h-96 bg-slate-100 animate-pulse rounded-lg" />
+});
+
+const UserEditor = dynamic(() => import('@/components/users/UserEditor').then(mod => mod.UserEditor), {
+    loading: () => <div className="h-96 bg-slate-100 animate-pulse rounded-lg" />
+});
 import { UserDTO } from '@/lib/types';
 import { getUsers, deleteUser, saveUser } from '@/lib/api-actions';
 

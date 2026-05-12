@@ -22,7 +22,6 @@ export const GET = withHandler(async (user, request) => {
 
   switch (action) {
     case 'logs': {
-      const limit = parseInt(searchParams.get('limit') || '100');
       if (!rbac.can(user, 'system:logs:view')) throw new UnauthorizedError();
 
       const filters = {
@@ -30,9 +29,11 @@ export const GET = withHandler(async (user, request) => {
         course_id: searchParams.get('courseId') || undefined,
         resource_id: searchParams.get('resourceId') || undefined,
         category: searchParams.get('category') || undefined,
+        limit: searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : undefined,
+        offset: searchParams.get('offset') ? parseInt(searchParams.get('offset')!) : undefined,
       };
 
-      const logs = await systemService.getLogs(user, limit, user.sessionId!, filters);
+      const logs = await systemService.getLogs(user, user.sessionId!, filters);
       return logs.map(SystemMapper.toSystemLogDTO);
     }
     case 'sessions': {
@@ -45,13 +46,17 @@ export const GET = withHandler(async (user, request) => {
     }
     case 'users': {
       if (!rbac.can(user, 'user:manage')) throw new UnauthorizedError();
-      const users = await authService.getAllUsers(user);
+      const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : undefined;
+      const offset = searchParams.get('offset') ? parseInt(searchParams.get('offset')!) : undefined;
+      const users = await authService.getAllUsers(user, limit, offset);
       const { UserMapper } = await import('@/lib/mappers');
       return users.map(UserMapper.toDTO);
     }
     case 'planner': {
       const userId = searchParams.get('userId') || user.id;
-      const items = await systemService.getPlannerItems(userId, user.sessionId!, user);
+      const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : undefined;
+      const offset = searchParams.get('offset') ? parseInt(searchParams.get('offset')!) : undefined;
+      const items = await systemService.getPlannerItems(userId, user.sessionId!, user, { limit, offset });
       return items.map(SystemMapper.toPlannerItemDTO);
     }
     case 'notifications': {
@@ -60,20 +65,26 @@ export const GET = withHandler(async (user, request) => {
           const count = await systemService.getUnreadCount(userId, user.sessionId!, user);
           return { count };
       }
-      const merged = await systemService.getMergedNotifications(user, userId, user.sessionId!);
+      const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : undefined;
+      const offset = searchParams.get('offset') ? parseInt(searchParams.get('offset')!) : undefined;
+      const merged = await systemService.getMergedNotifications(user, userId, user.sessionId!, { limit, offset });
       return merged.map(CommunicationMapper.toNotificationDTO);
     }
     case 'live-classes': {
       const courseId = searchParams.get('courseId') || undefined;
       const teacherId = searchParams.get('teacherId') || undefined;
-      const classes = await systemService.getLiveClasses(courseId, teacherId, user.sessionId!, user.id, user.role);
+      const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : undefined;
+      const offset = searchParams.get('offset') ? parseInt(searchParams.get('offset')!) : undefined;
+      const classes = await systemService.getLiveClasses(courseId, teacherId, user.sessionId!, user.id, user.role, { limit, offset });
       return classes.map(CommunicationMapper.toLiveClassDTO);
     }
     case 'discussions': {
       const courseId = searchParams.get('courseId');
       if (!courseId) throw new Error('courseId is required');
       if (courseId === 'global') return [];
-      const discussions = await systemService.getDiscussions(courseId, user.sessionId!, user.id, user.role);
+      const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : undefined;
+      const offset = searchParams.get('offset') ? parseInt(searchParams.get('offset')!) : undefined;
+      const discussions = await systemService.getDiscussions(courseId, user.sessionId!, user.id, user.role, { limit, offset });
       return discussions.map(CommunicationMapper.toDiscussionDTO);
     }
     case 'attendance': {
@@ -100,7 +111,9 @@ export const GET = withHandler(async (user, request) => {
         const quizId = searchParams.get('quizId') || undefined;
         const studentId = searchParams.get('studentId') || undefined;
         const courseId = searchParams.get('courseId') || undefined;
-        const submissions = await assessmentService.getQuizSubmissions(quizId, studentId, user.sessionId!, user.id, user.role, courseId);
+        const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : undefined;
+        const offset = searchParams.get('offset') ? parseInt(searchParams.get('offset')!) : undefined;
+        const submissions = await assessmentService.getQuizSubmissions(quizId, studentId, user.sessionId!, user.id, user.role, courseId, { limit, offset });
         return submissions.map(AssessmentMapper.toQuizSubmissionDTO);
     }
     case 'lesson-completions': {
@@ -117,6 +130,8 @@ export const GET = withHandler(async (user, request) => {
             user_id: searchParams.get('userId') || undefined,
             assigned_to: searchParams.get('assignedTo') || undefined,
             status: searchParams.get('status') || undefined,
+            limit: searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : undefined,
+            offset: searchParams.get('offset') ? parseInt(searchParams.get('offset')!) : undefined,
         });
         return tickets.map(SystemMapper.toSupportTicketDTO);
     }
@@ -129,7 +144,8 @@ export const GET = withHandler(async (user, request) => {
             user_id: searchParams.get('userId') || undefined,
             course_id: searchParams.get('courseId') || undefined,
             resource_id: searchParams.get('resourceId') || undefined,
-            limit: parseInt(searchParams.get('limit') || '200')
+            limit: searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : 200,
+            offset: searchParams.get('offset') ? parseInt(searchParams.get('offset')!) : undefined,
         };
         const logs = await systemService.getAntiCheatLogs(user, user.sessionId!, filters);
         return logs.map(SystemMapper.toAntiCheatLogDTO);

@@ -1,10 +1,6 @@
-export * from "./courses";
-export * from "./assessments";
-export * from "./common";
-export * from "./system";
-export * from "./communication";
+// Barrel exports can cause bundle bloat in Next.js if not carefully managed.
+// Prefer direct imports from specific files for large components.
 export * from "./ui";
-export * from "./users";
+export * from "./common";
 export * from "./layout";
-export * from "./planner";
 export * from "./auth";

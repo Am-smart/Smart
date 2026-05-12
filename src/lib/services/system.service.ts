@@ -67,16 +67,14 @@ export class SystemService {
             // Notify Admins
             const { supabase } = await import('../supabase');
             const { data: admins } = await supabase.from('users').select('id').eq('role', 'admin');
-            if (admins) {
-                for (const admin of admins) {
-                    await this.notifyUser({
-                        target_id: admin.id,
-                        n_title: 'Security Alert: User Flagged',
-                        n_msg: `Student ${user.full_name} has been flagged for ${recentLogs.length} anti-cheat violations in course.`,
-                        n_type: 'security',
-                        metadata: { student_id: user.id, course_id: log.course_id }
-                    }, sessionId || '');
-                }
+            if (admins && admins.length > 0) {
+                await this.notifyUsers({
+                    target_ids: admins.map(a => a.id),
+                    n_title: 'Security Alert: User Flagged',
+                    n_msg: `Student ${user.full_name} has been flagged for ${recentLogs.length} anti-cheat violations in course.`,
+                    n_type: 'security',
+                    metadata: { student_id: user.id, course_id: log.course_id }
+                }, sessionId || '');
             }
         }
     }
@@ -105,13 +103,12 @@ export class SystemService {
 
   async getLogs(
     currentUser: User,
-    limit: number,
     sessionId: string,
-    filters: { user_id?: string; course_id?: string; resource_id?: string; category?: string; course_ids?: string[] } = {}
+    filters: { user_id?: string; course_id?: string; resource_id?: string; category?: string; course_ids?: string[]; limit?: number; offset?: number } = {}
   ): Promise<SystemLog[]> {
     if (!currentUser) throw new UnauthorizedError();
 
-    const finalFilters: { user_id?: string; course_id?: string; resource_id?: string; category?: string; course_ids?: string[] } = { ...filters };
+    const finalFilters: { user_id?: string; course_id?: string; resource_id?: string; category?: string; course_ids?: string[]; limit?: number; offset?: number } = { ...filters };
 
     // Role-based filtering logic
     if (UserDomain.isAdmin(currentUser)) {
@@ -149,7 +146,7 @@ export class SystemService {
       }
     }
 
-    return systemDb.findAllSystemLogs(limit, sessionId, finalFilters);
+    return systemDb.findAllSystemLogs(sessionId, finalFilters);
   }
 
   async clearLogs(
@@ -177,11 +174,11 @@ export class SystemService {
   }
 
   // Planner
-  async getPlannerItems(userId: string, sessionId: string, currentUser?: User): Promise<PlannerItem[]> {
+  async getPlannerItems(userId: string, sessionId: string, currentUser?: User, options: { limit?: number; offset?: number } = {}): Promise<PlannerItem[]> {
     if (currentUser && currentUser.role === 'student' && currentUser.id !== userId) {
         throw new ForbiddenError('Unauthorized: You can only view your own planner items');
     }
-    return systemDb.findPlannerItemsByUserId(userId, sessionId);
+    return systemDb.findPlannerItemsByUserId(userId, sessionId, options);
   }
 
   async savePlannerItem(userId: string, item: Partial<PlannerItem>, sessionId: string, currentUser?: User): Promise<PlannerItem> {
@@ -271,12 +268,12 @@ export class SystemService {
   }
 
   // Communications (Merged from CommunicationService)
-  async getDiscussions(courseId: string, sessionId: string, userId?: string, userRole?: string): Promise<Discussion[]> {
+  async getDiscussions(courseId: string, sessionId: string, userId?: string, userRole?: string, options: { limit?: number; offset?: number } = {}): Promise<Discussion[]> {
     if (userRole === 'student' && userId) {
         const enrollment = await learningDb.findEnrollmentByCourseAndStudent(courseId, userId, sessionId!);
         if (!enrollment) return [];
     }
-    return systemDb.findDiscussionsByCourseId(courseId, sessionId);
+    return systemDb.findDiscussionsByCourseId(courseId, sessionId, options);
   }
 
   async saveDiscussionPost(currentUser: User, post: Partial<Discussion>, sessionId: string): Promise<Discussion> {
@@ -307,11 +304,11 @@ export class SystemService {
     await systemDb.deleteDiscussion(id, currentUser.id, sessionId);
   }
 
-  async getNotifications(userId: string, sessionId: string, currentUser?: User): Promise<Notification[]> {
+  async getNotifications(userId: string, sessionId: string, currentUser?: User, options: { limit?: number; offset?: number } = {}): Promise<Notification[]> {
     if (currentUser && currentUser.role === 'student' && currentUser.id !== userId) {
         throw new ForbiddenError('Unauthorized: You can only view your own notifications');
     }
-    return systemDb.findNotificationsByUserId(userId, sessionId);
+    return systemDb.findNotificationsByUserId(userId, sessionId, options);
   }
 
   async getUnreadCount(userId: string, sessionId: string, currentUser?: User): Promise<number> {
@@ -355,59 +352,90 @@ export class SystemService {
   }
 
   async notifyUser(params: { target_id: string, n_title: string, n_msg: string, n_link?: string, n_type?: string, expires_at?: string, metadata?: Record<string, string | number | boolean> }, sessionId: string): Promise<void> {
-    // Idempotency: Prevent duplicate notifications within short timeframes (5 mins)
-    const recentNotifications = await systemDb.findNotificationsByUserId(params.target_id, sessionId);
-    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
-    const isDuplicate = recentNotifications.some(n =>
-        n.title === params.n_title &&
-        n.message === params.n_msg &&
-        new Date(n.created_at) > fiveMinutesAgo
-    );
-
-    if (isDuplicate) {
-        console.log(`[Notification] Skipping duplicate notification for user ${params.target_id}: ${params.n_title}`);
-        return;
-    }
-
-    const notification = await systemDb.createNotification({
-      user_id: params.target_id,
-      title: params.n_title,
-      message: params.n_msg,
-      link: params.n_link,
-      type: params.n_type || 'system',
-      expires_at: params.expires_at,
-      metadata: params.metadata || {}
+    await this.notifyUsers({
+        target_ids: [params.target_id],
+        n_title: params.n_title,
+        n_msg: params.n_msg,
+        n_link: params.n_link,
+        n_type: params.n_type,
+        expires_at: params.expires_at,
+        metadata: params.metadata
     }, sessionId);
+  }
 
-    // Trigger Push Notification
+  async notifyUsers(params: { target_ids: string[], n_title: string, n_msg: string, n_link?: string, n_type?: string, expires_at?: string, metadata?: Record<string, string | number | boolean> }, sessionId: string): Promise<void> {
+    if (params.target_ids.length === 0) return;
+
+    // Use task queue for bulk processing to avoid blocking main thread
     const { taskQueue } = await import('../queue/task-queue');
     taskQueue.enqueue(async () => {
+        const { supabase } = await import('../supabase');
+        const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+
+        // 1. Check for duplicates in bulk
+        const { data: recentNotifications } = await supabase.from('notifications')
+            .select('user_id')
+            .in('user_id', params.target_ids)
+            .eq('title', params.n_title)
+            .eq('message', params.n_msg)
+            .gt('created_at', fiveMinutesAgo);
+
+        const duplicateUserIds = new Set((recentNotifications || []).map(n => n.user_id));
+        const uniqueTargetIds = params.target_ids.filter(id => !duplicateUserIds.has(id));
+
+        if (uniqueTargetIds.length === 0) return;
+
+        // 2. Batch insert notifications
+        const notificationsToInsert = uniqueTargetIds.map(userId => ({
+            user_id: userId,
+            title: params.n_title,
+            message: params.n_msg,
+            link: params.n_link,
+            type: params.n_type || 'system',
+            expires_at: params.expires_at,
+            metadata: params.metadata || {}
+        }));
+
+        const { data: insertedNotifications, error: insertError } = await supabase.from('notifications').insert(notificationsToInsert).select();
+        if (insertError) {
+            console.error('[Bulk Notification] Insert failed:', insertError);
+            return;
+        }
+
+        // 3. Batch send push notifications
         const { pushService } = await import('./push.service');
-        const subscriptions = await systemDb.findPushSubscriptionsByUserId(params.target_id, sessionId);
+        const subscriptions = await systemDb.findPushSubscriptionsByUserIds(uniqueTargetIds, sessionId);
+
         if (subscriptions.length > 0) {
-            const results = await pushService.sendToMany(subscriptions, {
-                title: params.n_title,
-                body: params.n_msg,
-                tag: notification.id, // Use notification ID for exact duplicate prevention
-                data: { url: params.n_link || '/' }
+            // Group subscriptions by user for tagging with specific notification IDs if needed,
+            // but for bulk we can use a common tag if appropriate or individual sends.
+            // To maintain the "one tag per notification" logic for deduplication:
+            const notificationMap = new Map((insertedNotifications || []).map(n => [n.user_id, n.id]));
+
+            const pushTasks = subscriptions.map(async (sub) => {
+                const notificationId = notificationMap.get(sub.user_id);
+                const res = await pushService.sendToMany([sub], {
+                    title: params.n_title,
+                    body: params.n_msg,
+                    tag: notificationId || params.n_title,
+                    data: { url: params.n_link || '/' }
+                });
+
+                if (res[0] && !res[0].success && res[0].expired) {
+                    await systemDb.deletePushSubscription(sub.endpoint, sessionId);
+                }
             });
 
-            // Cleanup invalid subscriptions
-            for (let i = 0; i < results.length; i++) {
-                const res = results[i];
-                if (res && !res.success && res.expired) {
-                    await systemDb.deletePushSubscription(subscriptions[i].endpoint, sessionId);
-                }
-            }
+            await Promise.all(pushTasks);
         }
     });
   }
 
-  async getMergedNotifications(user: User, userId: string, sessionId: string): Promise<Notification[]> {
+  async getMergedNotifications(user: User, userId: string, sessionId: string, options: { limit?: number; offset?: number } = {}): Promise<Notification[]> {
     // With fan-out trigger, all broadcasts now exist as individual notifications.
     // We only need to fetch from the notifications table.
     // We filter out dismissed and expired notifications.
-    const notifications = await this.getNotifications(userId, sessionId, user);
+    const notifications = await this.getNotifications(userId, sessionId, user, options);
     const now = new Date();
 
     return notifications.filter(n => {
@@ -432,7 +460,7 @@ export class SystemService {
     );
   }
 
-  async getLiveClasses(courseId?: string, teacherId?: string, sessionId?: string, userId?: string, userRole?: string): Promise<LiveClass[]> {
+  async getLiveClasses(courseId?: string, teacherId?: string, sessionId?: string, userId?: string, userRole?: string, options: { limit?: number; offset?: number } = {}): Promise<LiveClass[]> {
     if (userRole === 'student' && userId) {
         const enrollments = await learningDb.findEnrollmentsByStudentId(userId, sessionId!);
         const enrolledCourseIds = enrollments.map(e => e.course_id);
@@ -441,16 +469,16 @@ export class SystemService {
             return [];
         }
 
-        const liveClasses = await systemDb.findAllLiveClasses(courseId, teacherId, sessionId);
+        const liveClasses = await systemDb.findAllLiveClasses(courseId, teacherId, sessionId, options);
         return liveClasses.filter(lc => enrolledCourseIds.includes(lc.course_id));
     }
 
     if (userRole === 'teacher' && userId) {
-        const liveClasses = await systemDb.findAllLiveClasses(courseId, userId, sessionId);
+        const liveClasses = await systemDb.findAllLiveClasses(courseId, userId, sessionId, options);
         return liveClasses;
     }
 
-    return systemDb.findAllLiveClasses(courseId, teacherId, sessionId);
+    return systemDb.findAllLiveClasses(courseId, teacherId, sessionId, options);
   }
 
   async saveLiveClass(currentUser: User, liveClass: Partial<LiveClass>, sessionId: string): Promise<LiveClass> {
@@ -547,7 +575,7 @@ export class SystemService {
   }
 
   // Support Tickets
-  async getSupportTickets(currentUser: User, sessionId: string, filters: { user_id?: string; assigned_to?: string; status?: string } = {}): Promise<SupportTicket[]> {
+  async getSupportTickets(currentUser: User, sessionId: string, filters: { user_id?: string; assigned_to?: string; status?: string; limit?: number; offset?: number } = {}): Promise<SupportTicket[]> {
     if (!currentUser) throw new UnauthorizedError();
 
     const finalFilters = { ...filters };
@@ -588,16 +616,14 @@ export class SystemService {
         // New ticket - notify admins
         const { supabase } = await import('../supabase');
         const { data: admins } = await supabase.from('users').select('id').eq('role', 'admin');
-        if (admins) {
-            for (const admin of admins) {
-                await this.notifyUser({
-                    target_id: admin.id,
-                    n_title: `New Support Ticket: ${saved.subject}`,
-                    n_msg: 'A new support ticket has been submitted by a user.',
-                    n_link: `grading:${saved.id}`, // placeholder deep link
-                    n_type: 'system'
-                }, sessionId);
-            }
+        if (admins && admins.length > 0) {
+            await this.notifyUsers({
+                target_ids: admins.map(a => a.id),
+                n_title: `New Support Ticket: ${saved.subject}`,
+                n_msg: 'A new support ticket has been submitted by a user.',
+                n_link: `grading:${saved.id}`, // placeholder deep link
+                n_type: 'system'
+            }, sessionId);
         }
     } else if (existing.status !== 'resolved' && saved.status === 'resolved') {
         // Resolved - notify owner
@@ -705,31 +731,36 @@ export class SystemService {
             }));
 
             // Batch insert in chunks of 1000
+            const insertedIds: { user_id: string, id: string }[] = [];
             for (let i = 0; i < notificationsToInsert.length; i += 1000) {
                 const chunk = notificationsToInsert.slice(i, i + 1000);
-                await supabase.from('notifications').insert(chunk);
+                const { data } = await supabase.from('notifications').insert(chunk).select('user_id, id');
+                if (data) insertedIds.push(...data);
             }
 
-            // Trigger Push Notifications for all targets
+            // Trigger Push Notifications for all targets in batch
             const { pushService } = await import('./push.service');
-            for (const userId of targetUserIds) {
-                const subscriptions = await systemDb.findPushSubscriptionsByUserId(userId, sessionId);
-                if (subscriptions.length > 0) {
-                    const results = await pushService.sendToMany(subscriptions, {
+            const subscriptions = await systemDb.findPushSubscriptionsByUserIds(targetUserIds, sessionId);
+
+            if (subscriptions.length > 0) {
+                const notificationMap = new Map(insertedIds.map(n => [n.user_id, n.id]));
+
+                const pushTasks = subscriptions.map(async (sub) => {
+                    const notificationId = notificationMap.get(sub.user_id);
+                    const results = await pushService.sendToMany([sub], {
                         title: createdBroadcast.title,
                         body: createdBroadcast.message,
-                        tag: pushTag,
+                        tag: notificationId || pushTag,
                         data: { url: createdBroadcast.link || '/' }
                     });
 
                     // Cleanup invalid subscriptions
-                    for (let i = 0; i < results.length; i++) {
-                        const res = results[i];
-                        if (res && !res.success && res.expired) {
-                            await systemDb.deletePushSubscription(subscriptions[i].endpoint, sessionId);
-                        }
+                    if (results[0] && !results[0].success && results[0].expired) {
+                        await systemDb.deletePushSubscription(sub.endpoint, sessionId);
                     }
-                }
+                });
+
+                await Promise.all(pushTasks);
             }
         }
     });

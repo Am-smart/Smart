@@ -27,10 +27,11 @@ export const systemDb = {
     return data as User;
   },
 
-  async findAllUsers(sessionId: string): Promise<User[]> {
+  async findAllUsers(sessionId: string, options: { limit?: number; offset?: number } = {}): Promise<User[]> {
     const client = (sessionId && adminClient) ? supabase : (adminClient || supabase);
     let query = client.from('users').select('*');
     if (sessionId) query = withSession(query, sessionId);
+    query = dbUtils.applyPagination(query, options);
     const { data, error } = await query;
     if (error) dbUtils.handleError(error);
     return data as User[];
@@ -105,10 +106,11 @@ export const systemDb = {
     return data as LiveClass;
   },
 
-  async findAllLiveClasses(courseId?: string, teacherId?: string, sessionId?: string): Promise<LiveClass[]> {
+  async findAllLiveClasses(courseId?: string, teacherId?: string, sessionId?: string, options: { limit?: number; offset?: number } = {}): Promise<LiveClass[]> {
     let query = withSession(supabase.from('live_classes').select('*, courses(*)'), sessionId);
     if (courseId) query = query.eq('course_id', courseId);
     if (teacherId) query = query.eq('teacher_id', teacherId);
+    query = dbUtils.applyPagination(query, options);
     const { data, error } = await query;
     if (error) dbUtils.handleError(error);
     return data as LiveClass[];
@@ -146,11 +148,13 @@ export const systemDb = {
   },
 
   // Notification Operations
-  async findNotificationsByUserId(userId: string, sessionId: string): Promise<Notification[]> {
-    const { data, error } = await withSession(supabase.from('notifications'), sessionId)
+  async findNotificationsByUserId(userId: string, sessionId: string, options: { limit?: number; offset?: number } = {}): Promise<Notification[]> {
+    let query = withSession(supabase.from('notifications'), sessionId)
       .select('*')
       .eq('user_id', userId)
       .order('created_at', { ascending: false });
+    query = dbUtils.applyPagination(query, options);
+    const { data, error } = await query;
     if (error) dbUtils.handleError(error);
     return data as Notification[];
   },
@@ -221,11 +225,13 @@ export const systemDb = {
   },
 
   // Discussion Operations
-  async findDiscussionsByCourseId(courseId: string, sessionId: string): Promise<Discussion[]> {
-    const { data, error } = await withSession(supabase.from('discussions'), sessionId)
+  async findDiscussionsByCourseId(courseId: string, sessionId: string, options: { limit?: number; offset?: number } = {}): Promise<Discussion[]> {
+    let query = withSession(supabase.from('discussions'), sessionId)
       .select('*, users!user_id(full_name, email)')
       .eq('course_id', courseId)
       .order('created_at', { ascending: true });
+    query = dbUtils.applyPagination(query, options);
+    const { data, error } = await query;
     if (error) dbUtils.handleError(error);
     return data as Discussion[];
   },
@@ -249,8 +255,10 @@ export const systemDb = {
   },
 
   // Planner Operations
-  async findPlannerItemsByUserId(userId: string, sessionId: string): Promise<PlannerItem[]> {
-    const { data, error } = await withSession(supabase.from('planner'), sessionId).select('*').eq('user_id', userId);
+  async findPlannerItemsByUserId(userId: string, sessionId: string, options: { limit?: number; offset?: number } = {}): Promise<PlannerItem[]> {
+    let query = withSession(supabase.from('planner'), sessionId).select('*').eq('user_id', userId);
+    query = dbUtils.applyPagination(query, options);
+    const { data, error } = await query;
     if (error) dbUtils.handleError(error);
     return data as PlannerItem[];
   },
@@ -314,15 +322,15 @@ export const systemDb = {
   },
 
   async findAllSystemLogs(
-    limit = 100,
     sessionId: string,
-    filters: { user_id?: string; course_id?: string; resource_id?: string; category?: string; course_ids?: string[] } = {}
+    filters: { user_id?: string; course_id?: string; resource_id?: string; category?: string; course_ids?: string[]; limit?: number; offset?: number } = {}
   ): Promise<SystemLog[]> {
     // Robust manual join to avoid "relationship not found" schema errors
     let query = withSession(supabase.from('system_logs'), sessionId)
       .select('*')
-      .order('created_at', { ascending: false })
-      .limit(limit);
+      .order('created_at', { ascending: false });
+
+    query = dbUtils.applyPagination(query, filters);
 
     if (filters.category) query = query.eq('category', filters.category);
     if (filters.user_id) query = query.eq('user_id', filters.user_id);
@@ -378,13 +386,15 @@ export const systemDb = {
   },
 
   // Support Ticket Operations
-  async findAllSupportTickets(sessionId: string, filters: { user_id?: string; assigned_to?: string; status?: string } = {}): Promise<SupportTicket[]> {
+  async findAllSupportTickets(sessionId: string, filters: { user_id?: string; assigned_to?: string; status?: string; limit?: number; offset?: number } = {}): Promise<SupportTicket[]> {
     let query = withSession(supabase.from('support_tickets'), sessionId)
       .select('*, users!user_id(id, full_name, email)');
 
     if (filters.user_id) query = query.eq('user_id', filters.user_id);
     if (filters.assigned_to) query = query.eq('assigned_to', filters.assigned_to);
     if (filters.status) query = query.eq('status', filters.status);
+
+    query = dbUtils.applyPagination(query, filters);
 
     const { data, error } = await query.order('created_at', { ascending: false });
     if (error) dbUtils.handleError(error);
@@ -429,7 +439,7 @@ export const systemDb = {
 
   async findAllAntiCheatLogs(
     sessionId: string,
-    filters: { user_id?: string; course_id?: string; resource_id?: string; limit?: number } = {}
+    filters: { user_id?: string; course_id?: string; resource_id?: string; limit?: number; offset?: number } = {}
   ): Promise<AntiCheatLog[]> {
     let query = withSession(supabase.from('anti_cheat_logs'), sessionId)
       .select('*, users!user_id(id, full_name, email), courses!course_id(*)')
@@ -438,7 +448,8 @@ export const systemDb = {
     if (filters.user_id) query = query.eq('user_id', filters.user_id);
     if (filters.course_id) query = query.eq('course_id', filters.course_id);
     if (filters.resource_id) query = query.eq('resource_id', filters.resource_id);
-    if (filters.limit) query = query.limit(filters.limit);
+
+    query = dbUtils.applyPagination(query, filters);
 
     const { data, error } = await query;
     if (error) dbUtils.handleError(error);
@@ -539,6 +550,15 @@ export const systemDb = {
   async findPushSubscriptionsByUserId(userId: string, sessionId?: string): Promise<PushSubscription[]> {
     const client = (sessionId && adminClient) ? supabase : (adminClient || supabase);
     let query = client.from('push_subscriptions').select('*').eq('user_id', userId);
+    if (sessionId) query = withSession(query, sessionId);
+    const { data, error } = await query;
+    if (error) dbUtils.handleError(error);
+    return data as PushSubscription[];
+  },
+
+  async findPushSubscriptionsByUserIds(userIds: string[], sessionId?: string): Promise<PushSubscription[]> {
+    const client = (sessionId && adminClient) ? supabase : (adminClient || supabase);
+    let query = client.from('push_subscriptions').select('*').in('user_id', userIds);
     if (sessionId) query = withSession(query, sessionId);
     const { data, error } = await query;
     if (error) dbUtils.handleError(error);

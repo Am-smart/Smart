@@ -115,7 +115,7 @@ export class LearningService {
   }
 
   // Materials
-  async getMaterials(courseId: string | undefined, sessionId: string, userId?: string, userRole?: string): Promise<Material[]> {
+  async getMaterials(courseId: string | undefined, sessionId: string, userId?: string, userRole?: string, options: { limit?: number; offset?: number } = {}): Promise<Material[]> {
     if (userRole === 'student' && userId) {
         const enrollments = await learningDb.findEnrollmentsByStudentId(userId, sessionId);
         const enrolledCourseIds = enrollments.map(e => e.course_id);
@@ -124,15 +124,15 @@ export class LearningService {
             return [];
         }
 
-        const materials = await learningDb.findAllMaterials(courseId, sessionId);
+        const materials = await learningDb.findAllMaterials(courseId, sessionId, undefined, options);
         return materials.filter(m => enrolledCourseIds.includes(m.course_id));
     }
 
     if (userRole === 'teacher' && userId) {
-        return learningDb.findAllMaterials(courseId, sessionId, userId);
+        return learningDb.findAllMaterials(courseId, sessionId, userId, options);
     }
 
-    return learningDb.findAllMaterials(courseId, sessionId);
+    return learningDb.findAllMaterials(courseId, sessionId, undefined, options);
   }
 
   async saveMaterial(teacherId: string, material: Partial<Material>, sessionId: string, currentUser?: User): Promise<Material> {

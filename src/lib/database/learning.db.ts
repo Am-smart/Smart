@@ -94,10 +94,11 @@ export const learningDb = {
     return data as Material;
   },
 
-  async findAllMaterials(courseId?: string, sessionId?: string, teacherId?: string): Promise<Material[]> {
+  async findAllMaterials(courseId?: string, sessionId?: string, teacherId?: string, options: { limit?: number; offset?: number } = {}): Promise<Material[]> {
     let query = withSession(supabase.from('materials').select('*, courses(*)'), sessionId);
     if (courseId) query = query.eq('course_id', courseId);
     if (teacherId) query = query.eq('courses.teacher_id', teacherId);
+    query = dbUtils.applyPagination(query, options);
     const { data, error } = await query;
     if (error) dbUtils.handleError(error);
     return data as Material[];

@@ -296,16 +296,16 @@ export class AssessmentService {
   }
 
   // Quiz Submissions
-  async getQuizSubmissions(quizId?: string, studentId?: string, sessionId?: string, userId?: string, userRole?: string, courseId?: string): Promise<QuizSubmission[]> {
+  async getQuizSubmissions(quizId?: string, studentId?: string, sessionId?: string, userId?: string, userRole?: string, courseId?: string, options: { limit?: number; offset?: number } = {}): Promise<QuizSubmission[]> {
     if (userRole === 'student' && userId) {
-        return assessmentDb.findAllQuizSubmissions(quizId, userId, sessionId!, undefined, courseId);
+        return assessmentDb.findAllQuizSubmissions(quizId, userId, sessionId!, undefined, courseId, options);
     }
 
     if (userRole === 'teacher' && userId) {
-        return assessmentDb.findAllQuizSubmissions(quizId, studentId, sessionId!, userId, courseId);
+        return assessmentDb.findAllQuizSubmissions(quizId, studentId, sessionId!, userId, courseId, options);
     }
 
-    return assessmentDb.findAllQuizSubmissions(quizId, studentId, sessionId!, undefined, courseId);
+    return assessmentDb.findAllQuizSubmissions(quizId, studentId, sessionId!, undefined, courseId, options);
   }
 
   async findQuizAttempts(quizId: string, studentId: string, sessionId: string): Promise<QuizSubmission[]> {
