@@ -15,10 +15,17 @@ export function calculateQuizScore(questions: QuizQuestion[], answers: Record<st
         totalPoints += points;
 
         const userAnswer = answers[q.id];
-        // Ensure comparison handles both string and number for MCQ/TF
-        if (userAnswer !== undefined && String(userAnswer).toLowerCase() === String(q.correct_answer).toLowerCase()) {
-            correctCount++;
-            earnedPoints += points;
+        // Ensure comparison handles both string and number for all types
+        // Normalize (trim and lowercase) for short answer as requested
+        if (userAnswer !== undefined) {
+            const isMatch = q.type === 'short'
+                ? String(userAnswer).trim().toLowerCase() === String(q.correct_answer).trim().toLowerCase()
+                : String(userAnswer).toLowerCase() === String(q.correct_answer).toLowerCase();
+
+            if (isMatch) {
+                correctCount++;
+                earnedPoints += points;
+            }
         }
     });
 

@@ -210,6 +210,11 @@ export class SystemService {
   }
 
   // Enrollments (Merged from EnrollmentService)
+  async isEnrolled(courseId: string, studentId: string, sessionId: string): Promise<boolean> {
+    const enrollment = await learningDb.findEnrollmentByCourseAndStudent(courseId, studentId, sessionId);
+    return !!enrollment;
+  }
+
   async enrollInCourse(studentId: string, courseId: string, sessionId: string, enrollmentCode?: string): Promise<Enrollment> {
     const course = await learningDb.findCourseById(courseId, sessionId);
     if (!course) throw new NotFoundError('Course not found');
@@ -478,7 +483,7 @@ export class SystemService {
             target_role: 'student',
             title: 'Live Class Started',
             message: `The class "${saved.title}" has started! Join now.`,
-            link: `live:${saved.id}`,
+            link: `live-list:${saved.id}`,
             type: 'live_class',
             expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
         }, sessionId);
@@ -488,7 +493,7 @@ export class SystemService {
             target_role: 'student',
             title: 'Live Class Scheduled',
             message: `A new live class "${saved.title}" has been scheduled for ${saved.start_at}`,
-            link: `live:${saved.id}`,
+            link: `live-list:${saved.id}`,
             type: 'live_class',
             expires_at: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
         }, sessionId);
@@ -498,7 +503,7 @@ export class SystemService {
             target_role: 'student',
             title: 'Class Ended',
             message: `The live class "${saved.title}" has ended.`,
-            link: `live:${saved.id}`,
+            link: `live-list:${saved.id}`,
             type: 'class_ended',
             expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
         }, sessionId);

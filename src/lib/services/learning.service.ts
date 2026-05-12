@@ -92,7 +92,7 @@ export class LearningService {
             target_role: 'student',
             title: 'New Lesson Available',
             message: `A new lesson "${saved.title}" has been added.`,
-            link: `lesson:${saved.course_id}:${saved.id}`,
+            link: `course:${saved.course_id}`, // Link to course view (the entry point for lessons)
             type: 'lesson',
             expires_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
         }, sessionId);
@@ -177,20 +177,37 @@ export class LearningService {
     const enrollment = await learningDb.findEnrollmentByCourseAndStudent(courseId, studentId, sessionId);
     if (!enrollment) throw new ForbiddenError('Student is not enrolled in this course');
 
-    // 2. Mark lesson as complete (Idempotent in DB via UNIQUE constraint)
-    await learningDb.markLessonComplete(studentId, lessonId, sessionId);
+    try {
+        // 2. Mark lesson as complete (Idempotent in DB via UNIQUE constraint)
+        await learningDb.markLessonComplete(studentId, lessonId, sessionId);
 
-    // 3. Update progress atomically (as a single logical operation following completion)
-    const lessons = await learningDb.findLessonsByCourseId(courseId, sessionId);
-    const lessonIds = lessons.map(l => l.id);
-    const completedIds = await learningDb.findLessonCompletions(studentId, lessonIds, sessionId);
+        // 3. Update progress atomically (as a single logical operation following completion)
+        const lessons = await learningDb.findLessonsByCourseId(courseId, sessionId);
+        const lessonIds = lessons.map(l => l.id);
+        const completedIds = await learningDb.findLessonCompletions(studentId, lessonIds, sessionId);
 
-    const totalLessons = lessons.length;
-    const progress = totalLessons > 0 ? Math.round(((completedIds.length || 0) / totalLessons) * 100) : 0;
+        const totalLessons = lessons.length;
+        const progress = totalLessons > 0 ? Math.round(((completedIds.length || 0) / totalLessons) * 100) : 0;
 
-    // Only update if progress has actually changed to minimize DB writes
-    if (progress !== enrollment.progress) {
-        await learningDb.updateEnrollmentProgress(studentId, courseId, progress, sessionId);
+        // Only update if progress has actually changed to minimize DB writes
+        if (progress !== enrollment.progress) {
+            await learningDb.updateEnrollmentProgress(studentId, courseId, progress, sessionId);
+        }
+    } catch (error) {
+        console.error(`[Consistency] Progress sync failed for user ${studentId} in course ${courseId}. Retrying...`);
+        // Fallback: Re-verify progress in a background task if first attempt fails
+        const { taskQueue } = await import('../queue/task-queue');
+        taskQueue.enqueue(async () => {
+            try {
+                const lessons = await learningDb.findLessonsByCourseId(courseId, sessionId);
+                const completedIds = await learningDb.findLessonCompletions(studentId, lessons.map(l => l.id), sessionId);
+                const progress = lessons.length > 0 ? Math.round((completedIds.length / lessons.length) * 100) : 0;
+                await learningDb.updateEnrollmentProgress(studentId, courseId, progress, sessionId);
+            } catch (err) {
+                console.error('[Consistency] Fatal progress sync failure:', err);
+            }
+        });
+        throw error;
     }
 
     return { success: true };

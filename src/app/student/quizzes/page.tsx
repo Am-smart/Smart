@@ -17,18 +17,24 @@ export default function QuizzesPage() {
   const [submissions, setSubmissions] = useState<QuizSubmissionDTO[]>([]);
   const [activeQuiz, setActiveQuiz] = useState<QuizDTO | null>(null);
   const [viewingResult, setViewingResult] = useState<{ quiz: QuizDTO, submission: QuizSubmissionDTO } | null>(null);
+  const [loading, setLoading] = useState(true);
 
   const fetchData = useCallback(async () => {
     if (!user) return;
-    const [myEnrollments, allQuizzes, mySubmissions] = await Promise.all([
-      getEnrollments(user.id),
-      getQuizzes(),
-      getQuizSubmissions(undefined, user.id)
-    ]);
+    setLoading(true);
+    try {
+        const [myEnrollments, allQuizzes, mySubmissions] = await Promise.all([
+          getEnrollments(user.id),
+          getQuizzes(),
+          getQuizSubmissions(undefined, user.id)
+        ]);
 
-    const enrolledIds = myEnrollments.map(e => e.course_id);
-    setQuizzes(allQuizzes.filter(q => enrolledIds.includes(q.course_id) && q.status === 'published'));
-    setSubmissions(mySubmissions);
+        const enrolledIds = myEnrollments.map(e => e.course_id);
+        setQuizzes(allQuizzes.filter(q => enrolledIds.includes(q.course_id) && q.status === 'published'));
+        setSubmissions(mySubmissions);
+    } finally {
+        setLoading(false);
+    }
   }, [user]);
 
   useEffect(() => {
@@ -36,7 +42,7 @@ export default function QuizzesPage() {
   }, [fetchData]);
 
   useEffect(() => {
-    if (quizzes.length > 0 && submissions.length >= 0) {
+    if (!loading && quizzes.length > 0) {
       const params = new URLSearchParams(window.location.search);
       const id = params.get('id');
       if (id) {

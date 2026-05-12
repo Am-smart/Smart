@@ -20,6 +20,11 @@ export const GET = withHandler(async (user, request) => {
       return assignments.map(AssessmentMapper.toAssignmentDTO);
     }
     case 'quizzes': {
+      const id = searchParams.get('id') || undefined;
+      if (id) {
+          const quiz = await assessmentService.getQuiz(id, user.sessionId!, user.id, user.role);
+          return AssessmentMapper.toQuizDTO(quiz);
+      }
       const courseId = searchParams.get('courseId') || undefined;
       const teacherId = searchParams.get('teacherId') || undefined;
       const limit = searchParams.get('limit') ? parseInt(searchParams.get('limit')!) : undefined;

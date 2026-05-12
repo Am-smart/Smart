@@ -18,18 +18,24 @@ export default function AssignmentsPage() {
   const [submissions, setSubmissions] = useState<SubmissionDTO[]>([]);
   const [activeAssignment, setActiveAssignment] = useState<AssignmentDTO | null>(null);
   const [feedbackView, setFeedbackView] = useState<{ assignment: AssignmentDTO, submission: SubmissionDTO } | null>(null);
+  const [loading, setLoading] = useState(true);
 
   const fetchData = useCallback(async () => {
     if (!user) return;
-    const [myEnrollments, allAssignments, mySubmissions] = await Promise.all([
-      getEnrollments(user.id),
-      getAssignments(),
-            getSubmissions({ studentId: user.id })
-    ]);
+    setLoading(true);
+    try {
+        const [myEnrollments, allAssignments, mySubmissions] = await Promise.all([
+          getEnrollments(user.id),
+          getAssignments(),
+          getSubmissions({ studentId: user.id })
+        ]);
 
-    const enrolledIds = myEnrollments.map(e => e.course_id);
-    setAssignments(allAssignments.filter(a => enrolledIds.includes(a.course_id) && a.status === 'published'));
-    setSubmissions(mySubmissions);
+        const enrolledIds = myEnrollments.map(e => e.course_id);
+        setAssignments(allAssignments.filter(a => enrolledIds.includes(a.course_id) && a.status === 'published'));
+        setSubmissions(mySubmissions);
+    } finally {
+        setLoading(false);
+    }
   }, [user]);
 
   useEffect(() => {
@@ -37,7 +43,7 @@ export default function AssignmentsPage() {
   }, [fetchData]);
 
   useEffect(() => {
-    if (assignments.length > 0) {
+    if (!loading && assignments.length > 0) {
       const params = new URLSearchParams(window.location.search);
       const id = params.get('id');
       if (id) {

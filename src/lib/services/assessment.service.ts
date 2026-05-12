@@ -56,7 +56,7 @@ export class AssessmentService {
             target_role: 'student',
             title: 'New Assignment',
             message: `A new assignment "${saved.title}" has been published.`,
-            link: `assignment:${saved.id}`,
+            link: `assignment-list:${saved.id}`,
             type: 'assignment_published',
             expires_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
         }, sessionId);
@@ -80,6 +80,40 @@ export class AssessmentService {
   }
 
   // Quizzes
+  /**
+   * Internal helper to shuffle quiz questions if enabled.
+   * Uses a stable seed (userId + quizId) for students to ensure consistent order within a session/day,
+   * but still shuffled across different users.
+   */
+  private shuffleQuizQuestions(quiz: Quiz, userId?: string): Quiz {
+    if (quiz.shuffle_questions && quiz.questions && Array.isArray(quiz.questions)) {
+        const questions = [...quiz.questions];
+        if (questions.length <= 1) return quiz;
+
+        // Create a simple deterministic "random" sequence using user+quiz seed
+        const seedStr = `${userId || 'anon'}-${quiz.id}`;
+        let seed = 0;
+        for (let i = 0; i < seedStr.length; i++) {
+            seed = ((seed << 5) - seed) + seedStr.charCodeAt(i);
+            seed |= 0;
+        }
+
+        // Simple LCG (Linear Congruential Generator) for stable "randomness"
+        const lcg = () => {
+            seed = (seed * 1664525 + 1013904223) | 0;
+            return (seed >>> 0) / 4294967296;
+        };
+
+        // Fisher-Yates with stable seed
+        for (let i = questions.length - 1; i > 0; i--) {
+            const j = Math.floor(lcg() * (i + 1));
+            [questions[i], questions[j]] = [questions[j], questions[i]];
+        }
+        return { ...quiz, questions };
+    }
+    return quiz;
+  }
+
   async getQuizzes(courseId?: string, teacherId?: string, sessionId?: string, limit?: number, offset?: number, userId?: string, userRole?: string): Promise<Quiz[]> {
     if (userRole === 'student' && userId) {
         const { systemService } = await import('./system.service');
@@ -93,23 +127,23 @@ export class AssessmentService {
         const quizzes = await assessmentDb.findAllQuizzes(courseId, teacherId, sessionId!, limit, offset);
         const filtered = quizzes.filter(q => enrolledCourseIds.includes(q.course_id));
 
-        // Server-side Shuffling for Students (Fisher-Yates)
-        return filtered.map(q => {
-            if (q.shuffle_questions && q.questions && Array.isArray(q.questions)) {
-                const shuffled = [...q.questions];
-                for (let i = shuffled.length - 1; i > 0; i--) {
-                    const j = Math.floor(Math.random() * (i + 1));
-                    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-                }
-                return {
-                    ...q,
-                    questions: shuffled
-                };
-            }
-            return q;
-        });
+        // Stable Server-side Shuffling for Students
+        return filtered.map(q => this.shuffleQuizQuestions(q, userId));
     }
     return assessmentDb.findAllQuizzes(courseId, teacherId, sessionId!, limit, offset);
+  }
+
+  async getQuiz(id: string, sessionId: string, userId?: string, userRole?: string): Promise<Quiz> {
+    const quiz = await assessmentDb.findQuizById(id, sessionId);
+    if (!quiz) throw new NotFoundError('Quiz not found');
+
+    if (userRole === 'student' && userId) {
+        const { systemService } = await import('./system.service');
+        const enrolled = await systemService.isEnrolled(quiz.course_id, userId, sessionId);
+        if (!enrolled) throw new ForbiddenError('You are not enrolled in this course');
+        return this.shuffleQuizQuestions(quiz, userId);
+    }
+    return quiz;
   }
 
   async saveQuiz(teacherId: string, quiz: Partial<Quiz>, sessionId: string, currentUser?: User): Promise<Quiz> {
@@ -146,7 +180,7 @@ export class AssessmentService {
             target_role: 'student',
             title: 'New Quiz Available',
             message: `A new quiz "${saved.title}" has been published.`,
-            link: `quiz:${saved.id}`,
+            link: `quiz-list:${saved.id}`,
             type: 'quiz_published',
             expires_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
         }, sessionId);
@@ -253,7 +287,7 @@ export class AssessmentService {
             target_id: updated.student_id,
             n_title: 'Assignment Graded',
             n_msg: 'Your submission for an assignment has been graded.',
-            n_link: `assignment:${updated.assignment_id}`,
+            n_link: `assignment-list:${updated.assignment_id}`,
             n_type: 'grading'
         }, sessionId);
     }
@@ -281,6 +315,9 @@ export class AssessmentService {
   async saveQuizProgress(studentId: string, quizId: string, submissionData: Partial<QuizSubmission>, sessionId: string): Promise<QuizSubmission> {
     const quiz = await assessmentDb.findQuizById(quizId, sessionId);
     if (!quiz) throw new NotFoundError('Quiz not found');
+
+    // Ensure we don't use shuffled questions for grading if we fetched them shuffled
+    // but AssessmentDomain.calculateQuizScore works with question IDs so it should be fine.
 
     const existingSubmissions = await assessmentDb.findQuizAttempts(quizId, studentId, sessionId);
     const attemptNumber = existingSubmissions.length > 0 ? (existingSubmissions[0].attempt_number || 1) : 1;
