@@ -114,7 +114,8 @@ export const AssignmentEditor: React.FC<AssignmentEditorProps> = ({ teacherId, a
                 throw new Error(errorData.error || 'Upload failed');
             }
 
-            const { publicUrl } = await res.json();
+            const result = await res.json();
+            const publicUrl = result.data?.publicUrl || result.publicUrl;
 
             setFormData(prev => ({
                 ...prev,

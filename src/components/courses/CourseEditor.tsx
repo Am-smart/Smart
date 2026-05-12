@@ -63,7 +63,8 @@ export const CourseEditor: React.FC<CourseEditorProps> = ({ course, teacherId, o
             if (!response.ok) throw new Error('Upload failed');
 
             const result = await response.json();
-            setFormData(prev => ({ ...prev, thumbnail_url: result.publicUrl }));
+            const publicUrl = result.data?.publicUrl || result.publicUrl;
+            setFormData(prev => ({ ...prev, thumbnail_url: publicUrl }));
             addToast('Thumbnail uploaded successfully!', 'success');
         } catch (err) {
             console.error('Upload error:', err);

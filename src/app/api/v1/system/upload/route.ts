@@ -2,6 +2,8 @@ import { withHandler } from '@/app/api/api-utils';
 import { systemService } from '@/lib/services/system.service';
 import { BadRequestError } from '@/lib/api-error';
 
+export const maxDuration = 60;
+
 export const POST = withHandler(async (user, request) => {
   const formData = await request.formData();
   const file = formData.get('file') as File;

@@ -36,7 +36,8 @@ export const MaterialManager: React.FC<MaterialManagerProps> = ({ initialMateria
             throw new Error(errorData.error || 'Upload failed');
         }
 
-        const { publicUrl } = await res.json();
+        const responseData = await res.json();
+        const publicUrl = responseData.data?.publicUrl || responseData.publicUrl;
         return { url: publicUrl };
     };
 

@@ -65,7 +65,8 @@ export const AssignmentForm: React.FC<AssignmentFormProps> = ({ assignment, user
         throw new Error(errorData.error || 'Upload failed');
     }
 
-    const { publicUrl } = await res.json();
+    const result = await res.json();
+    const publicUrl = result.data?.publicUrl || result.publicUrl;
     return { url: publicUrl };
   };
 
