@@ -61,7 +61,7 @@ export class AuthService {
   async authenticate(email: string, password?: string) {
     const user = await systemDb.findUserByEmail(email);
     if (!user) {
-      return { data: { success: false, error: 'Invalid email or password' }, error: null };
+      return { data: { success: false, error: 'Email not found' }, error: null };
     }
 
     if (!user.active) {
@@ -74,7 +74,7 @@ export class AuthService {
 
     const now = new Date();
     if (user.locked_until && new Date(user.locked_until) > now) {
-      return { data: { success: false, error: `Account locked until ${new Date(user.locked_until).toLocaleTimeString()}` }, error: null };
+      return { data: { success: false, error: `LOCKOUT:${new Date(user.locked_until).getTime()}` }, error: null };
     }
 
     if (user.reset_request && user.reset_request.status === 'approved_used') {
@@ -98,15 +98,21 @@ export class AuthService {
 
       const failedAttempts = (user.failed_attempts || 0) + 1;
       const newLockouts = failedAttempts >= 5 ? (user.lockouts || 0) + 1 : user.lockouts;
+      const lockedUntil = failedAttempts >= 5 ? new Date(Date.now() + 30 * 60 * 1000).toISOString() : user.locked_until;
+
       const updates: Record<string, unknown> = {
         failed_attempts: failedAttempts,
-        locked_until: failedAttempts >= 5 ? new Date(Date.now() + 30 * 60 * 1000).toISOString() : user.locked_until,
+        locked_until: lockedUntil,
         lockouts: newLockouts,
         flagged: (newLockouts || 0) >= 3 ? true : user.flagged
       };
       await authDb.updateUserRaw(user.id, updates);
 
-      return { data: { success: false, error: 'Invalid email or password' }, error: null };
+      if (failedAttempts >= 5) {
+          return { data: { success: false, error: `LOCKOUT:${new Date(lockedUntil as string).getTime()}` }, error: null };
+      }
+
+      return { data: { success: false, error: `Incorrect password. ${5 - failedAttempts} attempts remaining.` }, error: null };
     }
 
     if (user.reset_request && user.reset_request.status === 'approved') {
@@ -157,11 +163,17 @@ export class AuthService {
       throw new Error(passwordValidation.errors[0].message);
     }
 
+    // Server-side role validation and limit enforcement
+    const allowedRoles = [USER_ROLES.STUDENT, USER_ROLES.TEACHER, USER_ROLES.ADMIN];
+    if (!allowedRoles.includes(data.role as any)) {
+      throw new BadRequestError('Invalid role specified');
+    }
+
     if (data.role === USER_ROLES.TEACHER || data.role === USER_ROLES.ADMIN) {
       const count = await this.getRoleUserCount(data.role);
       const limit = data.role === USER_ROLES.TEACHER ? SIGNUP_LIMITS.TEACHER : SIGNUP_LIMITS.ADMIN;
       if (count >= limit) {
-        return { data: { success: false, error: `Public creation limit reached for ${data.role}s.` }, error: null };
+        throw new BadRequestError(`Public creation limit reached for ${data.role}s. Please contact support.`);
       }
     }
 

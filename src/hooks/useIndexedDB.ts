@@ -57,6 +57,11 @@ export const useIndexedDB = () => {
 
     request.onupgradeneeded = (event: IDBVersionChangeEvent) => {
       const db = (event.target as IDBOpenDBRequest).result;
+      const oldVersion = event.oldVersion;
+
+      console.log(`IndexedDB Upgrade: ${oldVersion} -> ${DB_VERSION}`);
+
+      // Basic stores creation
       if (!db.objectStoreNames.contains(STORE_SYNC)) {
         db.createObjectStore(STORE_SYNC, { keyPath: 'id', autoIncrement: true });
       }
@@ -66,10 +71,50 @@ export const useIndexedDB = () => {
       if (!db.objectStoreNames.contains(STORE_ERRORS)) {
         db.createObjectStore(STORE_ERRORS, { keyPath: 'id', autoIncrement: true });
       }
+
+      // Migration logic for specific versions
+      if (oldVersion > 0 && oldVersion < 4) {
+          console.log(`Migrating to v4: clearing old stores`);
+          const storesToClear = [STORE_CACHE];
+          storesToClear.forEach(storeName => {
+              if (db.objectStoreNames.contains(storeName)) {
+                  // Re-create store to effectively clear it during migration
+                  db.deleteObjectStore(storeName);
+                  db.createObjectStore(storeName, { keyPath: 'key' });
+              }
+          });
+      }
     };
 
     request.onsuccess = (event: Event) => {
-      setDb((event.target as IDBOpenDBRequest).result);
+      const database = (event.target as IDBOpenDBRequest).result;
+      setDb(database);
+
+      // Cleanup old items only on successful connection
+      const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+      const now = Date.now();
+
+      const tx = database.transaction([STORE_SYNC, STORE_CACHE], 'readwrite');
+      const syncStore = tx.objectStore(STORE_SYNC);
+      const cacheStore = tx.objectStore(STORE_CACHE);
+
+      syncStore.openCursor().onsuccess = (e) => {
+          const cursor = (e.target as IDBRequest<IDBCursorWithValue>).result;
+          if (cursor) {
+              const item = cursor.value;
+              if (now - item.timestamp > MAX_AGE_MS) cursor.delete();
+              cursor.continue();
+          }
+      };
+
+      cacheStore.openCursor().onsuccess = (e) => {
+          const cursor = (e.target as IDBRequest<IDBCursorWithValue>).result;
+          if (cursor) {
+              const item = cursor.value;
+              if (now - item.timestamp > 30 * 24 * 60 * 60 * 1000) cursor.delete();
+              cursor.continue();
+          }
+      };
     };
 
     request.onerror = (event: Event) => {
@@ -293,15 +338,24 @@ export const useIndexedDB = () => {
         } catch (err: unknown) {
           console.error('Sync failed for item:', item, err);
           const error = err as Error;
-          const terminalErrors = ['Conflict detected', 'Forbidden', 'Unauthorized', 'Invalid enrollment code', 'Course not found', 'User not found'];
-          const isTerminal = terminalErrors.some(msg => error.message?.includes(msg));
+          const message = error.message || 'Unknown error';
+
+          // Conflict Resolution: Check for version mismatch or conflict errors
+          const isConflict = message.includes('Conflict') || message.includes('version mismatch') || message.includes('already exists');
+          const terminalErrors = ['Forbidden', 'Unauthorized', 'Invalid enrollment code', 'Course not found', 'User not found'];
+          const isTerminal = terminalErrors.some(msg => message.includes(msg));
 
           if (item.id) {
-            if (isTerminal) {
-              console.warn('Terminal error during sync, moving to error store:', item, error.message);
-              await logSyncError(item, error.message);
+            if (isConflict) {
+                // Strategy: Last-Write-Wins (User notified, but item discarded or moved to errors)
+                console.warn('Conflict detected during sync:', item, message);
+                await logSyncError(item, `Sync Conflict: ${message}. The server has a newer version or a duplicate exists.`);
+                await removeFromQueue(item.id);
+                window.dispatchEvent(new CustomEvent('sync-conflict', { detail: { item, error: message } }));
+            } else if (isTerminal) {
+              console.warn('Terminal error during sync, moving to error store:', item, message);
+              await logSyncError(item, message);
               await removeFromQueue(item.id);
-              window.dispatchEvent(new CustomEvent('sync-conflict', { detail: { item, error: error.message } }));
             } else {
                 const retryCount = (item.retry_count || 0) + 1;
                 if (retryCount >= 5) {

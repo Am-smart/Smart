@@ -80,6 +80,7 @@ export const SignupForm: React.FC<SignupFormProps> = ({ initialRole, onClose, on
           email: normalizedEmail,
           phone: formData.phone ? normalizeInput(formData.phone) : undefined,
           password: formData.password,
+          confirmPassword: formData.confirmPassword,
           role: formData.role
       });
       onClose();

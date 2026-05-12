@@ -159,11 +159,16 @@ export function validateSignupForm(
     ...phoneValidation.errors
   );
 
-  if (password !== confirmPassword) {
+  if (password && confirmPassword && password !== confirmPassword) {
     errors.push({
       field: 'confirmPassword',
       message: 'Passwords do not match'
     });
+  } else if (!confirmPassword && password) {
+      errors.push({
+          field: 'confirmPassword',
+          message: 'Please confirm your password'
+      });
   }
 
   return {
