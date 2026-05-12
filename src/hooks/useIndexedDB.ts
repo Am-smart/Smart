@@ -3,7 +3,7 @@ import { Submission, QuizSubmission, Course, User, PlannerItem, Discussion } fro
 import * as actions from '@/lib/api-actions';
 
 const DB_NAME = 'smartlms-offline-v4';
-const DB_VERSION = 5;
+const DB_VERSION = 6;
 const STORE_SYNC = 'sync-queue';
 const STORE_CACHE = 'lms-cache';
 const STORE_ERRORS = 'sync-errors';
