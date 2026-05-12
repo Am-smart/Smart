@@ -930,7 +930,14 @@ USING (
 );
 DROP POLICY IF EXISTS "Broadcasts Manage" ON broadcasts;
 CREATE POLICY "Broadcasts Manage" ON broadcasts FOR ALL TO anon
-USING (is_admin(current_app_user()));
+USING (
+  is_admin(current_app_user())
+  OR (
+    is_teacher(current_app_user())
+    AND course_id IS NOT NULL
+    AND is_course_teacher(course_id, current_app_user())
+  )
+);
 
 -- 17. Maintenance Table
 DROP POLICY IF EXISTS "Maintenance Select" ON maintenance;

@@ -100,10 +100,11 @@ export const AssignmentEditor: React.FC<AssignmentEditorProps> = ({ teacherId, a
             formDataUpload.append('file', file);
             formDataUpload.append('category', 'materials');
 
-            const res = await fetch('/api/system/upload', {
+            const res = await fetch('/api/v1/system/upload', {
                 method: 'POST',
                 headers: {
                     'x-session-id': user?.sessionId || '',
+                    'X-Requested-With': 'XMLHttpRequest',
                 },
                 body: formDataUpload
             });

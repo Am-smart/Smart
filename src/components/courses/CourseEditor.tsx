@@ -4,6 +4,7 @@ import { CourseDTO } from '@/lib/types';
 import { useIndexedDB } from '@/hooks/useIndexedDB';
 import { useAppContext } from '@/components/AppContext';
 import { saveCourse } from '@/lib/api-actions';
+import { useAuth } from '@/components/auth/AuthContext';
 
 interface CourseEditorProps {
     teacherId: string;
@@ -17,6 +18,7 @@ const BOOK_EMOJIS = ['📖', '📘', '📗', '📙', '📓', '📒', '📚', '�
 
 export const CourseEditor: React.FC<CourseEditorProps> = ({ course, teacherId, onSave, onCancel }) => {
     const { addToast } = useAppContext();
+    const { user } = useAuth();
     const [formData, setFormData] = useState({
         title: course?.title || '',
         description: course?.description || '',
@@ -51,6 +53,10 @@ export const CourseEditor: React.FC<CourseEditorProps> = ({ course, teacherId, o
 
             const response = await fetch('/api/v1/system/upload', {
                 method: 'POST',
+                headers: {
+                    'x-session-id': (user as any)?.sessionId || '',
+                    'X-Requested-With': 'XMLHttpRequest',
+                },
                 body: uploadFormData
             });
 

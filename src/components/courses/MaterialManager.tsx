@@ -22,10 +22,11 @@ export const MaterialManager: React.FC<MaterialManagerProps> = ({ initialMateria
         formData.append('file', file);
         formData.append('category', category);
 
-        const res = await fetch('/api/system/upload', {
+        const res = await fetch('/api/v1/system/upload', {
             method: 'POST',
             headers: {
                 'x-session-id': user?.sessionId || '',
+                'X-Requested-With': 'XMLHttpRequest',
             },
             body: formData
         });
