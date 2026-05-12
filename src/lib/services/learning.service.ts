@@ -92,7 +92,7 @@ export class LearningService {
             target_role: 'student',
             title: 'New Lesson Available',
             message: `A new lesson "${saved.title}" has been added.`,
-            link: `lesson:${saved.course_id}:${saved.id}`,
+            link: `course:${saved.course_id}`, // Link to course view (the entry point for lessons)
             type: 'lesson',
             expires_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
         }, sessionId);

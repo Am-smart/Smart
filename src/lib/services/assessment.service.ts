@@ -82,15 +82,34 @@ export class AssessmentService {
   // Quizzes
   /**
    * Internal helper to shuffle quiz questions if enabled.
+   * Uses a stable seed (userId + quizId) for students to ensure consistent order within a session/day,
+   * but still shuffled across different users.
    */
-  private shuffleQuizQuestions(quiz: Quiz): Quiz {
+  private shuffleQuizQuestions(quiz: Quiz, userId?: string): Quiz {
     if (quiz.shuffle_questions && quiz.questions && Array.isArray(quiz.questions)) {
-        const shuffled = [...quiz.questions];
-        for (let i = shuffled.length - 1; i > 0; i--) {
-            const j = Math.floor(Math.random() * (i + 1));
-            [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+        const questions = [...quiz.questions];
+        if (questions.length <= 1) return quiz;
+
+        // Create a simple deterministic "random" sequence using user+quiz seed
+        const seedStr = `${userId || 'anon'}-${quiz.id}`;
+        let seed = 0;
+        for (let i = 0; i < seedStr.length; i++) {
+            seed = ((seed << 5) - seed) + seedStr.charCodeAt(i);
+            seed |= 0;
         }
-        return { ...quiz, questions: shuffled };
+
+        // Simple LCG (Linear Congruential Generator) for stable "randomness"
+        const lcg = () => {
+            seed = (seed * 1664525 + 1013904223) | 0;
+            return (seed >>> 0) / 4294967296;
+        };
+
+        // Fisher-Yates with stable seed
+        for (let i = questions.length - 1; i > 0; i--) {
+            const j = Math.floor(lcg() * (i + 1));
+            [questions[i], questions[j]] = [questions[j], questions[i]];
+        }
+        return { ...quiz, questions };
     }
     return quiz;
   }
@@ -108,8 +127,8 @@ export class AssessmentService {
         const quizzes = await assessmentDb.findAllQuizzes(courseId, teacherId, sessionId!, limit, offset);
         const filtered = quizzes.filter(q => enrolledCourseIds.includes(q.course_id));
 
-        // Server-side Shuffling for Students
-        return filtered.map(q => this.shuffleQuizQuestions(q));
+        // Stable Server-side Shuffling for Students
+        return filtered.map(q => this.shuffleQuizQuestions(q, userId));
     }
     return assessmentDb.findAllQuizzes(courseId, teacherId, sessionId!, limit, offset);
   }
@@ -122,7 +141,7 @@ export class AssessmentService {
         const { systemService } = await import('./system.service');
         const enrolled = await systemService.isEnrolled(quiz.course_id, userId, sessionId);
         if (!enrolled) throw new ForbiddenError('You are not enrolled in this course');
-        return this.shuffleQuizQuestions(quiz);
+        return this.shuffleQuizQuestions(quiz, userId);
     }
     return quiz;
   }
