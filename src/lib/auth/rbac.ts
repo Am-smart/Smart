@@ -25,7 +25,6 @@ const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'assignment:manage', 'assignment:grade',
     'quiz:manage',
     'user:view',
-    'system:logs:view',
     'ticket:view', 'ticket:create', 'ticket:manage'
   ],
   student: [
@@ -34,7 +33,6 @@ const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'assignment:submit',
     'quiz:take',
     'user:view',
-    'system:logs:view',
     'ticket:view', 'ticket:create'
   ]
 };
@@ -42,6 +40,11 @@ const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
 export class AuthorizationEngine {
   can(user: User, permission: Permission): boolean {
     if (!user || !user.role) return false;
+
+    // Safety checks: deactivated or locked users have no permissions
+    if (user.active === false) return false;
+    if (user.locked_until && new Date(user.locked_until) > new Date()) return false;
+
     const permissions = ROLE_PERMISSIONS[user.role] || [];
     return permissions.includes(permission);
   }

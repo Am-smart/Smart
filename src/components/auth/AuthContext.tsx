@@ -5,14 +5,15 @@ import { User } from '@/lib/types';
 import { useIndexedDB } from '@/hooks/useIndexedDB';
 import * as actions from '@/lib/api-actions';
 import { sessionManager } from '@/lib/session-manager';
+import { useRouter } from 'next/navigation';
 
 interface AuthState {
   user: User | null;
-  role: string | null;
   isLoading: boolean;
 }
 
 interface AuthContextType extends AuthState {
+  role: string | null;
   login: (email: string, pass: string) => Promise<void>;
   signup: (userData: Partial<User>) => Promise<void>;
   logout: () => Promise<void>;
@@ -22,8 +23,9 @@ interface AuthContextType extends AuthState {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [state, setState] = useState<AuthState>({ user: null, role: null, isLoading: true });
+  const [state, setState] = useState<AuthState>({ user: null, isLoading: true });
   const { setCache, getCache, addToQueue, isOnline, pullData } = useIndexedDB();
+  const router = useRouter();
 
   const logout = useCallback(async () => {
     // 1. Ensure backend session is invalidated first
@@ -36,17 +38,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.error('Logout network/server error:', err);
     }
 
-    // 2. Clear local state and cache regardless of backend success to avoid trapping user
+    // 2. Clear local storage and IndexedDB
+    sessionManager.cleanupSession();
+
+    // 3. Clear local state and cache regardless of backend success to avoid trapping user
     await setCache('current_user', null);
     setState({
         user: null,
-        role: null,
         isLoading: false
     });
 
-    // 3. Force redirect to landing
-    sessionManager.redirectToLanding();
-  }, [setCache]);
+    // 4. SPA routing to landing
+    router.push('/');
+  }, [setCache, router]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -57,7 +61,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (userDTO) {
           const user = userDTO as User;
           await setCache('current_user', user);
-          setState({ user, role: user.role, isLoading: false });
+          setState({ user, isLoading: false });
           // Background pull
           pullData(user.id, user.role);
           return;
@@ -69,7 +73,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         // 2. Fallback to cache for offline support
         const cachedUser = await getCache<User>('current_user');
         if (cachedUser) {
-            setState({ user: cachedUser, role: cachedUser.role, isLoading: false });
+            setState({ user: cachedUser, isLoading: false });
         } else {
             setState(prev => ({ ...prev, isLoading: false }));
         }
@@ -91,7 +95,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setState(prev => ({
         ...prev,
         user: u,
-        role: u.role,
         isLoading: false
     }));
   }, [setCache]);
@@ -107,7 +110,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setState(prev => ({
         ...prev,
         user: u,
-        role: u.role,
         isLoading: false
     }));
   }, [setCache]);
@@ -132,6 +134,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const contextValue = useMemo(() => ({
     ...state,
+    role: state.user?.role || null,
     login,
     signup,
     logout,

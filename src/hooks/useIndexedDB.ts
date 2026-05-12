@@ -89,16 +89,26 @@ export const useIndexedDB = () => {
         }
     };
 
+    const handleClearData = async () => {
+      if (!db) return;
+      const stores = [STORE_SYNC, STORE_CACHE, STORE_ERRORS];
+      const tx = db.transaction(stores, 'readwrite');
+      stores.forEach(store => tx.objectStore(store).clear());
+      console.log('IndexedDB cleared');
+    };
+
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
     window.addEventListener('backend-connectivity-changed', handleConnectivityChange);
+    window.addEventListener('clear-offline-data', handleClearData);
 
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
       window.removeEventListener('backend-connectivity-changed', handleConnectivityChange);
+      window.removeEventListener('clear-offline-data', handleClearData);
     };
-  }, []);
+  }, [db]);
 
   const getQueue = useCallback(async (): Promise<QueueItem[]> => {
     if (!db) return [];
