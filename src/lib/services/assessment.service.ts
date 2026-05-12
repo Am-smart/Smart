@@ -56,7 +56,7 @@ export class AssessmentService {
             target_role: 'student',
             title: 'New Assignment',
             message: `A new assignment "${saved.title}" has been published.`,
-            link: `assignment:${saved.id}`,
+            link: `assignment-list:${saved.id}`,
             type: 'assignment_published',
             expires_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
         }, sessionId);
@@ -161,7 +161,7 @@ export class AssessmentService {
             target_role: 'student',
             title: 'New Quiz Available',
             message: `A new quiz "${saved.title}" has been published.`,
-            link: `quiz:${saved.id}`,
+            link: `quiz-list:${saved.id}`,
             type: 'quiz_published',
             expires_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString()
         }, sessionId);
@@ -268,7 +268,7 @@ export class AssessmentService {
             target_id: updated.student_id,
             n_title: 'Assignment Graded',
             n_msg: 'Your submission for an assignment has been graded.',
-            n_link: `assignment:${updated.assignment_id}`,
+            n_link: `assignment-list:${updated.assignment_id}`,
             n_type: 'grading'
         }, sessionId);
     }

@@ -39,6 +39,9 @@ export const parseDeepLink = (link?: string, role: string = 'student'): string |
         students: role === 'teacher' ? `/teacher/students?id=${id}` : role === 'admin' ? '/admin/users' : '/student/dashboard',
         submission: role === 'teacher' ? `/teacher/grading?id=${id}` : role === 'admin' ? '/admin/management' : `/student/assignments?id=${id}`,
         lesson: `/${base}/courses?id=${id}&lessonId=${subId}`,
+        'assignment-list': `/${base}/assignments`,
+        'quiz-list': `/${base}/quizzes`,
+        'live-list': `/${base}/live`,
       };
 
       if (routes[type]) {
