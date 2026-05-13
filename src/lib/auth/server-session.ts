@@ -32,6 +32,16 @@ export const serverSessionCache = {
     sessionCache.delete(sessionId);
   },
 
+  invalidateAllForUser(userId: string): void {
+    const toDelete: string[] = [];
+    sessionCache.forEach((value, key) => {
+      if (value.user.id === userId) {
+        toDelete.push(key);
+      }
+    });
+    toDelete.forEach(key => sessionCache.delete(key));
+  },
+
   clear(): void {
     sessionCache.clear();
   }

@@ -36,13 +36,16 @@ export class AuthService {
     const userDTO = UserMapper.toDTO(user);
     if (!userDTO) return null;
 
+    userDTO.password_change_required = user.reset_request?.status === 'approved_used';
+
     serverSessionCache.set(tokenHash, userDTO);
 
-    return { ...user, sessionId: tokenHash } as User;
+    return { ...user, sessionId: tokenHash, password_change_required: userDTO.password_change_required } as User;
   }
 
   async createSession(userId: string): Promise<string> {
     await authDb.deleteUserSessions(userId);
+    serverSessionCache.invalidateAllForUser(userId);
 
     const token = generateToken();
     const tokenHash = await hashToken(token);
@@ -140,7 +143,7 @@ export class AuthService {
 
     return {
         success: true,
-        user: user,
+        user: { ...user, password_change_required: user.reset_request?.status === 'approved_used' },
         session_id: token
     };
   }
@@ -240,6 +243,7 @@ export class AuthService {
     await authDb.updateUserRaw(user.id, { password: hashedPassword, reset_request: null }, sessionUser.sessionId);
 
     await authDb.deleteUserSessions(user.id);
+    serverSessionCache.invalidateAllForUser(user.id);
 
     return { success: true };
   }
