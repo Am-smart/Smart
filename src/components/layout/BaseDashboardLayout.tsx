@@ -79,8 +79,10 @@ export const BaseDashboardLayout: React.FC<BaseDashboardLayoutProps> = ({
             onMenuClick={toggleSidebar}
           />
 
-          <div className="content-area p-3 md:p-8 pt-[60px] lg:pt-[70px] bg-[#f8fafc] min-h-screen overflow-x-hidden">
-            {children}
+          <div className="content-area p-3 sm:p-4 md:p-8 pt-[75px] md:pt-[90px] bg-[#f8fafc] min-h-screen overflow-x-hidden">
+            <div className="max-w-[1600px] mx-auto">
+              {children}
+            </div>
           </div>
         </main>
       </div>

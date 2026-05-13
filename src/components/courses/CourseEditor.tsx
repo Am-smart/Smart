@@ -1,11 +1,12 @@
 import React, { useState, useRef } from 'react';
 import Image from 'next/image';
-import { X, Upload, Image as ImageIcon } from 'lucide-react';
+import { Upload, Image as ImageIcon } from 'lucide-react';
 import { CourseDTO } from '@/lib/types';
 import { useIndexedDB } from '@/hooks/useIndexedDB';
 import { useAppContext } from '@/components/AppContext';
 import { saveCourse } from '@/lib/api-actions';
 import { useAuth } from '@/components/auth/AuthContext';
+import { Modal } from '@/components/ui/Modal';
 
 interface CourseEditorProps {
     teacherId: string;
@@ -105,163 +106,162 @@ export const CourseEditor: React.FC<CourseEditorProps> = ({ course, teacherId, o
     };
 
     return (
-        <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center z-50 p-2 md:p-4" aria-busy={isSaving}>
-            <div className="bg-white w-full max-w-2xl rounded-2xl md:rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300 flex flex-col max-h-[95vh] md:max-h-[90vh]">
-                <header className="p-4 md:p-8 border-b bg-slate-50 flex justify-between items-center shrink-0">
-                    <h2 className="text-lg md:text-2xl font-bold text-slate-900">{course?.id ? 'Edit Course' : 'Create New Course'}</h2>
-                    <button onClick={onCancel} className="p-2 hover:bg-slate-200 rounded-full transition-colors" aria-label="Close dialog">
-                        <X size={24} className="text-slate-600" />
-                    </button>
-                </header>
-                <form onSubmit={handleSubmit} className="p-4 md:p-8 space-y-4 md:space-y-6 overflow-y-auto flex-1">
-                    {!isOnline && (
-                        <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-xs font-bold uppercase">
-                            ⚠️ Working Offline - Changes will sync later
-                        </div>
-                    )}
-                    <div>
-                        <label className="block text-xs font-bold text-slate-700 uppercase mb-3 tracking-wide">Course Title *</label>
-                        <input
-                            type="text" required
-                            value={formData.title}
-                            onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
-                            className={`w-full p-4 rounded-xl border-2 outline-none transition-all text-sm ${errors.title ? 'border-red-500 focus:border-red-600' : 'border-slate-100 focus:border-blue-500'}`}
-                            placeholder="e.g. Advanced React Architecture"
-                        />
-                        {errors.title && <p className="text-red-500 text-[10px] mt-1 font-bold uppercase">{errors.title}</p>}
-                    </div>
-                    <div>
-                        <label className="block text-xs font-bold text-slate-700 uppercase mb-3 tracking-wide">Description *</label>
-                        <textarea
-                            required
-                            value={formData.description}
-                            onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                            className={`w-full h-32 p-4 rounded-xl border-2 outline-none transition-all resize-none text-sm ${errors.description ? 'border-red-500 focus:border-red-600' : 'border-slate-100 focus:border-blue-500'}`}
-                            placeholder="Describe what students will learn..."
-                        />
-                        {errors.description && <p className="text-red-500 text-[10px] mt-1 font-bold uppercase">{errors.description}</p>}
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                            <label className="block text-xs font-bold text-slate-700 uppercase mb-3 tracking-wide">Enrollment ID (Optional)</label>
-                            <input
-                                type="text"
-                                value={formData.enrollment_id}
-                                onChange={(e) => setFormData(prev => ({ ...prev, enrollment_id: e.target.value }))}
-                                className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all text-sm"
-                                placeholder="e.g. CS101"
-                            />
-                            <p className="text-[10px] text-slate-400 mt-1 italic">If provided, students will need this ID to enroll.</p>
-                        </div>
-                        <div>
-                            <label className="block text-xs font-bold text-slate-700 uppercase mb-3 tracking-wide">Status</label>
-                            <select
-                                value={formData.status}
-                                onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value as 'draft' | 'published' | 'archived' }))}
-                                className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all text-sm"
-                            >
-                                <option value="draft">Draft</option>
-                                <option value="published">Published</option>
-                                <option value="archived">Archived</option>
-                            </select>
-                        </div>
-                    </div>
-                    <div>
-                        <label className="block text-xs font-bold text-slate-700 uppercase mb-3 tracking-wide">Course Thumbnail</label>
-                        <div className="space-y-4">
-                            <input
-                                type="file"
-                                ref={fileInputRef}
-                                onChange={handleFileUpload}
-                                accept="image/*"
-                                className="hidden"
-                            />
-
-                            <div className="flex items-center gap-3">
-                                <div className="flex-1">
-                                    <div className="relative">
-                                        <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
-                                            <ImageIcon size={16} className="text-slate-400" />
-                                        </div>
-                                        <input
-                                            type="text"
-                                            placeholder="Or paste an image URL..."
-                                            value={formData.thumbnail_url.startsWith('http') ? formData.thumbnail_url : ''}
-                                            onChange={(e) => setFormData(prev => ({ ...prev, thumbnail_url: e.target.value }))}
-                                            className="w-full pl-10 pr-4 py-3 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all text-sm font-mono"
-                                        />
-                                    </div>
-                                </div>
-                                <div className="w-16 h-16 rounded-xl border-2 border-slate-100 bg-slate-50 flex items-center justify-center overflow-hidden shrink-0 relative">
-                                    {formData.thumbnail_url && (
-                                        formData.thumbnail_url.startsWith('http') ? (
-                                            <Image
-                                                src={formData.thumbnail_url}
-                                                alt="Preview"
-                                                fill
-                                                sizes="64px"
-                                                className="object-cover"
-                                            />
-                                        ) : (
-                                            <span className="text-3xl">{formData.thumbnail_url}</span>
-                                        )
-                                    )}
-                                </div>
-                            </div>
-                            <div className="grid grid-cols-4 gap-2">
-                                {BOOK_EMOJIS.map(emoji => (
-                                    <button
-                                        key={emoji}
-                                        type="button"
-                                        onClick={() => setFormData(prev => ({ ...prev, thumbnail_url: emoji }))}
-                                        className={`py-2 flex items-center justify-center rounded-lg border-2 transition-all ${
-                                            formData.thumbnail_url === emoji ? 'border-blue-500 bg-blue-50' : 'border-slate-100 hover:border-slate-300'
-                                        }`}
-                                    >
-                                        <span className="text-xl">{emoji}</span>
-                                    </button>
-                                ))}
-                                <button
-                                    type="button"
-                                    onClick={() => fileInputRef.current?.click()}
-                                    disabled={isUploading}
-                                    className="py-2 flex items-center justify-center rounded-lg border-2 border-slate-100 hover:border-slate-300 transition-all bg-slate-50"
-                                    title="Upload Image"
-                                >
-                                    {isUploading ? (
-                                        <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-                                    ) : (
-                                        <Upload size={18} className="text-slate-600" />
-                                    )}
-                                </button>
-                            </div>
-                            {errors.thumbnail_url && <p className="text-red-500 text-[10px] mt-1 font-bold uppercase">{errors.thumbnail_url}</p>}
-                        </div>
-                    </div>
-                    <div>
-                        <label className="block text-xs font-bold text-slate-700 uppercase mb-3 tracking-wide">Metadata (JSON format)</label>
-                        <textarea
-                            value={JSON.stringify(formData.metadata, null, 2)}
-                            onChange={(e) => {
-                                try {
-                                    const metadata = JSON.parse(e.target.value);
-                                    setFormData(prev => ({ ...prev, metadata }));
-                                } catch {
-                                    // Allow invalid JSON while typing
-                                }
-                            }}
-                            className="w-full h-32 p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all font-mono text-xs"
-                            placeholder='{ "key": "value" }'
-                        />
-                    </div>
-                </form>
-                <footer className="p-4 md:p-8 bg-slate-50 border-t flex flex-col md:flex-row justify-between gap-3 md:gap-4 shrink-0">
+        <Modal
+            title={course?.id ? 'Edit Course' : 'Create New Course'}
+            onClose={onCancel}
+            asForm
+            onSubmit={handleSubmit}
+            footer={
+                <div className="flex flex-col md:flex-row justify-between gap-3 md:gap-4 w-full">
                     <button type="button" onClick={onCancel} className="btn-secondary py-3 md:py-4 text-sm flex-1">Discard Changes</button>
-                    <button type="submit" onClick={handleSubmit} disabled={isSaving} className="btn-primary py-3 md:py-4 text-sm flex-1">
+                    <button type="submit" disabled={isSaving} className="btn-primary py-3 md:py-4 text-sm flex-1">
                         {isSaving ? 'Saving...' : course?.id ? 'Update Course' : 'Create Course'}
                     </button>
-                </footer>
+                </div>
+            }
+        >
+            <div className="space-y-4 md:space-y-6">
+                {!isOnline && (
+                    <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl text-amber-800 text-xs font-bold uppercase">
+                        ⚠️ Working Offline - Changes will sync later
+                    </div>
+                )}
+                <div>
+                    <label className="block text-xs font-bold text-slate-700 uppercase mb-3 tracking-wide">Course Title *</label>
+                    <input
+                        type="text" required
+                        value={formData.title}
+                        onChange={(e) => setFormData(prev => ({ ...prev, title: e.target.value }))}
+                        className={`w-full p-4 rounded-xl border-2 outline-none transition-all text-sm ${errors.title ? 'border-red-500 focus:border-red-600' : 'border-slate-100 focus:border-blue-500'}`}
+                        placeholder="e.g. Advanced React Architecture"
+                    />
+                    {errors.title && <p className="text-red-500 text-[10px] mt-1 font-bold uppercase">{errors.title}</p>}
+                </div>
+                <div>
+                    <label className="block text-xs font-bold text-slate-700 uppercase mb-3 tracking-wide">Description *</label>
+                    <textarea
+                        required
+                        value={formData.description}
+                        onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                        className={`w-full h-32 p-4 rounded-xl border-2 outline-none transition-all resize-none text-sm ${errors.description ? 'border-red-500 focus:border-red-600' : 'border-slate-100 focus:border-blue-500'}`}
+                        placeholder="Describe what students will learn..."
+                    />
+                    {errors.description && <p className="text-red-500 text-[10px] mt-1 font-bold uppercase">{errors.description}</p>}
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label className="block text-xs font-bold text-slate-700 uppercase mb-3 tracking-wide">Enrollment ID (Optional)</label>
+                        <input
+                            type="text"
+                            value={formData.enrollment_id}
+                            onChange={(e) => setFormData(prev => ({ ...prev, enrollment_id: e.target.value }))}
+                            className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all text-sm"
+                            placeholder="e.g. CS101"
+                        />
+                        <p className="text-[10px] text-slate-400 mt-1 italic">If provided, students will need this ID to enroll.</p>
+                    </div>
+                    <div>
+                        <label className="block text-xs font-bold text-slate-700 uppercase mb-3 tracking-wide">Status</label>
+                        <select
+                            value={formData.status}
+                            onChange={(e) => setFormData(prev => ({ ...prev, status: e.target.value as 'draft' | 'published' | 'archived' }))}
+                            className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all text-sm"
+                        >
+                            <option value="draft">Draft</option>
+                            <option value="published">Published</option>
+                            <option value="archived">Archived</option>
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label className="block text-xs font-bold text-slate-700 uppercase mb-3 tracking-wide">Course Thumbnail</label>
+                    <div className="space-y-4">
+                        <input
+                            type="file"
+                            ref={fileInputRef}
+                            onChange={handleFileUpload}
+                            accept="image/*"
+                            className="hidden"
+                        />
+
+                        <div className="flex items-center gap-3">
+                            <div className="flex-1">
+                                <div className="relative">
+                                    <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none">
+                                        <ImageIcon size={16} className="text-slate-400" />
+                                    </div>
+                                    <input
+                                        type="text"
+                                        placeholder="Or paste an image URL..."
+                                        value={formData.thumbnail_url.startsWith('http') ? formData.thumbnail_url : ''}
+                                        onChange={(e) => setFormData(prev => ({ ...prev, thumbnail_url: e.target.value }))}
+                                        className="w-full pl-10 pr-4 py-3 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all text-sm font-mono"
+                                    />
+                                </div>
+                            </div>
+                            <div className="w-16 h-16 rounded-xl border-2 border-slate-100 bg-slate-50 flex items-center justify-center overflow-hidden shrink-0 relative">
+                                {formData.thumbnail_url && (
+                                    formData.thumbnail_url.startsWith('http') ? (
+                                        <Image
+                                            src={formData.thumbnail_url}
+                                            alt="Preview"
+                                            fill
+                                            sizes="64px"
+                                            className="object-cover"
+                                        />
+                                    ) : (
+                                        <span className="text-3xl">{formData.thumbnail_url}</span>
+                                    )
+                                )}
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-4 gap-2">
+                            {BOOK_EMOJIS.map(emoji => (
+                                <button
+                                    key={emoji}
+                                    type="button"
+                                    onClick={() => setFormData(prev => ({ ...prev, thumbnail_url: emoji }))}
+                                    className={`py-2 flex items-center justify-center rounded-lg border-2 transition-all ${
+                                        formData.thumbnail_url === emoji ? 'border-blue-500 bg-blue-50' : 'border-slate-100 hover:border-slate-300'
+                                    }`}
+                                >
+                                    <span className="text-xl">{emoji}</span>
+                                </button>
+                            ))}
+                            <button
+                                type="button"
+                                onClick={() => fileInputRef.current?.click()}
+                                disabled={isUploading}
+                                className="py-2 flex items-center justify-center rounded-lg border-2 border-slate-100 hover:border-slate-300 transition-all bg-slate-50"
+                                title="Upload Image"
+                            >
+                                {isUploading ? (
+                                    <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+                                ) : (
+                                    <Upload size={18} className="text-slate-600" />
+                                )}
+                            </button>
+                        </div>
+                        {errors.thumbnail_url && <p className="text-red-500 text-[10px] mt-1 font-bold uppercase">{errors.thumbnail_url}</p>}
+                    </div>
+                </div>
+                <div>
+                    <label className="block text-xs font-bold text-slate-700 uppercase mb-3 tracking-wide">Metadata (JSON format)</label>
+                    <textarea
+                        value={JSON.stringify(formData.metadata, null, 2)}
+                        onChange={(e) => {
+                            try {
+                                const metadata = JSON.parse(e.target.value);
+                                setFormData(prev => ({ ...prev, metadata }));
+                            } catch {
+                                // Allow invalid JSON while typing
+                            }
+                        }}
+                        className="w-full h-32 p-4 rounded-xl border-2 border-white focus:border-blue-500 outline-none transition-all font-mono text-xs"
+                        placeholder='{ "key": "value" }'
+                    />
+                </div>
             </div>
-        </div>
+        </Modal>
     );
 };

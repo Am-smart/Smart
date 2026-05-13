@@ -63,10 +63,26 @@
   .responsive-gap {
     @apply gap-4 md:gap-8;
   }
+
+  .glass-header {
+    @apply bg-white/80 backdrop-blur-md border-b border-slate-200;
+  }
+
+  .card-hover {
+    @apply transition-all duration-300 hover:shadow-xl hover:-translate-y-1;
+  }
 }
 
-@media (max-width: 320px) {
+@media (max-width: 360px) {
   :root { font-size: 14px; }
+  .responsive-p { padding: 1rem !important; }
+  .btn { padding: 0.5rem 0.75rem !important; font-size: 0.75rem !important; }
+  .input-custom { padding: 0.5rem !important; font-size: 0.875rem !important; }
+}
+
+@media (max-width: 280px) {
+  :root { font-size: 12px; }
+  .responsive-p { padding: 0.75rem !important; }
   h1 { font-size: 1.25rem !important; }
   h2 { font-size: 1.1rem !important; }
   h3 { font-size: 1rem !important; }
@@ -77,6 +93,6 @@
   .gap-6, .gap-8 { gap: 0.5rem !important; }
   .gap-4 { gap: 0.25rem !important; }
   .grid-cols-2, .grid-cols-3, .grid-cols-4 { grid-template-columns: 1fr !important; }
-  main[class*="md:ml-[240px]"] { margin-left: 0 !important; }
-  .fixed.inset-0 { padding: 0.5rem !important; }
+  main[class*="md:ml-[240px]"], main[class*="lg:ml-[240px]"] { margin-left: 0 !important; }
+  .fixed.inset-0 { padding: 0.25rem !important; }
 }
