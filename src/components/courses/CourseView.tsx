@@ -17,6 +17,7 @@ export const CourseView: React.FC<CourseViewProps> = ({ course, lessons, onBack 
     const [activeLesson, setActiveLesson] = useState<LessonDTO | null>(null);
     const [completions, setCompletions] = useState<string[]>([]);
     const [isUpdating, setIsUpdating] = useState(false);
+    const [showLessonDetails, setShowLessonDetails] = useState(false);
 
     useEffect(() => {
         const fetchCompletions = async () => {
@@ -78,12 +79,18 @@ export const CourseView: React.FC<CourseViewProps> = ({ course, lessons, onBack 
                 <div className="flex items-center gap-4">
                     <button onClick={onBack} className="p-2 hover:bg-slate-100 rounded-full transition-colors text-slate-500"><ArrowLeft size={20} /></button>
                     <div>
-                        <h2 className="text-xl font-bold text-slate-900">{course.title}</h2>
-                        <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">
+                        <h2 className="text-base md:text-xl font-bold text-slate-900 line-clamp-1">{course.title}</h2>
+                        <p className="text-[10px] md:text-xs font-medium text-slate-500 uppercase tracking-wider">
                             {lessons.length} Lessons available • BY {course.created_by || 'Unknown Instructor'}
                         </p>
                     </div>
                 </div>
+                <button
+                    onClick={() => setShowLessonDetails(true)}
+                    className="lg:hidden p-2 bg-blue-50 text-blue-600 rounded-xl font-bold text-[10px] uppercase tracking-wider border border-blue-100"
+                >
+                    Lessons
+                </button>
             </header>
 
             <div className="flex flex-1 overflow-hidden">
@@ -131,8 +138,8 @@ export const CourseView: React.FC<CourseViewProps> = ({ course, lessons, onBack 
                             )}
 
                             <div className="bg-white p-10 rounded-3xl shadow-sm border border-slate-100">
-                                <div className="flex justify-between items-start mb-6">
-                                    <h1 className="text-3xl font-black text-slate-900">{activeLesson.title}</h1>
+                                <div className="flex flex-col md:flex-row justify-between items-start gap-4 mb-6">
+                                    <h1 className="text-2xl md:text-3xl font-black text-slate-900">{activeLesson.title}</h1>
                                     {!completions.includes(activeLesson.id) ? (
                                         <button
                                             onClick={handleMarkComplete}
@@ -192,6 +199,40 @@ export const CourseView: React.FC<CourseViewProps> = ({ course, lessons, onBack 
                     )}
                 </main>
             </div>
+
+            {showLessonDetails && (
+                <div className="fixed inset-0 bg-slate-900/60 z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
+                    <div className="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[80vh] animate-in zoom-in duration-300">
+                        <header className="p-6 border-b bg-slate-50 flex justify-between items-center">
+                            <h3 className="font-bold text-slate-900">Course Lessons</h3>
+                            <button onClick={() => setShowLessonDetails(false)} className="text-slate-400 hover:text-slate-600 font-bold">✕</button>
+                        </header>
+                        <div className="flex-1 overflow-y-auto p-4 space-y-2">
+                            {lessons.map((lesson, idx) => (
+                                <button
+                                    key={lesson.id}
+                                    onClick={() => {
+                                        setActiveLesson(lesson);
+                                        setShowLessonDetails(false);
+                                    }}
+                                    className={`w-full p-4 rounded-2xl flex items-center gap-4 transition-all text-left ${activeLesson?.id === lesson.id ? 'bg-blue-50 border-2 border-blue-100' : 'hover:bg-slate-50 border-2 border-transparent'}`}
+                                >
+                                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs shrink-0 ${activeLesson?.id === lesson.id ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-400'}`}>
+                                        {idx + 1}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2">
+                                            <h4 className={`text-sm font-bold truncate ${activeLesson?.id === lesson.id ? 'text-blue-900' : 'text-slate-700'}`}>{lesson.title}</h4>
+                                            {completions.includes(lesson.id) && <CheckCircle size={14} className="text-green-500 shrink-0" />}
+                                        </div>
+                                    </div>
+                                    <ChevronRight size={14} className={activeLesson?.id === lesson.id ? 'text-blue-400' : 'text-slate-300'} />
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
