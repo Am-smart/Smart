@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { SubmissionDTO, QuestionDTO } from '@/lib/types';
 import { useAppContext } from '@/components/AppContext';
 import { gradeSubmission } from '@/lib/api-actions';
+import { Modal } from '@/components/ui/Modal';
 
 interface GradingModalProps {
     submission: SubmissionDTO;
@@ -64,17 +65,22 @@ export const GradingModal: React.FC<GradingModalProps> = ({ submission, onSave, 
     };
 
     return (
-        <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center z-[1100] p-2 sm:p-4">
-            <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300 flex flex-col max-h-[95vh] md:max-h-[90vh]">
-                <header className="p-4 sm:p-6 md:p-8 border-b bg-slate-50 flex justify-between items-center shrink-0">
-                    <div className="truncate pr-4">
-                        <h2 className="text-xl sm:text-2xl font-bold text-slate-900 truncate">Grade Submission</h2>
-                        <div className="text-[10px] sm:text-xs text-slate-500 font-medium mt-1 truncate">Student: {submission.student?.full_name || 'Anonymous Student'}</div>
-                    </div>
-                    <button onClick={onCancel} className="p-2 hover:bg-slate-200 rounded-full transition-colors shrink-0" aria-label="Close modal">✕</button>
-                </header>
-                <form onSubmit={handleSubmit} className="p-3 sm:p-4 md:p-6 lg:p-8 space-y-6 overflow-y-auto flex-1">
-                    <div className="bg-blue-50 p-3 sm:p-4 md:p-6 rounded-2xl border border-blue-100 space-y-4">
+        <Modal
+            title="Grade Submission"
+            onClose={onCancel}
+            asForm
+            onSubmit={handleSubmit}
+            footer={
+                <div className="flex flex-col sm:flex-row justify-between gap-3 sm:gap-4 w-full">
+                    <button type="button" onClick={onCancel} className="btn-secondary w-full sm:flex-1 py-3 sm:py-4 text-sm">Discard</button>
+                    <button type="submit" disabled={isSaving} className="btn-primary w-full sm:flex-1 py-3 sm:py-4 text-sm">
+                        {isSaving ? 'Saving Grade...' : 'Save Grade & Return'}
+                    </button>
+                </div>
+            }
+        >
+            <div className="space-y-6">
+                <div className="bg-blue-50 p-3 sm:p-4 md:p-6 rounded-2xl border border-blue-100 space-y-4">
                         <h4 className="text-xs sm:text-sm font-bold text-blue-700 uppercase mb-2">Student Submission</h4>
 
                         {(submission).answers && Object.keys((submission).answers as Record<string, unknown>).length > 0 ? (
@@ -215,14 +221,7 @@ export const GradingModal: React.FC<GradingModalProps> = ({ submission, onSave, 
                             placeholder="Great job! Next time try to..."
                         />
                     </div>
-                    <footer className="pt-4 sm:pt-8 border-t flex flex-col sm:flex-row justify-between gap-3 sm:gap-4 shrink-0">
-                        <button type="button" onClick={onCancel} className="btn-secondary w-full sm:flex-1 py-3 sm:py-4 text-sm">Discard</button>
-                        <button type="submit" disabled={isSaving} className="btn-primary w-full sm:flex-1 py-3 sm:py-4 text-sm">
-                            {isSaving ? 'Saving Grade...' : 'Save Grade & Return'}
-                        </button>
-                    </footer>
-                </form>
             </div>
-        </div>
+        </Modal>
     );
 };

@@ -5,6 +5,7 @@ import { useAppContext } from '@/components/AppContext';
 import { Plus, Settings } from 'lucide-react';
 import { saveQuiz } from '@/lib/api-actions';
 import { ASSESSMENT_STATUS } from '@/lib/constants';
+import { Modal } from '@/components/ui/Modal';
 
 interface QuizEditorProps {
     teacherId: string;
@@ -99,13 +100,20 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({ teacherId, quiz, courses
     };
 
     return (
-        <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center z-50 p-2 md:p-4">
-            <div className="bg-white w-full max-w-4xl rounded-2xl md:rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300 flex flex-col max-h-[95vh] md:max-h-[90vh]">
-                <header className="p-4 md:p-8 border-b bg-slate-50 flex justify-between items-center shrink-0">
-                    <h2 className="text-lg md:text-2xl font-bold text-slate-900">{quiz?.id ? 'Edit Quiz' : 'Create New Quiz'}</h2>
-                    <button onClick={onCancel} className="p-2 hover:bg-slate-200 rounded-full transition-colors">✕</button>
-                </header>
-                <form onSubmit={handleSubmit} className="p-4 md:p-8 space-y-4 md:space-y-6 overflow-y-auto flex-1">
+        <Modal
+            title={quiz?.id ? 'Edit Quiz' : 'Create New Quiz'}
+            onClose={onCancel}
+            maxWidth="max-w-4xl"
+            asForm
+            onSubmit={handleSubmit}
+            footer={
+                <div className="flex flex-col sm:flex-row justify-between gap-3 md:gap-4 w-full">
+                    <button type="button" onClick={onCancel} className="btn-secondary flex-1 py-3 md:py-4 text-sm">Discard</button>
+                    <button type="submit" disabled={isSaving || formData.questions.length === 0} className="btn-primary flex-1 py-3 md:py-4 text-sm">{isSaving ? 'Saving...' : 'Save Quiz'}</button>
+                </div>
+            }
+        >
+            <div className="space-y-4 md:space-y-6">
                     <div className="bg-slate-50 p-5 md:p-6 rounded-2xl md:rounded-3xl border-2 border-slate-100 space-y-4 md:space-y-6">
                         <h3 className="text-base md:text-lg font-bold text-slate-900 border-b pb-3 md:pb-4 mb-2 md:mb-4">Quiz Settings</h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
@@ -299,12 +307,7 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({ teacherId, quiz, courses
                             <Plus size={18} /> Add Question
                         </button>
                     </div>
-                </form>
-                <footer className="p-4 md:p-8 border-t bg-slate-50 flex flex-col sm:flex-row justify-between gap-3 md:gap-4 shrink-0">
-                    <button type="button" onClick={onCancel} className="btn-secondary flex-1 py-3 md:py-4 text-sm">Discard</button>
-                    <button type="submit" disabled={isSaving || formData.questions.length === 0} onClick={handleSubmit} className="btn-primary flex-1 py-3 md:py-4 text-sm">{isSaving ? 'Saving...' : 'Save Quiz'}</button>
-                </footer>
             </div>
-        </div>
+        </Modal>
     );
 };

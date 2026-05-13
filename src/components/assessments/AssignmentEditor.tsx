@@ -6,6 +6,7 @@ import { Plus, Paperclip, Settings } from 'lucide-react';
 import { saveAssignment } from '@/lib/api-actions';
 import { useAuth } from '@/components/auth/AuthContext';
 import { ASSESSMENT_STATUS } from '@/lib/constants';
+import { Modal } from '@/components/ui/Modal';
 
 interface AssignmentEditorProps {
     teacherId: string;
@@ -131,13 +132,19 @@ export const AssignmentEditor: React.FC<AssignmentEditorProps> = ({ teacherId, a
     };
 
     return (
-        <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center z-50 p-2 md:p-4">
-            <div className="bg-white w-full max-w-2xl rounded-2xl md:rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300 flex flex-col max-h-[95vh] md:max-h-[90vh]">
-                <header className="p-6 md:p-8 border-b bg-slate-50 flex justify-between items-center shrink-0">
-                    <h2 className="text-xl md:text-2xl font-bold text-slate-900">{assignment?.id ? 'Edit Assignment' : 'Create New Assignment'}</h2>
-                    <button onClick={onCancel} className="p-2 hover:bg-slate-200 rounded-full transition-colors">✕</button>
-                </header>
-                <form onSubmit={handleSubmit} className="p-4 md:p-8 space-y-6 overflow-y-auto flex-1">
+        <Modal
+            title={assignment?.id ? 'Edit Assignment' : 'Create New Assignment'}
+            onClose={onCancel}
+            asForm
+            onSubmit={handleSubmit}
+            footer={
+                <div className="flex flex-col sm:flex-row justify-between gap-4 w-full">
+                    <button type="button" onClick={onCancel} className="btn-secondary flex-1 py-4">Discard</button>
+                    <button type="submit" disabled={isSaving} className="btn-primary flex-1 py-4">{isSaving ? 'Saving...' : 'Save Assignment'}</button>
+                </div>
+            }
+        >
+            <div className="space-y-6">
                     <div className="bg-slate-50 p-4 md:p-6 rounded-3xl border-2 border-slate-100 space-y-6">
                         <h3 className="text-base md:text-lg font-bold text-slate-900 border-b pb-4 mb-4">Assignment Settings</h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -315,12 +322,7 @@ export const AssignmentEditor: React.FC<AssignmentEditorProps> = ({ teacherId, a
                             <Plus size={18} /> Add Step
                         </button>
                     </div>
-                    <footer className="pt-8 border-t flex flex-col sm:flex-row justify-between gap-4 shrink-0">
-                        <button type="button" onClick={onCancel} className="btn-secondary flex-1 py-4">Discard</button>
-                        <button type="submit" disabled={isSaving} className="btn-primary flex-1 py-4">{isSaving ? 'Saving...' : 'Save Assignment'}</button>
-                    </footer>
-                </form>
             </div>
-        </div>
+        </Modal>
     );
 };
