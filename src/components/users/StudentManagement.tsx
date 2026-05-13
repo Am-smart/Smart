@@ -62,56 +62,98 @@ export const StudentManagement: React.FC<StudentManagementProps> = ({ initialEnr
                 </div>
             </div>
 
-            <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden overflow-x-auto">
-                <table className="w-full text-left min-w-[700px]">
-                    <thead>
-                        <tr className="bg-slate-50 text-slate-500 text-[10px] font-bold uppercase tracking-widest border-b border-slate-100">
-                            <th className="px-6 py-4">Student</th>
-                            <th className="px-6 py-4">Course</th>
-                            <th className="px-6 py-4">Progress</th>
-                            <th className="px-6 py-4 text-right">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                        {initialEnrollments.length === 0 ? (
-                            <tr>
-                                <td colSpan={4} className="px-6 py-12 text-center text-slate-400 italic">No students enrolled yet.</td>
+            <div className="hidden md:block bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left min-w-[700px]">
+                        <thead>
+                            <tr className="bg-slate-50 text-slate-500 text-[10px] font-bold uppercase tracking-widest border-b border-slate-100">
+                                <th className="px-6 py-4">Student</th>
+                                <th className="px-6 py-4">Course</th>
+                                <th className="px-6 py-4">Progress</th>
+                                <th className="px-6 py-4 text-right">Actions</th>
                             </tr>
-                        ) : (
-                            initialEnrollments.map(e => {
-                                const student = e.student;
-                                return (
-                                    <tr key={`${e.course_id}-${e.student_id}`} className="hover:bg-slate-50/50 transition-colors">
-                                        <td className="px-6 py-4">
-                                            <div className="font-bold text-slate-900">{student?.full_name || 'Unknown Student'}</div>
-                                            <div className="text-[10px] text-slate-400 font-medium">Joined {e.enrolled_at ? new Date(e.enrolled_at).toLocaleDateString() : 'N/A'}</div>
-                                        </td>
-                                        <td className="px-6 py-4 text-sm text-slate-600">{e.course?.title}</td>
-                                        <td className="px-6 py-4">
-                                            <div className="flex items-center gap-3">
-                                                <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden min-w-[100px]">
-                                                    <div className="h-full bg-blue-500" style={{ width: `${e.progress}%` }} />
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                            {initialEnrollments.length === 0 ? (
+                                <tr>
+                                    <td colSpan={4} className="px-6 py-12 text-center text-slate-400 italic">No students enrolled yet.</td>
+                                </tr>
+                            ) : (
+                                initialEnrollments.map(e => {
+                                    const student = e.student;
+                                    return (
+                                        <tr key={`${e.course_id}-${e.student_id}`} className="hover:bg-slate-50/50 transition-colors">
+                                            <td className="px-6 py-4">
+                                                <div className="font-bold text-slate-900">{student?.full_name || 'Unknown Student'}</div>
+                                                <div className="text-[10px] text-slate-400 font-medium">Joined {e.enrolled_at ? new Date(e.enrolled_at).toLocaleDateString() : 'N/A'}</div>
+                                            </td>
+                                            <td className="px-6 py-4 text-sm text-slate-600">{e.course?.title}</td>
+                                            <td className="px-6 py-4">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="flex-1 h-1.5 bg-slate-100 rounded-full overflow-hidden min-w-[100px]">
+                                                        <div className="h-full bg-blue-500" style={{ width: `${e.progress}%` }} />
+                                                    </div>
+                                                    <span className="text-xs font-bold text-slate-900">{e.progress}%</span>
                                                 </div>
-                                                <span className="text-xs font-bold text-slate-900">{e.progress}%</span>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4 text-right">
-                                            <div className="flex justify-end gap-2">
-                                                <button
-                                                    onClick={() => handleUnenroll(e.course_id, e.student_id)}
-                                                    className="p-2 bg-red-50 text-red-500 rounded-xl hover:bg-red-100 transition-colors"
-                                                    title="Unenroll Student"
-                                                >
-                                                    <Trash2 size={16} />
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                );
-                            })
-                        )}
-                    </tbody>
-                </table>
+                                            </td>
+                                            <td className="px-6 py-4 text-right">
+                                                <div className="flex justify-end gap-2">
+                                                    <button
+                                                        onClick={() => handleUnenroll(e.course_id, e.student_id)}
+                                                        className="p-2 bg-red-50 text-red-500 rounded-xl hover:bg-red-100 transition-colors"
+                                                        title="Unenroll Student"
+                                                    >
+                                                        <Trash2 size={16} />
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    );
+                                })
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            {/* Mobile View */}
+            <div className="md:hidden space-y-4">
+                {initialEnrollments.length === 0 ? (
+                    <div className="bg-white p-8 rounded-2xl border border-dashed border-slate-200 text-center text-slate-400 italic">
+                        No students enrolled yet.
+                    </div>
+                ) : (
+                    initialEnrollments.map(e => (
+                        <div key={`${e.course_id}-${e.student_id}`} className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 space-y-4">
+                            <div className="flex justify-between items-start">
+                                <div>
+                                    <div className="font-bold text-slate-900">{e.student?.full_name || 'Unknown Student'}</div>
+                                    <div className="text-[10px] text-blue-600 font-bold uppercase tracking-wider mt-1">{e.course?.title}</div>
+                                </div>
+                                <button
+                                    onClick={() => handleUnenroll(e.course_id, e.student_id)}
+                                    className="p-2 bg-red-50 text-red-500 rounded-xl hover:bg-red-100 transition-colors shrink-0"
+                                >
+                                    <Trash2 size={16} />
+                                </button>
+                            </div>
+
+                            <div className="space-y-2">
+                                <div className="flex justify-between items-center text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                                    <span>Progress</span>
+                                    <span className="text-slate-900">{e.progress}%</span>
+                                </div>
+                                <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+                                    <div className="h-full bg-blue-500" style={{ width: `${e.progress}%` }} />
+                                </div>
+                            </div>
+
+                            <div className="text-[10px] text-slate-400 font-medium pt-2 border-t border-slate-50">
+                                Enrolled: {e.enrolled_at ? new Date(e.enrolled_at).toLocaleDateString() : 'N/A'}
+                            </div>
+                        </div>
+                    ))
+                )}
             </div>
         </div>
     );

@@ -104,10 +104,10 @@ export const SignupForm: React.FC<SignupFormProps> = ({ initialRole, onClose, on
   };
 
   return (
-    <div id="signup" className="bg-white w-full max-w-md rounded-xl sm:rounded-2xl p-4 sm:p-8 relative shadow-2xl max-h-[90vh] overflow-y-auto">
-      <button onClick={onClose} className="absolute top-2 right-2 sm:top-4 sm:right-4 text-xl sm:text-2xl text-slate-400 hover:text-slate-600 transition-colors">×</button>
-      <h2 className="text-lg sm:text-2xl font-bold text-slate-900 mb-4 sm:mb-6 pr-6">Sign Up</h2>
-      <form onSubmit={handleSubmit} noValidate className="space-y-3 sm:space-y-4">
+    <div id="signup" className="bg-white w-full max-w-md rounded-2xl sm:rounded-3xl p-5 sm:p-8 md:p-10 relative shadow-2xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
+      <button onClick={onClose} className="absolute top-3 right-3 sm:top-4 sm:right-4 text-xl sm:text-2xl text-slate-400 hover:text-slate-600 transition-colors shrink-0">×</button>
+      <h2 className="text-xl sm:text-2xl md:text-3xl font-black text-slate-900 mb-6 sm:mb-8 pr-8 tracking-tight">Sign Up</h2>
+      <form onSubmit={handleSubmit} noValidate className="space-y-4 sm:space-y-5">
         <div>
           <input
             type="text"
