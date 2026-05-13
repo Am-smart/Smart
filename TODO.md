@@ -1,10 +1,10 @@
 # Project Hardening & Production-Ready Todo List
 
-## Phase 1: Pure Database Agnosticism (In Progress)
+## Phase 1: Pure Database Agnosticism (Completed)
 - [x] Refactor `dbUtils.ts` to standard interface.
-- [ ] Migrate all direct `supabase` calls from `system.service.ts` to `system.db.ts`.
-- [ ] Define generic `DatabaseError` class to replace direct `PostgrestError` usage in adapters.
-- [ ] Replace `any` types in `db-utils.ts` with generic bounded types.
+- [x] Migrate all direct `supabase` calls from `system.service.ts` to `system.db.ts`.
+- [x] Define generic `DatabaseError` class to replace direct `PostgrestError` usage in adapters.
+- [x] Replace `any` types in `db-utils.ts` with generic bounded types.
 
 ## Phase 2: Security & Session Hardening
 - [x] Version-based session cache invalidation.

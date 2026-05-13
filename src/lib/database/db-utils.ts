@@ -1,3 +1,5 @@
+import { DatabaseError, DatabaseResponse } from '../types';
+
 export const dbUtils = {
   /**
    * Prepares upsert data with version increment and updated_at
@@ -41,7 +43,7 @@ export const dbUtils = {
   /**
    * Handles common database errors and converts them to standardized error messages.
    */
-  handleUpsertError(error: { code: string; message: string } | null, entityName: string, id?: string, version?: number): never {
+  handleUpsertError(error: DatabaseError | null, entityName: string, id?: string, version?: number): never {
     if (!error) throw new Error('Unknown database error');
 
     // PGRST116 is Supabase/PostgREST code for "JSON object requested, but no rows returned"
@@ -57,12 +59,18 @@ export const dbUtils = {
    * Generic upsert handler with version checking and standardized error handling.
    */
   async upsert<T extends { id?: string; version?: number }>(
-    table: any,
+    table: {
+      upsert: (data: Record<string, unknown>, options?: { onConflict?: string }) => {
+        select: () => {
+          single: () => PromiseLike<DatabaseResponse<T>>;
+        };
+      };
+    },
     entity: Partial<T>,
     entityName: string,
     sessionId: string,
     options: { onConflict?: string; excludeFields?: string[] } = {}
-  ): Promise<T> {
+  ): Promise<any> {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { withSession } = require('../supabase');
     const upsertData = this.prepareUpsert(entity as unknown as { version?: number; id?: string }, options.excludeFields);
@@ -83,7 +91,7 @@ export const dbUtils = {
       this.handleUpsertError(error, entityName, entityWithVersion.id, entityWithVersion.version);
     }
 
-    return data as T;
+    return data as unknown as T;
   },
 
   /**
