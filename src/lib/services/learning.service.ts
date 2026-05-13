@@ -55,7 +55,7 @@ export class LearningService {
   async saveLesson(lesson: Partial<Lesson>, sessionId: string, currentUser?: User): Promise<Lesson> {
     LearningDomain.validateLesson(lesson);
 
-    let isNew = !lesson.id;
+    const isNew = !lesson.id;
     if (currentUser && currentUser.role === 'teacher') {
         let courseId = lesson.course_id;
         if (!courseId && lesson.id) {
@@ -86,8 +86,8 @@ export class LearningService {
 
     // Trigger Notification (Migrated from tr_lesson_created)
     if (isNew) {
-        const { systemService } = await import('./system.service');
-        await systemService.createBroadcast({
+        const { serviceRegistry } = await import('./service-registry');
+        await serviceRegistry.systemService.createBroadcast({
             course_id: saved.course_id,
             target_role: 'student',
             title: 'New Lesson Available',

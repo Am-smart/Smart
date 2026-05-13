@@ -85,7 +85,7 @@ export function withHandler<T>(
 
         // Require custom header for state-changing requests
         const requestedWith = headerList.get('x-requested-with');
-        if (!requestedWith) {
+        if (!requestedWith && !request.headers.get('x-session-id')) {
             return NextResponse.json({ success: false, error: 'CSRF Protection: Missing X-Requested-With header' }, { status: 403 });
         }
     }

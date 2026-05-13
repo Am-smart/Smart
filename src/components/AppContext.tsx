@@ -10,6 +10,8 @@ import * as actions from '@/lib/api-actions';
 import { sessionManager } from '@/lib/session-manager';
 import { useRouter } from 'next/navigation';
 
+export type AppLoadingStatus = 'idle' | 'auth' | 'data' | 'ready';
+
 export interface DashboardStats {
   courses: number;
   dueSoon: number;
@@ -25,7 +27,8 @@ export interface DashboardStats {
 
 interface AppState {
   user: User | null;
-  isLoading: boolean;
+  loadingStatus: AppLoadingStatus;
+  isLoading: boolean; // Keep for backward compatibility
   isAuthLoading: boolean;
   isDataLoading: boolean;
   maintenance: Maintenance;
@@ -55,9 +58,9 @@ interface AppContextType extends AppState {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Auth State
+  // App State
+  const [loadingStatus, setLoadingStatus] = useState<AppLoadingStatus>('idle');
   const [user, setUser] = useState<User | null>(null);
-  const [isAuthLoading, setIsAuthLoading] = useState(true);
 
   // App State
   const { setCache, getCache, addToQueue, isOnline, isBackendConnected, checkBackend, pullData } = useIndexedDB();
@@ -71,7 +74,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [courses, setCourses] = useState<CourseDTO[]>([]);
   const [assignments, setAssignments] = useState<AssignmentDTO[]>([]);
   const [submissions, setSubmissions] = useState<SubmissionDTO[]>([]);
-  const [isDataLoading, setIsDataLoading] = useState(false);
 
   const router = useRouter();
   const initialized = useRef(false);
@@ -157,6 +159,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     if (initialized.current) return;
     if (initPromise.current) return initPromise.current;
 
+    setLoadingStatus('auth');
+
     initPromise.current = (async () => {
     try {
       // Auth init
@@ -166,11 +170,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           await setCache('current_user', u);
           setUser(u);
           pullData(u.id, u.role);
+          setLoadingStatus('data');
       } else {
           const cachedUser = await getCache<User>('current_user');
           if (cachedUser) setUser(cachedUser);
+          setLoadingStatus('ready');
       }
-      setIsAuthLoading(false);
 
       // Maintenance init
       const cachedMaint = await getCache<Maintenance>('maintenance', 5 * 60 * 1000);
@@ -188,7 +193,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
     } catch (err) {
       console.error('App initialization error:', err);
-      setIsAuthLoading(false);
+      setLoadingStatus('ready');
     } finally {
       initialized.current = true;
       initPromise.current = null;
@@ -201,6 +206,21 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   useEffect(() => {
     initApp();
   }, [initApp]);
+
+  // Sync conflict listener
+  useEffect(() => {
+    const handleSyncConflict = (event: Event) => {
+        const detail = (event as CustomEvent).detail;
+        addToast(
+            `Sync Issue: ${detail.error || 'A conflict occurred while syncing your offline changes.'}`,
+            'error',
+            10000
+        );
+    };
+
+    window.addEventListener('sync-conflict', handleSyncConflict);
+    return () => window.removeEventListener('sync-conflict', handleSyncConflict);
+  }, [addToast]);
 
   // Notifications logic
   const fetchNotifications = useCallback(async (userId: string, force = false) => {
@@ -268,7 +288,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const isConnected = await checkBackend();
     if (!isConnected) return;
 
-    setIsDataLoading(true);
+    if (loadingStatus === 'ready') setLoadingStatus('data');
+
     try {
       if (user.role === 'student') {
           const [myEnrollments, allAssignments, mySubmissions] = await Promise.all([
@@ -334,9 +355,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } catch (err) {
       console.error('Dashboard refresh error:', err);
     } finally {
-      setIsDataLoading(false);
+      setLoadingStatus('ready');
     }
-  }, [user, isOnline, getCache, setCache, checkBackend]);
+  }, [user, isOnline, getCache, setCache, checkBackend, loadingStatus]);
 
   useEffect(() => {
     if (user) {
@@ -364,9 +385,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const value = useMemo(() => ({
     user,
-    isLoading: isAuthLoading || isDataLoading,
-    isAuthLoading,
-    isDataLoading,
+    loadingStatus,
+    isLoading: loadingStatus === 'auth' || loadingStatus === 'data',
+    isAuthLoading: loadingStatus === 'auth',
+    isDataLoading: loadingStatus === 'data',
     role: user?.role || null,
     maintenance: { ...maintenance, enabled: isCurrentlyInMaintenance },
     notifications,
@@ -386,7 +408,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     fetchNotifications,
     addToast,
     refreshDashboardData
-  }), [user, isAuthLoading, isDataLoading, maintenance, isCurrentlyInMaintenance, notifications, isSidebarOpen, isOnline, isBackendConnected, stats, enrollments, assignments, submissions, login, signup, logout, updateProfile, toggleSidebar, fetchNotifications, addToast, refreshDashboardData]);
+  }), [user, loadingStatus, maintenance, isCurrentlyInMaintenance, notifications, isSidebarOpen, isOnline, isBackendConnected, stats, enrollments, courses, assignments, submissions, login, signup, logout, updateProfile, toggleSidebar, fetchNotifications, addToast, refreshDashboardData]);
 
   return (
     <AppContext.Provider value={value}>

@@ -2,17 +2,16 @@ import { withSession, supabase } from '../supabase';
 import { adminClient } from '../supabase-admin';
 import { Session, User } from '../types';
 import { dbUtils } from './db-utils';
-import { PostgrestError } from '@supabase/supabase-js';
 
 export const authDb = {
-  async register(data: { full_name: string; email: string; password?: string; phone?: string; role: string; active?: boolean }): Promise<{ data: User | null, error: PostgrestError | null }> {
+  async register(data: { full_name: string; email: string; password?: string; phone?: string; role: string; active?: boolean }): Promise<{ data: User | null, error: any }> {
     // Registration often happens without an active session (public signup)
     const client = adminClient || supabase;
     const { data: userData, error } = await client.from('users').insert(data).select().single();
     return { data: userData as User, error };
   },
 
-  async updateUserRaw(id: string, updates: Partial<User>, sessionId?: string): Promise<{ data: User | null, error: PostgrestError | null }> {
+  async updateUserRaw(id: string, updates: Partial<User>, sessionId?: string): Promise<{ data: User | null, error: any }> {
     // Prefer RLS-enforced client when sessionId is available
     const client = (sessionId && adminClient) ? supabase : (adminClient || supabase);
     let query = client.from('users').update(updates).eq('id', id);

@@ -33,6 +33,11 @@ export class AuthService {
         return null;
     }
 
+    // Version-based cache invalidation
+    if (cachedUser && (cachedUser as User).version !== user.version) {
+        serverSessionCache.invalidate(tokenHash);
+    }
+
     const userDTO = UserMapper.toDTO(user);
     if (!userDTO) return null;
 
@@ -138,8 +143,8 @@ export class AuthService {
     // Explicitly create session and get token
     const token = await this.createSession(user.id);
 
-    const { systemService } = await import('./system.service');
-    systemService.performSystemCleanup(await hashToken(token)).catch(console.error);
+    const { serviceRegistry } = await import('./service-registry');
+    serviceRegistry.systemService.performSystemCleanup(await hashToken(token)).catch(console.error);
 
     return {
         success: true,
