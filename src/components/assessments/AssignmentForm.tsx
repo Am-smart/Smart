@@ -217,11 +217,11 @@ export const AssignmentForm: React.FC<AssignmentFormProps> = ({ assignment, user
         </div>
 
         <footer className="p-4 md:p-8 bg-slate-50 border-t flex flex-col sm:flex-row justify-between items-center gap-3 md:gap-4 shrink-0">
-            <button onClick={onCancel} className="btn-secondary w-full sm:w-auto px-6 md:px-8 py-3 text-sm">Cancel</button>
+            <button onClick={onCancel} className="btn-secondary w-full sm:w-auto px-6 md:px-8 py-3 text-sm order-2 sm:order-1">Cancel</button>
             <button
                 onClick={handleSubmit}
                 disabled={isSubmitting || (!submissionText && !fileUrl && Object.keys(answers).length === 0)}
-                className="btn-primary w-full sm:w-auto px-8 md:px-10 py-3 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                className="btn-primary w-full sm:w-auto px-8 md:px-10 py-3 text-sm disabled:opacity-50 disabled:cursor-not-allowed order-1 sm:order-2"
             >
                 {isSubmitting ? 'Submitting...' : 'Submit Assignment'}
             </button>
