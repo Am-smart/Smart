@@ -35,8 +35,9 @@ export const AssignmentsList: React.FC<AssignmentsListProps> = ({ assignments, s
               </tr>
             ) : (
               assignments.map(assignment => {
+                const isPastDue = new Date(assignment.due_date) < new Date();
                 const submission = submissions.find(s => s.assignment_id === assignment.id);
-                const isOverdue = new Date(assignment.due_date) < new Date() && !submission;
+                const isOverdue = isPastDue && !submission;
 
                 return (
                   <tr key={assignment.id} className="hover:bg-slate-50 transition-colors">
@@ -89,8 +90,12 @@ export const AssignmentsList: React.FC<AssignmentsListProps> = ({ assignments, s
                           )}
                         </>
                       ) : (
-                        <button onClick={() => onSubmit(assignment)} className={`btn-primary text-[10px] py-1.5 px-4 ${isOverdue ? 'bg-red-500 hover:bg-red-600' : ''}`}>
-                          {submission ? 'Edit Submission' : isOverdue ? 'Submit Late' : 'Submit'}
+                        <button
+                            onClick={() => onSubmit(assignment)}
+                            disabled={isPastDue && !assignment.allow_late_submissions}
+                            className={`btn-primary text-[10px] py-1.5 px-4 ${isOverdue ? 'bg-red-500 hover:bg-red-600' : ''} disabled:opacity-50 disabled:bg-slate-300 disabled:cursor-not-allowed`}
+                        >
+                          {isPastDue && !assignment.allow_late_submissions ? 'Closed' : (submission ? 'Edit Submission' : isOverdue ? 'Submit Late' : 'Submit')}
                         </button>
                       )}
                     </td>
@@ -110,8 +115,9 @@ export const AssignmentsList: React.FC<AssignmentsListProps> = ({ assignments, s
           </div>
         ) : (
           assignments.map(assignment => {
+            const isPastDue = new Date(assignment.due_date) < new Date();
             const submission = submissions.find(s => s.assignment_id === assignment.id);
-            const isOverdue = new Date(assignment.due_date) < new Date() && !submission;
+            const isOverdue = isPastDue && !submission;
 
             return (
               <div key={assignment.id} className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 space-y-4">
@@ -163,9 +169,10 @@ export const AssignmentsList: React.FC<AssignmentsListProps> = ({ assignments, s
                   ) : (
                     <button
                         onClick={() => onSubmit(assignment)}
-                        className={`btn-primary w-full py-3 text-xs font-bold uppercase tracking-widest ${isOverdue ? 'bg-red-500 hover:bg-red-600' : ''}`}
+                        disabled={isPastDue && !assignment.allow_late_submissions}
+                        className={`btn-primary w-full py-3 text-xs font-bold uppercase tracking-widest ${isOverdue ? 'bg-red-500 hover:bg-red-600' : ''} disabled:opacity-50 disabled:bg-slate-300 disabled:cursor-not-allowed`}
                     >
-                      {submission ? 'Edit Submission' : isOverdue ? 'Submit Late' : 'Submit Assignment'}
+                      {isPastDue && !assignment.allow_late_submissions ? 'Closed' : (submission ? 'Edit Submission' : isOverdue ? 'Submit Late' : 'Submit Assignment')}
                     </button>
                   )}
                 </div>
