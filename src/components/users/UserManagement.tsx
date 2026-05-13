@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { UserDTO } from '@/lib/types';
 import { exportToCSV, exportToPDF } from '@/lib/report-utils';
-import { FileSpreadsheet, FileText } from 'lucide-react';
+import { FileSpreadsheet, FileText, UserPlus } from 'lucide-react';
+import { InviteModal } from './InviteModal';
 
 interface UserManagementProps {
   users: UserDTO[];
@@ -12,6 +13,8 @@ interface UserManagementProps {
 }
 
 export const UserManagement: React.FC<UserManagementProps> = ({ users, onAdd, onEdit, onDelete, onUpdate }) => {
+  const [isInviteOpen, setIsInviteOpen] = useState(false);
+
   const handleLock = async (id: string, minutes: number) => {
     const lockedUntil = new Date(Date.now() + minutes * 60000).toISOString();
     await onUpdate(id, { locked_until: lockedUntil, lockouts: (users.find(u => u.id === id)?.lockouts || 0) + 1 });
@@ -55,8 +58,19 @@ export const UserManagement: React.FC<UserManagementProps> = ({ users, onAdd, on
                     </button>
                 </div>
             </div>
-            <button onClick={onAdd} className="btn-primary py-2 px-6">Add User</button>
+            <div className="flex gap-3">
+                <button
+                    onClick={() => setIsInviteOpen(true)}
+                    className="flex items-center gap-2 bg-slate-900 text-white py-2 px-6 rounded-xl font-bold text-sm hover:bg-slate-800 transition-all shadow-lg shadow-slate-200"
+                >
+                    <UserPlus size={18} /> Invite
+                </button>
+                <button onClick={onAdd} className="btn-primary py-2 px-6">Add User</button>
+            </div>
         </div>
+
+        <InviteModal isOpen={isInviteOpen} onClose={() => setIsInviteOpen(false)} />
+
         <div className="hidden lg:block bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
             <div className="overflow-x-auto">
                 <table className="w-full text-left min-w-[800px]">

@@ -1,6 +1,6 @@
 import { authDb } from '../database/auth.db';
 import { systemDb } from '../database/system.db';
-import { User } from '../types';
+import { User, UserRole, Invite } from '../types';
 import { UserDomain } from '../domain/user.domain';
 import { validatePassword } from '../validation';
 import { serverSessionCache } from '../auth/server-session';
@@ -153,7 +153,7 @@ export class AuthService {
     };
   }
 
-  async signup(data: { full_name: string; email: string; password?: string; phone?: string; role: string }): Promise<{ success: boolean; user: User; session_id: string }> {
+  async signup(data: { full_name: string; email: string; password?: string; phone?: string; role: string }, inviteId?: string): Promise<{ success: boolean; user: User; session_id: string }> {
     if (!data.password || data.password.trim() === '') {
       throw new BadRequestError('Password is required');
     }
@@ -174,7 +174,8 @@ export class AuthService {
       throw new BadRequestError('Invalid role specified');
     }
 
-    if (data.role === USER_ROLES.TEACHER || data.role === USER_ROLES.ADMIN) {
+    // Public signup limits do NOT apply to invites
+    if (!inviteId && (data.role === USER_ROLES.TEACHER || data.role === USER_ROLES.ADMIN)) {
       const count = await this.getRoleUserCount(data.role);
       const limit = data.role === USER_ROLES.TEACHER ? SIGNUP_LIMITS.TEACHER : SIGNUP_LIMITS.ADMIN;
       if (count >= limit) {
@@ -196,6 +197,10 @@ export class AuthService {
 
     const newUser = userData as User;
 
+    if (inviteId) {
+      await authDb.markInviteAsUsed(inviteId);
+    }
+
     // Explicitly create session and get token
     const token = await this.createSession(newUser.id);
 
@@ -204,6 +209,53 @@ export class AuthService {
         user: newUser,
         session_id: token
     };
+  }
+
+  async generateInvite(currentUser: User, role: UserRole, email?: string): Promise<{ token: string; link: string }> {
+    if (!rbac.can(currentUser, 'user:manage')) {
+        throw new ForbiddenError('Only admins can generate invites');
+    }
+
+    if ((role === 'admin' || role === 'teacher') && !email) {
+        throw new BadRequestError('Email is required for admin and teacher invites');
+    }
+
+    const rawToken = generateToken();
+    const tokenHash = await hashToken(rawToken);
+    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+
+    await authDb.createInvite({
+        token_hash: tokenHash,
+        email: email || undefined,
+        role,
+        type: (role === 'admin' || role === 'teacher') ? 'email_bound' : 'role_only',
+        created_by: currentUser.id,
+        expires_at: expiresAt
+    });
+
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://kajas.vercel.app';
+    const link = `${baseUrl}/auth/invite/accept?token=${rawToken}`;
+
+    return { token: rawToken, link };
+  }
+
+  async validateInvite(token: string): Promise<Invite> {
+    const tokenHash = await hashToken(token);
+    const invite = await authDb.findInviteByHash(tokenHash);
+
+    if (!invite) {
+        throw new BadRequestError('Invalid invite token');
+    }
+
+    if (invite.used_at) {
+        throw new BadRequestError('Invite has already been used');
+    }
+
+    if (new Date(invite.expires_at) < new Date()) {
+        throw new BadRequestError('Invite has expired');
+    }
+
+    return invite;
   }
 
   async createUser(currentUser: User, data: { full_name: string; email: string; password?: string; phone?: string; role: string }): Promise<User> {

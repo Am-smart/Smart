@@ -18,6 +18,16 @@ export const GET = withHandler(async (user, request) => {
         case 'role-count': {
             return authService.getRoleCount();
         }
+        case 'invite-session': {
+            const cookieStore = await cookies();
+            const inviteCookie = cookieStore.get('app-invite-session');
+            if (!inviteCookie) return null;
+            try {
+                return JSON.parse(inviteCookie.value);
+            } catch {
+                return null;
+            }
+        }
         default:
             return user ? UserMapper.toDTO(user) : null;
     }
@@ -62,13 +72,34 @@ export const POST = withHandler(async (user, request) => {
               throw new BadRequestError(validation.errors[0].message);
             }
 
+            const cookieStore = await cookies();
+            const inviteCookie = cookieStore.get('app-invite-session');
+            let inviteId: string | undefined;
+
+            if (inviteCookie) {
+                try {
+                    const inviteSession = JSON.parse(inviteCookie.value);
+                    inviteId = inviteSession.inviteId;
+
+                    // Enforce role and email from invite session
+                    if (inviteSession.role) {
+                        data.role = inviteSession.role;
+                    }
+                    if (inviteSession.type === 'email_bound' && inviteSession.email) {
+                        data.email = inviteSession.email;
+                    }
+                } catch (e) {
+                    console.error('Failed to parse invite session', e);
+                }
+            }
+
             const result = await authService.signup({
               full_name: normalizeInput(data.full_name),
               email: normalizeEmail(data.email),
               password: data.password || '',
               phone: data.phone ? normalizeInput(data.phone) : undefined,
               role: data.role
-            });
+            }, inviteId);
 
             (await cookies()).set('app-user-session', result.session_id, {
                 httpOnly: true,
@@ -76,6 +107,10 @@ export const POST = withHandler(async (user, request) => {
                 sameSite: 'lax',
                 maxAge: 60 * 60 * 24 * SESSION.EXPIRY_DAYS
             });
+
+            if (inviteCookie) {
+                (await cookies()).delete('app-invite-session');
+            }
 
             return {
                 user: UserMapper.toDTO(result.user)
@@ -125,6 +160,10 @@ export const POST = withHandler(async (user, request) => {
         case 'preferences': {
             if (!user) throw new UnauthorizedError();
             return await authService.updatePreferences(data.preferences, user);
+        }
+        case 'generate-invite': {
+            if (!user) throw new UnauthorizedError();
+            return await authService.generateInvite(user, data.role, data.email);
         }
         default:
             throw new Error('Invalid POST action');

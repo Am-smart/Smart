@@ -2,6 +2,7 @@ export { apiClient } from './api-client';
 import { apiClient } from './api-client';
 import {
   User,
+  UserRole,
   Course,
   Submission,
   QuizSubmission,
@@ -639,6 +640,19 @@ export async function updatePreferences(preferences: Record<string, unknown>): P
     } catch (error: unknown) {
         return { success: false, error: error instanceof Error ? (error as Error).message : 'Unknown error' };
     }
+}
+
+export async function generateInvite(role: UserRole, email?: string): Promise<ActionResponse<{ token: string; link: string }>> {
+    try {
+        const data = await apiClient.post<{ token: string; link: string }>('/api/v1/auth', { action: 'generate-invite', role, email });
+        return { success: true, data };
+    } catch (error: unknown) {
+        return { success: false, error: (error as Error).message };
+    }
+}
+
+export async function getInviteSession(): Promise<any> {
+    return apiClient.get('/api/v1/auth?action=invite-session');
 }
 
 // System Logging

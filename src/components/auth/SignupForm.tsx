@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { UserRole } from '@/lib/types';
 import { useAuth } from './AuthContext';
 import { validateSignupForm, normalizeEmail, normalizeInput, calculatePasswordStrength } from '@/lib/validation';
-import { getRoleCount } from '@/lib/api-actions';
+import { getRoleCount, getInviteSession } from '@/lib/api-actions';
 import { SIGNUP_LIMITS, USER_ROLES } from '@/lib/constants';
 import { Eye, EyeOff } from 'lucide-react';
 
@@ -30,6 +30,7 @@ export const SignupForm: React.FC<SignupFormProps> = ({ initialRole, onClose, on
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isLoading, setIsLoading] = useState(false);
   const [roleCounts, setRoleCounts] = useState({ teachers: 0, admins: 0, total: 0 });
+  const [inviteSession, setInviteSession] = useState<{ inviteId: string; type: string; email?: string; role: UserRole } | null>(null);
 
   const { signup } = useAuth();
 
@@ -37,18 +38,30 @@ export const SignupForm: React.FC<SignupFormProps> = ({ initialRole, onClose, on
       setPasswordStrength(calculatePasswordStrength(formData.password));
   }, [formData.password]);
 
-  // Fetch role counts on mount
+  // Fetch role counts and invite session on mount
   useEffect(() => {
-    const fetchRoleCounts = async () => {
+    const fetchData = async () => {
       try {
-        const counts = await getRoleCount();
+        const [counts, session] = await Promise.all([
+            getRoleCount(),
+            getInviteSession()
+        ]);
         setRoleCounts(counts);
+
+        if (session) {
+            setInviteSession(session);
+            setFormData(prev => ({
+                ...prev,
+                email: session.email || prev.email,
+                role: session.role || prev.role
+            }));
+        }
       } catch (err) {
-        console.error('Failed to fetch role counts:', err);
+        console.error('Failed to fetch signup data:', err);
       }
     };
 
-    fetchRoleCounts();
+    fetchData();
   }, []);
 
   const handleRoleChange = (role: UserRole) => {
@@ -130,9 +143,10 @@ export const SignupForm: React.FC<SignupFormProps> = ({ initialRole, onClose, on
             placeholder="Email"
             value={formData.email}
             onChange={(e) => setFormData({...formData, email: e.target.value})}
-            className={`input-custom ${errors.email ? 'border-red-500 focus:ring-red-500' : ''}`}
+            className={`input-custom ${errors.email ? 'border-red-500 focus:ring-red-500' : ''} ${inviteSession?.type === 'email_bound' ? 'bg-slate-50 text-slate-500 cursor-not-allowed' : ''}`}
             required
-            disabled={isLoading}
+            disabled={isLoading || inviteSession?.type === 'email_bound'}
+            readOnly={inviteSession?.type === 'email_bound'}
             aria-invalid={!!errors.email}
             aria-describedby={errors.email ? 'email-error' : undefined}
           />
@@ -224,8 +238,9 @@ export const SignupForm: React.FC<SignupFormProps> = ({ initialRole, onClose, on
             {([USER_ROLES.STUDENT, USER_ROLES.TEACHER, USER_ROLES.ADMIN] as UserRole[]).map((r) => {
               const teacherLimitReached = roleCounts.teachers >= SIGNUP_LIMITS.TEACHER && r === USER_ROLES.TEACHER;
               const adminLimitReached = roleCounts.admins >= SIGNUP_LIMITS.ADMIN && r === USER_ROLES.ADMIN;
-              const isLimitReached = teacherLimitReached || adminLimitReached;
-              const isDisabled = isLoading || isLimitReached;
+              const isLimitReached = (teacherLimitReached || adminLimitReached) && !inviteSession;
+              const isInviteRole = inviteSession && inviteSession.role === r;
+              const isDisabled = isLoading || (inviteSession && !isInviteRole) || (!inviteSession && isLimitReached);
 
               return (
                 <div key={r} className="relative">

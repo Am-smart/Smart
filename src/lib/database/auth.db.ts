@@ -1,6 +1,6 @@
 import { withSession, supabase } from '../supabase';
 import { adminClient } from '../supabase-admin';
-import { Session, User, DatabaseResponse, DatabaseError } from '../types';
+import { Session, User, DatabaseResponse, DatabaseError, Invite } from '../types';
 import { dbUtils } from './db-utils';
 
 export const authDb = {
@@ -97,5 +97,43 @@ export const authDb = {
 
     if (error) dbUtils.handleError(error);
     return !!data && data.length > 0;
+  },
+
+  // Invite Operations
+  async createInvite(data: Omit<Invite, 'id' | 'created_at'>): Promise<Invite> {
+    const client = adminClient || supabase;
+    const { data: invite, error } = await client
+      .from('invites')
+      .insert(data)
+      .select()
+      .single();
+
+    if (error) dbUtils.handleError(error);
+    return invite as Invite;
+  },
+
+  async findInviteByHash(tokenHash: string): Promise<Invite | null> {
+    const client = adminClient || supabase;
+    const { data, error } = await client
+      .from('invites')
+      .select('*')
+      .eq('token_hash', tokenHash)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') return null;
+      dbUtils.handleError(error);
+    }
+    return data as Invite;
+  },
+
+  async markInviteAsUsed(id: string): Promise<void> {
+    const client = adminClient || supabase;
+    const { error } = await client
+      .from('invites')
+      .update({ used_at: new Date().toISOString() })
+      .eq('id', id);
+
+    if (error) dbUtils.handleError(error);
   }
 };
