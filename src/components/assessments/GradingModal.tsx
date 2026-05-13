@@ -64,14 +64,14 @@ export const GradingModal: React.FC<GradingModalProps> = ({ submission, onSave, 
     };
 
     return (
-        <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center z-50 p-2 sm:p-4">
+        <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center z-[1100] p-2 sm:p-4">
             <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-300 flex flex-col max-h-[95vh] md:max-h-[90vh]">
                 <header className="p-4 sm:p-6 md:p-8 border-b bg-slate-50 flex justify-between items-center shrink-0">
-                    <div>
-                        <h2 className="text-xl sm:text-2xl font-bold text-slate-900">Grade Submission</h2>
-                        <div className="text-[10px] sm:text-xs text-slate-500 font-medium mt-1">Student: {submission.student?.full_name || 'Anonymous Student'}</div>
+                    <div className="truncate pr-4">
+                        <h2 className="text-xl sm:text-2xl font-bold text-slate-900 truncate">Grade Submission</h2>
+                        <div className="text-[10px] sm:text-xs text-slate-500 font-medium mt-1 truncate">Student: {submission.student?.full_name || 'Anonymous Student'}</div>
                     </div>
-                    <button onClick={onCancel} className="p-2 hover:bg-slate-200 rounded-full transition-colors">✕</button>
+                    <button onClick={onCancel} className="p-2 hover:bg-slate-200 rounded-full transition-colors shrink-0" aria-label="Close modal">✕</button>
                 </header>
                 <form onSubmit={handleSubmit} className="p-3 sm:p-4 md:p-6 lg:p-8 space-y-6 overflow-y-auto flex-1">
                     <div className="bg-blue-50 p-3 sm:p-4 md:p-6 rounded-2xl border border-blue-100 space-y-4">

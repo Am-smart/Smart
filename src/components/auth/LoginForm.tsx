@@ -102,17 +102,17 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onClose, onShowSignup, onS
         ref={modalRef}
         role="dialog"
         aria-modal="true"
-        className="bg-white w-full max-w-md rounded-xl sm:rounded-2xl p-4 sm:p-8 relative shadow-2xl max-h-[90vh] overflow-y-auto"
+        className="bg-white w-full max-w-md rounded-2xl sm:rounded-3xl p-5 sm:p-8 md:p-10 relative shadow-2xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto"
     >
       <button
         onClick={onClose}
         aria-label="Close"
-        className="absolute top-2 right-2 sm:top-4 sm:right-4 p-2 text-slate-400 hover:text-slate-600 transition-colors rounded-full hover:bg-slate-100"
+        className="absolute top-3 right-3 sm:top-4 sm:right-4 p-2 text-slate-400 hover:text-slate-600 transition-colors rounded-full hover:bg-slate-100 shrink-0"
       >
         <X size={20} />
       </button>
-      <h2 className="text-lg sm:text-2xl font-bold text-slate-900 mb-4 sm:mb-6 pr-6">Login</h2>
-      <form onSubmit={handleSubmit} noValidate className="space-y-4">
+      <h2 className="text-xl sm:text-2xl md:text-3xl font-black text-slate-900 mb-6 sm:mb-8 pr-8 tracking-tight">Login</h2>
+      <form onSubmit={handleSubmit} noValidate className="space-y-4 sm:space-y-5">
         <div>
           <input
             type="email"
