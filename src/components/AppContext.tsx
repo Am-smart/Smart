@@ -75,6 +75,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const router = useRouter();
   const initialized = useRef(false);
+  const initPromise = useRef<Promise<void> | null>(null);
 
   const addToast = useCallback((message: string, type: ToastType, duration?: number) => {
     const id = Math.random().toString(36).substring(2, 9);
@@ -154,8 +155,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   // App Initialization
   const initApp = useCallback(async () => {
     if (initialized.current) return;
-    initialized.current = true;
+    if (initPromise.current) return initPromise.current;
 
+    initPromise.current = (async () => {
     try {
       // Auth init
       const userDTO = await actions.getMe();
@@ -187,7 +189,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     } catch (err) {
       console.error('App initialization error:', err);
       setIsAuthLoading(false);
+    } finally {
+      initialized.current = true;
+      initPromise.current = null;
     }
+    })();
+
+    return initPromise.current;
   }, [getCache, setCache, isOnline, isBackendConnected, checkBackend, pullData]);
 
   useEffect(() => {
@@ -224,13 +232,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [getCache, setCache, isOnline, checkBackend]);
 
   useEffect(() => {
+    let interval: NodeJS.Timeout | null = null;
     if (user) {
         fetchNotifications(user.id);
-        const interval = setInterval(() => {
+        interval = setInterval(() => {
             if (isOnline) fetchNotifications(user.id);
         }, 5 * 60 * 1000);
-        return () => clearInterval(interval);
     }
+    return () => {
+        if (interval) clearInterval(interval);
+    };
   }, [user, isOnline, fetchNotifications]);
 
   // Dashboard Data

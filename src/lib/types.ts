@@ -29,6 +29,7 @@ export interface User {
   reset_request?: ResetRequest | null;
   notification_preferences?: Record<string, boolean>;
   active?: boolean;
+  password_change_required?: boolean;
   version?: number;
   metadata?: Record<string, string | number | boolean>;
 }
@@ -42,6 +43,7 @@ export interface UserDTO {
   created_at: string;
   updated_at?: string;
   active?: boolean;
+  password_change_required?: boolean;
   notification_preferences?: Record<string, boolean>;
   metadata?: Record<string, string | number | boolean>;
   flagged?: boolean;

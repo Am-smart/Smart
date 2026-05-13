@@ -43,6 +43,7 @@ export class AuthorizationEngine {
 
     // Safety checks: deactivated or locked users have no permissions
     if (user.active === false) return false;
+    if (user.password_change_required) return false;
     if (user.locked_until && new Date(user.locked_until) > new Date()) return false;
 
     const permissions = ROLE_PERMISSIONS[user.role] || [];

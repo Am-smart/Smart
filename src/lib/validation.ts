@@ -5,8 +5,8 @@
 // Email validation regex (RFC 5322 simplified)
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-// Password requirements: at least 8 chars, 1 uppercase, 1 lowercase, 1 number, 1 special
-const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#])[A-Za-z\d@$!%*?&#]{8,}$/;
+// Password requirements: 1 uppercase, 1 lowercase, 1 number, 1 special
+const PASSWORD_REQUIREMENTS_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&#])[A-Za-z\d@$!%*?&#]+$/;
 
 // Phone number - basic international format
 const PHONE_REGEX = /^[\d\s\-\+\(\)]{7,}$/;
@@ -59,7 +59,7 @@ export function validatePassword(password: string, minLength: number = 8): Valid
     });
   } else if (password.length > 128) {
     errors.push({ field: 'password', message: 'Password is too long' });
-  } else if (!PASSWORD_REGEX.test(password)) {
+  } else if (!PASSWORD_REQUIREMENTS_REGEX.test(password)) {
     errors.push({
       field: 'password',
       message: 'Password must contain uppercase, lowercase, number, and special character (@$!%*?&#)'

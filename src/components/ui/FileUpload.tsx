@@ -60,20 +60,22 @@ export const FileUpload: React.FC<FileUploadProps> = ({
     setIsUploading(true);
     setProgress(10); // Initial progress
 
+    let progressInterval: NodeJS.Timeout | null = null;
     try {
       // Simulate progress if the actual uploadFn doesn't support it
-      const progressInterval = setInterval(() => {
+      progressInterval = setInterval(() => {
         setProgress(prev => (prev < 90 ? prev + 5 : prev));
       }, 200);
 
       const result = await uploadFn(file, category);
 
-      clearInterval(progressInterval);
+      if (progressInterval) clearInterval(progressInterval);
       setProgress(100);
 
       setUploadedFile({ name: file.name, url: result.url });
       onUploadComplete(result.url, file.name);
     } catch (err) {
+      if (progressInterval) clearInterval(progressInterval);
       const errorMsg = err instanceof Error ? err.message : 'Upload failed';
       setError(errorMsg);
       onUploadError?.(err instanceof Error ? err : new Error(errorMsg));
