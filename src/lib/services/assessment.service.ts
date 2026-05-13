@@ -17,7 +17,11 @@ export class AssessmentService {
         }
 
         const assignments = await assessmentDb.findAllAssignments(teacherId, courseId, sessionId!, limit, offset);
-        return assignments.filter(a => enrolledCourseIds.includes(a.course_id));
+        const now = new Date();
+        return assignments.filter(a =>
+            enrolledCourseIds.includes(a.course_id) &&
+            (!a.start_at || new Date(a.start_at) <= now)
+        );
     }
     return assessmentDb.findAllAssignments(teacherId, courseId, sessionId!, limit, offset);
   }
@@ -234,7 +238,10 @@ export class AssessmentService {
     const submittedAt = new Date(submissionToSave.submitted_at!);
     const dueDate = new Date(assignment.due_date);
 
-    if (submittedAt > dueDate && assignment.allow_late_submissions) {
+    if (submittedAt > dueDate) {
+        if (!assignment.allow_late_submissions) {
+            throw new Error('Late submissions are not allowed for this assignment.');
+        }
         const diffMs = submittedAt.getTime() - dueDate.getTime();
         const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
         const penaltyPerDay = assignment.late_penalty_per_day || 0;

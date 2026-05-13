@@ -144,16 +144,16 @@ export const AssignmentForm: React.FC<AssignmentFormProps> = ({ assignment, user
           {assignment.questions && assignment.questions.length > 0 ? (
             <div className="space-y-8">
               {assignment.questions.map((q, idx) => (
-                <div key={idx} className="space-y-4 p-6 bg-slate-50 rounded-2xl border border-slate-100">
-                  <div className="flex justify-between items-start">
+                <div key={idx} className="space-y-4 p-4 md:p-6 bg-slate-50 rounded-2xl border border-slate-100">
+                  <div className="flex justify-between items-start gap-2">
                     <h4 className="text-sm font-bold text-slate-800">Step {idx + 1}: {q.text}</h4>
-                    <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-md uppercase">{q.points} Points</span>
+                    <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-md uppercase shrink-0">{q.points} Points</span>
                   </div>
 
                   {q.type === 'essay' && (
                     <textarea
                       placeholder="Type your response here..."
-                      className="w-full h-32 p-4 rounded-xl border-2 border-slate-200 focus:border-blue-500 outline-none transition-all resize-none text-sm"
+                      className="w-full h-24 md:h-32 p-3 md:p-4 rounded-xl border-2 border-slate-200 focus:border-blue-500 outline-none transition-all resize-none text-sm"
                       value={answers[idx] || ''}
                       onChange={(e) => setAnswers({ ...answers, [idx]: e.target.value })}
                     />
@@ -173,7 +173,7 @@ export const AssignmentForm: React.FC<AssignmentFormProps> = ({ assignment, user
                     <input
                       type="url"
                       placeholder="https://example.com"
-                      className="w-full p-4 rounded-xl border-2 border-slate-200 focus:border-blue-500 outline-none transition-all text-sm"
+                      className="w-full p-3 md:p-4 rounded-xl border-2 border-slate-200 focus:border-blue-500 outline-none transition-all text-sm"
                       value={answers[idx] || ''}
                       onChange={(e) => setAnswers({ ...answers, [idx]: e.target.value })}
                     />
@@ -187,7 +187,7 @@ export const AssignmentForm: React.FC<AssignmentFormProps> = ({ assignment, user
                     value={submissionText}
                     onChange={(e) => setSubmissionText(e.target.value)}
                     placeholder="Provide any final details for your submission..."
-                    className="w-full h-40 p-4 rounded-xl md:rounded-2xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all resize-none text-sm text-slate-700"
+                    className="w-full h-24 md:h-40 p-4 rounded-xl md:rounded-2xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all resize-none text-sm text-slate-700"
                   />
               </div>
             </div>
@@ -199,7 +199,7 @@ export const AssignmentForm: React.FC<AssignmentFormProps> = ({ assignment, user
                     value={submissionText}
                     onChange={(e) => setSubmissionText(e.target.value)}
                     placeholder="Type your answer here..."
-                    className="w-full h-40 p-4 rounded-xl md:rounded-2xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all resize-none text-sm text-slate-700"
+                    className="w-full h-24 md:h-40 p-4 rounded-xl md:rounded-2xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all resize-none text-sm text-slate-700"
                 />
               </div>
 
@@ -217,11 +217,11 @@ export const AssignmentForm: React.FC<AssignmentFormProps> = ({ assignment, user
         </div>
 
         <footer className="p-4 md:p-8 bg-slate-50 border-t flex flex-col sm:flex-row justify-between items-center gap-3 md:gap-4 shrink-0">
-            <button onClick={onCancel} className="btn-secondary w-full sm:w-auto px-6 md:px-8 py-3 text-sm">Cancel</button>
+            <button onClick={onCancel} className="btn-secondary w-full sm:w-auto px-6 md:px-8 py-3 text-sm order-2 sm:order-1">Cancel</button>
             <button
                 onClick={handleSubmit}
                 disabled={isSubmitting || (!submissionText && !fileUrl && Object.keys(answers).length === 0)}
-                className="btn-primary w-full sm:w-auto px-8 md:px-10 py-3 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                className="btn-primary w-full sm:w-auto px-8 md:px-10 py-3 text-sm disabled:opacity-50 disabled:cursor-not-allowed order-1 sm:order-2"
             >
                 {isSubmitting ? 'Submitting...' : 'Submit Assignment'}
             </button>

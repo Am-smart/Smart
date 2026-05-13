@@ -35,8 +35,8 @@ export class AssessmentDomain {
     if (!assignment.course_id) {
         throw new Error('Course ID is required');
     }
-    if (assignment.start_at && assignment.due_date && new Date(assignment.start_at) > new Date(assignment.due_date)) {
-        throw new Error('Start date cannot be after due date');
+    if (assignment.start_at && assignment.due_date && new Date(assignment.start_at) >= new Date(assignment.due_date)) {
+        throw new Error('Start date must be before due date');
     }
     if (assignment.questions) {
         if (assignment.questions.length === 0) {
