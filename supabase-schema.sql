@@ -51,7 +51,7 @@ CREATE TABLE IF NOT EXISTS courses (
   title VARCHAR(255) NOT NULL,
   description TEXT,
   thumbnail_url TEXT,
-  teacher_id UUID REFERENCES users(id) ON UPDATE CASCADE ON DELETE SET NULL,
+  teacher_id UUID REFERENCES users(id) ON UPDATE CASCADE ON DELETE CASCADE,
   status VARCHAR(50) DEFAULT 'draft' CHECK (status IN ('draft', 'published', 'archived')),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -85,7 +85,7 @@ CREATE TABLE IF NOT EXISTS assignments (
   course_id UUID REFERENCES courses(id) ON DELETE CASCADE,
   title VARCHAR(255) NOT NULL,
   description TEXT,
-  teacher_id UUID REFERENCES users(id) ON UPDATE CASCADE ON DELETE SET NULL,
+  teacher_id UUID REFERENCES users(id) ON UPDATE CASCADE ON DELETE CASCADE,
   start_at TIMESTAMP WITH TIME ZONE,
   due_date TIMESTAMP WITH TIME ZONE,
   points_possible INTEGER DEFAULT 100,
@@ -131,7 +131,7 @@ CREATE TABLE IF NOT EXISTS submissions (
 CREATE TABLE IF NOT EXISTS live_classes (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   course_id UUID REFERENCES courses(id) ON DELETE CASCADE,
-  teacher_id UUID REFERENCES users(id) ON UPDATE CASCADE ON DELETE SET NULL,
+  teacher_id UUID REFERENCES users(id) ON UPDATE CASCADE ON DELETE CASCADE,
   title VARCHAR(255) NOT NULL,
   description TEXT,
   start_at TIMESTAMP WITH TIME ZONE NOT NULL,
@@ -163,7 +163,7 @@ CREATE TABLE IF NOT EXISTS attendance (
 CREATE TABLE IF NOT EXISTS quizzes (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   course_id UUID REFERENCES courses(id) ON DELETE CASCADE,
-  teacher_id UUID REFERENCES users(id) ON UPDATE CASCADE ON DELETE SET NULL,
+  teacher_id UUID REFERENCES users(id) ON UPDATE CASCADE ON DELETE CASCADE,
   title VARCHAR(255) NOT NULL,
   description TEXT,
   time_limit INTEGER DEFAULT 0,
@@ -204,7 +204,7 @@ CREATE TABLE IF NOT EXISTS quiz_submissions (
 CREATE TABLE IF NOT EXISTS materials (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   course_id UUID REFERENCES courses(id) ON DELETE CASCADE,
-  teacher_id UUID REFERENCES users(id) ON UPDATE CASCADE ON DELETE SET NULL,
+  teacher_id UUID REFERENCES users(id) ON UPDATE CASCADE ON DELETE CASCADE,
   title VARCHAR(255) NOT NULL,
   description TEXT,
   file_url TEXT,
@@ -303,8 +303,8 @@ CREATE TABLE IF NOT EXISTS system_logs (
   category VARCHAR(50),
   message TEXT,
   metadata JSONB DEFAULT '{}'::jsonb,
-  user_id UUID REFERENCES users(id) ON DELETE SET NULL,
-  course_id UUID REFERENCES courses(id) ON DELETE SET NULL,
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  course_id UUID REFERENCES courses(id) ON DELETE CASCADE,
   resource_id UUID, -- References Assignment or Quiz ID
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -329,7 +329,7 @@ CREATE TABLE IF NOT EXISTS support_tickets (
   status VARCHAR(50) DEFAULT 'open' CHECK (status IN ('open', 'in_progress', 'resolved', 'closed')),
   priority VARCHAR(20) DEFAULT 'medium' CHECK (priority IN ('low', 'medium', 'high', 'urgent')),
   category VARCHAR(50),
-  assigned_to UUID REFERENCES users(id) ON DELETE SET NULL,
+  assigned_to UUID REFERENCES users(id) ON DELETE CASCADE,
   resolved_at TIMESTAMP WITH TIME ZONE,
   metadata JSONB DEFAULT '{}'::jsonb,
   version INTEGER DEFAULT 1,
