@@ -1,6 +1,5 @@
 import { systemDb } from '../database/system.db';
 import { learningDb } from '../database/learning.db';
-import { supabase, withSession } from '../supabase';
 import { SystemLog, Maintenance, PlannerItem, User, Setting, Enrollment, Discussion, Notification, LiveClass, Broadcast, Attendance, SupportTicket, AntiCheatLog } from '../types';
 import { UserDomain } from '../domain/user.domain';
 import { EnrollmentDomain } from '../domain/enrollment.domain';
@@ -16,8 +15,8 @@ export class SystemService {
   async createLogAsync(log: SystemLog): Promise<void> {
     const { taskQueue } = await import('../queue/task-queue');
     taskQueue.enqueue(async () => {
-        // Use systemService instance to ensure proper this context
-        await systemService.createLog(log);
+        const { serviceRegistry } = await import('./service-registry');
+        await serviceRegistry.systemService.createLog(log);
     });
   }
 
@@ -65,11 +64,11 @@ export class SystemService {
             });
 
             // Notify Admins
-            const { supabase } = await import('../supabase');
-            const { data: admins } = await supabase.from('users').select('id').eq('role', 'admin');
+            const admins = await systemDb.findAllUserIdsByRole('admin');
             if (admins && admins.length > 0) {
-                await this.notifyUsers({
-                    target_ids: admins.map(a => a.id),
+                const { serviceRegistry } = await import('./service-registry');
+                await serviceRegistry.systemService.notifyUsers({
+                    target_ids: admins,
                     n_title: 'Security Alert: User Flagged',
                     n_msg: `Student ${user.full_name} has been flagged for ${recentLogs.length} anti-cheat violations in course.`,
                     n_type: 'security',
@@ -284,9 +283,10 @@ export class SystemService {
     if (saved.parent_id) {
         const { taskQueue } = await import('../queue/task-queue');
         taskQueue.enqueue(async () => {
-            const { data: parent } = await supabase.from('discussions').select('user_id, title').eq('id', saved.parent_id).single();
+            const parent = await systemDb.findDiscussionById(saved.parent_id!, sessionId);
             if (parent && parent.user_id !== currentUser.id) {
-                await this.notifyUser({
+                const { serviceRegistry } = await import('./service-registry');
+                await serviceRegistry.systemService.notifyUser({
                     target_id: parent.user_id,
                     n_title: 'New Reply on Discussion',
                     n_msg: `${currentUser.full_name} replied to your post "${parent.title || 'Untitled'}"`,
@@ -369,41 +369,37 @@ export class SystemService {
     // Use task queue for bulk processing to avoid blocking main thread
     const { taskQueue } = await import('../queue/task-queue');
     taskQueue.enqueue(async () => {
-        const { supabase } = await import('../supabase');
         const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
 
-        // 1. Check for duplicates in bulk
-        const { data: recentNotifications } = await supabase.from('notifications')
-            .select('user_id')
-            .in('user_id', params.target_ids)
-            .eq('title', params.n_title)
-            .eq('message', params.n_msg)
-            .gt('created_at', fiveMinutesAgo);
-
-        const duplicateUserIds = new Set((recentNotifications || []).map(n => n.user_id));
+        // 1. Check for duplicates in bulk to prevent notification spam
+        const duplicateUserIdsList = await systemDb.findRecentNotifications(params.target_ids, params.n_title, params.n_msg, fiveMinutesAgo);
+        const duplicateUserIds = new Set(duplicateUserIdsList);
         const uniqueTargetIds = params.target_ids.filter(id => !duplicateUserIds.has(id));
 
         if (uniqueTargetIds.length === 0) return;
 
-        // 2. Batch insert notifications
-        const notificationsToInsert = uniqueTargetIds.map(userId => ({
-            user_id: userId,
-            title: params.n_title,
-            message: params.n_msg,
-            link: params.n_link,
-            type: params.n_type || 'system',
-            expires_at: params.expires_at,
-            metadata: params.metadata || {}
-        }));
+        // 2. Batch insert notifications in chunks to avoid large payload limits
+        const chunkSize = 500;
+        const insertedNotifications: any[] = [];
 
-        const { data: insertedNotifications, error: insertError } = await supabase.from('notifications').insert(notificationsToInsert).select();
-        if (insertError) {
-            console.error('[Bulk Notification] Insert failed:', insertError);
-            return;
+        for (let i = 0; i < uniqueTargetIds.length; i += chunkSize) {
+            const chunk = uniqueTargetIds.slice(i, i + chunkSize);
+            const notificationsToInsert = chunk.map(userId => ({
+                user_id: userId,
+                title: params.n_title,
+                message: params.n_msg,
+                link: params.n_link,
+                type: params.n_type || 'system',
+                expires_at: params.expires_at,
+                metadata: params.metadata || {}
+            }));
+
+            const data = await systemDb.createNotifications(notificationsToInsert, sessionId);
+            if (data) insertedNotifications.push(...data);
         }
 
         // 3. Batch send push notifications
-        const { pushService } = await import('./push.service');
+        const { serviceRegistry } = await import('./service-registry');
         const subscriptions = await systemDb.findPushSubscriptionsByUserIds(uniqueTargetIds, sessionId);
 
         if (subscriptions.length > 0) {
@@ -414,7 +410,7 @@ export class SystemService {
 
             const pushTasks = subscriptions.map(async (sub) => {
                 const notificationId = notificationMap.get(sub.user_id);
-                const res = await pushService.sendToMany([sub], {
+                const res = await serviceRegistry.pushService.sendToMany([sub], {
                     title: params.n_title,
                     body: params.n_msg,
                     tag: notificationId || params.n_title,
@@ -614,11 +610,11 @@ export class SystemService {
     // Trigger Notifications (Migrated from tr_notify_admin_new_ticket and tr_notify_user_ticket_resolved)
     if (!existing) {
         // New ticket - notify admins
-        const { supabase } = await import('../supabase');
-        const { data: admins } = await supabase.from('users').select('id').eq('role', 'admin');
+        const admins = await systemDb.findAllUserIdsByRole('admin');
         if (admins && admins.length > 0) {
-            await this.notifyUsers({
-                target_ids: admins.map(a => a.id),
+            const { serviceRegistry } = await import('./service-registry');
+            await serviceRegistry.systemService.notifyUsers({
+                target_ids: admins,
                 n_title: `New Support Ticket: ${saved.subject}`,
                 n_msg: 'A new support ticket has been submitted by a user.',
                 n_link: `grading:${saved.id}`, // placeholder deep link
@@ -627,7 +623,8 @@ export class SystemService {
         }
     } else if (existing.status !== 'resolved' && saved.status === 'resolved') {
         // Resolved - notify owner
-        await this.notifyUser({
+        const { serviceRegistry } = await import('./service-registry');
+        await serviceRegistry.systemService.notifyUser({
             target_id: saved.user_id,
             n_title: `Support Ticket Resolved: ${saved.subject}`,
             n_msg: 'Your support ticket has been marked as resolved. Check the help center for details.',
@@ -671,18 +668,11 @@ export class SystemService {
     // Asynchronous Fan-out using Task Queue to prevent request timeouts
     const { taskQueue } = await import('../queue/task-queue');
     taskQueue.enqueue(async () => {
-        const { supabase } = await import('../supabase');
-
         let targetUserIds: string[] = [];
 
         if (!createdBroadcast.course_id) {
             // Global broadcast
-            let query = supabase.from('users').select('id');
-            if (createdBroadcast.target_role) {
-                query = query.eq('role', createdBroadcast.target_role);
-            }
-            const { data } = await query;
-            targetUserIds = (data || []).map(u => u.id);
+            targetUserIds = await systemDb.findAllUserIdsByRole(createdBroadcast.target_role || undefined);
         } else {
             // Course-specific broadcast
             const courseId = createdBroadcast.course_id;
@@ -690,26 +680,20 @@ export class SystemService {
 
             // 1. Get enrolled students
             if (!targetRole || targetRole === 'student') {
-                const { data: students } = await supabase.from('enrollments')
-                    .select('student_id')
-                    .eq('course_id', courseId);
-                if (students) targetUserIds.push(...students.map(s => s.student_id));
+                const students = await systemDb.findEnrollmentStudentIds(courseId);
+                targetUserIds.push(...students);
             }
 
             // 2. Get course teacher
             if (!targetRole || targetRole === 'teacher') {
-                const { data: course } = await supabase.from('courses')
-                    .select('teacher_id')
-                    .eq('id', courseId)
-                    .single();
+                const { learningService } = await import('./learning.service');
+                const course = await learningService.getCourse(courseId, sessionId);
                 if (course?.teacher_id) targetUserIds.push(course.teacher_id);
             }
 
             // 3. Always include admins
-            const { data: admins } = await supabase.from('users')
-                .select('id')
-                .eq('role', 'admin');
-            if (admins) targetUserIds.push(...admins.map(a => a.id));
+            const admins = await systemDb.findAllUserIdsByRole('admin');
+            targetUserIds.push(...admins);
 
             // Deduplicate
             targetUserIds = [...new Set(targetUserIds)];
@@ -719,27 +703,31 @@ export class SystemService {
             // Use broadcast ID as tag for broadcast notifications
             const pushTag = `broadcast:${createdBroadcast.id}`;
 
-            const notificationsToInsert = targetUserIds.map(userId => ({
-                user_id: userId,
-                broadcast_id: createdBroadcast.id,
-                title: createdBroadcast.title,
-                message: createdBroadcast.message,
-                link: createdBroadcast.link,
-                type: createdBroadcast.type,
-                expires_at: createdBroadcast.expires_at,
-                metadata: { broadcast_id: createdBroadcast.id, expires_at: createdBroadcast.expires_at }
-            }));
-
-            // Batch insert in chunks of 1000
+            // Batch insert in chunks of 500
+            const chunkSize = 500;
             const insertedIds: { user_id: string, id: string }[] = [];
-            for (let i = 0; i < notificationsToInsert.length; i += 1000) {
-                const chunk = notificationsToInsert.slice(i, i + 1000);
-                const { data } = await supabase.from('notifications').insert(chunk).select('user_id, id');
-                if (data) insertedIds.push(...data);
+
+            for (let i = 0; i < targetUserIds.length; i += chunkSize) {
+                const chunkIds = targetUserIds.slice(i, i + chunkSize);
+                const notificationsToInsert = chunkIds.map(userId => ({
+                    user_id: userId,
+                    broadcast_id: createdBroadcast.id,
+                    title: createdBroadcast.title,
+                    message: createdBroadcast.message,
+                    link: createdBroadcast.link || undefined,
+                    type: createdBroadcast.type,
+                    expires_at: createdBroadcast.expires_at || undefined,
+                    metadata: { broadcast_id: createdBroadcast.id, expires_at: createdBroadcast.expires_at || '' }
+                }));
+
+                const data = await systemDb.createNotifications(notificationsToInsert, sessionId);
+                if (data) {
+                  insertedIds.push(...data.map(n => ({ user_id: n.user_id, id: n.id })));
+                }
             }
 
             // Trigger Push Notifications for all targets in batch
-            const { pushService } = await import('./push.service');
+            const { serviceRegistry } = await import('./service-registry');
             const subscriptions = await systemDb.findPushSubscriptionsByUserIds(targetUserIds, sessionId);
 
             if (subscriptions.length > 0) {
@@ -747,7 +735,7 @@ export class SystemService {
 
                 const pushTasks = subscriptions.map(async (sub) => {
                     const notificationId = notificationMap.get(sub.user_id);
-                    const results = await pushService.sendToMany([sub], {
+                    const results = await serviceRegistry.pushService.sendToMany([sub], {
                         title: createdBroadcast.title,
                         body: createdBroadcast.message,
                         tag: notificationId || pushTag,
@@ -820,19 +808,9 @@ export class SystemService {
     const filePath = `${category}/${userId}/${Date.now()}_${fileName}`;
     const buffer = await file.arrayBuffer();
 
-    const storage = supabase.storage.from('lms-files');
-    const storageWithSession = sessionId ? withSession(storage, sessionId) : storage;
+    await systemDb.uploadFile(filePath, buffer, file.type, sessionId);
 
-    const { error: uploadError } = await storageWithSession.upload(filePath, buffer, {
-        contentType: file.type,
-        upsert: true
-    });
-
-    if (uploadError) throw uploadError;
-
-    const { data: { publicUrl } } = supabase.storage
-      .from('lms-files')
-      .getPublicUrl(filePath);
+    const publicUrl = systemDb.getPublicUrl(filePath);
 
     await this.createLogAsync({
         level: 'info',

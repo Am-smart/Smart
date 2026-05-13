@@ -18,7 +18,7 @@ export class PushService {
   /**
    * Resolves internal link format to full application paths.
    */
-  static resolveLink(link?: string): string {
+  resolveLink(link?: string): string {
     if (!link) return '/';
     if (link.startsWith('http')) return link;
 
@@ -36,7 +36,7 @@ export class PushService {
   /**
    * Sends a push notification to a specific subscription.
    */
-  static async sendNotification(subscription: PushSubscription, payload: { title: string, body: string, icon?: string, tag?: string, data?: any }) {
+  async sendNotification(subscription: PushSubscription, payload: { title: string, body: string, icon?: string, tag?: string, data?: Record<string, unknown> }) {
     if (!VAPID_PUBLIC_KEY || !VAPID_PRIVATE_KEY) {
       console.warn('PushService: VAPID keys not configured, skipping push notification.');
       return;
@@ -58,28 +58,29 @@ export class PushService {
         tag: payload.tag,
         data: {
           ...payload.data,
-          url: this.resolveLink(payload.data?.url || payload.data?.link)
+          url: this.resolveLink((payload.data?.url as string) || (payload.data?.link as string))
         }
       };
 
       await webpush.sendNotification(pushSubscription, JSON.stringify(pushPayload));
       return { success: true };
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('PushService: Failed to send notification', error);
+      const err = error as { statusCode?: number; message?: string };
 
       // If the subscription is no longer valid, we should return an error so the caller can clean it up
-      if (error.statusCode === 404 || error.statusCode === 410) {
-        return { success: false, expired: true, error: error.message };
+      if (err.statusCode === 404 || err.statusCode === 410) {
+        return { success: false, expired: true, error: err.message };
       }
 
-      return { success: false, error: error.message };
+      return { success: false, error: err.message };
     }
   }
 
   /**
    * Sends notifications to multiple subscriptions.
    */
-  static async sendToMany(subscriptions: PushSubscription[], payload: { title: string, body: string, icon?: string, tag?: string, data?: any }) {
+  async sendToMany(subscriptions: PushSubscription[], payload: { title: string, body: string, icon?: string, tag?: string, data?: Record<string, unknown> }) {
     const results = await Promise.all(
       subscriptions.map(sub => this.sendNotification(sub, payload))
     );
@@ -87,4 +88,4 @@ export class PushService {
   }
 }
 
-export const pushService = PushService;
+export const pushService = new PushService();

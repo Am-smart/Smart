@@ -1,3 +1,5 @@
+import { DatabaseError, DatabaseResponse } from '../types';
+
 export const dbUtils = {
   /**
    * Prepares upsert data with version increment and updated_at
@@ -39,31 +41,36 @@ export const dbUtils = {
   },
 
   /**
-   * Handles common PostgREST error for optimistic concurrency failure (PGRST116)
+   * Handles common database errors and converts them to standardized error messages.
    */
-  handleUpsertError(error: { code: string; message: string }, entityName: string, id?: string, version?: number): never {
-    if (id && version !== undefined && error.code === 'PGRST116') {
+  handleUpsertError(error: DatabaseError | null, entityName: string, id?: string, version?: number): never {
+    if (!error) throw new Error('Unknown database error');
+
+    // PGRST116 is Supabase/PostgREST code for "JSON object requested, but no rows returned"
+    // often caused by our .eq('version', oldVersion) check failing.
+    if (id && version !== undefined && (error.code === 'PGRST116' || error.message?.includes('concurrency'))) {
       throw new Error(`Conflict detected: ${entityName} has been updated by another user.`);
     } else {
-      throw new Error(error.message);
+      throw new Error(error.message || 'Database operation failed');
     }
   },
 
   /**
    * Generic upsert handler with version checking and standardized error handling.
    */
-  async upsert<
-    T extends { id?: string; version?: number },
-    QB extends { upsert: (data: Record<string, unknown>, options?: { onConflict?: string }) => FB },
-    FB extends { select: () => TB; eq: (column: string, value: string | number) => FB },
-    TB extends { single: () => PromiseLike<{ data: unknown; error: { code: string; message: string } | null }> }
-  >(
-    table: QB,
+  async upsert<T extends { id?: string; version?: number }>(
+    table: {
+      upsert: (data: Record<string, unknown>, options?: { onConflict?: string }) => {
+        select: () => {
+          single: () => PromiseLike<DatabaseResponse<T>>;
+        };
+      };
+    },
     entity: Partial<T>,
     entityName: string,
     sessionId: string,
     options: { onConflict?: string; excludeFields?: string[] } = {}
-  ): Promise<T> {
+  ): Promise<any> {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { withSession } = require('../supabase');
     const upsertData = this.prepareUpsert(entity as unknown as { version?: number; id?: string }, options.excludeFields);
@@ -73,19 +80,18 @@ export const dbUtils = {
       upsertOptions.onConflict = options.onConflict;
     }
 
-    let query = withSession(table, sessionId).upsert(upsertData, upsertOptions) as unknown as FB;
+    let query = withSession(table, sessionId).upsert(upsertData, upsertOptions);
 
     const entityWithVersion = entity as { id?: string; version?: number };
     query = this.applyVersionCheck(query, entityWithVersion.id, entityWithVersion.version);
 
-    const result = await query.select().single();
-    const { data, error } = result as { data: unknown; error: { code: string; message: string } | null };
+    const { data, error } = await query.select().single();
 
     if (error) {
       this.handleUpsertError(error, entityName, entityWithVersion.id, entityWithVersion.version);
     }
 
-    return data as T;
+    return data as unknown as T;
   },
 
   /**

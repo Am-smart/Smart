@@ -211,6 +211,38 @@ export const systemDb = {
     return data as Notification;
   },
 
+  async createNotifications(notifications: Partial<Notification>[], sessionId?: string): Promise<Notification[]> {
+    let query = supabase.from('notifications').insert(notifications).select();
+    if (sessionId) query = withSession(query, sessionId);
+    const { data, error } = await query;
+    if (error) dbUtils.handleError(error);
+    return data as Notification[];
+  },
+
+  async findRecentNotifications(userIds: string[], title: string, message: string, since: string): Promise<string[]> {
+    const { data } = await supabase.from('notifications')
+        .select('user_id')
+        .in('user_id', userIds)
+        .eq('title', title)
+        .eq('message', message)
+        .gt('created_at', since);
+    return (data || []).map(n => n.user_id);
+  },
+
+  async findAllUserIdsByRole(role?: string): Promise<string[]> {
+    let query = supabase.from('users').select('id');
+    if (role) query = query.eq('role', role);
+    const { data } = await query;
+    return (data || []).map(u => u.id);
+  },
+
+  async findEnrollmentStudentIds(courseId: string): Promise<string[]> {
+    const { data } = await supabase.from('enrollments')
+        .select('student_id')
+        .eq('course_id', courseId);
+    return (data || []).map(s => s.student_id);
+  },
+
   // Broadcast Operations (Table-based)
   async createBroadcast(broadcast: Partial<Broadcast>, sessionId: string): Promise<Broadcast> {
     const { data, error } = await withSession(supabase.from('broadcasts'), sessionId).insert([broadcast]).select().single();
@@ -410,6 +442,36 @@ export const systemDb = {
     const { data, error } = await withSession(supabase.from('support_tickets').select('*, users!user_id(id, full_name, email)').eq('id', id), sessionId).maybeSingle();
     if (error) dbUtils.handleError(error);
     return data as SupportTicket;
+  },
+
+  async findDiscussionById(id: string, sessionId?: string): Promise<Discussion | null> {
+    let query = supabase.from('discussions').select('user_id, title').eq('id', id).single();
+    if (sessionId) query = withSession(query, sessionId);
+    const { data, error } = await query;
+    if (error) {
+      if (error.code === 'PGRST116') return null;
+      dbUtils.handleError(error);
+    }
+    return data as Discussion;
+  },
+
+  async uploadFile(filePath: string, buffer: ArrayBuffer, contentType: string, sessionId: string): Promise<void> {
+    const storage = supabase.storage.from('lms-files');
+    const storageWithSession = sessionId ? withSession(storage, sessionId) : storage;
+
+    const { error } = await storageWithSession.upload(filePath, buffer, {
+        contentType,
+        upsert: true
+    });
+
+    if (error) throw error;
+  },
+
+  getPublicUrl(filePath: string): string {
+    const { data: { publicUrl } } = supabase.storage
+      .from('lms-files')
+      .getPublicUrl(filePath);
+    return publicUrl;
   },
 
   async upsertSupportTicket(ticket: Partial<SupportTicket>, sessionId: string): Promise<SupportTicket> {

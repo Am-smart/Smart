@@ -767,6 +767,22 @@ export interface PushSubscriptionDTO {
 }
 
 /**
+ * Database Agnostic Interfaces
+ */
+export interface DatabaseError {
+  code: string;
+  message: string;
+  details?: string;
+  hint?: string;
+}
+
+export interface DatabaseResponse<T> {
+  data: T | null;
+  error: DatabaseError | null;
+  count?: number | null;
+}
+
+/**
  * Type Guards
  */
 export function isAssignment(obj: unknown): obj is Assignment {

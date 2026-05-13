@@ -361,6 +361,9 @@ export const useIndexedDB = () => {
               if (retryCount >= 5) {
                   await logSyncError(item, 'Max retry attempts reached');
                   await removeFromQueue(item.id);
+                  window.dispatchEvent(new CustomEvent('sync-conflict', {
+                    detail: { item, error: 'Max retry attempts reached. Data might be inconsistent.' }
+                  }));
               } else {
                   await updateQueueItem(item.id, { retry_count: retryCount });
               }
