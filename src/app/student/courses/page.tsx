@@ -87,7 +87,7 @@ function CatalogContent() {
           await addToQueue('ENROLL', { course_id: course.id, student_id: user.id, enrollmentCode: code }, user.sessionId);
           addToast('Offline: Enrollment queued for synchronization.', 'info');
       }
-      router.push('/student/my-courses');
+      router.push(`/student/courses?id=${course.id}`);
     } catch (err) {
       console.error('Enrollment failed:', err);
       const msg = err instanceof Error ? err.message : 'Failed to enroll in course. Please try again.';

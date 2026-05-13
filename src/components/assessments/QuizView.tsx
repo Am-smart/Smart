@@ -20,6 +20,7 @@ export const QuizView: React.FC<QuizViewProps> = ({ quiz, user, onComplete, onCa
   const { addToast } = useAppContext();
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [questions, setQuestions] = useState(quiz.questions || []);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [timeLeft, setTimeLeft] = useState<number | null>(quiz.time_limit ? quiz.time_limit * 60 : null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [result, setResult] = useState<{ score: number; passed: boolean; reason: 'manual' | 'timeout' | 'violation' } | null>(null);
@@ -212,53 +213,85 @@ export const QuizView: React.FC<QuizViewProps> = ({ quiz, user, onComplete, onCa
             </div>
         )}
 
-        <div className="space-y-10 md:space-y-12">
-          {questions.map((q, index: number) => (
-            <div key={q.id} className="quiz-question">
-              <h3 className="text-lg font-bold mb-4 flex items-start gap-2">
-                <span className="text-blue-600 shrink-0">{index + 1}.</span>
-                {q.text}
+        <div className="mb-8">
+            <div className="flex justify-between items-center mb-2">
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Progress</span>
+                <span className="text-xs font-bold text-blue-600">{Math.round((Object.keys(answers).length / (questions.length || 1)) * 100)}%</span>
+            </div>
+            <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
+                <div
+                    className="bg-blue-600 h-full transition-all duration-500"
+                    style={{ width: `${(Object.keys(answers).length / (questions.length || 1)) * 100}%` }}
+                ></div>
+            </div>
+        </div>
+
+        <div className="min-h-[40vh]">
+          {questions.length > 0 && (
+            <div key={questions[currentQuestionIndex].id} className="quiz-question animate-in fade-in slide-in-from-right-4 duration-300">
+              <h3 className="text-lg md:text-xl font-bold mb-6 flex items-start gap-3">
+                <span className="text-blue-600 shrink-0">{currentQuestionIndex + 1}.</span>
+                {questions[currentQuestionIndex].text}
               </h3>
               <div className="grid grid-cols-1 gap-3">
-                {q.type === 'short' ? (
+                {questions[currentQuestionIndex].type === 'short' ? (
                   <input
                     type="text"
-                    value={answers[q.id] || ''}
-                    onChange={(e) => handleAnswerChange(q.id, e.target.value)}
+                    value={answers[questions[currentQuestionIndex].id] || ''}
+                    onChange={(e) => handleAnswerChange(questions[currentQuestionIndex].id, e.target.value)}
                     placeholder="Type your answer here..."
-                    className="w-full p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all text-sm"
+                    className="w-full p-4 md:p-5 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all text-sm md:text-base"
+                    autoFocus
                   />
                 ) : (
-                  (q.options || []).map((opt: string) => (
-                    <label key={opt} className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all ${answers[q.id] === opt ? 'border-blue-600 bg-blue-50' : 'border-slate-100 hover:border-slate-200'}`}>
+                  (questions[currentQuestionIndex].options || []).map((opt: string) => (
+                    <label key={opt} className={`flex items-center gap-4 p-4 md:p-5 rounded-2xl border-2 cursor-pointer transition-all ${answers[questions[currentQuestionIndex].id] === opt ? 'border-blue-600 bg-blue-50 shadow-sm' : 'border-slate-100 hover:border-slate-200'}`}>
                       <input
                         type="radio"
-                        name={q.id}
+                        name={questions[currentQuestionIndex].id}
                         value={opt}
-                        checked={answers[q.id] === opt}
-                        onChange={(e) => handleAnswerChange(q.id, e.target.value)}
+                        checked={answers[questions[currentQuestionIndex].id] === opt}
+                        onChange={(e) => handleAnswerChange(questions[currentQuestionIndex].id, e.target.value)}
                         className="w-5 h-5 text-blue-600"
                       />
-                      <span className="font-medium text-slate-700 text-sm">{opt}</span>
+                      <span className="font-medium text-slate-700 text-sm md:text-base">{opt}</span>
                     </label>
                   ))
                 )}
               </div>
             </div>
-          ))}
+          )}
         </div>
 
-        <div className="mt-12 pt-8 border-t flex flex-col md:flex-row justify-between items-center gap-6">
-            <p className="text-slate-500 text-sm font-medium">
-                {Object.keys(answers).length} of {questions.length} answered
+        <div className="mt-12 pt-8 border-t flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div className="flex gap-3 w-full sm:w-auto">
+                <button
+                    disabled={currentQuestionIndex === 0}
+                    onClick={() => setCurrentQuestionIndex(prev => prev - 1)}
+                    className="btn-secondary flex-1 sm:flex-none px-6 py-3 disabled:opacity-30"
+                >
+                    Previous
+                </button>
+                {currentQuestionIndex < questions.length - 1 ? (
+                    <button
+                        onClick={() => setCurrentQuestionIndex(prev => prev + 1)}
+                        className="btn-primary flex-1 sm:flex-none px-8 py-3"
+                    >
+                        Next Question
+                    </button>
+                ) : (
+                    <button
+                        onClick={() => handleSubmit('manual')}
+                        disabled={isSubmitting || !!result}
+                        className="btn-primary flex-1 sm:flex-none px-8 py-3 bg-green-600 hover:bg-green-700 border-green-600"
+                    >
+                        {isSubmitting ? 'Submitting...' : 'Submit Quiz'}
+                    </button>
+                )}
+            </div>
+            <p className="text-slate-500 text-xs font-bold uppercase tracking-widest order-first sm:order-last">
+                Question {currentQuestionIndex + 1} of {questions.length}
             </p>
-            <button
-                onClick={() => handleSubmit('manual')}
-                disabled={isSubmitting || !!result}
-                className="btn-primary w-full md:w-auto px-10 py-4 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-                {isSubmitting ? 'Submitting...' : 'Complete & Submit Quiz'}
-            </button>
         </div>
       </div>
     </div>
