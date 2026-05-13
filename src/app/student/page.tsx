@@ -61,7 +61,7 @@ export default function StudentDashboard() {
                                   </div>
                               </div>
                               <button
-                                onClick={() => router.push(`/student/my-courses?id=${e.course_id}`)}
+                                onClick={() => router.push(`/student/courses?id=${e.course_id}`)}
                                 className="text-blue-600 font-bold text-xs uppercase"
                               >
                                 Open

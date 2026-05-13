@@ -24,7 +24,7 @@ export class PushService {
 
     const [type, id] = link.split(':');
     switch (type) {
-      case 'course': return `/student/my-courses?id=${id}`;
+      case 'course': return `/student/courses?id=${id}`;
       case 'assignment': return `/student/assignments?id=${id}`;
       case 'quiz': return `/student/quizzes?id=${id}`;
       case 'live': return `/student/live-class?id=${id}`;

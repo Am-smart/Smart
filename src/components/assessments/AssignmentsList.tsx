@@ -14,7 +14,9 @@ export const AssignmentsList: React.FC<AssignmentsListProps> = ({ assignments, s
   return (
     <div>
       <h2 className="text-2xl font-bold mb-8">Assignments</h2>
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+
+      {/* Desktop Table */}
+      <div className="hidden md:block bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
         <table className="w-full text-left">
           <thead>
             <tr className="bg-slate-50 text-slate-500 text-xs font-bold uppercase tracking-wider border-b border-slate-100">
@@ -87,8 +89,12 @@ export const AssignmentsList: React.FC<AssignmentsListProps> = ({ assignments, s
                           )}
                         </>
                       ) : (
-                        <button onClick={() => onSubmit(assignment)} className={`btn-primary text-[10px] py-1.5 px-4 ${isOverdue ? 'bg-red-500 hover:bg-red-600' : ''}`}>
-                          {submission ? 'Edit Submission' : isOverdue ? 'Submit Late' : 'Submit'}
+                        <button
+                            onClick={() => onSubmit(assignment)}
+                            disabled={isOverdue && !assignment.allow_late_submissions && !submission}
+                            className={`btn-primary text-[10px] py-1.5 px-4 ${isOverdue ? 'bg-red-500 hover:bg-red-600' : ''} disabled:opacity-50 disabled:bg-slate-300 disabled:cursor-not-allowed`}
+                        >
+                          {submission ? 'Edit Submission' : isOverdue ? (assignment.allow_late_submissions ? 'Submit Late' : 'Closed') : 'Submit'}
                         </button>
                       )}
                     </td>
@@ -98,6 +104,80 @@ export const AssignmentsList: React.FC<AssignmentsListProps> = ({ assignments, s
             )}
           </tbody>
         </table>
+      </div>
+
+      {/* Mobile Cards */}
+      <div className="md:hidden space-y-4">
+        {assignments.length === 0 ? (
+          <div className="bg-white p-8 rounded-2xl border border-dashed border-slate-200 text-center text-slate-500">
+            No assignments found.
+          </div>
+        ) : (
+          assignments.map(assignment => {
+            const submission = submissions.find(s => s.assignment_id === assignment.id);
+            const isOverdue = new Date(assignment.due_date) < new Date() && !submission;
+
+            return (
+              <div key={assignment.id} className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 space-y-4">
+                <div className="flex justify-between items-start">
+                  <div className="flex-1 min-w-0 pr-2">
+                    <div className="font-bold text-slate-900 line-clamp-1">{assignment.title}</div>
+                    <div className="text-[10px] text-blue-600 font-bold uppercase tracking-wider mt-1">{assignment.course?.title || 'Unknown Course'}</div>
+                  </div>
+                  {submission ? (
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase shrink-0 ${submission.status === 'graded' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                      {submission.status}
+                    </span>
+                  ) : (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-slate-100 text-slate-500 shrink-0">Pending</span>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-4 pt-2 border-t border-slate-50">
+                  <div>
+                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Due Date</div>
+                    <div className={`text-xs font-medium ${isOverdue ? 'text-red-500 font-bold' : 'text-slate-700'}`}>
+                      {new Date(assignment.due_date).toLocaleDateString()}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Grade</div>
+                    <div className="text-xs font-bold text-slate-900">
+                      {submission?.final_grade !== undefined ? `${submission.final_grade}%` : 'Not Graded'}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex gap-2 pt-2">
+                  {submission?.status === 'graded' ? (
+                    <>
+                      <button onClick={() => onViewFeedback(assignment)} className="btn-secondary flex-1 py-2.5 text-xs font-bold uppercase">Feedback</button>
+                      {assignment.regrade_requests_enabled !== false && !submission.regrade_request && (
+                        <button
+                          onClick={() => {
+                            const reason = prompt('Reason for regrade request:');
+                            if (reason) onRegradeRequest(assignment, reason);
+                          }}
+                          className="btn-outline flex-1 py-2.5 text-[10px] font-bold uppercase text-amber-600 border-amber-200"
+                        >
+                          Regrade
+                        </button>
+                      )}
+                    </>
+                  ) : (
+                    <button
+                        onClick={() => onSubmit(assignment)}
+                        disabled={isOverdue && !assignment.allow_late_submissions && !submission}
+                        className={`btn-primary w-full py-3 text-xs font-bold uppercase tracking-widest ${isOverdue ? 'bg-red-500 hover:bg-red-600' : ''} disabled:opacity-50 disabled:bg-slate-300 disabled:cursor-not-allowed`}
+                    >
+                      {submission ? 'Edit Submission' : isOverdue ? (assignment.allow_late_submissions ? 'Submit Late' : 'Closed') : 'Submit Assignment'}
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })
+        )}
       </div>
     </div>
   );
