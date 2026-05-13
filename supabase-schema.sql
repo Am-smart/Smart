@@ -1023,3 +1023,26 @@ DROP POLICY IF EXISTS "Push Subscriptions Manage" ON push_subscriptions;
 CREATE POLICY "Push Subscriptions Manage" ON push_subscriptions FOR ALL TO anon
 USING (user_id = current_app_user())
 WITH CHECK (user_id = current_app_user());
+
+-- ==========================================
+-- 10. Invites Table
+-- ==========================================
+CREATE TABLE IF NOT EXISTS invites (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  token_hash VARCHAR(255) UNIQUE NOT NULL,
+  email VARCHAR(255),
+  role VARCHAR(50) NOT NULL CHECK (role IN ('student', 'teacher', 'admin')),
+  type VARCHAR(50) NOT NULL CHECK (type IN ('email_bound', 'role_only')),
+  created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+  used_at TIMESTAMP WITH TIME ZONE
+);
+
+CREATE INDEX IF NOT EXISTS idx_invites_token_hash ON invites(token_hash);
+
+ALTER TABLE invites ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Invites Manage" ON invites;
+CREATE POLICY "Invites Manage" ON invites FOR ALL TO anon
+USING (is_admin(current_app_user()));

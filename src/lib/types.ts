@@ -766,6 +766,28 @@ export interface PushSubscriptionDTO {
   created_at: string;
 }
 
+export interface Invite {
+  id: string;
+  token_hash: string;
+  email?: string;
+  role: UserRole;
+  type: 'email_bound' | 'role_only';
+  created_by?: string;
+  created_at: string;
+  expires_at: string;
+  used_at?: string;
+}
+
+export interface InviteDTO {
+  id: string;
+  email?: string;
+  role: UserRole;
+  type: 'email_bound' | 'role_only';
+  created_at: string;
+  expires_at: string;
+  used_at?: string;
+}
+
 /**
  * Database Agnostic Interfaces
  */

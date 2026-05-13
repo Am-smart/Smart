@@ -8,20 +8,35 @@ import { LandingFooter } from "@/components/layout/LandingFooter";
 import { LoginForm } from '@/components/auth/LoginForm';
 import { SignupForm } from '@/components/auth/SignupForm';
 import { ResetPasswordForm } from '@/components/auth/ResetPasswordForm';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { LandingHeader } from "@/components/layout/LandingHeader";
+import { Suspense } from 'react';
 
-export default function Home() {
+function HomeContent() {
   const [showAuth, setShowAuth] = useState(false);
   const [authView, setAuthView] = useState<'login' | 'signup' | 'reset'>('login');
   const [selectedRole, setSelectedRole] = useState<'student' | 'teacher' | 'admin'>('student');
   const { user, role, isLoading } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    if (searchParams.get('signup') === 'true') {
+        setAuthView('signup');
+        setShowAuth(true);
+        // Clear param without refresh
+        const newUrl = window.location.pathname;
+        window.history.replaceState({}, '', newUrl);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     // Only redirect after auth has finished loading and user is authenticated
     if (!isLoading && user && role) {
       // Use router.push instead of router.replace for better handling
+      if (window.location.search.includes('signup=true')) {
+          return;
+      }
       router.push(`/${role}`);
     }
   }, [user, role, isLoading, router]);
@@ -70,4 +85,12 @@ export default function Home() {
       )}
     </div>
   );
+}
+
+export default function Home() {
+    return (
+        <Suspense fallback={<div className="min-h-screen bg-slate-50 animate-pulse" />}>
+            <HomeContent />
+        </Suspense>
+    );
 }
