@@ -9,6 +9,7 @@ interface CountdownProps {
   className?: string;
   showIcon?: boolean;
   compact?: boolean;
+  endLabel?: string | null;
 }
 
 export const Countdown: React.FC<CountdownProps> = ({
@@ -16,7 +17,8 @@ export const Countdown: React.FC<CountdownProps> = ({
   onEnd,
   className = "",
   showIcon = true,
-  compact = false
+  compact = false,
+  endLabel = "Ended"
 }) => {
   const [timeLeft, setTimeLeft] = useState<{
     days: number;
@@ -70,10 +72,11 @@ export const Countdown: React.FC<CountdownProps> = ({
   const isPast = timeLeft.total <= 0;
 
   if (isPast) {
+      if (endLabel === null) return null;
       return (
           <span className={`inline-flex items-center gap-1 text-slate-400 font-bold uppercase text-[10px] ${className}`}>
               {showIcon && <Clock size={12} />}
-              Ended
+              {endLabel}
           </span>
       );
   }
