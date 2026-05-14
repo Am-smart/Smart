@@ -24,7 +24,11 @@ class ServiceRegistry {
   public get<T>(name: string): T {
     const service = this.services.get(name);
     if (!service) {
-      throw new Error(`Service ${name} not found in registry`);
+      // Lazy-initialization attempt if not found
+      if (typeof window === 'undefined') {
+        console.warn(`Service ${name} not found in registry. Ensure it is registered in @/lib/services/index.ts`);
+      }
+      throw new Error(`Service ${name} not found in registry. Requested at: ${new Date().toISOString()}`);
     }
     return service as T;
   }

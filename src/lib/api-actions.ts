@@ -651,7 +651,7 @@ export async function generateInvite(role: UserRole, email?: string): Promise<Ac
     }
 }
 
-export async function getInviteSession(): Promise<any> {
+export async function getInviteSession(): Promise<Record<string, unknown> | null> {
     return apiClient.get('/api/v1/auth?action=invite-session');
 }
 

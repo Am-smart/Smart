@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { AlertTriangle, Shield, CheckCircle, X, Clock } from 'lucide-react';
-import { QuizDTO } from '@/lib/types';
-import { UserDTO } from '@/lib/types';
+import { QuizDTO, UserDTO, QuizQuestion } from '@/lib/types';
 import * as actions from '@/lib/api-actions';
 import { calculateQuizScore } from '@/lib/scoring-util';
 import { useAntiCheat } from '@/hooks/useAntiCheat';
@@ -85,9 +84,8 @@ export const QuizView: React.FC<QuizViewProps> = ({ quiz, user, onComplete, onCa
             }
         } else {
             // Offline estimation using unified logic
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const questions = (quiz.questions as any) || [];
-            const result = calculateQuizScore(questions, answers);
+            const quizQuestions = (quiz.questions as unknown as QuizQuestion[]) || [];
+            const result = calculateQuizScore(quizQuestions, answers);
             score = result.score;
 
             await addToQueue('QUIZ_SUBMISSION', {

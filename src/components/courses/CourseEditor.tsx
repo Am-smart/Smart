@@ -56,7 +56,7 @@ export const CourseEditor: React.FC<CourseEditorProps> = ({ course, teacherId, o
             const response = await fetch('/api/v1/system/upload', {
                 method: 'POST',
                 headers: {
-                    'x-session-id': (user as any)?.sessionId || '',
+                    'x-session-id': user?.sessionId || '',
                     'X-Requested-With': 'XMLHttpRequest',
                 },
                 body: uploadFormData

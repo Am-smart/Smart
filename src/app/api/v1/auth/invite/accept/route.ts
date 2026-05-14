@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { authService } from '@/lib/services/auth.service';
+import { authService } from '@/lib/services';
 import { cookies } from 'next/headers';
 
 export async function GET(request: Request) {

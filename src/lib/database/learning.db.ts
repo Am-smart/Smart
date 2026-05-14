@@ -27,7 +27,7 @@ export const learningDb = {
   },
 
   async upsertCourse(course: Partial<Course>, sessionId: string): Promise<Course> {
-    return dbUtils.upsert(supabase.from('courses'), course, 'Course', sessionId);
+    return dbUtils.upsert(supabase.from('courses'), course, 'Course', sessionId, { excludeFields: ['teacher', 'enrollments'] }) as unknown as Promise<Course>;
   },
 
   async deleteCourse(id: string, sessionId: string): Promise<void> {
@@ -54,7 +54,7 @@ export const learningDb = {
   },
 
   async upsertLesson(lesson: Partial<Lesson>, sessionId: string): Promise<Lesson> {
-    return dbUtils.upsert(supabase.from('lessons'), lesson, 'Lesson', sessionId);
+    return dbUtils.upsert(supabase.from('lessons'), lesson, 'Lesson', sessionId) as unknown as Promise<Lesson>;
   },
 
   async deleteLesson(id: string, sessionId: string): Promise<void> {
@@ -105,7 +105,7 @@ export const learningDb = {
   },
 
   async upsertMaterial(material: Partial<Material>, sessionId: string): Promise<Material> {
-    return dbUtils.upsert(supabase.from('materials'), material, 'Material', sessionId, { excludeFields: ['courses'] });
+    return dbUtils.upsert(supabase.from('materials'), material, 'Material', sessionId, { excludeFields: ['courses', 'course'] }) as unknown as Promise<Material>;
   },
 
   async deleteMaterial(id: string, sessionId: string): Promise<void> {

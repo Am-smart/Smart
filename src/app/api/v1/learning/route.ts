@@ -1,5 +1,5 @@
 import { withHandler } from '@/app/api/api-utils';
-import { learningService } from '@/lib/services/learning.service';
+import { learningService } from '@/lib/services';
 import { CourseMapper, LearningMapper } from '@/lib/mappers';
 import { rbac } from '@/lib/auth/rbac';
 import { CourseDomain } from '@/lib/domain/course.domain';

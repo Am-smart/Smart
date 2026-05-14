@@ -380,7 +380,7 @@ export class SystemService {
 
         // 2. Batch insert notifications in chunks to avoid large payload limits
         const chunkSize = 500;
-        const insertedNotifications: any[] = [];
+        const insertedNotifications: Notification[] = [];
 
         for (let i = 0; i < uniqueTargetIds.length; i += chunkSize) {
             const chunk = uniqueTargetIds.slice(i, i + chunkSize);

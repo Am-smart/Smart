@@ -54,7 +54,7 @@ export const AssignmentForm: React.FC<AssignmentFormProps> = ({ assignment, user
     const res = await fetch('/api/v1/system/upload', {
         method: 'POST',
         headers: {
-            'x-session-id': (user as any).sessionId || '',
+            'x-session-id': (user as any)?.sessionId || '',
             'X-Requested-With': 'XMLHttpRequest',
         },
         body: formData

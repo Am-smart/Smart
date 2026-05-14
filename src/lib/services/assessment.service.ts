@@ -334,7 +334,7 @@ export class AssessmentService {
       quiz_id: quizId,
       student_id: studentId,
       attempt_number: attemptNumber,
-      status: SUBMISSION_STATUS.IN_PROGRESS as any,
+      status: SUBMISSION_STATUS.IN_PROGRESS,
       updated_at: new Date().toISOString()
     };
 
