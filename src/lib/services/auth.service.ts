@@ -8,7 +8,7 @@ import { UserMapper } from '../mappers';
 import { rbac } from '../auth/rbac';
 import { comparePassword, hashPassword, generateToken, hashToken } from '../crypto';
 import { USER_ROLES, SIGNUP_LIMITS } from '../constants';
-import { BadRequestError, UnauthorizedError, ForbiddenError } from '../api-error';
+import { BadRequestError, UnauthorizedError, ForbiddenError, NotFoundError, ConflictError } from '../api-error';
 
 export class AuthService {
   async validateSession(token: string): Promise<User | null> {
@@ -69,7 +69,7 @@ export class AuthService {
   async authenticate(email: string, password?: string): Promise<{ success: boolean; user: User; session_id: string }> {
     const user = await systemDb.findUserByEmail(email);
     if (!user) {
-      throw new BadRequestError('Email not found');
+      throw new NotFoundError('Email not found');
     }
 
     if (!user.active) {
@@ -160,7 +160,7 @@ export class AuthService {
 
     const existingUser = await systemDb.findUserByEmail(data.email);
     if (existingUser) {
-      throw new BadRequestError('An account with this email already exists.');
+      throw new ConflictError('An account with this email already exists.');
     }
 
     const passwordValidation = validatePassword(data.password);

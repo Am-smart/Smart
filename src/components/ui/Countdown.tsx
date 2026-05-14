@@ -56,7 +56,8 @@ const CountdownComponent: React.FC<CountdownProps> = ({
       hours: Math.floor((difference / (1000 * 60 * 60)) % 24),
       minutes: Math.floor((difference / 1000 / 60) % 60),
       seconds: Math.floor((difference / 1000) % 60),
-      total: difference
+      total: difference,
+      isSoon: difference > 0 && difference < 60 * 60 * 1000
     };
   }, [targetTimestamp, currentTime]);
 
@@ -75,7 +76,7 @@ const CountdownComponent: React.FC<CountdownProps> = ({
   // Don't render until mounted to avoid hydration mismatch
   if (!mounted || !timeLeft) return null;
 
-  const isSoon = timeLeft.total > 0 && timeLeft.total < 60 * 60 * 1000; // Less than 1 hour
+  const isSoon = timeLeft.isSoon;
   const isPast = timeLeft.total <= 0;
 
   if (isPast) {
