@@ -279,7 +279,8 @@ export class AssessmentService {
         }
     }
 
-    const { assignments: _assignments, users: _users, ...rest } = gradeData as Record<string, unknown>;
+    const sanitized = AssessmentDomain.sanitizeEntity(gradeData);
+    const { assignments: _assignments, users: _users, ...rest } = sanitized as Record<string, unknown>;
     const updated = await assessmentDb.upsertSubmission({
       ...rest,
       id: submissionId,

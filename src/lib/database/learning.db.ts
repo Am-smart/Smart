@@ -27,7 +27,7 @@ export const learningDb = {
   },
 
   async upsertCourse(course: Partial<Course>, sessionId: string): Promise<Course> {
-    return dbUtils.upsert(supabase.from('courses'), course, 'Course', sessionId, { excludeFields: ['teacher', 'enrollments'] }) as unknown as Promise<Course>;
+    return dbUtils.upsert(supabase.from('courses'), course, 'Course', sessionId, { excludeFields: ['teacher', 'enrollments', 'users'] }) as unknown as Promise<Course>;
   },
 
   async deleteCourse(id: string, sessionId: string): Promise<void> {

@@ -333,16 +333,21 @@ export const PATCH = withHandler(async (user, request) => {
     const action = searchParams.get('action');
     const subAction = searchParams.get('subAction');
     const id = searchParams.get('id');
-    const body = await request.json();
+    const rawBody = await request.json();
+    const body = sanitizeObject(rawBody);
+
+    // Remove metadata fields that shouldn't reach the database
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { action: _a, subAction: _sa, ...data } = body;
 
     switch (action) {
         case 'notification': {
-            if (body.markAll) {
+            if (data.markAll) {
                 const userId = searchParams.get('userId');
                 if (!userId) throw new Error('userId required');
                 await systemService.markAllNotificationsAsRead(userId, user.sessionId!, user);
-            } else if (subAction === 'view' && body.ids && Array.isArray(body.ids)) {
-                await systemService.markNotificationsAsViewed(body.ids, user.sessionId!);
+            } else if (subAction === 'view' && data.ids && Array.isArray(data.ids)) {
+                await systemService.markNotificationsAsViewed(data.ids, user.sessionId!);
             } else {
                 if (!id) throw new Error('id required');
                 if (subAction === 'dismiss') {
@@ -360,15 +365,15 @@ export const PATCH = withHandler(async (user, request) => {
         case 'log': {
             if (!rbac.can(user, 'system:manage')) throw new UnauthorizedError();
             if (!id) throw new Error('id required');
-            await systemService.updateLog(user, id, body, user.sessionId!);
+            await systemService.updateLog(user, id, data, user.sessionId!);
             return { success: true };
         }
         case 'ticket': {
             if (!id) throw new Error('id required');
-            if (body.status || body.assigned_to) {
+            if (data.status || data.assigned_to) {
                 if (!rbac.can(user, 'ticket:manage')) throw new UnauthorizedError();
             }
-            await systemService.saveSupportTicket(user, { ...body, id }, user.sessionId!);
+            await systemService.saveSupportTicket(user, { ...data, id }, user.sessionId!);
             return { success: true };
         }
         default:

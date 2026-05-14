@@ -117,7 +117,7 @@ export const systemDb = {
   },
 
   async upsertLiveClass(liveClass: Partial<LiveClass>, sessionId: string): Promise<LiveClass> {
-    const upsertData = dbUtils.prepareUpsert(liveClass, ['courses']);
+    const upsertData = dbUtils.prepareUpsert(liveClass, ['courses', 'course']);
     const query = dbUtils.applyVersionCheck(
       withSession(supabase.from('live_classes'), sessionId).upsert(upsertData as Record<string, unknown>),
       liveClass.id,
@@ -269,7 +269,7 @@ export const systemDb = {
   },
 
   async upsertDiscussion(post: Partial<Discussion>, sessionId: string): Promise<Discussion> {
-    const upsertData = dbUtils.prepareUpsert(post, ['users']);
+    const upsertData = dbUtils.prepareUpsert(post, ['users', 'user']);
     const query = dbUtils.applyVersionCheck(
       withSession(supabase.from('discussions'), sessionId).upsert(upsertData as Record<string, unknown>),
       post.id,
@@ -475,7 +475,7 @@ export const systemDb = {
   },
 
   async upsertSupportTicket(ticket: Partial<SupportTicket>, sessionId: string): Promise<SupportTicket> {
-    const upsertData = dbUtils.prepareUpsert(ticket, ['users']);
+    const upsertData = dbUtils.prepareUpsert(ticket, ['users', 'user']);
     const query = dbUtils.applyVersionCheck(
       withSession(supabase.from('support_tickets'), sessionId).upsert(upsertData as Record<string, unknown>),
       ticket.id,
