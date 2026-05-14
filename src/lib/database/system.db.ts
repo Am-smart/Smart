@@ -64,7 +64,7 @@ export const systemDb = {
       const client = (sessionId && adminClient) ? supabase : (adminClient || supabase); // Admin update explicitly uses adminClient if available
       const { hashPassword } = await import('../crypto');
 
-      const userUpdates: any = {
+      const userUpdates: Record<string, unknown> = {
           full_name: updates.full_name,
           email: updates.email,
           phone: updates.phone,

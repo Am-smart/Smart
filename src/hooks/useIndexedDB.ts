@@ -295,61 +295,85 @@ export const useIndexedDB = () => {
         try {
           let success = false;
           switch (item.type) {
-            case 'ENROLL':
-              const { course_id, enrollmentCode } = item.payload as { course_id: string, enrollmentCode?: string };
+            case 'ENROLL': {
+              const payload = item.payload as { course_id: string; enrollmentCode?: string };
+              const { course_id, enrollmentCode } = payload;
               console.log('Syncing enrollment:', course_id, enrollmentCode);
               const enrollRes = await actions.enrollInCourse(course_id, enrollmentCode);
               if (enrollRes.success) success = true;
               break;
-            case 'SUBMISSION':
-              const { assignment_id, ...subContent } = item.payload as Partial<Submission> & { assignment_id: string };
+            }
+            case 'SUBMISSION': {
+              const payload = item.payload as Partial<Submission> & { assignment_id: string };
+              const { assignment_id, ...subContent } = payload;
               const subRes = await actions.submitAssignment(assignment_id, subContent);
               if (subRes.success) success = true;
               break;
-            case 'QUIZ_SUBMISSION':
-              const { quiz_id, ...quizContent } = item.payload as Partial<QuizSubmission> & { quiz_id: string };
+            }
+            case 'QUIZ_SUBMISSION': {
+              const payload = item.payload as Partial<QuizSubmission> & { quiz_id: string };
+              const { quiz_id, ...quizContent } = payload;
               const quizRes = await actions.submitQuiz(quiz_id, quizContent);
               if (quizRes.success) success = true;
               break;
-            case 'PROFILE_UPDATE':
-              const profRes = await actions.saveUser(item.payload as Partial<User>);
+            }
+            case 'PROFILE_UPDATE': {
+              const payload = item.payload as Partial<User>;
+              const profRes = await actions.saveUser(payload);
               if (profRes.success) success = true;
               break;
-            case 'COURSE_SAVE':
-              const courseRes = await actions.saveCourse(item.payload as Partial<Course>);
+            }
+            case 'COURSE_SAVE': {
+              const payload = item.payload as Partial<Course>;
+              const courseRes = await actions.saveCourse(payload);
               if (courseRes.success) success = true;
               break;
-            case 'ASSIGNMENT_SAVE':
-              const assignRes = await actions.saveAssignment(item.payload as Omit<AssignmentDTO, 'course' | 'metadata'>);
+            }
+            case 'ASSIGNMENT_SAVE': {
+              const payload = item.payload as Omit<AssignmentDTO, 'course' | 'metadata'>;
+              const assignRes = await actions.saveAssignment(payload);
               if (assignRes.success) success = true;
               break;
-            case 'QUIZ_SAVE':
-              const qRes = await actions.saveQuiz(item.payload as Omit<QuizDTO, 'course' | 'metadata'>);
+            }
+            case 'QUIZ_SAVE': {
+              const payload = item.payload as Omit<QuizDTO, 'course' | 'metadata'>;
+              const qRes = await actions.saveQuiz(payload);
               if (qRes.success) success = true;
               break;
-            case 'DISCUSSION_POST':
-              const dRes = await actions.saveDiscussionPost(item.payload as Partial<Discussion>);
+            }
+            case 'DISCUSSION_POST': {
+              const payload = item.payload as Partial<Discussion>;
+              const dRes = await actions.saveDiscussionPost(payload);
               if (dRes.success) success = true;
               break;
-            case 'PLANNER_UPDATE':
-              const pRes = await actions.savePlannerItem(item.payload as Partial<PlannerItem>);
+            }
+            case 'PLANNER_UPDATE': {
+              const payload = item.payload as Partial<PlannerItem>;
+              const pRes = await actions.savePlannerItem(payload);
               if (pRes.success) success = true;
               break;
-            case 'SETTING_UPDATE':
-              const { p_key, p_value } = item.payload as { p_key: string, p_value: unknown };
+            }
+            case 'SETTING_UPDATE': {
+              const payload = item.payload as { p_key: string; p_value: unknown };
+              const { p_key, p_value } = payload;
               const sRes = await actions.updateSetting(p_key, p_value);
               if (sRes.success) success = true;
               break;
-            case 'LESSON_COMPLETE':
-              const { lesson_id, course_id: l_course_id } = item.payload as { lesson_id: string, course_id: string };
+            }
+            case 'LESSON_COMPLETE': {
+              const payload = item.payload as { lesson_id: string; course_id: string };
+              const { lesson_id, course_id: l_course_id } = payload;
               const lcRes = await actions.markLessonComplete(lesson_id, l_course_id);
               if (lcRes.success) success = true;
               break;
-            case 'ATTENDANCE':
-              const { live_class_id } = item.payload as { live_class_id: string };
+            }
+            case 'ATTENDANCE': {
+              const payload = item.payload as { live_class_id: string };
+              const { live_class_id } = payload;
               const attRes = await actions.recordAttendance(live_class_id);
               if (attRes.success) success = true;
               break;
+            }
           }
 
           if (success && item.id) {

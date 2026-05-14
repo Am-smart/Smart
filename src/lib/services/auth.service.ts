@@ -153,7 +153,7 @@ export class AuthService {
     };
   }
 
-  async signup(data: { full_name: string; email: string; password?: string; phone?: string; role: string }, inviteId?: string): Promise<{ success: boolean; user: User; session_id: string }> {
+  async signup(data: { full_name: string; email: string; password?: string; phone?: string; role: UserRole }, inviteId?: string): Promise<{ success: boolean; user: User; session_id: string }> {
     if (!data.password || data.password.trim() === '') {
       throw new BadRequestError('Password is required');
     }
@@ -169,7 +169,7 @@ export class AuthService {
     }
 
     // Server-side role validation and limit enforcement
-    const allowedRoles: string[] = [USER_ROLES.STUDENT, USER_ROLES.TEACHER, USER_ROLES.ADMIN];
+    const allowedRoles: UserRole[] = [USER_ROLES.STUDENT, USER_ROLES.TEACHER, USER_ROLES.ADMIN];
     if (!allowedRoles.includes(data.role)) {
       throw new BadRequestError('Invalid role specified');
     }
@@ -258,7 +258,7 @@ export class AuthService {
     return invite;
   }
 
-  async createUser(currentUser: User, data: { full_name: string; email: string; password?: string; phone?: string; role: string }): Promise<User> {
+  async createUser(currentUser: User, data: { full_name: string; email: string; password?: string; phone?: string; role: UserRole }): Promise<User> {
     if (!rbac.can(currentUser, 'user:manage')) {
         throw new ForbiddenError('Only admins can create users directly');
     }
