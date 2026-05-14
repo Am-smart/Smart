@@ -1,4 +1,5 @@
 import { AppProvider } from "@/components/AppContext";
+import { TimerProvider } from "@/context/TimerContext";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import Script from "next/script";
@@ -36,9 +37,11 @@ export default function RootLayout({
             }
           `}
         </Script>
-        <AppProvider>
-          {children}
-        </AppProvider>
+        <TimerProvider>
+          <AppProvider>
+            {children}
+          </AppProvider>
+        </TimerProvider>
       </body>
     </html>
   );

@@ -5,21 +5,22 @@
 ▲ Next.js 16.2.4 (Turbopack)
 - Local:         http://localhost:3000
 - Network:       http://192.168.0.2:3000
-✓ Ready in 463ms
+✓ Ready in 522ms
 
- GET / 200 in 3.2s (next.js: 2.9s, application-code: 300ms)
- GET /api/v1/auth?action=me 200 in 1500ms (next.js: 1464ms, application-code: 35ms)
- GET /api/v1/auth?action=invite-session 200 in 17ms (next.js: 6ms, application-code: 11ms)
- GET /api/v1/auth?action=invite-session 200 in 9ms (next.js: 3ms, application-code: 7ms)
- GET /api/v1/system?action=maintenance 200 in 2.5s (next.js: 1177ms, application-code: 1301ms)
- GET /api/v1/system?action=maintenance 200 in 1192ms (next.js: 7ms, application-code: 1184ms)
- GET /api/v1/system?action=maintenance 200 in 2.5s (next.js: 1205ms, application-code: 1314ms)
- GET /api/v1/auth?action=role-count 200 in 543ms (next.js: 5ms, application-code: 538ms)
- GET /api/v1/system?action=maintenance 200 in 162ms (next.js: 3ms, application-code: 159ms)
- GET /api/v1/auth?action=role-count 200 in 389ms (next.js: 3ms, application-code: 386ms)
- GET / 200 in 71ms (next.js: 5ms, application-code: 66ms)
- GET /api/v1/auth?action=me 200 in 15ms (next.js: 5ms, application-code: 10ms)
- GET /api/v1/system?action=maintenance 200 in 798ms (next.js: 3ms, application-code: 795ms)
- GET /api/v1/system?action=maintenance 200 in 826ms (next.js: 3ms, application-code: 823ms)
- GET /api/v1/system?action=maintenance 200 in 807ms (next.js: 7ms, application-code: 800ms)
- GET /api/v1/system?action=maintenance 200 in 186ms (next.js: 2ms, application-code: 184ms)
+Countdown: Invalid targetDate provided: not-a-date
+ GET /test-countdown 200 in 3.8s (next.js: 3.4s, application-code: 348ms)
+[browser] Countdown: Invalid targetDate provided: not-a-date (src/components/ui/Countdown.tsx:38:15)
+[browser] Countdown: Invalid targetDate provided: not-a-date (src/components/ui/Countdown.tsx:38:15)
+ GET /api/v1/auth?action=me 200 in 1977ms (next.js: 1943ms, application-code: 34ms)
+ GET /api/v1/system?action=maintenance 200 in 514ms (next.js: 7ms, application-code: 507ms)
+ GET /api/v1/system?action=maintenance 200 in 2.3s (next.js: 1604ms, application-code: 693ms)
+ GET /api/v1/system?action=maintenance 200 in 219ms (next.js: 4ms, application-code: 216ms)
+Countdown: Invalid targetDate provided: not-a-date
+ GET /test-countdown 200 in 88ms (next.js: 6ms, application-code: 82ms)
+ GET /api/v1/auth?action=me 200 in 12ms (next.js: 4ms, application-code: 8ms)
+[browser] Countdown: Invalid targetDate provided: not-a-date (src/components/ui/Countdown.tsx:38:15)
+[browser] Countdown: Invalid targetDate provided: not-a-date (src/components/ui/Countdown.tsx:38:15)
+ GET /api/v1/system?action=maintenance 200 in 204ms (next.js: 6ms, application-code: 198ms)
+ GET /api/v1/system?action=maintenance 200 in 385ms (next.js: 6ms, application-code: 379ms)
+ GET /api/v1/system?action=maintenance 200 in 134ms (next.js: 3ms, application-code: 131ms)
+✓ Compiled in 115ms

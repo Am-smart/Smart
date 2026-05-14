@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Clock } from 'lucide-react';
+import { useTimer } from '@/context/TimerContext';
 
 interface CountdownProps {
   targetDate: string | Date;
@@ -12,7 +13,7 @@ interface CountdownProps {
   endLabel?: string | null;
 }
 
-export const Countdown: React.FC<CountdownProps> = ({
+const CountdownComponent: React.FC<CountdownProps> = ({
   targetDate,
   onEnd,
   className = "",
@@ -20,16 +21,31 @@ export const Countdown: React.FC<CountdownProps> = ({
   compact = false,
   endLabel = "Ended"
 }) => {
-  const [timeLeft, setTimeLeft] = useState<{
-    days: number;
-    hours: number;
-    minutes: number;
-    seconds: number;
-    total: number;
-  } | null>(null);
+  const { currentTime } = useTimer();
+  const [mounted, setMounted] = useState(false);
+  const hasEndedCalled = useRef(false);
 
-  const calculateTimeLeft = useCallback(() => {
-    const difference = new Date(targetDate).getTime() - new Date().getTime();
+  // Handle mounting to prevent hydration mismatch
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Memoize target timestamp and handle invalid dates
+  const targetTimestamp = useMemo(() => {
+    const date = new Date(targetDate);
+    const ts = date.getTime();
+    if (isNaN(ts)) {
+      console.warn(`Countdown: Invalid targetDate provided: ${targetDate}`);
+      return null;
+    }
+    return ts;
+  }, [targetDate]);
+
+  // Calculate time left based on shared currentTime
+  const timeLeft = useMemo(() => {
+    if (!targetTimestamp) return null;
+
+    const difference = targetTimestamp - currentTime;
 
     if (difference <= 0) {
       return { days: 0, hours: 0, minutes: 0, seconds: 0, total: 0 };
@@ -42,43 +58,30 @@ export const Countdown: React.FC<CountdownProps> = ({
       seconds: Math.floor((difference / 1000) % 60),
       total: difference
     };
-  }, [targetDate]);
+  }, [targetTimestamp, currentTime]);
 
+  // Trigger onEnd only once
   useEffect(() => {
-    const initial = calculateTimeLeft();
-    setTimeLeft(initial);
-
-    if (initial.total <= 0) {
+    if (mounted && timeLeft && timeLeft.total <= 0 && !hasEndedCalled.current) {
+      hasEndedCalled.current = true;
       onEnd?.();
-      return;
     }
+  }, [timeLeft?.total, onEnd, mounted]);
 
-    const timer = setInterval(() => {
-      const remaining = calculateTimeLeft();
-      setTimeLeft(remaining);
-
-      if (remaining.total <= 0) {
-        clearInterval(timer);
-        onEnd?.();
-      }
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [calculateTimeLeft, onEnd]);
-
-  if (!timeLeft) return null;
+  // Don't render until mounted to avoid hydration mismatch
+  if (!mounted || !timeLeft) return null;
 
   const isSoon = timeLeft.total > 0 && timeLeft.total < 60 * 60 * 1000; // Less than 1 hour
   const isPast = timeLeft.total <= 0;
 
   if (isPast) {
-      if (endLabel === null) return null;
-      return (
-          <span className={`inline-flex items-center gap-1 text-slate-400 font-bold uppercase text-[10px] ${className}`}>
-              {showIcon && <Clock size={12} />}
-              {endLabel}
-          </span>
-      );
+    if (endLabel === null) return null;
+    return (
+      <span className={`inline-flex items-center gap-1 text-slate-400 font-bold uppercase text-[10px] ${className}`}>
+        {showIcon && <Clock size={12} />}
+        {endLabel}
+      </span>
+    );
   }
 
   return (
@@ -109,3 +112,5 @@ export const Countdown: React.FC<CountdownProps> = ({
     </div>
   );
 };
+
+export const Countdown = React.memo(CountdownComponent);
