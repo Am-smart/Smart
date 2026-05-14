@@ -59,7 +59,7 @@ export const dbUtils = {
    * Generic upsert handler with version checking and standardized error handling.
    */
   async upsert<T extends { id?: string; version?: number }>(
-    table: { upsert: (data: any, options?: { onConflict?: string }) => { select: () => { single: () => PromiseLike<DatabaseResponse<T>> } } },
+    table: { upsert: (data: Record<string, unknown> | Record<string, unknown>[], options?: { onConflict?: string }) => { select: () => { single: () => PromiseLike<DatabaseResponse<T>> } } },
     entity: Partial<T>,
     entityName: string,
     sessionId: string,

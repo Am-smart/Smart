@@ -11,6 +11,13 @@ interface QuizzesListProps {
 }
 
 export const QuizzesList: React.FC<QuizzesListProps> = ({ quizzes, submissions, onStart, onViewResults }) => {
+  const [now, setNow] = React.useState(new Date());
+
+  React.useEffect(() => {
+    const interval = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -55,7 +62,6 @@ export const QuizzesList: React.FC<QuizzesListProps> = ({ quizzes, submissions, 
                   const attemptsUsed = mySubs.length;
                   const canAttempt = attemptsUsed < quiz.attempts_allowed;
 
-                  const now = new Date();
                   const startAt = quiz.start_at ? new Date(quiz.start_at) : null;
                   const endAt = quiz.end_at ? new Date(quiz.end_at) : null;
                   const isNotStarted = startAt && now < startAt;
@@ -82,7 +88,7 @@ export const QuizzesList: React.FC<QuizzesListProps> = ({ quizzes, submissions, 
                                         <Timer size={10} /> Locked
                                     </span>
                                     <div className="text-[10px] font-bold text-slate-400">Starts in:</div>
-                                    <Countdown targetDate={startAt!} compact className="text-xs" />
+                                    <Countdown targetDate={startAt!} compact className="text-xs" endLabel={null} />
                                 </div>
                             ) : isEnded ? (
                                 <span className="inline-flex items-center gap-1 text-[9px] text-slate-500 font-black uppercase tracking-widest bg-slate-100 px-2 py-0.5 rounded-full w-fit">

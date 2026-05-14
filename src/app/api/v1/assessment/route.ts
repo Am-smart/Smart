@@ -116,15 +116,19 @@ export const PATCH = withHandler(async (user, request) => {
     const rawBody = await request.json();
     const body = sanitizeObject(rawBody);
 
+    // Remove metadata fields that shouldn't reach the database
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { action: _a, ...data } = body;
+
     if (!id) throw new Error('id is required');
 
     switch (action) {
         case 'grade-submission': {
             if (!rbac.can(user, 'assignment:grade')) throw new UnauthorizedError();
-            if (body.grade !== undefined && (body.grade < 0 || body.grade > 100)) {
+            if (data.grade !== undefined && (data.grade < 0 || data.grade > 100)) {
                 throw new Error('Grade must be between 0 and 100');
             }
-            await assessmentService.gradeSubmission(id, body, user.sessionId!, user.id, user.role);
+            await assessmentService.gradeSubmission(id, data, user.sessionId!, user.id, user.role);
             return { success: true };
         }
         default:
