@@ -14,10 +14,11 @@ interface HeaderStats {
 }
 
 interface DashboardHeaderProps {
-  user: User;
+  user: User | null;
   onLogout: () => void;
   onMenuClick: () => void;
   stats?: HeaderStats;
+  className?: string;
 }
 
 export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
@@ -37,7 +38,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
         await markNotificationAsRead(notification.id);
       }
 
-      const path = parseDeepLink(notification.link, user.role);
+      const path = parseDeepLink(notification.link, user?.role);
       if (path) {
           router.push(path);
           setShowNotifications(false);
@@ -74,13 +75,14 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
   };
 
   const getTitle = () => {
+    if (!user) return 'Dashboard';
     if (user.role === 'student') return `Hi, ${user.full_name || 'Student'}!`;
     if (user.role === 'teacher') return 'Teacher Dashboard';
     if (user.role === 'admin') return 'Admin Dashboard';
     return 'Dashboard';
   };
 
-  const centerContent = user.role === 'student' && stats ? (
+  const centerContent = user?.role === 'student' && stats ? (
     <div className="hidden sm:flex gap-4 sm:gap-6 items-center">
         <div className="text-center px-2 sm:px-4 border-r border-[#e2e8f0]">
           <div className="text-[0.6rem] sm:text-[0.7rem] uppercase font-bold text-[#64748b] tracking-wider mb-0.5 sm:mb-1">Courses</div>
@@ -111,7 +113,7 @@ export const DashboardHeader: React.FC<DashboardHeaderProps> = ({
         </div>
         <button
           onClick={onLogout}
-          className={`${user.role === 'admin' ? 'bg-[#2563eb] text-white hover:bg-[#1d4ed8]' : 'bg-[#f1f5f9] text-[#1e293b] hover:bg-[#e2e8f0]'} px-3 sm:px-6 py-1.5 sm:py-2 rounded-lg font-semibold text-xs sm:text-sm transition-all`}
+          className={`${user?.role === 'admin' ? 'bg-[#2563eb] text-white hover:bg-[#1d4ed8]' : 'bg-[#f1f5f9] text-[#1e293b] hover:bg-[#e2e8f0]'} px-3 sm:px-6 py-1.5 sm:py-2 rounded-lg font-semibold text-xs sm:text-sm transition-all`}
         >
           Logout
         </button>

@@ -7,6 +7,7 @@ import { PushService } from './push.service';
 class ServiceRegistry {
   private static instance: ServiceRegistry;
   private services: Map<string, unknown> = new Map();
+  private initialized: boolean = false;
 
   private constructor() {}
 
@@ -15,6 +16,14 @@ class ServiceRegistry {
       ServiceRegistry.instance = new ServiceRegistry();
     }
     return ServiceRegistry.instance;
+  }
+
+  public isInitialized(): boolean {
+    return this.initialized;
+  }
+
+  public markInitialized(): void {
+    this.initialized = true;
   }
 
   public register<T>(name: string, service: T): void {
@@ -26,9 +35,9 @@ class ServiceRegistry {
     if (!service) {
       // Lazy-initialization attempt if not found
       if (typeof window === 'undefined') {
-        console.warn(`Service ${name} not found in registry. Ensure it is registered in @/lib/services/index.ts`);
+        console.warn(`[ServiceRegistry] Service ${name} not found. Current registered: ${Array.from(this.services.keys()).join(', ')}`);
       }
-      throw new Error(`Service ${name} not found in registry. Requested at: ${new Date().toISOString()}`);
+      throw new Error(`Service ${name} not found in registry. Ensure it is registered in @/lib/services/index.ts`);
     }
     return service as T;
   }
