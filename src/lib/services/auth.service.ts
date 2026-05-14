@@ -165,7 +165,7 @@ export class AuthService {
 
     const passwordValidation = validatePassword(data.password);
     if (!passwordValidation.isValid) {
-      throw new Error(passwordValidation.errors[0].message);
+      throw new BadRequestError(passwordValidation.errors[0].message);
     }
 
     // Server-side role validation and limit enforcement
@@ -193,7 +193,7 @@ export class AuthService {
       active: true
     });
 
-    if (error) throw new Error('Signup failed in database');
+    if (error) throw new BadRequestError(`Signup failed in database: ${error.message || 'Unknown error'}`);
 
     const newUser = userData as User;
 
@@ -397,18 +397,18 @@ export class AuthService {
 
   async getCurrentUser(id: string, sessionId: string): Promise<User> {
     const user = await systemDb.findUserById(id, sessionId);
-    if (!user) throw new Error('User not found');
+    if (!user) throw new BadRequestError('User not found');
     return { ...user, sessionId };
   }
 
   async getAllUsers(currentUser: User, limit?: number, offset?: number): Promise<User[]> {
-    if (!rbac.can(currentUser, 'user:manage')) throw new Error('Forbidden');
+    if (!rbac.can(currentUser, 'user:manage')) throw new ForbiddenError('Forbidden');
     return systemDb.findAllUsers(currentUser.sessionId!, { limit, offset });
   }
 
   async updateUserProfile(currentUser: User, userId: string, updates: Partial<User>, sessionId: string): Promise<User> {
     const targetUser = await systemDb.findUserById(userId, sessionId);
-    if (!targetUser) throw new Error('User not found');
+    if (!targetUser) throw new BadRequestError('User not found');
 
     UserDomain.validateUpdate(currentUser, userId);
 
@@ -422,14 +422,14 @@ export class AuthService {
   }
 
   async toggleUserStatus(currentUser: User, userId: string, active: boolean): Promise<void> {
-    if (!rbac.can(currentUser, 'user:manage')) throw new Error('Forbidden');
+    if (!rbac.can(currentUser, 'user:manage')) throw new ForbiddenError('Forbidden');
     const targetUser = await systemDb.findUserById(userId, currentUser.sessionId);
-    if (!targetUser) throw new Error('User not found');
+    if (!targetUser) throw new BadRequestError('User not found');
     await systemDb.updateUser(userId, { active, version: targetUser.version }, currentUser.sessionId!);
   }
 
   async deleteUser(currentUser: User, userId: string): Promise<void> {
-    if (!rbac.can(currentUser, 'user:manage')) throw new Error('Forbidden');
+    if (!rbac.can(currentUser, 'user:manage')) throw new ForbiddenError('Forbidden');
     await systemDb.deleteUser(userId, currentUser.sessionId!);
   }
 }
