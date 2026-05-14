@@ -12,6 +12,10 @@ export const GET = withHandler(async (user, request) => {
     const { searchParams } = new URL(request.url);
     const action = searchParams.get('action');
 
+    if (!authService) {
+        throw new Error('Service Registry Error: authService not available');
+    }
+
     switch (action) {
         case 'me':
             return user ? UserMapper.toDTO(user) : null;
@@ -37,6 +41,10 @@ export const POST = withHandler(async (user, request) => {
     const rawBody = await request.json();
     const body = sanitizeObject(rawBody);
     const { action, ...data } = body;
+
+    if (!authService) {
+        throw new Error('Service Registry Error: authService not available');
+    }
 
     switch (action) {
         case 'login': {

@@ -169,8 +169,8 @@ export class AuthService {
     }
 
     // Server-side role validation and limit enforcement
-    const allowedRoles = [USER_ROLES.STUDENT, USER_ROLES.TEACHER, USER_ROLES.ADMIN];
-    if (!allowedRoles.includes(data.role as any)) {
+    const allowedRoles: string[] = [USER_ROLES.STUDENT, USER_ROLES.TEACHER, USER_ROLES.ADMIN];
+    if (!allowedRoles.includes(data.role)) {
       throw new BadRequestError('Invalid role specified');
     }
 

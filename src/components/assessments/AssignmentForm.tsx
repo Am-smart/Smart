@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { AssignmentDTO } from '@/lib/types';
-import { UserDTO } from '@/lib/types';
+import { AssignmentDTO, User } from '@/lib/types';
 import * as actions from '@/lib/api-actions';
 import { useAntiCheat } from '@/hooks/useAntiCheat';
 import { useIndexedDB } from '@/hooks/useIndexedDB';
@@ -10,7 +9,7 @@ import { Shield } from 'lucide-react';
 
 interface AssignmentFormProps {
   assignment: AssignmentDTO;
-  user: UserDTO;
+  user: User;
   onComplete: (submissionId: string) => void;
   onCancel: () => void;
 }
@@ -54,7 +53,7 @@ export const AssignmentForm: React.FC<AssignmentFormProps> = ({ assignment, user
     const res = await fetch('/api/v1/system/upload', {
         method: 'POST',
         headers: {
-            'x-session-id': (user as any)?.sessionId || '',
+            'x-session-id': user.sessionId || '',
             'X-Requested-With': 'XMLHttpRequest',
         },
         body: formData

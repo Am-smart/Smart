@@ -3,17 +3,24 @@
 import React, { useEffect } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
 import { UnifiedSidebar } from "@/components/common/UnifiedSidebar"
-import { UserRole } from "@/lib/types";
+import { UserRole, User } from "@/lib/types";
 import { ForcePasswordChange } from "@/components/auth/ForcePasswordChange";
 import { useRouter, usePathname } from 'next/navigation';
 import { useAppContext } from '../AppContext';
 import { MaintenanceOverlay } from './MaintenanceOverlay';
 
+interface HeaderComponentProps {
+  className?: string;
+  user: User | null;
+  onLogout: () => Promise<void>;
+  onMenuClick: () => void;
+  [key: string]: unknown;
+}
+
 interface BaseDashboardLayoutProps {
   children: React.ReactNode;
   requiredRole: UserRole;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  HeaderComponent: React.ComponentType<any>;
+  HeaderComponent: React.ComponentType<HeaderComponentProps>;
   headerProps?: Record<string, unknown>;
 }
 

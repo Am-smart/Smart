@@ -7,11 +7,15 @@ import { serviceRegistry } from './service-registry';
 
 // Initialize and Register Services
 const initializeRegistry = () => {
+  if (serviceRegistry.isInitialized()) return;
+
   serviceRegistry.register('authService', authService);
   serviceRegistry.register('learningService', learningService);
   serviceRegistry.register('assessmentService', assessmentService);
   serviceRegistry.register('systemService', systemService);
   serviceRegistry.register('pushService', pushService);
+
+  serviceRegistry.markInitialized();
 };
 
 // Execute registration

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { Submission, QuizSubmission, Course, User, PlannerItem, Discussion } from '@/lib/types';
+import { Submission, QuizSubmission, Course, User, PlannerItem, Discussion, AssignmentDTO, QuizDTO } from '@/lib/types';
 import * as actions from '@/lib/api-actions';
 
 const DB_NAME = 'smartlms-offline-v4';
@@ -320,13 +320,11 @@ export const useIndexedDB = () => {
               if (courseRes.success) success = true;
               break;
             case 'ASSIGNMENT_SAVE':
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              const assignRes = await actions.saveAssignment(item.payload as any);
+              const assignRes = await actions.saveAssignment(item.payload as Omit<AssignmentDTO, 'course' | 'metadata'>);
               if (assignRes.success) success = true;
               break;
             case 'QUIZ_SAVE':
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              const qRes = await actions.saveQuiz(item.payload as any);
+              const qRes = await actions.saveQuiz(item.payload as Omit<QuizDTO, 'course' | 'metadata'>);
               if (qRes.success) success = true;
               break;
             case 'DISCUSSION_POST':
