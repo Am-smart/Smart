@@ -20,6 +20,9 @@ export const GET = withHandler(async (user, request) => {
         case 'me':
             return user ? UserMapper.toDTO(user) : null;
         case 'role-count': {
+            if (!authService) {
+                throw new Error('Service Registry Error: authService not available');
+            }
             return authService.getRoleCount();
         }
         case 'invite-session': {

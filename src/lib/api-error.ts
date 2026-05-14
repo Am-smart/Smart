@@ -82,7 +82,7 @@ export function mapErrorToStatus(error: unknown): number {
   if (message.includes('forbidden') || message.includes('permission denied')) return 403;
   if (message.includes('not found')) return 404;
   if (message.includes('duplicate') || message.includes('already exists') || message.includes('conflict')) return 409;
-  if (message.includes('invalid') || message.includes('required')) return 400;
+  if (message.includes('invalid') || message.includes('required') || message.includes('too long')) return 400;
 
   return 500;
 }
