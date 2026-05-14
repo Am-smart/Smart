@@ -1,5 +1,5 @@
 import { withHandler } from '@/app/api/api-utils';
-import { assessmentService } from '@/lib/services/assessment.service';
+import { assessmentService } from '@/lib/services';
 import { AssessmentMapper } from '@/lib/mappers';
 import { rbac } from '@/lib/auth/rbac';
 import { AssessmentDomain } from '@/lib/domain/assessment.domain';

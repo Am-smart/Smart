@@ -49,11 +49,12 @@ export const SignupForm: React.FC<SignupFormProps> = ({ initialRole, onClose, on
         setRoleCounts(counts);
 
         if (session) {
-            setInviteSession(session);
+            const castedSession = session as unknown as { inviteId: string; type: string; email?: string; role: UserRole };
+            setInviteSession(castedSession);
             setFormData(prev => ({
                 ...prev,
-                email: session.email || prev.email,
-                role: session.role || prev.role
+                email: castedSession.email || prev.email,
+                role: castedSession.role || prev.role
             }));
         }
       } catch (err) {

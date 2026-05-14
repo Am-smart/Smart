@@ -1,5 +1,5 @@
 import { withHandler } from '@/app/api/api-utils';
-import { systemService } from '@/lib/services/system.service';
+import { systemService } from '@/lib/services';
 import { BadRequestError } from '@/lib/api-error';
 
 export const maxDuration = 60;

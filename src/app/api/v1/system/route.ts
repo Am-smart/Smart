@@ -1,8 +1,8 @@
 import { withHandler } from '@/app/api/api-utils';
-import { systemService } from '@/lib/services/system.service';
-import { learningService } from '@/lib/services/learning.service';
-import { authService } from '@/lib/services/auth.service';
-import { assessmentService } from '@/lib/services/assessment.service';
+import { systemService } from '@/lib/services';
+import { learningService } from '@/lib/services';
+import { authService } from '@/lib/services';
+import { assessmentService } from '@/lib/services';
 import { rbac } from '@/lib/auth/rbac';
 import { UserDomain } from '@/lib/domain/user.domain';
 import { SystemMapper, CommunicationMapper, AssessmentMapper } from '@/lib/mappers';

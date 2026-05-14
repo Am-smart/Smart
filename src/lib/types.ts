@@ -47,6 +47,7 @@ export interface UserDTO {
   notification_preferences?: Record<string, boolean>;
   metadata?: Record<string, string | number | boolean>;
   flagged?: boolean;
+  last_login?: string;
   failed_attempts?: number;
   lockouts?: number;
   locked_until?: string | null;

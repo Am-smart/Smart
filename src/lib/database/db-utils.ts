@@ -59,18 +59,12 @@ export const dbUtils = {
    * Generic upsert handler with version checking and standardized error handling.
    */
   async upsert<T extends { id?: string; version?: number }>(
-    table: {
-      upsert: (data: Record<string, unknown>, options?: { onConflict?: string }) => {
-        select: () => {
-          single: () => PromiseLike<DatabaseResponse<T>>;
-        };
-      };
-    },
+    table: { upsert: (data: any, options?: { onConflict?: string }) => { select: () => { single: () => PromiseLike<DatabaseResponse<T>> } } },
     entity: Partial<T>,
     entityName: string,
     sessionId: string,
     options: { onConflict?: string; excludeFields?: string[] } = {}
-  ): Promise<any> {
+  ): Promise<T> {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { withSession } = require('../supabase');
     const upsertData = this.prepareUpsert(entity as unknown as { version?: number; id?: string }, options.excludeFields);

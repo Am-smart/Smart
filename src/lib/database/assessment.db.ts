@@ -23,7 +23,7 @@ export const assessmentDb = {
   },
 
   async upsertAssignment(assignment: Partial<Assignment>, sessionId: string): Promise<Assignment> {
-    return dbUtils.upsert(supabase.from('assignments'), assignment, 'Assignment', sessionId, { excludeFields: ['courses', 'course'] });
+    return dbUtils.upsert(supabase.from('assignments'), assignment, 'Assignment', sessionId, { excludeFields: ['courses', 'course'] }) as unknown as Promise<Assignment>;
   },
 
   async deleteAssignment(id: string, sessionId: string): Promise<void> {
@@ -51,7 +51,7 @@ export const assessmentDb = {
   },
 
   async upsertQuiz(quiz: Partial<Quiz>, sessionId: string): Promise<Quiz> {
-    return dbUtils.upsert(supabase.from('quizzes'), quiz, 'Quiz', sessionId, { excludeFields: ['courses', 'course'] });
+    return dbUtils.upsert(supabase.from('quizzes'), quiz, 'Quiz', sessionId, { excludeFields: ['courses', 'course'] }) as unknown as Promise<Quiz>;
   },
 
   async deleteQuiz(id: string, sessionId: string): Promise<void> {
@@ -85,7 +85,7 @@ export const assessmentDb = {
     return dbUtils.upsert(supabase.from('submissions'), submission, 'Submission', sessionId, {
       onConflict: 'assignment_id,student_id',
       excludeFields: ['assignments', 'assignment', 'users', 'student']
-    });
+    }) as unknown as Promise<Submission>;
   },
 
   async deleteSubmission(id: string, sessionId: string): Promise<void> {
@@ -126,7 +126,7 @@ export const assessmentDb = {
     return dbUtils.upsert(supabase.from('quiz_submissions'), submission, 'Quiz submission', sessionId, {
       onConflict: 'quiz_id,student_id,attempt_number',
       excludeFields: ['quizzes', 'quiz', 'users', 'student']
-    });
+    }) as unknown as Promise<QuizSubmission>;
   },
 
   async findQuizAttempts(quizId: string, studentId: string, sessionId: string): Promise<QuizSubmission[]> {

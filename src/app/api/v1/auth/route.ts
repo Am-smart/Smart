@@ -1,5 +1,5 @@
 import { withHandler } from '@/app/api/api-utils';
-import { authService } from '@/lib/services/auth.service';
+import { authService } from '@/lib/services';
 import { UserMapper } from '@/lib/mappers';
 import { rbac } from '@/lib/auth/rbac';
 import { cookies } from 'next/headers';
