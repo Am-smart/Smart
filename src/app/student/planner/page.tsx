@@ -2,8 +2,12 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
+import dynamic from 'next/dynamic';
 import { getEnrollments } from '@/lib/api-actions';
-import { PlannerView } from "@/components/planner/PlannerView";
+
+const PlannerView = dynamic(() => import("@/components/planner/PlannerView").then(mod => mod.PlannerView), {
+    loading: () => <div className="p-8 flex items-center justify-center font-bold text-slate-400 uppercase tracking-widest animate-pulse">Loading Planner...</div>
+});
 
 export default function PlannerPage() {
   const { user } = useAuth();

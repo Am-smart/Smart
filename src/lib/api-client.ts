@@ -1,11 +1,35 @@
 import { ApiResponse } from './types';
 
+// In-flight request deduplication
+const inFlightRequests = new Map<string, Promise<unknown>>();
+
 export async function apiFetch<T>(url: string, options: RequestInit = {}, retries: number = 3): Promise<T> {
   // Prevent API calls when offline (client-side only)
   if (typeof window !== 'undefined' && !navigator.onLine) {
     throw new Error('Offline: No internet connection');
   }
 
+  // Only deduplicate GET requests
+  const isGet = !options.method || options.method.toUpperCase() === 'GET';
+  const requestKey = `${options.method || 'GET'}:${url}`;
+
+  if (isGet && inFlightRequests.has(requestKey)) {
+    return inFlightRequests.get(requestKey) as Promise<T>;
+  }
+
+  const fetchPromise = (async () => {
+    try {
+      return await apiFetchInternal<T>(url, options, retries);
+    } finally {
+      if (isGet) inFlightRequests.delete(requestKey);
+    }
+  })();
+
+  if (isGet) inFlightRequests.set(requestKey, fetchPromise);
+  return fetchPromise;
+}
+
+async function apiFetchInternal<T>(url: string, options: RequestInit = {}, retries: number = 3): Promise<T> {
   // All API requests should be versioned. If it doesn't start with /api/v1/, we prepend it.
   const versionedUrl = url.startsWith('/api/v1/')
     ? url

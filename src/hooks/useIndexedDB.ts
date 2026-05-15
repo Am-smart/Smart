@@ -428,8 +428,17 @@ export const useIndexedDB = () => {
     }
   }, [isOnline, db, getQueue, removeFromQueue, logSyncError, updateQueueItem, checkBackend]);
 
-  const pullData = useCallback(async (userId: string, role: string) => {
+  const pullData = useCallback(async (userId: string, role: string, force = false) => {
     if (!isOnline) return;
+
+    // Throttle full data pulls (TTL: 10 minutes) to prevent aggressive background fetching
+    const PULL_TTL = 10 * 60 * 1000;
+    if (!force) {
+        const lastPull = await getCache<number>(`last_full_pull_${userId}`);
+        if (lastPull && Date.now() - lastPull < PULL_TTL) {
+            return;
+        }
+    }
 
     // Verify backend connectivity before fetching fresh data
     const isConnected = await checkBackend();
@@ -445,19 +454,22 @@ export const useIndexedDB = () => {
                 actions.getMaterials(),
                 actions.getPlannerItems(userId),
                 actions.getLiveClasses(),
-                actions.getDiscussions('global'), // Or relevant course id if context exists
+                actions.getDiscussions('global'),
                 actions.getLessonCompletions(userId)
             ]);
 
-            if (courses) await setCache('all_courses', courses);
-            if (enrollments) await setCache('my_enrollments', enrollments);
-            if (assignments) await setCache('all_assignments', assignments);
-            if (quizzes) await setCache('all_quizzes', quizzes);
-            if (materials) await setCache('all_materials', materials);
-            if (planner) await setCache('planner_items', planner);
-            if (liveClasses) await setCache('all_live_classes', liveClasses);
-            if (discussions) await setCache('recent_discussions', discussions);
-            if (completions) await setCache('lesson_completions', completions);
+            await Promise.all([
+                courses && setCache('all_courses', courses),
+                enrollments && setCache('my_enrollments', enrollments),
+                assignments && setCache('all_assignments', assignments),
+                quizzes && setCache('all_quizzes', quizzes),
+                materials && setCache('all_materials', materials),
+                planner && setCache('planner_items', planner),
+                liveClasses && setCache('all_live_classes', liveClasses),
+                discussions && setCache('recent_discussions', discussions),
+                completions && setCache('lesson_completions', completions),
+                setCache(`last_full_pull_${userId}`, Date.now())
+            ]);
         } else if (role === 'teacher') {
              const [courses, assignments, quizzes, materials, submissions, liveClasses] = await Promise.all([
                 actions.getCourses(userId),
@@ -468,12 +480,15 @@ export const useIndexedDB = () => {
                 actions.getLiveClasses(undefined, userId)
             ]);
 
-            if (courses) await setCache('teacher_courses', courses);
-            if (assignments) await setCache('teacher_assignments', assignments);
-            if (quizzes) await setCache('teacher_quizzes', quizzes);
-            if (materials) await setCache('teacher_materials', materials);
-            if (submissions) await setCache('teacher_submissions', submissions);
-            if (liveClasses) await setCache('teacher_live_classes', liveClasses);
+            await Promise.all([
+                courses && setCache('teacher_courses', courses),
+                assignments && setCache('teacher_assignments', assignments),
+                quizzes && setCache('teacher_quizzes', quizzes),
+                materials && setCache('teacher_materials', materials),
+                submissions && setCache('teacher_submissions', submissions),
+                liveClasses && setCache('teacher_live_classes', liveClasses),
+                setCache(`last_full_pull_${userId}`, Date.now())
+            ]);
         } else if (role === 'admin') {
             const [users, courses, logs, settings] = await Promise.all([
                 actions.getUsers(),
@@ -482,15 +497,18 @@ export const useIndexedDB = () => {
                 actions.getSettings()
             ]);
 
-            if (users) await setCache('admin_users', users);
-            if (courses) await setCache('admin_courses', courses);
-            if (logs) await setCache('admin_logs', logs);
-            if (settings) await setCache('admin_settings', settings);
+            await Promise.all([
+                users && setCache('admin_users', users),
+                courses && setCache('admin_courses', courses),
+                logs && setCache('admin_logs', logs),
+                settings && setCache('admin_settings', settings),
+                setCache(`last_full_pull_${userId}`, Date.now())
+            ]);
         }
     } catch (err) {
         console.error('Data pull failed:', err);
     }
-  }, [isOnline, setCache, checkBackend]);
+  }, [isOnline, setCache, getCache, checkBackend]);
 
   useEffect(() => {
     if (isOnline && db) {
