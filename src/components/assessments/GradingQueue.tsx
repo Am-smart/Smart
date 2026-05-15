@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { SubmissionDTO } from '@/lib/types';
-import { Clock, RotateCcw, User, FileText, CheckCircle2 } from 'lucide-react';
+import { Clock, RotateCcw, User, FileText, CheckCircle2, ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface GradingQueueProps {
   submissions: SubmissionDTO[];
@@ -10,6 +10,19 @@ interface GradingQueueProps {
 export const GradingQueue: React.FC<GradingQueueProps> = ({ submissions, onGrade }) => {
   // Pending grading includes new submissions and regrade requests
   const pending = submissions.filter(s => s.status === 'submitted' || !!s.regrade_request);
+
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+  const totalPages = Math.max(1, Math.ceil(pending.length / itemsPerPage));
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+        setCurrentPage(totalPages);
+    }
+  }, [pending.length, totalPages, currentPage]);
+
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedPending = pending.slice(startIndex, startIndex + itemsPerPage);
 
   return (
     <div className="space-y-6">
@@ -44,11 +57,11 @@ export const GradingQueue: React.FC<GradingQueueProps> = ({ submissions, onGrade
                             </td>
                         </tr>
                     ) : (
-                        pending.map(sub => (
+                        paginatedPending.map(sub => (
                             <tr key={sub.id} className="hover:bg-slate-50/30 transition-colors group">
                                 <td className="px-8 py-6">
                                     <div className="flex items-center gap-4">
-                                        <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
+                                        <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 shrink-0">
                                             <User size={20} />
                                         </div>
                                         <div>
@@ -59,7 +72,7 @@ export const GradingQueue: React.FC<GradingQueueProps> = ({ submissions, onGrade
                                 </td>
                                 <td className="px-8 py-6">
                                     <div className="flex items-center gap-2 text-sm font-bold text-slate-600">
-                                        <FileText size={14} className="text-slate-400" />
+                                        <FileText size={14} className="text-slate-400 shrink-0" />
                                         {sub.assignment?.title || 'Unknown Assignment'}
                                     </div>
                                     <div className="text-[10px] text-blue-600 font-black uppercase tracking-widest mt-1 italic">
@@ -72,7 +85,7 @@ export const GradingQueue: React.FC<GradingQueueProps> = ({ submissions, onGrade
                                             <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-[9px] font-black uppercase tracking-widest w-fit border border-amber-200">
                                                 <RotateCcw size={12} /> Regrade Request
                                             </span>
-                                            <p className="text-[10px] text-slate-500 italic line-clamp-1 max-w-[200px]">"{sub.regrade_request}"</p>
+                                            <p className="text-[10px] text-slate-500 italic line-clamp-1 max-w-[200px]">&ldquo;{sub.regrade_request}&rdquo;</p>
                                         </div>
                                     ) : (
                                         <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-50 text-blue-600 rounded-full text-[9px] font-black uppercase tracking-widest w-fit border border-blue-100">
@@ -98,6 +111,43 @@ export const GradingQueue: React.FC<GradingQueueProps> = ({ submissions, onGrade
             </table>
         </div>
       </div>
+
+      {totalPages > 1 && (
+        <div className="flex justify-between items-center bg-white px-8 py-4 rounded-2xl shadow-sm border border-slate-100">
+            <div className="text-xs font-bold text-slate-500">
+                Showing {startIndex + 1} to {Math.min(startIndex + itemsPerPage, pending.length)} of {pending.length} results
+            </div>
+            <div className="flex items-center gap-2">
+                <button
+                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="p-2 rounded-lg hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                >
+                    <ChevronLeft size={20} />
+                </button>
+                <div className="flex items-center gap-1">
+                    {[...Array(totalPages)].map((_, i) => (
+                        <button
+                            key={i}
+                            onClick={() => setCurrentPage(i + 1)}
+                            className={`w-8 h-8 rounded-lg text-xs font-bold transition-all ${
+                                currentPage === i + 1 ? 'bg-slate-900 text-white' : 'hover:bg-slate-100 text-slate-500'
+                            }`}
+                        >
+                            {i + 1}
+                        </button>
+                    ))}
+                </div>
+                <button
+                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    className="p-2 rounded-lg hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                >
+                    <ChevronRight size={20} />
+                </button>
+            </div>
+        </div>
+      )}
     </div>
   );
 };
