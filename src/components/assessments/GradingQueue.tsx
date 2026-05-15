@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { SubmissionDTO } from '@/lib/types';
 import { Clock, RotateCcw, User, FileText, CheckCircle2, ChevronLeft, ChevronRight } from 'lucide-react';
 
@@ -13,7 +13,14 @@ export const GradingQueue: React.FC<GradingQueueProps> = ({ submissions, onGrade
 
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
-  const totalPages = Math.ceil(pending.length / itemsPerPage);
+  const totalPages = Math.max(1, Math.ceil(pending.length / itemsPerPage));
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+        setCurrentPage(totalPages);
+    }
+  }, [pending.length, totalPages, currentPage]);
+
   const startIndex = (currentPage - 1) * itemsPerPage;
   const paginatedPending = pending.slice(startIndex, startIndex + itemsPerPage);
 
