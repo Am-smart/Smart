@@ -265,19 +265,19 @@ export class AssessmentService {
         return submission;
     }
 
-    const assignment = await assessmentDb.findAssignmentById(submission.assignment_id, sessionId);
-    if (!assignment) throw new NotFoundError('Assignment not found');
-
     // Authorization check: Teachers can only grade submissions for their own assignments
     if (performingUserRole === 'teacher' && performingUserId) {
-        const teacherId = assignment.teacher_id;
+        let teacherId = submission.assignments?.teacher_id;
+
+        if (!teacherId) {
+            const assignment = await assessmentDb.findAssignmentById(submission.assignment_id, sessionId);
+            teacherId = assignment?.teacher_id;
+        }
+
         if (teacherId !== performingUserId) {
             throw new ForbiddenError('You are not authorized to grade this submission');
         }
     }
-
-    // Server-side Grading Validation
-    AssessmentDomain.validateGrading(assignment, gradeData);
 
     const sanitized = AssessmentDomain.sanitizeEntity(gradeData);
     const { assignments: _assignments, users: _users, ...rest } = sanitized as Record<string, unknown>;
