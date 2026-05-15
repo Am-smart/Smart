@@ -165,10 +165,6 @@ export class AssessmentDomain {
         });
 
         if (gradeData.grade !== undefined && Math.abs(Number(gradeData.grade) - calculatedTotal) > 0.01) {
-            // The frontend sends the total point sum in 'grade' and percentage in 'final_grade'.
-            // However, the reviewer noted a potential mismatch.
-            // Let's ensure we are validating against the correct field if both are present.
-            // If raw point sum is provided, it must match question_scores sum.
             throw new Error(`Total grade (${gradeData.grade}) does not match the sum of question scores (${calculatedTotal}).`);
         }
     }

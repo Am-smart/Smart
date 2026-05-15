@@ -5,24 +5,38 @@ import { Clock, RotateCcw, User, FileText, CheckCircle2, ChevronLeft, ChevronRig
 interface GradingQueueProps {
   submissions: SubmissionDTO[];
   onGrade: (submission: SubmissionDTO) => void;
+  onPageChange?: (page: number) => void;
+  currentPage?: number;
 }
 
-export const GradingQueue: React.FC<GradingQueueProps> = ({ submissions, onGrade }) => {
+export const GradingQueue: React.FC<GradingQueueProps> = ({ submissions, onGrade, onPageChange, currentPage: controlledPage }) => {
   // Pending grading includes new submissions and regrade requests
-  const pending = submissions.filter(s => s.status === 'submitted' || !!s.regrade_request);
+  // Memoize filtered data for performance
+  const pending = React.useMemo(() => submissions.filter(s => s.status === 'submitted' || !!s.regrade_request), [submissions]);
 
-  const [currentPage, setCurrentPage] = useState(1);
+  const [localPage, setLocalPage] = useState(1);
   const itemsPerPage = 10;
+
+  const currentPage = controlledPage !== undefined ? controlledPage : localPage;
   const totalPages = Math.max(1, Math.ceil(pending.length / itemsPerPage));
 
+  const handlePageChange = (p: number) => {
+    if (onPageChange) {
+        onPageChange(p);
+    } else {
+        setLocalPage(p);
+    }
+  };
+
   useEffect(() => {
-    if (currentPage > totalPages) {
-        setCurrentPage(totalPages);
+    if (currentPage > totalPages && totalPages > 0) {
+        handlePageChange(totalPages);
     }
   }, [pending.length, totalPages, currentPage]);
 
   const startIndex = (currentPage - 1) * itemsPerPage;
-  const paginatedPending = pending.slice(startIndex, startIndex + itemsPerPage);
+  // If onPageChange is provided, we assume submissions are already paginated by parent
+  const displaySubmissions = onPageChange ? pending : pending.slice(startIndex, startIndex + itemsPerPage);
 
   return (
     <div className="space-y-6">
@@ -57,7 +71,7 @@ export const GradingQueue: React.FC<GradingQueueProps> = ({ submissions, onGrade
                             </td>
                         </tr>
                     ) : (
-                        paginatedPending.map(sub => (
+                        displaySubmissions.map(sub => (
                             <tr key={sub.id} className="hover:bg-slate-50/30 transition-colors group">
                                 <td className="px-8 py-6">
                                     <div className="flex items-center gap-4">
@@ -119,7 +133,7 @@ export const GradingQueue: React.FC<GradingQueueProps> = ({ submissions, onGrade
             </div>
             <div className="flex items-center gap-2">
                 <button
-                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                    onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
                     disabled={currentPage === 1}
                     className="p-2 rounded-lg hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                 >
@@ -129,7 +143,7 @@ export const GradingQueue: React.FC<GradingQueueProps> = ({ submissions, onGrade
                     {[...Array(totalPages)].map((_, i) => (
                         <button
                             key={i}
-                            onClick={() => setCurrentPage(i + 1)}
+                            onClick={() => handlePageChange(i + 1)}
                             className={`w-8 h-8 rounded-lg text-xs font-bold transition-all ${
                                 currentPage === i + 1 ? 'bg-slate-900 text-white' : 'hover:bg-slate-100 text-slate-500'
                             }`}
@@ -139,7 +153,7 @@ export const GradingQueue: React.FC<GradingQueueProps> = ({ submissions, onGrade
                     ))}
                 </div>
                 <button
-                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                    onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
                     disabled={currentPage === totalPages}
                     className="p-2 rounded-lg hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                 >

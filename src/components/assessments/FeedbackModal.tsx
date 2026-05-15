@@ -8,13 +8,19 @@ interface FeedbackModalProps {
     onClose: () => void;
 }
 
-const QuestionAccordionItem: React.FC<{ q: QuestionDTO; idx: number; answer: string | number | boolean | undefined; feedback: string | undefined }> = ({ q, idx, answer, feedback }) => {
-    const [isOpen, setIsOpen] = useState(idx === 0); // Default open first item
+const QuestionAccordionItem: React.FC<{
+    q: QuestionDTO;
+    idx: number;
+    isOpen: boolean;
+    onToggle: () => void;
+    answer: string | number | boolean | undefined;
+    feedback: string | undefined
+}> = ({ q, idx, isOpen, onToggle, answer, feedback }) => {
 
     return (
         <div className="border border-slate-100 rounded-2xl overflow-hidden hover:border-slate-200 transition-colors">
             <button
-                onClick={() => setIsOpen(!isOpen)}
+                onClick={onToggle}
                 className="w-full flex justify-between items-center p-6 bg-white hover:bg-slate-50/50 transition-colors text-left"
             >
                 <div className="flex-1">
@@ -58,6 +64,8 @@ const QuestionAccordionItem: React.FC<{ q: QuestionDTO; idx: number; answer: str
 };
 
 export const FeedbackModal: React.FC<FeedbackModalProps> = ({ assignment, submission, onClose }) => {
+    const [openQuestionId, setOpenQuestionId] = useState<string | null>(assignment.questions?.[0]?.id || null);
+
     return (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[3000] p-4">
             <div className="bg-white w-full max-w-2xl rounded-[32px] shadow-2xl overflow-hidden animate-in zoom-in duration-300 flex flex-col max-h-[90vh]">
@@ -104,6 +112,8 @@ export const FeedbackModal: React.FC<FeedbackModalProps> = ({ assignment, submis
                                         key={q.id || idx}
                                         q={q}
                                         idx={idx}
+                                        isOpen={openQuestionId === q.id}
+                                        onToggle={() => setOpenQuestionId(openQuestionId === q.id ? null : q.id)}
                                         answer={(submission).answers?.[q.id]}
                                         feedback={(submission).response_feedback?.[q.id]}
                                     />

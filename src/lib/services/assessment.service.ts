@@ -243,7 +243,7 @@ export class AssessmentService {
             throw new Error('Late submissions are not allowed for this assignment.');
         }
         const diffMs = submittedAt.getTime() - dueDate.getTime();
-        const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
         const penaltyPerDay = assignment.late_penalty_per_day || 0;
         submissionToSave.late_penalty_applied = diffDays * penaltyPerDay;
     }
@@ -282,11 +282,36 @@ export class AssessmentService {
     // Backend Validation
     AssessmentDomain.validateGrading(submission, gradeData);
 
+    // Backend-owned Late Penalty & Grade Calculation
+    const subAny = submission as any;
+    const assignment = subAny.assignments || subAny.assignment;
+    let latePenaltyApplied = 0;
+    if (assignment && assignment.due_date && submission.submitted_at) {
+        const submittedAt = new Date(submission.submitted_at);
+        const dueDate = new Date(assignment.due_date);
+        if (submittedAt > dueDate) {
+            const daysLate = Math.floor((submittedAt.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24));
+            latePenaltyApplied = daysLate * (assignment.late_penalty_per_day || 0);
+        }
+    }
+
+    const rawGrade = gradeData.question_scores
+        ? Object.values(gradeData.question_scores).reduce((a, b) => a + b, 0)
+        : (gradeData.grade ?? submission.grade ?? 0);
+
+    const pointsPossible = assignment?.points_possible || 100;
+    const rawPercentage = Math.round((rawGrade / pointsPossible) * 100);
+    const finalGrade = Math.max(0, rawPercentage - latePenaltyApplied);
+
     const sanitized = AssessmentDomain.sanitizeEntity(gradeData);
     const { assignments: _assignments, users: _users, ...rest } = sanitized as Record<string, unknown>;
+
     const updated = await assessmentDb.upsertSubmission({
       ...rest,
       id: submissionId,
+      grade: rawGrade,
+      late_penalty_applied: latePenaltyApplied,
+      final_grade: finalGrade,
       status: SUBMISSION_STATUS.GRADED,
       graded_at: new Date().toISOString(),
     } as Partial<Submission>, sessionId);

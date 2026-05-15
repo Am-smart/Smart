@@ -13,39 +13,40 @@ interface GradingModalProps {
 export const GradingModal: React.FC<GradingModalProps> = ({ submission, onSave, onCancel }) => {
     const { addToast } = useAppContext();
 
-    const dueDate = submission.assignment?.due_date ? new Date(submission.assignment.due_date) : null;
-    const submittedAt = new Date(submission.submitted_at);
-    const isLate = dueDate && submittedAt > dueDate;
-    const daysLate = isLate ? Math.floor((submittedAt.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24)) : 0;
-    const penaltyPerDay = submission.assignment?.late_penalty_per_day || 0;
-    const calculatedPenalty = isLate ? daysLate * penaltyPerDay : 0;
+    const { dueDate, submittedAt, isLate, daysLate, calculatedPenalty } = useMemo(() => {
+        const dDate = submission.assignment?.due_date ? new Date(submission.assignment.due_date) : null;
+        const sAt = new Date(submission.submitted_at);
+        const late = !!(dDate && sAt > dDate);
+        const dLate = late ? Math.floor((sAt.getTime() - dDate.getTime()) / (1000 * 60 * 60 * 24)) : 0;
+        const penalty = late ? dLate * (submission.assignment?.late_penalty_per_day || 0) : 0;
+        return { dueDate: dDate, submittedAt: sAt, isLate: late, daysLate: dLate, calculatedPenalty: penalty };
+    }, [submission]);
 
     const [formData, setFormData] = useState({
-        grade: submission.grade?.toString() || '',
         feedback: submission.feedback || '',
-        points_possible: submission.assignment?.points_possible || 100,
         regrade_feedback: '',
-        response_feedback: ((submission).response_feedback as Record<string, string>) || {},
-        question_scores: ((submission).question_scores as Record<string, number>) || {}
+        response_feedback: submission.response_feedback || {},
+        question_scores: submission.question_scores || {}
     });
     const [isSaving, setIsSaving] = useState(false);
     const [regradeStatus, setRegradeStatus] = useState<'pending' | 'resolved'>(submission.regrade_request ? 'pending' : 'resolved');
 
-    const { rawPercentage, finalGrade } = useMemo(() => {
-        const raw = formData.grade ? Math.round((Number(formData.grade) / formData.points_possible) * 100) : 0;
-        const final = Math.max(0, raw - calculatedPenalty);
-        return { rawPercentage: raw, finalGrade: final };
-    }, [formData.grade, formData.points_possible, calculatedPenalty]);
+    const pointsPossible = submission.assignment?.points_possible || 100;
+
+    const { rawGrade, rawPercentage, finalGrade } = useMemo(() => {
+        const raw = Object.values(formData.question_scores).reduce((a: number, b) => a + (b as number), 0);
+        const rawPerc = Math.round((raw / pointsPossible) * 100);
+        const final = Math.max(0, rawPerc - calculatedPenalty);
+        return { rawGrade: raw, rawPercentage: rawPerc, finalGrade: final };
+    }, [formData.question_scores, pointsPossible, calculatedPenalty]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsSaving(true);
         try {
             const gradeData: Partial<SubmissionDTO> = {
-                grade: Number(formData.grade),
+                grade: rawGrade,
                 feedback: formData.feedback,
-                late_penalty_applied: calculatedPenalty,
-                final_grade: finalGrade,
                 response_feedback: formData.response_feedback,
                 question_scores: formData.question_scores
             };
@@ -133,11 +134,9 @@ export const GradingModal: React.FC<GradingModalProps> = ({ submission, onSave, 
                                                             if (val > (q.points || 0)) val = q.points || 0;
 
                                                             const newScores = { ...formData.question_scores, [q.id]: val };
-                                                            const total = Object.values(newScores).reduce((a: number, b) => a + (b as number), 0);
                                                             setFormData({
                                                                 ...formData,
-                                                                question_scores: newScores,
-                                                                grade: total.toString()
+                                                                question_scores: newScores
                                                             });
                                                         }}
                                                         className="w-full bg-white/80 border-none rounded-lg p-2 text-xs focus:ring-1 focus:ring-blue-400 outline-none font-bold"
@@ -191,15 +190,12 @@ export const GradingModal: React.FC<GradingModalProps> = ({ submission, onSave, 
                         <div>
                             <label className="block text-xs sm:text-sm font-bold text-slate-700 uppercase mb-3 tracking-wide">Points Earned</label>
                             <div className="flex items-center gap-3">
-                                <input
-                                    type="number" required min="0" max={formData.points_possible}
-                                    value={formData.grade}
-                                    onChange={(e) => setFormData(prev => ({ ...prev, grade: e.target.value }))}
-                                    className="w-full p-3 sm:p-4 rounded-xl border-2 border-slate-100 focus:border-blue-500 outline-none transition-all text-sm"
-                                    placeholder="0"
-                                />
-                                <span className="text-base sm:text-lg font-bold text-slate-400">/ {formData.points_possible}</span>
+                                <div className="w-full p-3 sm:p-4 rounded-xl border-2 border-slate-100 bg-slate-50 text-sm font-bold text-slate-700">
+                                    {rawGrade}
+                                </div>
+                                <span className="text-base sm:text-lg font-bold text-slate-400">/ {pointsPossible}</span>
                             </div>
+                            <p className="text-[10px] text-slate-400 mt-2 font-medium">Computed automatically from question scores.</p>
                         </div>
                         <div className="space-y-4 grid grid-cols-2 sm:block gap-4">
                             <div>
