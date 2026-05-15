@@ -188,4 +188,27 @@ export class AssessmentDomain {
       started_at: submissionData.started_at || new Date().toISOString()
     };
   }
+
+  static validateGrading(assignment: Assignment, gradeData: Partial<Submission>) {
+    if (gradeData.question_scores) {
+        let totalSum = 0;
+        assignment.questions.forEach((q) => {
+            const score = gradeData.question_scores![q.id];
+            if (score !== undefined) {
+                if (score < 0 || score > q.points) {
+                    throw new Error(`Score for question ${q.id} must be between 0 and ${q.points}`);
+                }
+                totalSum += score;
+            }
+        });
+
+        if (gradeData.grade !== undefined && Math.abs(gradeData.grade - totalSum) > 0.01) {
+            throw new Error(`Total grade (${gradeData.grade}) does not match sum of question scores (${totalSum})`);
+        }
+    }
+
+    if (gradeData.grade !== undefined && (gradeData.grade < 0 || gradeData.grade > assignment.points_possible)) {
+        throw new Error(`Grade must be between 0 and ${assignment.points_possible}`);
+    }
+  }
 }
