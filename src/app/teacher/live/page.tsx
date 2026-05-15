@@ -2,9 +2,13 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/components/auth/AuthContext';
+import dynamic from 'next/dynamic';
 import { getCourses, getLiveClasses } from '@/lib/api-actions';
-import { LiveClassManager } from "@/components/communication/LiveClassManager";
 import { LiveClassDTO } from '@/lib/types';
+
+const LiveClassManager = dynamic(() => import("@/components/communication/LiveClassManager").then(mod => mod.LiveClassManager), {
+    loading: () => <div className="p-8 flex items-center justify-center font-bold text-slate-400 uppercase tracking-widest animate-pulse">Loading Live Class Manager...</div>
+});
 import { CourseDTO } from '@/lib/types';
 
 export default function LiveClassesPage() {

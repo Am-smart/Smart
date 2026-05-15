@@ -1,13 +1,17 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from 'react';
+import dynamic from 'next/dynamic';
 import { useAuth } from '@/components/auth/AuthContext';
 import * as actions from '@/lib/api-actions';
-import { AssignmentEditor } from "@/components/assessments/AssignmentEditor";
 import { AssignmentDTO } from '@/lib/types';
 import { CourseDTO } from '@/lib/types';
 import { Trash2, Edit } from 'lucide-react';
 import { useAppContext } from '@/components/AppContext';
+
+const AssignmentEditor = dynamic(() => import("@/components/assessments/AssignmentEditor").then(mod => mod.AssignmentEditor), {
+    loading: () => <div className="fixed inset-0 z-[60] bg-white/80 backdrop-blur-sm flex items-center justify-center font-bold text-slate-400 uppercase tracking-widest animate-pulse">Loading Editor...</div>
+});
 
 export default function AssignmentsPage() {
   const { user } = useAuth();

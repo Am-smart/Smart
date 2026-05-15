@@ -97,6 +97,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const u = result.data!.user as User;
     await setCache('current_user', u);
+    // Force clear old session cache on login
+    await setCache('last_dashboard_refresh', 0);
+    await setCache(`last_full_pull_${u.id}`, 0);
     setUser(u);
   }, [setCache]);
 
@@ -108,6 +111,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const u = result.data!.user as User;
     await setCache('current_user', u);
+    // Force clear old session cache on signup
+    await setCache('last_dashboard_refresh', 0);
+    await setCache(`last_full_pull_${u.id}`, 0);
     setUser(u);
   }, [setCache]);
 
@@ -265,13 +271,49 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [user, isOnline, fetchNotifications]);
 
   // Dashboard Data
-  const refreshDashboardData = useCallback(async () => {
+  const refreshDashboardData = useCallback(async (force = false) => {
     if (!user) return;
+
+    // Caching Strategy: Use IndexedDB even when online if data is fresh (< 2 mins)
+    // to prevent redundant fetching on route changes or component re-renders.
+    const CACHE_TTL = 2 * 60 * 1000;
+
+    if (!force) {
+        const lastRefresh = await getCache<number>('last_dashboard_refresh');
+        if (lastRefresh && Date.now() - lastRefresh < CACHE_TTL) {
+            // Data is fresh, just load from cache into state
+            if (user.role === 'student') {
+                const [ce, ca, cs] = await Promise.all([
+                    getCache<EnrollmentDTO[]>('my_enrollments'),
+                    getCache<AssignmentDTO[]>('active_assignments'),
+                    getCache<SubmissionDTO[]>('my_submissions')
+                ]);
+                if (ce) setEnrollments(ce);
+                if (ca) setAssignments(ca);
+                if (cs) setSubmissions(cs);
+                if (ce && ca) {
+                    setStats(prev => ({ ...prev, courses: ce.length, dueSoon: ca.length }));
+                }
+            } else if (user.role === 'teacher') {
+                const [cc, cs] = await Promise.all([
+                    getCache<CourseDTO[]>('teacher_courses'),
+                    getCache<SubmissionDTO[]>('teacher_submissions')
+                ]);
+                if (cc) setCourses(cc);
+                if (cs) setSubmissions(cs);
+                if (cc && cs) {
+                    setStats(prev => ({ ...prev, courses: cc.length, pendingGrading: cs.length }));
+                }
+            }
+            // If we have cached data, we can skip network call
+            return;
+        }
+    }
 
     if (!isOnline) {
         if (user.role === 'student') {
             const cachedEnrollments = await getCache<EnrollmentDTO[]>('my_enrollments');
-            const cachedAssignments = await getCache<AssignmentDTO[]>('all_assignments');
+            const cachedAssignments = await getCache<AssignmentDTO[]>('active_assignments');
             const cachedSubmissions = await getCache<SubmissionDTO[]>('my_submissions');
             if (cachedEnrollments) setEnrollments(cachedEnrollments);
             if (cachedAssignments) setAssignments(cachedAssignments);
@@ -288,7 +330,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const isConnected = await checkBackend();
     if (!isConnected) return;
 
-    if (loadingStatus === 'ready') setLoadingStatus('data');
+    // Use functional update or ref to avoid depending on loadingStatus directly in useCallback
+    setLoadingStatus(prev => prev === 'ready' ? 'data' : prev);
 
     try {
       if (user.role === 'student') {
@@ -314,9 +357,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             dueSoon: pending.length
           });
 
-          await setCache('my_enrollments', myEnrollments);
-          await setCache('all_assignments', allAssignments);
-          await setCache('my_submissions', mySubmissions);
+          await Promise.all([
+              setCache('my_enrollments', myEnrollments),
+              setCache('active_assignments', pending),
+              setCache('my_submissions', mySubmissions),
+              setCache('last_dashboard_refresh', Date.now())
+          ]);
       } else if (user.role === 'teacher') {
           const [myCourses, pendingSubmissions, myLiveClasses] = await Promise.all([
               actions.getCourses(user.id),
@@ -330,11 +376,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             courses: myCourses.length,
             pendingGrading: pendingSubmissions.length,
             liveClasses: myLiveClasses.length,
-            dueSoon: 0 // Not applicable but matching interface
+            dueSoon: 0
           });
 
-          await setCache('teacher_courses', myCourses);
-          await setCache('teacher_submissions', pendingSubmissions);
+          await Promise.all([
+              setCache('teacher_courses', myCourses),
+              setCache('teacher_submissions', pendingSubmissions),
+              setCache('last_dashboard_refresh', Date.now())
+          ]);
       } else if (user.role === 'admin') {
           const [allUsers, systemStats] = await Promise.all([
               actions.getUsers(),
@@ -351,13 +400,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             students: allUsers.filter(u => u.role === 'student').length,
             pendingResets: allUsers.filter(u => !!u.reset_request).length
           });
+          await setCache('last_dashboard_refresh', Date.now());
       }
     } catch (err) {
       console.error('Dashboard refresh error:', err);
     } finally {
       setLoadingStatus('ready');
     }
-  }, [user, isOnline, getCache, setCache, checkBackend, loadingStatus]);
+  }, [user, isOnline, getCache, setCache, checkBackend]);
 
   useEffect(() => {
     if (user) {
