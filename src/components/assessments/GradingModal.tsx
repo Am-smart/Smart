@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { SubmissionDTO, QuestionDTO } from '@/lib/types';
 import { useAppContext } from '@/components/AppContext';
 import { gradeSubmission } from '@/lib/api-actions';
@@ -16,7 +16,7 @@ export const GradingModal: React.FC<GradingModalProps> = ({ submission, onSave, 
     const dueDate = submission.assignment?.due_date ? new Date(submission.assignment.due_date) : null;
     const submittedAt = new Date(submission.submitted_at);
     const isLate = dueDate && submittedAt > dueDate;
-    const daysLate = isLate ? Math.ceil((submittedAt.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24)) : 0;
+    const daysLate = isLate ? Math.floor((submittedAt.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24)) : 0;
     const penaltyPerDay = submission.assignment?.late_penalty_per_day || 0;
     const calculatedPenalty = isLate ? daysLate * penaltyPerDay : 0;
 
@@ -31,8 +31,11 @@ export const GradingModal: React.FC<GradingModalProps> = ({ submission, onSave, 
     const [isSaving, setIsSaving] = useState(false);
     const [regradeStatus, setRegradeStatus] = useState<'pending' | 'resolved'>(submission.regrade_request ? 'pending' : 'resolved');
 
-    const rawPercentage = formData.grade ? Math.round((Number(formData.grade) / formData.points_possible) * 100) : 0;
-    const finalGrade = Math.max(0, rawPercentage - calculatedPenalty);
+    const { rawPercentage, finalGrade } = useMemo(() => {
+        const raw = formData.grade ? Math.round((Number(formData.grade) / formData.points_possible) * 100) : 0;
+        const final = Math.max(0, raw - calculatedPenalty);
+        return { rawPercentage: raw, finalGrade: final };
+    }, [formData.grade, formData.points_possible, calculatedPenalty]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -48,6 +51,11 @@ export const GradingModal: React.FC<GradingModalProps> = ({ submission, onSave, 
             };
 
             if (submission.regrade_request && regradeStatus === 'resolved') {
+                if (!formData.regrade_feedback.trim()) {
+                    addToast('Please provide a regrade response explanation.', 'error');
+                    setIsSaving(false);
+                    return;
+                }
                 gradeData.regrade_request = null;
                 gradeData.feedback = `${formData.feedback}\n\n[Regrade Response]: ${formData.regrade_feedback}`;
             }
@@ -86,14 +94,14 @@ export const GradingModal: React.FC<GradingModalProps> = ({ submission, onSave, 
                         {(submission).answers && Object.keys((submission).answers as Record<string, unknown>).length > 0 ? (
                             <div className="space-y-4">
                                 {submission.assignment?.questions.map((q: QuestionDTO, idx: number) => (
-                                    <div key={idx} className="bg-white p-3 sm:p-5 rounded-2xl shadow-sm border border-blue-100/50 space-y-4">
+                                    <div key={q.id || idx} className="bg-white p-3 sm:p-5 rounded-2xl shadow-sm border border-blue-100/50 space-y-4">
                                         <div>
                                             <div className="text-[8px] sm:text-[10px] md:text-sm font-black text-blue-500 uppercase tracking-widest mb-2">Step {idx + 1}: {(q).text}</div>
                                             <div className="text-xs sm:text-sm text-slate-800">
                                                 {(q).type === 'file' ? (
-                                                    <a href={(submission).answers?.[idx] as string} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-bold">View Uploaded File</a>
+                                                    <a href={(submission).answers?.[q.id] as string} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-bold">View Uploaded File</a>
                                                 ) : (
-                                                    ((submission).answers?.[idx] as string) || <span className="italic text-slate-400">No response</span>
+                                                    ((submission).answers?.[q.id] as string) || <span className="italic text-slate-400">No response</span>
                                                 )}
                                             </div>
                                         </div>
@@ -103,10 +111,10 @@ export const GradingModal: React.FC<GradingModalProps> = ({ submission, onSave, 
                                                 <label className="text-[8px] sm:text-[10px] md:text-sm font-bold text-blue-400 uppercase tracking-widest block mb-1">Response Feedback</label>
                                                 <input
                                                     type="text"
-                                                    value={formData.response_feedback[idx] || ''}
+                                                    value={formData.response_feedback[q.id] || ''}
                                                     onChange={(e) => setFormData({
                                                         ...formData,
-                                                        response_feedback: { ...formData.response_feedback, [idx]: e.target.value }
+                                                        response_feedback: { ...formData.response_feedback, [q.id]: e.target.value }
                                                     })}
                                                     placeholder="Provide feedback on this specific response..."
                                                     className="w-full bg-white/80 border-none rounded-lg p-2 text-xs focus:ring-1 focus:ring-blue-400 outline-none"
@@ -117,10 +125,14 @@ export const GradingModal: React.FC<GradingModalProps> = ({ submission, onSave, 
                                                 <div className="flex items-center gap-1">
                                                     <input
                                                         type="number"
-                                                        value={formData.question_scores[idx] ?? ''}
+                                                        value={formData.question_scores[q.id] ?? ''}
                                                         onChange={(e) => {
-                                                            const val = e.target.value === '' ? 0 : Number(e.target.value);
-                                                            const newScores = { ...formData.question_scores, [idx]: val };
+                                                            let val = e.target.value === '' ? 0 : Number(e.target.value);
+                                                            // Validation: 0 to q.points
+                                                            if (val < 0) val = 0;
+                                                            if (val > (q.points || 0)) val = q.points || 0;
+
+                                                            const newScores = { ...formData.question_scores, [q.id]: val };
                                                             const total = Object.values(newScores).reduce((a: number, b) => a + (b as number), 0);
                                                             setFormData({
                                                                 ...formData,

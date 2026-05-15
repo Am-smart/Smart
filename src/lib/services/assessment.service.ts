@@ -279,6 +279,9 @@ export class AssessmentService {
         }
     }
 
+    // Backend Validation
+    AssessmentDomain.validateGrading(submission, gradeData);
+
     const sanitized = AssessmentDomain.sanitizeEntity(gradeData);
     const { assignments: _assignments, users: _users, ...rest } = sanitized as Record<string, unknown>;
     const updated = await assessmentDb.upsertSubmission({

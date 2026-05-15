@@ -140,6 +140,36 @@ export class AssessmentDomain {
     }
   }
 
+  /**
+   * Validates assignment grading data.
+   */
+  static validateGrading(submission: unknown, gradeData: Partial<Submission>) {
+    const sub = submission as Record<string, unknown>;
+    const assignment = (sub?.assignment || sub?.assignments) as Record<string, unknown>;
+    if (!assignment) return; // Cannot validate without assignment context
+
+    const questions = assignment.questions as { id: string; text: string; points: number }[];
+    if (gradeData.question_scores && questions) {
+        let calculatedTotal = 0;
+        questions.forEach((q) => {
+            const score = gradeData.question_scores?.[q.id];
+            if (score !== undefined) {
+                if (score < 0) {
+                    throw new Error(`Score for question "${q.text}" cannot be negative.`);
+                }
+                if (score > q.points) {
+                    throw new Error(`Score for question "${q.text}" (${score}) exceeds maximum points (${q.points}).`);
+                }
+                calculatedTotal += score;
+            }
+        });
+
+        if (gradeData.grade !== undefined && Math.abs(Number(gradeData.grade) - calculatedTotal) > 0.01) {
+            throw new Error(`Total grade (${gradeData.grade}) does not match the sum of question scores (${calculatedTotal}).`);
+        }
+    }
+  }
+
   static prepareAssignment(assignment: Partial<Assignment>, teacherId: string): Partial<Assignment> {
     this.validateAssignment(assignment);
     const rest = this.sanitizeEntity(assignment);
