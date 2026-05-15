@@ -38,19 +38,6 @@ export const GradingQueue: React.FC<GradingQueueProps> = ({ submissions, onGrade
   // If onPageChange is provided, we assume submissions are already paginated by parent
   const displaySubmissions = onPageChange ? pending : pending.slice(startIndex, startIndex + itemsPerPage);
 
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
-  const totalPages = Math.max(1, Math.ceil(pending.length / itemsPerPage));
-
-  useEffect(() => {
-    if (currentPage > totalPages) {
-        setCurrentPage(totalPages);
-    }
-  }, [pending.length, totalPages, currentPage]);
-
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const paginatedPending = pending.slice(startIndex, startIndex + itemsPerPage);
-
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
