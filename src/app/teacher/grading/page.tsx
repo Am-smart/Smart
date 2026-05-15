@@ -15,17 +15,31 @@ export default function GradingPage() {
   const { user } = useAuth();
   const [submissions, setSubmissions] = useState<SubmissionDTO[]>([]);
   const [selectedSubmission, setSelectedSubmission] = useState<SubmissionDTO | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0 });
 
-  const fetchSubmissions = useCallback(async () => {
+  const fetchSubmissions = useCallback(async (page: number = 1) => {
     if (user) {
-        const data = await getSubmissions({ status: 'submitted' });
-        setSubmissions(data);
+        setLoading(true);
+        try {
+            const data = await getSubmissions({
+                status: 'submitted',
+                limit: pagination.limit,
+                offset: (page - 1) * pagination.limit
+            });
+            setSubmissions(data);
+            // Since our API currently doesn't return total count in a wrapper,
+            // we'll estimate or handle it if we had a count API.
+            // For now, we'll keep the client-side list for the queue but with server limits.
+        } finally {
+            setLoading(false);
+        }
     }
-  }, [user]);
+  }, [user, pagination.limit]);
 
   useEffect(() => {
-    fetchSubmissions();
-  }, [fetchSubmissions]);
+    fetchSubmissions(pagination.page);
+  }, [fetchSubmissions, pagination.page]);
 
   useEffect(() => {
     if (submissions.length > 0) {
@@ -42,10 +56,14 @@ export default function GradingPage() {
 
   return (
     <>
-      <GradingQueue
-          submissions={submissions}
-          onGrade={setSelectedSubmission}
-      />
+      <div className={loading ? 'opacity-50 pointer-events-none' : ''}>
+        <GradingQueue
+            submissions={submissions}
+            onGrade={setSelectedSubmission}
+            onPageChange={(p) => setPagination(prev => ({ ...prev, page: p }))}
+            currentPage={pagination.page}
+        />
+      </div>
       {selectedSubmission && (
           <GradingModal
               submission={selectedSubmission}
