@@ -243,7 +243,7 @@ export class AssessmentService {
             throw new Error('Late submissions are not allowed for this assignment.');
         }
         const diffMs = submittedAt.getTime() - dueDate.getTime();
-        const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
         const penaltyPerDay = assignment.late_penalty_per_day || 0;
         submissionToSave.late_penalty_applied = diffDays * penaltyPerDay;
     }
