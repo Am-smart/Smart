@@ -165,6 +165,11 @@ export class AssessmentDomain {
         });
 
         if (gradeData.grade !== undefined && Math.abs(Number(gradeData.grade) - calculatedTotal) > 0.01) {
+            // If the grade is likely a percentage (much larger than raw points total), skip this check
+            // to allow legacy behavior where grade might be final_grade
+            if (Number(gradeData.grade) > calculatedTotal * 1.5 && Number(gradeData.grade) > 0) {
+                return;
+            }
             throw new Error(`Total grade (${gradeData.grade}) does not match the sum of question scores (${calculatedTotal}).`);
         }
     }
