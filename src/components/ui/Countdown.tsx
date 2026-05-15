@@ -80,7 +80,8 @@ const CountdownComponent: React.FC<CountdownProps> = ({
       hours: Math.floor((difference / (1000 * 60 * 60)) % 24),
       minutes: Math.floor((difference / 1000 / 60) % 60),
       seconds: Math.floor((difference / 1000) % 60),
-      total: difference
+      total: difference,
+      isSoon: difference > 0 && difference < 60 * 60 * 1000
     };
   }, [difference]);
 
@@ -92,6 +93,7 @@ const CountdownComponent: React.FC<CountdownProps> = ({
         hasStartedCalled.current = true;
         onStart?.();
     }
+  }, [timeLeft?.total, onEnd, mounted]);
 
     if (state === 'ENDED' && !hasEndedCalled.current) {
         hasEndedCalled.current = true;
