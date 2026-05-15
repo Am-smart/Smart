@@ -30,18 +30,20 @@ export const BaseDashboardLayout: React.FC<BaseDashboardLayoutProps> = ({
   HeaderComponent,
   headerProps = {}
 }) => {
-  const { user, role, logout, isAuthLoading, updateProfile } = useAuth();
-  const { isSidebarOpen, toggleSidebar, maintenance } = useAppContext();
+  const { user, role, logout, updateProfile } = useAuth();
+  const { isSidebarOpen, toggleSidebar, maintenance, loadingStatus } = useAppContext();
   const router = useRouter();
   const pathname = usePathname();
 
+  // Redirect only after initialization is complete and if authentication fails
+  const isInitializing = loadingStatus === 'idle' || loadingStatus === 'auth';
+  const isAuthenticated = user && role === requiredRole;
+
   useEffect(() => {
-    if (!isAuthLoading) {
-      if (!user || role !== requiredRole) {
-        router.push('/');
-      }
+    if (!isInitializing && !isAuthenticated) {
+      router.push('/');
     }
-  }, [isAuthLoading, user, role, router, requiredRole]);
+  }, [isInitializing, isAuthenticated, router]);
 
   const handleLogout = async () => {
     await logout();
@@ -50,7 +52,9 @@ export const BaseDashboardLayout: React.FC<BaseDashboardLayoutProps> = ({
 
   const activePage = pathname.split('/').pop() || 'dashboard';
 
-  if (isAuthLoading || !user || role !== requiredRole) {
+  // Only show the full-screen loading state during initial app boot
+  // Subsequent dashboard navigations will use background loading to keep UI responsive
+  if ((isInitializing && !user) || !isAuthenticated) {
     return <div className="flex items-center justify-center min-h-screen font-bold text-slate-400 uppercase tracking-widest animate-pulse">Loading...</div>;
   }
 
