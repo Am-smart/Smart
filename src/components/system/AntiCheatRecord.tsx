@@ -12,6 +12,8 @@ interface AntiCheatRecordProps {
 
 export const AntiCheatRecord: React.FC<AntiCheatRecordProps> = ({ submissions, quizSubmissions, logs, isTeacher }) => {
   const [selectedAssessment, setSelectedAssessment] = useState<{ id: string, title: string, type: string, studentId?: string, submittedAt: string } | null>(null);
+  const [selectedStudent, setSelectedStudent] = useState<string | null>(null);
+  const [selectedAssessmentFilter, setSelectedAssessmentFilter] = useState<string | null>(null);
 
   const allAssessments = useMemo(() => [
     ...submissions.map(s => ({
@@ -37,6 +39,35 @@ export const AntiCheatRecord: React.FC<AntiCheatRecordProps> = ({ submissions, q
   ].filter(s => s.status === 'submitted' || s.status === 'graded' || s.status === 'in progress')
    .sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime())
   , [submissions, quizSubmissions]);
+
+  // Get unique students for filtering (teacher view)
+  const uniqueStudents = useMemo(() => {
+    const students = new Map<string, string>();
+    allAssessments.forEach(a => {
+      if (a.studentId && a.student) {
+        students.set(a.studentId, a.student);
+      }
+    });
+    return Array.from(students.entries());
+  }, [allAssessments]);
+
+  // Get unique assessments for filtering
+  const uniqueAssessments = useMemo(() => {
+    const assessments = new Map<string, { title: string, type: string }>();
+    allAssessments.forEach(a => {
+      assessments.set(a.id, { title: a.title, type: a.type });
+    });
+    return Array.from(assessments.entries());
+  }, [allAssessments]);
+
+  // Apply filters to assessments
+  const filteredAssessments = useMemo(() => {
+    return allAssessments.filter(a => {
+      const matchesStudent = !selectedStudent || a.studentId === selectedStudent;
+      const matchesAssessment = !selectedAssessmentFilter || a.id === selectedAssessmentFilter;
+      return matchesStudent && matchesAssessment;
+    });
+  }, [allAssessments, selectedStudent, selectedAssessmentFilter]);
 
   const stats = useMemo(() => {
     const filteredLogs = selectedAssessment && logs
@@ -221,20 +252,61 @@ export const AntiCheatRecord: React.FC<AntiCheatRecordProps> = ({ submissions, q
 
       <div className="grid grid-cols-1 gap-6 md:gap-8">
         <div className="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
-          <div className="p-6 border-b border-slate-50 flex justify-between items-center bg-white">
-            <h3 className="font-bold text-slate-900 flex items-center gap-2">
-                <Clock size={18} className="text-blue-500" />
-                Assessment History
-            </h3>
-            {selectedAssessment && (
-                <button
-                    onClick={() => setSelectedAssessment(null)}
-                    className="text-[10px] font-black text-slate-400 hover:text-red-500 uppercase tracking-widest transition-colors flex items-center gap-1"
+          <div className="p-6 border-b border-slate-50 space-y-4">
+            <div className="flex justify-between items-center">
+              <h3 className="font-bold text-slate-900 flex items-center gap-2">
+                  <Clock size={18} className="text-blue-500" />
+                  Assessment History
+              </h3>
+              {(selectedAssessment || selectedStudent || selectedAssessmentFilter) && (
+                  <button
+                      onClick={() => {
+                        setSelectedAssessment(null);
+                        setSelectedStudent(null);
+                        setSelectedAssessmentFilter(null);
+                      }}
+                      className="text-[10px] font-black text-slate-400 hover:text-red-500 uppercase tracking-widest transition-colors flex items-center gap-1"
+                  >
+                      <X size={14} />
+                      Reset All Filters
+                  </button>
+              )}
+            </div>
+
+            {/* Filter Controls */}
+            <div className="flex flex-col md:flex-row gap-4">
+              {isTeacher && uniqueStudents.length > 0 && (
+                <select
+                  value={selectedStudent || ''}
+                  onChange={(e) => setSelectedStudent(e.target.value || null)}
+                  className="flex-1 px-4 py-2 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
-                    <X size={14} />
-                    Reset View
-                </button>
-            )}
+                  <option value="">All Students</option>
+                  {uniqueStudents.map(([id, name]) => (
+                    <option key={id} value={id}>{name}</option>
+                  ))}
+                </select>
+              )}
+
+              {uniqueAssessments.length > 0 && (
+                <select
+                  value={selectedAssessmentFilter || ''}
+                  onChange={(e) => setSelectedAssessmentFilter(e.target.value || null)}
+                  className="flex-1 px-4 py-2 border border-slate-200 rounded-lg text-sm font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">All Assessments</option>
+                  {uniqueAssessments.map(([id, { title, type }]) => (
+                    <option key={id} value={id}>{title} ({type})</option>
+                  ))}
+                </select>
+              )}
+
+              {(selectedStudent || selectedAssessmentFilter) && (
+                <div className="text-sm text-slate-600 flex items-center gap-1 px-2">
+                  <span className="font-semibold">{filteredAssessments.length}</span> result(s)
+                </div>
+              )}
+            </div>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-left min-w-[800px]">
@@ -249,12 +321,16 @@ export const AntiCheatRecord: React.FC<AntiCheatRecordProps> = ({ submissions, q
                 </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                {allAssessments.length === 0 ? (
+                {filteredAssessments.length === 0 ? (
                     <tr>
-                    <td colSpan={6} className="px-6 py-12 text-center text-slate-400 italic text-sm">No assessment footprint detected.</td>
+                    <td colSpan={6} className="px-6 py-12 text-center text-slate-400 italic text-sm">
+                      {allAssessments.length === 0 
+                        ? 'No assessment footprint detected.' 
+                        : 'No assessments match the selected filters.'}
+                    </td>
                     </tr>
                 ) : (
-                    allAssessments.map(record => (
+                    filteredAssessments.map(record => (
                     <tr
                         key={`${record.type}-${record.id}`}
                         className={`hover:bg-blue-50/30 transition-all cursor-pointer group ${selectedAssessment?.id === record.id ? 'bg-blue-50/50' : ''}`}

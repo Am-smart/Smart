@@ -433,12 +433,13 @@ export async function getSystemLogs(limit: number = 100): Promise<SystemLogDTO[]
     return apiClient.get<SystemLogDTO[]>(`/api/v1/system?action=logs&limit=${limit}`);
 }
 
-export async function getAntiCheatLogs(filters: { userId?: string, courseId?: string, resourceId?: string, limit?: number } = {}): Promise<AntiCheatLogDTO[]> {
+export async function getAntiCheatLogs(filters: { userId?: string, courseId?: string, resourceId?: string, limit?: number, offset?: number } = {}): Promise<AntiCheatLogDTO[]> {
     let url = '/api/v1/system?action=anti-cheat-logs';
     if (filters.userId) url += `&userId=${filters.userId}`;
     if (filters.courseId) url += `&courseId=${filters.courseId}`;
     if (filters.resourceId) url += `&resourceId=${filters.resourceId}`;
     if (filters.limit) url += `&limit=${filters.limit}`;
+    if (filters.offset !== undefined) url += `&offset=${filters.offset}`;
     return apiClient.get<AntiCheatLogDTO[]>(url);
 }
 
