@@ -5,8 +5,9 @@ import { useAppContext } from '@/components/AppContext';
 import { Plus, Paperclip, Settings } from 'lucide-react';
 import { saveAssignment } from '@/lib/api-actions';
 import { useAuth } from '@/components/auth/AuthContext';
-import { ASSESSMENT_STATUS } from '@/lib/constants';
+import { ASSESSMENT_STATUS, ANTI_CHEAT_VIOLATIONS } from '@/lib/constants';
 import { Modal } from '@/components/ui/Modal';
+import { AntiCheatConfigModal } from './AntiCheatConfigModal';
 
 interface AssignmentEditorProps {
     teacherId: string;
@@ -40,6 +41,7 @@ export const AssignmentEditor: React.FC<AssignmentEditorProps> = ({ teacherId, a
         metadata: assignment?.metadata || {}
     });
     const [isSaving, setIsSaving] = useState(false);
+    const [showAntiCheatModal, setShowAntiCheatModal] = useState(false);
     const [metadataText, setMetadataText] = useState(JSON.stringify(assignment?.metadata || {}, null, 2));
     const [isUploading, setIsUploading] = useState(false);
 
@@ -211,9 +213,21 @@ export const AssignmentEditor: React.FC<AssignmentEditorProps> = ({ teacherId, a
                             <div className="bg-white p-6 rounded-2xl border-2 border-slate-50 space-y-4 shadow-sm">
                                 <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Enforcement & Options</h4>
                                 <div className="grid grid-cols-1 gap-3">
-                                    <div className="flex items-center gap-3">
-                                        <input type="checkbox" id="antiCheat" checked={formData.anti_cheat_enabled} onChange={e => setFormData({...formData, anti_cheat_enabled: e.target.checked})} className="w-5 h-5 text-blue-600" />
-                                        <label htmlFor="antiCheat" className="text-sm font-bold text-slate-700 cursor-pointer">Anti-Cheat Monitoring</label>
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center gap-3">
+                                            <input type="checkbox" id="antiCheat" checked={formData.anti_cheat_enabled} onChange={e => setFormData({...formData, anti_cheat_enabled: e.target.checked})} className="w-5 h-5 text-blue-600" />
+                                            <label htmlFor="antiCheat" className="text-sm font-bold text-slate-700 cursor-pointer">Anti-Cheat Monitoring</label>
+                                        </div>
+                                        {formData.anti_cheat_enabled && (
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowAntiCheatModal(true)}
+                                                className="p-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
+                                                title="Configure Violations"
+                                            >
+                                                <Settings size={16} />
+                                            </button>
+                                        )}
                                     </div>
                                     <div className="flex items-center gap-3">
                                         <input type="checkbox" id="hardEnforce" checked={formData.hard_enforcement} onChange={e => setFormData({...formData, hard_enforcement: e.target.checked})} className="w-5 h-5 text-red-600" />
@@ -226,6 +240,25 @@ export const AssignmentEditor: React.FC<AssignmentEditorProps> = ({ teacherId, a
                                 </div>
                             </div>
                         </div>
+
+                        <AntiCheatConfigModal
+                            isOpen={showAntiCheatModal}
+                            onClose={() => setShowAntiCheatModal(false)}
+                            config={(formData.metadata?.antiCheatConfig as any) || {}}
+                            onChange={(newConfig) => {
+                                setFormData({
+                                    ...formData,
+                                    metadata: {
+                                        ...formData.metadata,
+                                        antiCheatConfig: newConfig
+                                    }
+                                });
+                                setMetadataText(JSON.stringify({
+                                    ...formData.metadata,
+                                    antiCheatConfig: newConfig
+                                }, null, 2));
+                            }}
+                        />
 
                         <div className="space-y-4">
                             <label className="block text-sm font-bold text-slate-700 uppercase tracking-wide">Attachments & Restrictions</label>

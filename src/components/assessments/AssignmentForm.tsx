@@ -22,7 +22,13 @@ export const AssignmentForm: React.FC<AssignmentFormProps> = ({ assignment, user
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { addToQueue, isOnline } = useIndexedDB();
 
-  const { violationCount } = useAntiCheat(assignment.anti_cheat_enabled, assignment.title, assignment.course_id, assignment.id);
+  const { violationCount } = useAntiCheat(
+    assignment.anti_cheat_enabled,
+    assignment.title,
+    assignment.course_id,
+    assignment.id,
+    assignment.metadata?.antiCheatConfig as any
+  );
   const isLocked = assignment.anti_cheat_enabled && assignment.hard_enforcement && violationCount >= 5;
 
   // Anti-cheat: Feedback and detection

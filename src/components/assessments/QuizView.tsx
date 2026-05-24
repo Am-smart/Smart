@@ -26,7 +26,13 @@ export const QuizView: React.FC<QuizViewProps> = ({ quiz, user, onComplete, onCa
   const { addToQueue, setCache, getCache, isOnline } = useIndexedDB();
   const [startedAt] = useState(new Date().toISOString());
 
-  const { violationCount } = useAntiCheat(quiz.anti_cheat_enabled, quiz.title, quiz.course_id, quiz.id);
+  const { violationCount } = useAntiCheat(
+    quiz.anti_cheat_enabled,
+    quiz.title,
+    quiz.course_id,
+    quiz.id,
+    quiz.metadata?.antiCheatConfig as any
+  );
 
   useEffect(() => {
     const handleViolation = (e: Event) => {
