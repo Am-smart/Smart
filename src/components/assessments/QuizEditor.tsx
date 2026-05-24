@@ -4,8 +4,9 @@ import { CourseDTO } from '@/lib/types';
 import { useAppContext } from '@/components/AppContext';
 import { Plus, Settings } from 'lucide-react';
 import { saveQuiz } from '@/lib/api-actions';
-import { ASSESSMENT_STATUS } from '@/lib/constants';
+import { ASSESSMENT_STATUS, ANTI_CHEAT_VIOLATIONS } from '@/lib/constants';
 import { Modal } from '@/components/ui/Modal';
+import { AntiCheatConfigModal } from './AntiCheatConfigModal';
 
 interface QuizEditorProps {
     teacherId: string;
@@ -36,6 +37,7 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({ teacherId, quiz, courses
         metadata: quiz?.metadata || {}
     });
     const [isSaving, setIsSaving] = useState(false);
+    const [showAntiCheatModal, setShowAntiCheatModal] = useState(false);
     const [metadataText, setMetadataText] = useState(JSON.stringify(quiz?.metadata || {}, null, 2));
 
     const handleAddQuestion = () => {
@@ -168,18 +170,30 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({ teacherId, quiz, courses
                         </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                            <div className="flex items-center gap-4 p-4 bg-white rounded-xl border-2 border-slate-100">
-                                <input
-                                    type="checkbox"
-                                    id="anti_cheat"
-                                    checked={formData.anti_cheat_enabled}
-                                    onChange={e => setFormData({...formData, anti_cheat_enabled: e.target.checked})}
-                                    className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
-                                />
-                                <div>
-                                    <label htmlFor="anti_cheat" className="block text-sm font-bold text-slate-700 uppercase tracking-wide">Anti-Cheat</label>
-                                    <p className="text-[10px] text-slate-500 font-medium">Monitor actions</p>
+                            <div className="flex items-center justify-between gap-4 p-4 bg-white rounded-xl border-2 border-slate-100">
+                                <div className="flex items-center gap-4">
+                                    <input
+                                        type="checkbox"
+                                        id="anti_cheat"
+                                        checked={formData.anti_cheat_enabled}
+                                        onChange={e => setFormData({...formData, anti_cheat_enabled: e.target.checked})}
+                                        className="w-5 h-5 rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                                    />
+                                    <div>
+                                        <label htmlFor="anti_cheat" className="block text-sm font-bold text-slate-700 uppercase tracking-wide">Anti-Cheat</label>
+                                        <p className="text-[10px] text-slate-500 font-medium">Monitor actions</p>
+                                    </div>
                                 </div>
+                                {formData.anti_cheat_enabled && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setShowAntiCheatModal(true)}
+                                        className="p-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors"
+                                        title="Configure Violations"
+                                    >
+                                        <Settings size={18} />
+                                    </button>
+                                )}
                             </div>
                             <div className="flex items-center gap-4 p-4 bg-red-50 rounded-xl border-2 border-red-100">
                                 <input
@@ -208,6 +222,25 @@ export const QuizEditor: React.FC<QuizEditorProps> = ({ teacherId, quiz, courses
                                 </div>
                             </div>
                         </div>
+
+                        <AntiCheatConfigModal
+                            isOpen={showAntiCheatModal}
+                            onClose={() => setShowAntiCheatModal(false)}
+                            config={(formData.metadata?.antiCheatConfig as any) || {}}
+                            onChange={(newConfig) => {
+                                setFormData({
+                                    ...formData,
+                                    metadata: {
+                                        ...formData.metadata,
+                                        antiCheatConfig: newConfig
+                                    }
+                                });
+                                setMetadataText(JSON.stringify({
+                                    ...formData.metadata,
+                                    antiCheatConfig: newConfig
+                                }, null, 2));
+                            }}
+                        />
 
                         <div className="space-y-4">
                             <label className="flex items-center gap-2 text-sm font-bold text-slate-700 uppercase tracking-wide">

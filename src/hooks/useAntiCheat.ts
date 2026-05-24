@@ -1,13 +1,18 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '@/components';
 import { logAntiCheatViolation } from '@/lib/api-actions';
-import { ANTI_CHEAT } from '@/lib/constants';
+import { ANTI_CHEAT, ANTI_CHEAT_VIOLATIONS, AntiCheatViolationType } from '@/lib/constants';
+
+interface AntiCheatConfig {
+  enabledViolations?: Record<string, boolean>;
+  [key: string]: unknown;
+}
 
 /**
  * Advanced Anti-Cheat Hook - Production Ready
  * Integrated with server-side logging and browser event blocking.
  */
-export const useAntiCheat = (enabled: boolean = false, assessmentTitle: string = 'Assessment', courseId?: string, resourceId?: string) => {
+export const useAntiCheat = (enabled: boolean = false, assessmentTitle: string = 'Assessment', courseId?: string, resourceId?: string, config: AntiCheatConfig = {}) => {
   const [violationCount, setViolationCount] = useState(0);
   const { user } = useAuth();
   const lastViolationTime = useRef<Record<string, number>>({});
@@ -18,6 +23,12 @@ export const useAntiCheat = (enabled: boolean = false, assessmentTitle: string =
   const visibilityHiddenAt = useRef<number | null>(null);
 
   const reportViolation = useCallback(async (type: string, metadata: Record<string, unknown> = {}) => {
+    // Check if this specific violation is enabled in config
+    // The config passed is Record<string, boolean>
+    if (config && (config as any)[type] === false) {
+        return;
+    }
+
     const now = Date.now();
     // Global rate limiting to prevent flood
     const lastAny = Math.max(...Object.values(lastViolationTime.current), 0);
@@ -26,14 +37,25 @@ export const useAntiCheat = (enabled: boolean = false, assessmentTitle: string =
     if (now - (lastViolationTime.current[type] || 0) < MIN_VIOLATION_INTERVAL) return;
 
     lastViolationTime.current[type] = now;
-    setViolationCount(prev => prev + 1);
+
+    // Use scoring system
+    const score = (ANTI_CHEAT_VIOLATIONS as any)[type]?.score || 1;
+    setViolationCount(prev => prev + score);
+
+    const browserInfo = typeof window !== 'undefined' ? {
+        userAgent: window.navigator.userAgent,
+        language: window.navigator.language,
+        platform: (window.navigator as any).platform,
+        vendor: window.navigator.vendor,
+        screen: `${window.screen.width}x${window.screen.height}`,
+    } : {};
 
     if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
       console.warn(`[Anti-Cheat] Violation: ${type}`, metadata);
     }
 
     // Local event for UI feedback
-    window.dispatchEvent(new CustomEvent('anti-cheat-violation', { detail: { type, metadata } }));
+    window.dispatchEvent(new CustomEvent('anti-cheat-violation', { detail: { type, metadata: { ...metadata, ...browserInfo } } }));
 
     if (user && enabled) {
         try {
@@ -42,7 +64,12 @@ export const useAntiCheat = (enabled: boolean = false, assessmentTitle: string =
                 assessmentTitle,
                 courseId,
                 resourceId,
-                metadata: { ...metadata, timestamp: new Date().toISOString() }
+                metadata: {
+                    ...metadata,
+                    ...browserInfo,
+                    timestamp: new Date().toISOString(),
+                    violationLabel: (ANTI_CHEAT_VIOLATIONS as any)[type]?.label || type
+                }
             });
         } catch (err) {
             if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
@@ -50,7 +77,7 @@ export const useAntiCheat = (enabled: boolean = false, assessmentTitle: string =
             }
         }
     }
-  }, [user, enabled, assessmentTitle, courseId, resourceId, MIN_VIOLATION_INTERVAL]);
+  }, [user, enabled, assessmentTitle, courseId, resourceId, MIN_VIOLATION_INTERVAL, config]);
 
   useEffect(() => {
     if (!enabled) return;

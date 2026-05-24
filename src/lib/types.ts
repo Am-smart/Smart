@@ -31,7 +31,7 @@ export interface User {
   active?: boolean;
   password_change_required?: boolean;
   version?: number;
-  metadata?: Record<string, string | number | boolean>;
+  metadata?: Record<string, any>;
 }
 
 export interface UserDTO {
@@ -45,7 +45,7 @@ export interface UserDTO {
   active?: boolean;
   password_change_required?: boolean;
   notification_preferences?: Record<string, boolean>;
-  metadata?: Record<string, string | number | boolean>;
+  metadata?: Record<string, any>;
   flagged?: boolean;
   last_login?: string;
   failed_attempts?: number;
@@ -94,7 +94,7 @@ export interface Course {
   created_at?: string;
   updated_at?: string;
   version?: number;
-  metadata?: Record<string, string | number | boolean>;
+  metadata?: Record<string, any>;
 }
 
 // CourseDTO is an alias for Course to maintain backward compatibility
@@ -167,7 +167,7 @@ export interface Assignment {
   version?: number;
   questions: AssignmentQuestion[];
   attachments?: Attachment[];
-  metadata?: Record<string, string | number | boolean>;
+  metadata?: Record<string, any>;
   courses?: Course;
 }
 
@@ -205,7 +205,7 @@ export interface AssignmentDTO {
   version?: number;
   created_at?: string;
   updated_at?: string;
-  metadata?: Record<string, string | number | boolean>;
+  metadata?: Record<string, any>;
 }
 
 export interface AssignmentQuestion {
@@ -236,7 +236,7 @@ export interface Quiz {
   updated_at?: string;
   version?: number;
   questions: QuizQuestion[];
-  metadata?: Record<string, string | number | boolean>;
+  metadata?: Record<string, any>;
   courses?: Course;
 }
 
@@ -260,7 +260,7 @@ export interface QuizDTO {
   version?: number;
   created_at?: string;
   updated_at?: string;
-  metadata?: Record<string, string | number | boolean>;
+  metadata?: Record<string, any>;
 }
 
 export interface QuizQuestion {
@@ -383,7 +383,7 @@ export interface Notification {
   dismissed_at?: string;
   acknowledged_at?: string;
   expires_at?: string;
-  metadata?: Record<string, string | number | boolean>;
+  metadata?: Record<string, any>;
   created_at: string;
 }
 
@@ -400,7 +400,7 @@ export interface NotificationDTO {
   dismissed_at?: string;
   acknowledged_at?: string;
   expires_at?: string;
-  metadata?: Record<string, string | number | boolean>;
+  metadata?: Record<string, any>;
   created_at: string;
   version?: number;
   updated_at?: string;
@@ -509,7 +509,7 @@ export interface LiveClass {
   meeting_url?: string;
   recording_url?: string;
   recurring_config?: Record<string, string | number | boolean>;
-  metadata?: Record<string, string | number | boolean>;
+  metadata?: Record<string, any>;
   start_at: string;
   end_at: string;
   actual_end_at?: string | null;
@@ -530,7 +530,7 @@ export interface LiveClassDTO {
   meeting_url?: string;
   recording_url?: string;
   recurring_config?: Record<string, string | number | boolean>;
-  metadata?: Record<string, string | number | boolean>;
+  metadata?: Record<string, any>;
   start_at: string;
   end_at: string;
   actual_end_at?: string | null;
@@ -626,7 +626,7 @@ export interface SystemLog {
   level: string;
   category: string;
   message: string;
-  metadata?: Record<string, string | number | boolean>;
+  metadata?: Record<string, any>;
   user_id?: string;
   course_id?: string;
   resource_id?: string;
