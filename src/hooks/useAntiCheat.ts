@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useAuth } from '@/components/auth/AuthContext';
+import { useAuth } from '@/components';
 import { logAntiCheatViolation } from '@/lib/api-actions';
 import { ANTI_CHEAT } from '@/lib/constants';
 
@@ -28,7 +28,9 @@ export const useAntiCheat = (enabled: boolean = false, assessmentTitle: string =
     lastViolationTime.current[type] = now;
     setViolationCount(prev => prev + 1);
 
-    console.warn(`[Anti-Cheat] Violation: ${type}`, metadata);
+    if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+      console.warn(`[Anti-Cheat] Violation: ${type}`, metadata);
+    }
 
     // Local event for UI feedback
     window.dispatchEvent(new CustomEvent('anti-cheat-violation', { detail: { type, metadata } }));
@@ -43,7 +45,9 @@ export const useAntiCheat = (enabled: boolean = false, assessmentTitle: string =
                 metadata: { ...metadata, timestamp: new Date().toISOString() }
             });
         } catch (err) {
-            console.error('Failed to log anti-cheat violation to server:', err);
+            if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+              console.error('Failed to log anti-cheat violation to server:', err);
+            }
         }
     }
   }, [user, enabled, assessmentTitle, courseId, resourceId, MIN_VIOLATION_INTERVAL]);
@@ -209,7 +213,9 @@ export const useAntiCheat = (enabled: boolean = false, assessmentTitle: string =
         document.body.style.webkitUserSelect = 'auto';
       };
     } catch (err) {
-      console.warn('Anti-Cheat: Initialization fallback mode', err);
+      if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+        console.warn('Anti-Cheat: Initialization fallback mode', err);
+      }
     }
   }, [enabled, reportViolation]);
 

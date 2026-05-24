@@ -97,21 +97,8 @@ export interface Course {
   metadata?: Record<string, string | number | boolean>;
 }
 
-export interface CourseDTO {
-  id: string;
-  enrollment_id?: string;
-  created_by?: string;
-  title: string;
-  description?: string;
-  status: 'draft' | 'published' | 'archived';
-  teacher_id: string;
-  max_enrollment?: number;
-  thumbnail_url?: string;
-  created_at?: string;
-  updated_at?: string;
-  version?: number;
-  metadata?: Record<string, string | number | boolean>;
-}
+// CourseDTO is an alias for Course to maintain backward compatibility
+export type CourseDTO = Course;
 
 export interface Enrollment {
   course_id: string;
@@ -145,17 +132,8 @@ export interface Lesson {
   updated_at?: string;
 }
 
-export interface LessonDTO {
-  id: string;
-  course_id: string;
-  title: string;
-  content: string;
-  video_url?: string;
-  order_index: number;
-  created_at?: string;
-  updated_at?: string;
-  version?: number;
-}
+// LessonDTO is an alias for Lesson to maintain backward compatibility
+export type LessonDTO = Lesson;
 
 export interface Attachment {
   name: string;
@@ -164,12 +142,8 @@ export interface Attachment {
   size?: number;
 }
 
-export interface AttachmentDTO {
-  name: string;
-  url: string;
-  type: string;
-  size?: number;
-}
+// AttachmentDTO is an alias for Attachment to maintain backward compatibility
+export type AttachmentDTO = Attachment;
 
 export interface Assignment {
   id: string;

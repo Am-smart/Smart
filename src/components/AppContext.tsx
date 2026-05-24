@@ -120,11 +120,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const logout = useCallback(async () => {
     try {
         const res = await actions.logout();
-        if (!res.success) {
+        if (!res.success && typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
             console.error('Logout backend failure:', res.error);
         }
     } catch (err) {
-        console.error('Logout network/server error:', err);
+        if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+          console.error('Logout network/server error:', err);
+        }
     }
 
     // 1. Trigger full client-side data purge (Storage + IndexedDB)
