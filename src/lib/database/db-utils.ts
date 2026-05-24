@@ -1,4 +1,5 @@
 import { DatabaseError, DatabaseResponse } from '../types';
+import { withSession } from '../supabase';
 
 export const dbUtils = {
   /**
@@ -29,11 +30,11 @@ export const dbUtils = {
   /**
    * Applies optimistic concurrency control (version check) to a query
    */
-  applyVersionCheck<Q extends { eq: (column: string, value: string | number) => Q }>(
-    query: Q,
+  applyVersionCheck(
+    query: any,
     id?: string,
     version?: number
-  ): Q {
+  ): any {
     if (id && version !== undefined) {
       return query.eq('id', id).eq('version', version);
     }
@@ -65,8 +66,6 @@ export const dbUtils = {
     sessionId: string,
     options: { onConflict?: string; excludeFields?: string[] } = {}
   ): Promise<T> {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { withSession } = require('../supabase');
     const upsertData = this.prepareUpsert(entity as unknown as { version?: number; id?: string }, options.excludeFields);
 
     const upsertOptions: { onConflict?: string } = {};

@@ -22,7 +22,6 @@ export const useIndexedDB = () => {
   const dbRef = useRef<IDBDatabase | null>(null);
   const [isOnline, setIsOnline] = useState(true);
   const [isBackendConnected, setIsBackendConnected] = useState(true);
-  const [syncErrors] = useState<unknown[]>([]);
   const isSyncing = useRef(false);
 
   const checkBackend = useCallback(async () => {
@@ -60,7 +59,9 @@ export const useIndexedDB = () => {
       const db = (event.target as IDBOpenDBRequest).result;
       const oldVersion = event.oldVersion;
 
-      console.log(`IndexedDB Upgrade: ${oldVersion} -> ${DB_VERSION}`);
+      if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+        console.log(`IndexedDB Upgrade: ${oldVersion} -> ${DB_VERSION}`);
+      }
 
       // Basic stores creation and migration
       if (!db.objectStoreNames.contains(STORE_SYNC)) {
@@ -95,7 +96,9 @@ export const useIndexedDB = () => {
 
       // Migration logic for clearing old cache on major version changes
       if (oldVersion > 0 && oldVersion < 4) {
-          console.log(`Migrating to v4+: clearing old cache`);
+          if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
+            console.log(`Migrating to v4+: clearing old cache`);
+          }
           if (db.objectStoreNames.contains(STORE_CACHE)) {
               db.deleteObjectStore(STORE_CACHE);
               const store = db.createObjectStore(STORE_CACHE, { keyPath: 'key' });
@@ -527,7 +530,6 @@ export const useIndexedDB = () => {
     isOnline,
     isBackendConnected,
     checkBackend,
-    syncErrors,
     getSyncErrors
-  }), [addToQueue, getQueue, removeFromQueue, setCache, getCache, processSync, pullData, isOnline, isBackendConnected, checkBackend, syncErrors, getSyncErrors]);
+  }), [addToQueue, getQueue, removeFromQueue, setCache, getCache, processSync, pullData, isOnline, isBackendConnected, checkBackend, getSyncErrors]);
 };
